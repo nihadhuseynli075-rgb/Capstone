@@ -1,0 +1,21 @@
+{
+  "name": "grade9-ai-mock-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Starter structure for an AI-powered Grade 9 mock test generator.",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:api": "npm --workspace apps/api run dev",
+    "build": "npm --workspaces run build",
+    "typecheck": "npm --workspaces run typecheck"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "typescript": "^5.6.0"
+  }
+}
