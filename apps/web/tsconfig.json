@@ -3,7 +3,10 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    // Vite does the bundling. TypeScript is only here to check types, so it
+    // must never emit .js files next to the sources.
+    "noEmit": true
   },
   "include": ["src"]
 }
