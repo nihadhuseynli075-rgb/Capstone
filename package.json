@@ -1,14 +1,15 @@
 {
-  "name": "grade9-ai-mock-tests",
+  "name": "exampeak",
   "version": "0.1.0",
   "private": true,
-  "description": "Starter structure for an AI-powered Grade 9 mock test generator.",
+  "description": "ExamPeak - Grade 9 mock test practice built from past-paper questions.",
   "scripts": {
-    "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev:api\" \"npm run dev:web\"",
     "dev:web": "npm --workspace apps/web run dev",
     "dev:api": "npm --workspace apps/api run dev",
     "build": "npm --workspaces run build",
-    "typecheck": "npm --workspaces run typecheck"
+    "typecheck": "npm --workspaces run typecheck",
+    "smoke": "node scripts/smoke-test.mjs"
   },
   "workspaces": [
     "apps/*",

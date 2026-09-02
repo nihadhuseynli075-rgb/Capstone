@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="ExamPeak">
+  <title>ExamPeak</title>
+  <!--
+    The mark reads two ways: an open book seen head on, and a mountain peak.
+    The notch rising to the centre of the base is both the book's gutter and the
+    valley between two slopes. Icon-only version, sized for a browser tab.
+  -->
+  <rect width="64" height="64" rx="14" fill="#0B3C6E" />
+  <path d="M32 14 L11 47 L32 40 Z" fill="#FFFFFF" />
+  <path d="M32 14 L53 47 L32 40 Z" fill="#4DA3FF" />
+  <path d="M9 47.5 L32 40.5 L55 47.5 L55 51 L32 44 L9 51 Z" fill="#7FB4F0" />
+</svg>
