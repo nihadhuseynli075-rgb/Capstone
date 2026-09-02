@@ -85,3 +85,16 @@ export function fetchAttempt(attemptId: string): Promise<PastAttempt> {
     `/api/tests/attempts/${attemptId}?studentKey=${encodeURIComponent(getStudentKey())}`
   );
 }
+
+/**
+ * Moves attempts taken as a guest onto the signed-in account.
+ *
+ * The signed-in key is filled in by `getStudentKey`, so this only has to say
+ * which guest key to pull across.
+ */
+export function claimGuestHistory(guestKey: string): Promise<{ claimed: number }> {
+  return apiRequest<{ claimed: number }>("/api/tests/claim", {
+    method: "POST",
+    body: { studentKey: getStudentKey(), guestKey }
+  });
+}

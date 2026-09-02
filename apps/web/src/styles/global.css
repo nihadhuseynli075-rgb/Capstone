@@ -6,45 +6,51 @@
  * to flip one attribute on <html>.
  */
 
+/*
+ * Palette taken from the Exampeak logo: the mountain blue (#1287C9) and the
+ * wordmark navy (#0E3A4F). Everything else is derived from those two, so the
+ * app and the artwork cannot drift apart.
+ */
+
 :root {
-  --bg: #f4f8fc;
+  --bg: #f4f9fc;
   --surface: #ffffff;
-  --surface-alt: #eef4fb;
-  --text: #10243b;
-  --muted: #5a7089;
-  --border: #d8e2ee;
-  --brand: #2f80ed;
-  --brand-strong: #0b3c6e;
-  --brand-soft: #e4effc;
+  --surface-alt: #e9f3fa;
+  --text: #0e3a4f;
+  --muted: #5b7d90;
+  --border: #d2e4ef;
+  --brand: #1287c9;
+  --brand-strong: #0e3a4f;
+  --brand-soft: #e1f0fa;
   --success: #1c8a5b;
   --success-soft: #e2f5ec;
   --danger: #c0392b;
   --danger-soft: #fdeceb;
   --warning: #9a6700;
   --warning-soft: #fff6e0;
-  --shadow: 0 1px 2px rgba(16, 36, 59, 0.06), 0 8px 24px rgba(16, 36, 59, 0.06);
+  --shadow: 0 1px 2px rgba(14, 58, 79, 0.06), 0 8px 24px rgba(14, 58, 79, 0.08);
   --radius: 12px;
 
   color-scheme: light;
 }
 
 [data-theme="dark"] {
-  --bg: #0a1626;
-  --surface: #12233a;
-  --surface-alt: #182e49;
-  --text: #e8f0f9;
-  --muted: #93a9c2;
-  --border: #24384f;
-  --brand: #4da3ff;
-  --brand-strong: #4da3ff;
-  --brand-soft: #17304d;
+  --bg: #08202c;
+  --surface: #0f2f3f;
+  --surface-alt: #163d50;
+  --text: #e6f2f8;
+  --muted: #8fadbd;
+  --border: #1f4859;
+  --brand: #3fa9e5;
+  --brand-strong: #3fa9e5;
+  --brand-soft: #14384a;
   --success: #4ade80;
   --success-soft: #14332a;
   --danger: #f87171;
   --danger-soft: #3a1d1d;
   --warning: #fbbf24;
   --warning-soft: #3a2f14;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.4);
 
   color-scheme: dark;
 }

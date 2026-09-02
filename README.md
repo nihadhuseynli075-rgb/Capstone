@@ -27,11 +27,17 @@ dashboard shows a banner, so this is never a silent surprise.
 2. From the Supabase dashboard, **Project settings → API**, copy the project URL
    and the **service role** key into `SUPABASE_URL` and
    `SUPABASE_SERVICE_ROLE_KEY`.
-3. Set `ADMIN_PASSWORD` to something other than the default.
-4. In the Supabase dashboard open **SQL Editor → New query**, paste
+3. Copy the **anon** key into `VITE_SUPABASE_ANON_KEY` and the same project URL
+   into `VITE_SUPABASE_URL`. The browser needs these for sign-in. The anon key
+   is safe to ship; row level security decides what it can reach, and the
+   question bank has no anon policy at all.
+4. Set `ADMIN_PASSWORD` to something other than the default.
+5. In the Supabase dashboard open **SQL Editor → New query**, paste
    [`supabase/migrations/0001_initial_schema.sql`](supabase/migrations/0001_initial_schema.sql)
-   and run it.
-5. Restart the API. `GET /health` should now report `"storageMode": "supabase"`.
+   and run it, then do the same with
+   [`0002_auth_profiles.sql`](supabase/migrations/0002_auth_profiles.sql).
+6. Under **Authentication → Providers**, make sure Email is enabled.
+7. Restart the API. `GET /health` should now report `"storageMode": "supabase"`.
 
 The service role key bypasses row level security, so it stays on the server.
 Nothing in `apps/web` ever reads it, which is why every database call goes
@@ -97,12 +103,13 @@ Built and working:
 - Exam-style test flow: everything revealed only at the end
 - Automatic marking, explanations, per-topic breakdown
 - Test history and a best-result comparison that accounts for difficulty
+- Student accounts: registration, sign-in, and settings for name and password
+- Guest history is moved onto the account the first time someone signs in
+- Site language in English, Russian and Azerbaijani
 - Light and dark mode
 
 Not built yet:
 
-- Student accounts. The browser generates a local key so history works without
-  sign-in; real registration and login through Supabase Auth comes later.
 - Friends and the community question board.
 - AI-generated questions. Everything comes from the question bank for now.
 

@@ -249,3 +249,36 @@ export async function listAttempts(studentKey: string): Promise<AttemptSummary[]
     submittedAt: (row.submitted_at ?? row.created_at) as string
   }));
 }
+
+/**
+ * Reassigns a guest's submitted attempts to a signed-in student.
+ *
+ * Called once when someone who had been practising as a guest creates an
+ * account, so their existing history follows them rather than disappearing.
+ * Only attempts still owned by the guest key move, so replaying the call is
+ * harmless.
+ */
+export async function claimAttempts(guestKey: string, studentKey: string): Promise<number> {
+  if (guestKey === studentKey) return 0;
+
+  if (!supabaseAdmin) {
+    let claimed = 0;
+    for (const attempt of memoryAttempts.values()) {
+      if (attempt.studentKey === guestKey) {
+        attempt.studentKey = studentKey;
+        claimed += 1;
+      }
+    }
+    return claimed;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("test_attempts")
+    .update({ student_key: studentKey })
+    .eq("student_key", guestKey)
+    .select("id");
+
+  if (error) throw new Error(`Failed to move history across: ${error.message}`);
+
+  return (data ?? []).length;
+}

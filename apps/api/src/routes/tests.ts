@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { MockTest, TestResult, TestSettings } from "@grade9/shared";
 import { customLimits, resolveSettings } from "@grade9/shared";
 import {
+  claimAttempts,
   completeAttempt,
   createAttempt,
   getAttempt,
@@ -125,6 +126,15 @@ testsRouter.post("/generate", async (request, response, next) => {
   }
 });
 
+/**
+ * Slack allowed on top of the time limit before a submission is refused.
+ *
+ * Covers a slow network, a clock that is slightly out, and the second or two
+ * between the countdown hitting zero and the request arriving. Anything beyond
+ * this is not lag, it is a test that was left open.
+ */
+const SUBMIT_GRACE_SECONDS = 60;
+
 const submitSchema = z.object({
   studentKey: studentKeySchema,
   timeTakenSeconds: z.number().int().min(0).max(60 * 60 * 6),
@@ -161,6 +171,27 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
       return response.status(409).json({ message: "That test has already been submitted." });
     }
 
+    // The countdown in the browser is a convenience, not a control: a student
+    // can pause it, change the clock or simply come back tomorrow. The server
+    // holds the only figure that matters, measured from when the test was
+    // generated.
+    const elapsedSeconds = Math.max(
+      0,
+      Math.round((Date.now() - new Date(attempt.createdAt).getTime()) / 1000)
+    );
+
+    const limitMinutes = attempt.settings.timeLimitMinutes;
+
+    if (limitMinutes !== null && elapsedSeconds > limitMinutes * 60 + SUBMIT_GRACE_SECONDS) {
+      return response.status(409).json({
+        message:
+          "The time limit for this test ran out, so it can no longer be submitted. Start a new test to try again."
+      });
+    }
+
+    // Never record less time than actually passed, whatever the browser claims.
+    const timeTakenSeconds = Math.min(parsed.data.timeTakenSeconds, elapsedSeconds);
+
     const marked = markAttempt(attempt.questions, parsed.data.answers);
 
     // Read history before saving, so this attempt is not compared against itself.
@@ -171,7 +202,7 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
       score: marked.score,
       totalQuestions: marked.totalQuestions,
       percentage: marked.percentage,
-      timeTakenSeconds: parsed.data.timeTakenSeconds,
+      timeTakenSeconds,
       answers: marked.answers
     });
 
@@ -182,7 +213,7 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
       percentage: marked.percentage,
       correctAnswers: marked.correctAnswers,
       incorrectAnswers: marked.incorrectAnswers,
-      timeTakenSeconds: parsed.data.timeTakenSeconds,
+      timeTakenSeconds,
       topicBreakdown: marked.topicBreakdown,
       reviews: marked.reviews,
       comparison: compareToPrevious(
@@ -196,6 +227,33 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
     };
 
     response.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Moves a guest's attempts onto a signed-in account.
+ *
+ * Someone can practise before making an account, so their tests are stored
+ * against a key their browser generated. This pulls those across the first time
+ * they sign in, rather than letting the history look wiped.
+ *
+ * Anyone holding a guest key can claim it, which is the same trust level the
+ * rest of the student endpoints already run on: the key is the credential.
+ */
+testsRouter.post("/claim", async (request, response, next) => {
+  const parsed = z
+    .object({ studentKey: studentKeySchema, guestKey: studentKeySchema })
+    .safeParse(request.body);
+
+  if (!parsed.success) {
+    return response.status(400).json({ message: "That request is not valid." });
+  }
+
+  try {
+    const claimed = await claimAttempts(parsed.data.guestKey, parsed.data.studentKey);
+    response.json({ claimed });
   } catch (error) {
     next(error);
   }
