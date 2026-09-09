@@ -7,11 +7,18 @@ put a couple of real questions into it.
 
 ## Nihad
 
-- [ ] **Two logo files.** One icon only (just the book/mountain mark), one with
-      "ExamPeak" underneath. The icon-only version is the one a browser tab can
-      actually render, since text disappears at that size. Placeholder versions
-      are already in the app at `apps/web/public/logo-mark.svg` and
-      `logo-wordmark.svg` - replace them with the final artwork.
+- [x] **Two logo files.** Delivered on 9 September: the icon on its own, the
+      icon with "Exampeak" beside it, and the icon with the name underneath.
+      All three are in the app.
+- [ ] **The logo as vector files, if they exist.** The artwork arrived as
+      images, so the versions in the app are traced from them by hand. They are
+      close but not exact - the channels on the right face and the curl at the
+      summit are eyeballed. If the designer has the original `.svg` or `.ai`,
+      dropping it in is a straight swap of
+      `apps/web/public/logo-mark.svg` and `logo-wordmark.svg`, plus the paths in
+      `apps/web/src/lib/brand.tsx`, which is where the app draws it inline.
+- [ ] **The wordmark's typeface.** The name is set in the app's own font rather
+      than whatever the artwork uses. Worth naming it so the two match.
 - [ ] **Past-paper questions in a spreadsheet.** The more the better, but even
       five is enough to test with. Mostly text-only questions; one question with
       a picture is plenty for now to check that path works. Column format is in

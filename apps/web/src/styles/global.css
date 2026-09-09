@@ -7,43 +7,45 @@
  */
 
 /*
- * Palette taken from the Exampeak logo: the mountain blue (#1287C9) and the
- * wordmark navy (#0E3A4F). Everything else is derived from those two, so the
- * app and the artwork cannot drift apart.
+ * Palette taken from the Exampeak logo: the peak blue (#0C82C8) and the
+ * wordmark navy (#0A3A58). Everything else is derived from those two, so the
+ * app and the artwork cannot drift apart. The neutrals carry the navy's hue
+ * rather than being flat greys, which is what keeps the whole page reading as
+ * one family with the mark.
  */
 
 :root {
-  --bg: #f4f9fc;
+  --bg: #f4f8fc;
   --surface: #ffffff;
-  --surface-alt: #e9f3fa;
-  --text: #0e3a4f;
-  --muted: #5b7d90;
-  --border: #d2e4ef;
-  --brand: #1287c9;
-  --brand-strong: #0e3a4f;
-  --brand-soft: #e1f0fa;
+  --surface-alt: #e8f2fa;
+  --text: #0a3a58;
+  --muted: #5a7893;
+  --border: #d1e2ef;
+  --brand: #0c82c8;
+  --brand-strong: #0a3a58;
+  --brand-soft: #e0eefa;
   --success: #1c8a5b;
   --success-soft: #e2f5ec;
   --danger: #c0392b;
   --danger-soft: #fdeceb;
   --warning: #9a6700;
   --warning-soft: #fff6e0;
-  --shadow: 0 1px 2px rgba(14, 58, 79, 0.06), 0 8px 24px rgba(14, 58, 79, 0.08);
+  --shadow: 0 1px 2px rgba(10, 58, 88, 0.06), 0 8px 24px rgba(10, 58, 88, 0.08);
   --radius: 12px;
 
   color-scheme: light;
 }
 
 [data-theme="dark"] {
-  --bg: #08202c;
-  --surface: #0f2f3f;
-  --surface-alt: #163d50;
-  --text: #e6f2f8;
-  --muted: #8fadbd;
-  --border: #1f4859;
-  --brand: #3fa9e5;
-  --brand-strong: #3fa9e5;
-  --brand-soft: #14384a;
+  --bg: #07202f;
+  --surface: #0d2e44;
+  --surface-alt: #143b55;
+  --text: #e4f1fa;
+  --muted: #8dabc4;
+  --border: #1d465f;
+  --brand: #3aa6e6;
+  --brand-strong: #3aa6e6;
+  --brand-soft: #123650;
   --success: #4ade80;
   --success-soft: #14332a;
   --danger: #f87171;
@@ -131,15 +133,28 @@ code {
   gap: 10px;
 }
 
+/* Mark above the name, for a centred panel with height to spare. */
+.wordmark-stacked {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/*
+ * The name is set in one colour, navy, exactly as the artwork does it. The
+ * colour comes from the token so it lifts to the light blue in dark mode --
+ * navy on a dark ground would disappear.
+ */
 .wordmark-text {
   font-size: 1.3rem;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   color: var(--brand-strong);
 }
 
-.wordmark-text span {
-  color: var(--brand);
+.wordmark-stacked .wordmark-text {
+  font-size: 1.6rem;
 }
 
 .app-nav {

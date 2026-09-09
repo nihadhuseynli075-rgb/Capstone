@@ -474,3 +474,11 @@
     min-height: 44px;
   }
 }
+
+/*
+ * The lockup on the auth panel is the reversed one, so the name follows the
+ * panel's own white rather than the navy it uses everywhere else.
+ */
+.auth-aside .wordmark-text {
+  color: inherit;
+}
