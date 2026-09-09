@@ -59,6 +59,7 @@ export function toExamQuestion(question: BankQuestion): ExamQuestion {
     type: question.type,
     prompt: question.prompt,
     options: question.options,
+    marks: question.marks,
     imageUrl: question.imageUrl
   };
 }

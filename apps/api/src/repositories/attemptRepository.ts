@@ -18,10 +18,14 @@ export interface AttemptQuestion {
   prompt: string;
   options: string[];
   correctAnswer: string;
+  /** What the question was worth when it was served, not what it is worth now. */
+  marks: number;
   explanation: string;
   imageUrl: string | null;
   studentAnswer: string | null;
   isCorrect: boolean | null;
+  /** Marks awarded. Null until the attempt is submitted. */
+  score: number | null;
 }
 
 export interface StoredAttempt {
@@ -30,6 +34,7 @@ export interface StoredAttempt {
   settings: TestSettings;
   questions: AttemptQuestion[];
   score: number | null;
+  totalMarks: number | null;
   totalQuestions: number | null;
   percentage: number | null;
   timeTakenSeconds: number | null;
@@ -83,6 +88,7 @@ export async function createAttempt(input: {
     settings: input.settings,
     questions: input.questions,
     score: null,
+    totalMarks: input.questions.reduce((sum, question) => sum + question.marks, 0),
     totalQuestions: input.questions.length,
     percentage: null,
     timeTakenSeconds: null,
@@ -108,7 +114,8 @@ export async function createAttempt(input: {
       difficulty_mode: input.settings.difficultyMode,
       question_count: input.settings.questionCount,
       time_limit_minutes: input.settings.timeLimitMinutes,
-      total_questions: input.questions.length
+      total_questions: input.questions.length,
+      total_marks: attempt.totalMarks
     })
     .select("id, created_at")
     .single();
@@ -130,6 +137,7 @@ export async function createAttempt(input: {
       prompt: question.prompt,
       options: question.options,
       correct_answer: question.correctAnswer,
+      marks: question.marks,
       explanation: question.explanation,
       image_url: question.imageUrl
     }))
@@ -177,13 +185,16 @@ export async function getAttempt(id: string): Promise<StoredAttempt | null> {
         prompt: row.prompt as string,
         options: Array.isArray(row.options) ? (row.options as string[]) : [],
         correctAnswer: row.correct_answer as string,
+        marks: (row.marks ?? 1) as number,
         explanation: (row.explanation ?? "") as string,
         imageUrl: (row.image_url ?? null) as string | null,
         studentAnswer: (row.student_answer ?? null) as string | null,
-        isCorrect: (row.is_correct ?? null) as boolean | null
+        isCorrect: (row.is_correct ?? null) as boolean | null,
+        score: (row.score ?? null) as number | null
       }))
       .sort((a, b) => a.position - b.position),
     score: (data.score ?? null) as number | null,
+    totalMarks: (data.total_marks ?? null) as number | null,
     totalQuestions: (data.total_questions ?? null) as number | null,
     percentage: data.percentage === null || data.percentage === undefined ? null : Number(data.percentage),
     timeTakenSeconds: (data.time_taken_seconds ?? null) as number | null,
@@ -195,10 +206,11 @@ export async function getAttempt(id: string): Promise<StoredAttempt | null> {
 export async function completeAttempt(input: {
   attemptId: string;
   score: number;
+  totalMarks: number;
   totalQuestions: number;
   percentage: number;
   timeTakenSeconds: number;
-  answers: Array<{ position: number; studentAnswer: string; isCorrect: boolean }>;
+  answers: Array<{ position: number; studentAnswer: string; isCorrect: boolean; score: number }>;
 }): Promise<void> {
   const submittedAt = new Date().toISOString();
 
@@ -207,6 +219,7 @@ export async function completeAttempt(input: {
     if (!attempt) return;
 
     attempt.score = input.score;
+    attempt.totalMarks = input.totalMarks;
     attempt.totalQuestions = input.totalQuestions;
     attempt.percentage = input.percentage;
     attempt.timeTakenSeconds = input.timeTakenSeconds;
@@ -217,6 +230,7 @@ export async function completeAttempt(input: {
       if (question) {
         question.studentAnswer = answer.studentAnswer;
         question.isCorrect = answer.isCorrect;
+        question.score = answer.score;
       }
     }
     return;
@@ -226,6 +240,7 @@ export async function completeAttempt(input: {
     .from("test_attempts")
     .update({
       score: input.score,
+      total_marks: input.totalMarks,
       total_questions: input.totalQuestions,
       percentage: input.percentage,
       time_taken_seconds: input.timeTakenSeconds,
@@ -238,7 +253,11 @@ export async function completeAttempt(input: {
   for (const answer of input.answers) {
     const { error: answerError } = await supabaseAdmin
       .from("attempt_questions")
-      .update({ student_answer: answer.studentAnswer, is_correct: answer.isCorrect })
+      .update({
+        student_answer: answer.studentAnswer,
+        is_correct: answer.isCorrect,
+        score: answer.score
+      })
       .eq("attempt_id", input.attemptId)
       .eq("position", answer.position);
 
@@ -258,6 +277,7 @@ export async function listAttempts(studentKey: string): Promise<AttemptSummary[]
         topicIds: attempt.settings.topicIds,
         difficultyMode: attempt.settings.difficultyMode,
         score: attempt.score ?? 0,
+        totalMarks: attempt.totalMarks ?? attempt.totalQuestions ?? 0,
         totalQuestions: attempt.totalQuestions ?? 0,
         percentage: attempt.percentage ?? 0,
         timeTakenSeconds: attempt.timeTakenSeconds ?? 0,
@@ -280,6 +300,9 @@ export async function listAttempts(studentKey: string): Promise<AttemptSummary[]
     topicIds: (row.topic_ids ?? []) as string[],
     difficultyMode: row.difficulty_mode as DifficultyMode,
     score: (row.score ?? 0) as number,
+    // Attempts recorded before marks existed were all one-mark questions, so
+    // the question count is exactly the marks that were available.
+    totalMarks: (row.total_marks ?? row.total_questions ?? 0) as number,
     totalQuestions: (row.total_questions ?? 0) as number,
     percentage: Number(row.percentage ?? 0),
     timeTakenSeconds: (row.time_taken_seconds ?? 0) as number,

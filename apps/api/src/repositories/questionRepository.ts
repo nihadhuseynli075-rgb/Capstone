@@ -19,6 +19,7 @@ interface QuestionRow {
   prompt: string;
   options: unknown;
   correct_answer: string;
+  marks: number | null;
   explanation: string | null;
   image_url: string | null;
   paper_year: number | null;
@@ -37,6 +38,8 @@ function toQuestion(row: QuestionRow): BankQuestion {
     prompt: row.prompt,
     options: Array.isArray(row.options) ? (row.options as string[]) : [],
     correctAnswer: row.correct_answer,
+    // Rows entered before marks existed read back as one-mark questions.
+    marks: row.marks ?? 1,
     explanation: row.explanation ?? "",
     imageUrl: row.image_url,
     paperYear: row.paper_year,
@@ -55,6 +58,7 @@ function toRow(draft: QuestionDraft) {
     prompt: draft.prompt,
     options: draft.options,
     correct_answer: draft.correctAnswer,
+    marks: draft.marks,
     explanation: draft.explanation,
     image_url: draft.imageUrl,
     paper_year: draft.paperYear,

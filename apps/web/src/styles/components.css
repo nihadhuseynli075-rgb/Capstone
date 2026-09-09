@@ -482,3 +482,10 @@
 .auth-aside .wordmark-text {
   color: inherit;
 }
+
+/* A note under an admin form field, e.g. what "marks" means. */
+.field-hint {
+  font-weight: 400;
+  font-size: 0.82rem;
+  color: var(--muted);
+}

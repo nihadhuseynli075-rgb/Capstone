@@ -93,7 +93,7 @@ export function HistoryPage() {
       <section className="panel best-panel">
         <p className="eyebrow">Best test so far</p>
         <p className="best-score">
-          {best.score}/{best.totalQuestions}
+          {best.score}/{best.totalMarks}
           <span className="best-percent">{best.percentage}%</span>
         </p>
         <p className="best-meta">
@@ -114,7 +114,7 @@ export function HistoryPage() {
                 <span className="attempt-subject">{subjectName(attempt.subjectId)}</span>
                 <span className="attempt-mode">{attempt.difficultyMode}</span>
                 <span className="attempt-score">
-                  {attempt.score}/{attempt.totalQuestions}
+                  {attempt.score}/{attempt.totalMarks}
                 </span>
                 <span className="attempt-percent">{attempt.percentage}%</span>
                 <span className="attempt-date">{formatDate(attempt.submittedAt)}</span>

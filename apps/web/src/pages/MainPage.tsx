@@ -73,7 +73,7 @@ export function MainPage() {
         </div>
         <div className="stat">
           <div className="stat-value">
-            {best ? `${best.score}/${best.totalQuestions}` : t("main.noTests")}
+            {best ? `${best.score}/${best.totalMarks}` : t("main.noTests")}
           </div>
           <div className="stat-label">{t("main.bestScore")}</div>
         </div>

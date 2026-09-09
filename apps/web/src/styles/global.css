@@ -781,6 +781,30 @@ button:focus-visible {
   color: var(--muted);
 }
 
+/* Says what the big number is out of, so "5/7" is not read as questions. */
+.score-unit {
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* What a question was worth, alongside its Correct or Wrong badge. */
+.review-marks {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The same figure during the test, the way a paper prints "[3 marks]". */
+.question-marks {
+  font-weight: 600;
+  color: var(--brand);
+  /* The meta line capitalises topic and difficulty; "3 Marks" is not a name. */
+  text-transform: none;
+}
+
 .score-percent {
   color: var(--muted);
   font-weight: 600;

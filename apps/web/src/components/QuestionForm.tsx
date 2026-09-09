@@ -40,6 +40,7 @@ export function QuestionForm({
   const [shortAnswer, setShortAnswer] = useState("");
   const [explanation, setExplanation] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [marks, setMarks] = useState("1");
   const [paperYear, setPaperYear] = useState("");
   const [source, setSource] = useState("");
 
@@ -59,6 +60,7 @@ export function QuestionForm({
       setShortAnswer("");
       setExplanation("");
       setImageUrl(null);
+      setMarks("1");
       setPaperYear("");
       setSource("");
       return;
@@ -78,6 +80,7 @@ export function QuestionForm({
     setShortAnswer(initial.type === "short-answer" ? initial.correctAnswer : "");
     setExplanation(initial.explanation);
     setImageUrl(initial.imageUrl);
+    setMarks(String(initial.marks));
     setPaperYear(initial.paperYear === null ? "" : String(initial.paperYear));
     setSource(initial.source ?? "");
   }, [initial]);
@@ -135,6 +138,13 @@ export function QuestionForm({
       return;
     }
 
+    const markValue = Number.parseInt(marks, 10);
+
+    if (!Number.isFinite(markValue) || markValue < 1) {
+      setFormError("A question has to be worth at least one mark.");
+      return;
+    }
+
     const year = Number.parseInt(paperYear, 10);
 
     onSubmit({
@@ -148,6 +158,7 @@ export function QuestionForm({
         type === "multiple-choice" ? (options[correctIndex] ?? "").trim() : shortAnswer.trim(),
       explanation: explanation.trim(),
       imageUrl,
+      marks: markValue,
       paperYear: Number.isFinite(year) ? year : null,
       source: source.trim() || null
     });
@@ -261,6 +272,19 @@ export function QuestionForm({
       </label>
 
       <div className="form-row">
+        <label>
+          Marks
+          <input
+            type="number"
+            min="1"
+            max="100"
+            value={marks}
+            onChange={(event) => setMarks(event.target.value)}
+            placeholder="1"
+          />
+          <span className="field-hint">What the paper says the question is worth.</span>
+        </label>
+
         <label>
           Paper year
           <input

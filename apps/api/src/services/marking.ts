@@ -26,14 +26,17 @@ export function isAnswerCorrect(question: AttemptQuestion, answer: string): bool
 }
 
 export interface MarkedAttempt {
+  /** Marks earned across the paper. */
   score: number;
+  /** Marks available across the paper. */
+  totalMarks: number;
   totalQuestions: number;
   percentage: number;
   correctAnswers: number;
   incorrectAnswers: number;
   reviews: QuestionReview[];
   topicBreakdown: TopicPerformance[];
-  answers: Array<{ position: number; studentAnswer: string; isCorrect: boolean }>;
+  answers: Array<{ position: number; studentAnswer: string; isCorrect: boolean; score: number }>;
 }
 
 export function markAttempt(questions: AttemptQuestion[], submitted: SubmittedAnswer[]): MarkedAttempt {
@@ -43,12 +46,23 @@ export function markAttempt(questions: AttemptQuestion[], submitted: SubmittedAn
   const answers: MarkedAttempt["answers"] = [];
   const topics = new Map<string, TopicPerformance>();
   let correct = 0;
+  let earned = 0;
+  let available = 0;
 
   for (const question of questions) {
     // Attempt questions are keyed by their bank id; unanswered means blank.
     const studentAnswer = answerByQuestion.get(question.questionId ?? "") ?? "";
     const isCorrect = isAnswerCorrect(question, studentAnswer);
+
+    // Marking is still all-or-nothing per question: an answer either matches or
+    // it does not. What changed is what a match is worth. The marks come off the
+    // attempt rather than the bank, so re-marking a question later cannot alter
+    // a result already recorded.
+    const score = isCorrect ? question.marks : 0;
+
     if (isCorrect) correct += 1;
+    earned += score;
+    available += question.marks;
 
     reviews.push({
       questionId: question.questionId ?? `position-${question.position}`,
@@ -59,26 +73,32 @@ export function markAttempt(questions: AttemptQuestion[], submitted: SubmittedAn
       studentAnswer,
       correctAnswer: question.correctAnswer,
       isCorrect,
+      score,
+      marks: question.marks,
       explanation: question.explanation
     });
 
-    answers.push({ position: question.position, studentAnswer, isCorrect });
+    answers.push({ position: question.position, studentAnswer, isCorrect, score });
 
     const topic = topics.get(question.topicId) ?? {
       topicId: question.topicId,
-      correctAnswers: 0,
-      totalQuestions: 0
+      score: 0,
+      marks: 0
     };
-    topic.totalQuestions += 1;
-    if (isCorrect) topic.correctAnswers += 1;
+    topic.marks += question.marks;
+    topic.score += score;
     topics.set(question.topicId, topic);
   }
 
   const totalQuestions = questions.length;
-  const percentage = totalQuestions === 0 ? 0 : Math.round((correct / totalQuestions) * 1000) / 10;
+  // Out of the marks available, not the number of questions. A paper of ten
+  // one-mark questions gives the same figure as before; one with a three-mark
+  // question in it does not, which is the point.
+  const percentage = available === 0 ? 0 : Math.round((earned / available) * 1000) / 10;
 
   return {
-    score: correct,
+    score: earned,
+    totalMarks: available,
     totalQuestions,
     percentage,
     correctAnswers: correct,
@@ -111,6 +131,7 @@ export function compareToPrevious(
     isPersonalBest: attemptScoreValue(current) >= attemptScoreValue(best),
     previousBest: {
       score: best.score,
+      totalMarks: best.totalMarks,
       totalQuestions: best.totalQuestions,
       percentage: best.percentage,
       difficultyMode: best.difficultyMode,

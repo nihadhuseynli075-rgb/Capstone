@@ -201,6 +201,10 @@ export function ExamPage() {
       <section className="question-card">
         <p className="question-meta">
           {topicName(question.subjectId, question.topicId)} - {question.difficulty}
+          {" - "}
+          <span className="question-marks">
+            {question.marks} {question.marks === 1 ? "mark" : "marks"}
+          </span>
         </p>
 
         <h2 className="question-prompt">{question.prompt}</h2>
