@@ -39,6 +39,39 @@ export interface StoredAttempt {
 
 const memoryAttempts = new Map<string, StoredAttempt>();
 
+/**
+ * The account an attempt belongs to, if it belongs to one at all.
+ *
+ * `studentKey` is an auth user id once somebody has signed in, and a key their
+ * browser made up before that. Only the first of those is a real account, and
+ * the foreign key on `student_id` would reject the second, so it has to be
+ * looked up rather than assumed.
+ *
+ * Guests are the common case early on and cost one lookup that finds nothing;
+ * this runs once when a test is generated, not on every request.
+ */
+async function findAccountId(studentKey: string): Promise<string | null> {
+  if (!supabaseAdmin) return null;
+
+  // Guest keys are uuids too, so this only rules out the older non-uuid keys.
+  // The profiles lookup is what actually decides.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studentKey)) {
+    return null;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("id")
+    .eq("id", studentKey)
+    .maybeSingle();
+
+  // Not being able to link an attempt is not a reason to refuse to start the
+  // test. `student_key` still identifies the student either way.
+  if (error) return null;
+
+  return data ? (data.id as string) : null;
+}
+
 export async function createAttempt(input: {
   studentKey: string;
   settings: TestSettings;
@@ -66,6 +99,10 @@ export async function createAttempt(input: {
     .from("test_attempts")
     .insert({
       student_key: input.studentKey,
+      // Set when the student is signed in, so the attempt is genuinely tied to
+      // the account: it cascades if the account is deleted, and the row level
+      // security policy written against this column can match.
+      student_id: await findAccountId(input.studentKey),
       subject_id: input.settings.subjectId,
       topic_ids: input.settings.topicIds,
       difficulty_mode: input.settings.difficultyMode,
@@ -274,7 +311,14 @@ export async function claimAttempts(guestKey: string, studentKey: string): Promi
 
   const { data, error } = await supabaseAdmin
     .from("test_attempts")
-    .update({ student_key: studentKey })
+    .update({
+      student_key: studentKey,
+      // These attempts were sat as a guest, so they were recorded with no
+      // account against them. Moving them across has to set the link too, or
+      // the history would follow the student while the rows still claimed to
+      // belong to nobody.
+      student_id: await findAccountId(studentKey)
+    })
     .eq("student_key", guestKey)
     .select("id");
 
