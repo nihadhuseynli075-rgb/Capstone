@@ -35,3 +35,17 @@ export function getStudentKey(): string {
 export function hasGuestHistory(): boolean {
   return window.localStorage.getItem(STORAGE_KEY) !== null;
 }
+
+/**
+ * Retires a guest key once its attempts have been moved onto an account.
+ *
+ * The old key now owns nothing, and keeping it would mean a later guest session
+ * on this browser reuses a key that has already been claimed, so its new
+ * attempts would never be moved across. A fresh key keeps each guest spell
+ * separate and claimable in its own right.
+ */
+export function resetGuestKey(): string {
+  const key = crypto.randomUUID();
+  window.localStorage.setItem(STORAGE_KEY, key);
+  return key;
+}

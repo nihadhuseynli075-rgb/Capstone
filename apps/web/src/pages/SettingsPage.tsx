@@ -3,7 +3,7 @@ import { useAuth } from "../features/auth/AuthContext";
 import { Field, PasswordField } from "../features/auth/AuthLayout";
 import { validateName, validatePassword } from "../features/auth/authValidation";
 import { languages, useLanguage, type Language } from "../lib/i18n";
-import { applyTheme, getStoredTheme, type Theme } from "../lib/theme";
+import { useTheme } from "../lib/theme";
 
 /**
  * Account and appearance settings.
@@ -18,11 +18,8 @@ export function SettingsPage() {
   const { language, setLanguage } = useLanguage();
   const { user, configured, updateName, updatePassword } = useAuth();
 
-  const [theme, setTheme] = useState<Theme>(() => getStoredTheme());
-
-  useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
+  // Shared with the header toggle, so changing it here updates that too.
+  const [theme, setTheme] = useTheme();
 
   return (
     <div className="stack">

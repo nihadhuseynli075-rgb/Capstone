@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { AttemptComparison, QuestionReview, TopicPerformance } from "@grade9/shared";
 import { subjectName, topicName } from "@grade9/shared";
 import { navigate } from "../app/router";
+import { useAuth } from "../features/auth/AuthContext";
 import { loadLastResult } from "../lib/examSession";
 import { fetchAttempt } from "../services/testsApi";
 
@@ -46,8 +47,14 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
   const [view, setView] = useState<ResultView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showOnlyMistakes, setShowOnlyMistakes] = useState(false);
+  const { ready, user } = useAuth();
 
   useEffect(() => {
+    // Reopening a past attempt is checked against the student key, so asking
+    // before the session has loaded sends the guest key and comes back as
+    // "that test belongs to a different student".
+    if (attemptId && !ready) return;
+
     if (attemptId) {
       fetchAttempt(attemptId)
         .then((attempt) =>
@@ -75,7 +82,7 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
 
     setView({
       attemptId: stored.attemptId,
-      subjectId: null,
+      subjectId: stored.subjectId ?? null,
       score: stored.score,
       totalQuestions: stored.totalQuestions,
       percentage: stored.percentage,
@@ -84,7 +91,7 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
       reviews: stored.reviews,
       comparison: stored.comparison
     });
-  }, [attemptId]);
+  }, [attemptId, ready, user?.id]);
 
   // Keep the original question number attached, so filtering to mistakes still
   // says "Q4" rather than renumbering what is left.

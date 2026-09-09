@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { AttemptSummary } from "@grade9/shared";
 import { attemptScoreValue, subjectName } from "@grade9/shared";
 import { navigate } from "../app/router";
+import { useAuth } from "../features/auth/AuthContext";
 import { fetchHistory } from "../services/testsApi";
 
 function formatDate(value: string): string {
@@ -18,12 +19,30 @@ function formatDate(value: string): string {
 export function HistoryPage() {
   const [attempts, setAttempts] = useState<AttemptSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { ready, user } = useAuth();
 
+  // Waits for the stored session before asking, and asks again if the account
+  // changes. Fetching on mount alone sent the guest key while Supabase was
+  // still restoring the session, so opening this page directly while signed in
+  // showed an empty history that only a refresh fixed.
   useEffect(() => {
+    if (!ready) return;
+
+    let active = true;
+    setError(null);
+
     fetchHistory()
-      .then(setAttempts)
-      .catch((cause: Error) => setError(cause.message));
-  }, []);
+      .then((rows) => {
+        if (active) setAttempts(rows);
+      })
+      .catch((cause: Error) => {
+        if (active) setError(cause.message);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [ready, user?.id]);
 
   if (error) {
     return (

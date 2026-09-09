@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase } from "../../lib/supabaseClient";
-import { setSignedInUserId } from "../../lib/studentKey";
+import { resetGuestKey, setSignedInUserId } from "../../lib/studentKey";
 import { authErrorMessage } from "./authErrors";
 
 export interface AuthUser {
@@ -99,6 +99,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
+
+    // Start a fresh guest identity. Tests taken from here belong to whoever is
+    // using the browser now, not the account just left, and the old key has
+    // already been marked as claimed - reusing it would mean this next batch of
+    // guest attempts was never moved across on the following sign-in.
+    resetGuestKey();
   }, []);
 
   const updateName = useCallback(async (fullName: string) => {

@@ -43,7 +43,25 @@ export async function apiRequest<T>(
   }
 
   const text = await response.text();
-  const payload = text.length > 0 ? (JSON.parse(text) as Record<string, unknown>) : {};
+
+  // Anything sitting in front of the API - a proxy, a tunnel, a host's own
+  // error page - can answer with HTML. Parsing that throws a SyntaxError which
+  // escapes the ApiError wrapper entirely, so the student is shown
+  // "Unexpected token '<'" instead of something they can act on.
+  let payload: Record<string, unknown> = {};
+
+  if (text.length > 0) {
+    try {
+      payload = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      throw new ApiError(
+        response.ok
+          ? "The API replied with something this app could not read."
+          : `Request failed (${response.status}).`,
+        response.status
+      );
+    }
+  }
 
   if (!response.ok) {
     throw new ApiError(

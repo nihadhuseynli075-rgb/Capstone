@@ -23,6 +23,12 @@ export function ExamPage() {
   // Auto-submit and a manual click can race; this makes sure only one wins.
   const submittedRef = useRef(false);
 
+  // The countdown fires once when it reaches zero and then leaves it alone.
+  // Without this the timer retries the same failing request on every tick, so a
+  // test the server will not accept turns into a request a second, for as long
+  // as the page is left open. One attempt, then a button.
+  const autoSubmitRef = useRef(false);
+
   useEffect(() => {
     const stored = loadActiveTest();
     if (!stored) {
@@ -55,7 +61,7 @@ export function ExamPage() {
 
       try {
         const result = await submitTest(active.test.id, payload, timeTakenSeconds);
-        saveLastResult(result);
+        saveLastResult({ ...result, subjectId: active.test.settings.subjectId });
         clearActiveTest();
         navigate("/results");
       } catch (cause) {
@@ -81,10 +87,32 @@ export function ExamPage() {
     return () => window.clearInterval(interval);
   }, [deadline]);
 
+  // A hidden tab has its timers throttled to about once a minute, and can have
+  // them suspended altogether. The deadline can therefore pass without the
+  // interval noticing, and the paper arrives late enough for the server to
+  // refuse it. Re-reading the clock the instant the tab is looked at again
+  // sends it as soon as it possibly can be.
   useEffect(() => {
-    if (secondsLeft !== null && secondsLeft <= 0 && !submittedRef.current) {
-      void handleSubmit("time-up");
+    if (deadline === null) return;
+
+    function syncClock() {
+      if (!document.hidden) setNow(Date.now());
     }
+
+    document.addEventListener("visibilitychange", syncClock);
+    window.addEventListener("focus", syncClock);
+    return () => {
+      document.removeEventListener("visibilitychange", syncClock);
+      window.removeEventListener("focus", syncClock);
+    };
+  }, [deadline]);
+
+  useEffect(() => {
+    if (secondsLeft === null || secondsLeft > 0) return;
+    if (autoSubmitRef.current || submittedRef.current) return;
+
+    autoSubmitRef.current = true;
+    void handleSubmit("time-up");
   }, [secondsLeft, handleSubmit]);
 
   // Catch a tab close or a browser back mid-test.
@@ -185,7 +213,10 @@ export function ExamPage() {
           <div className="option-list">
             {question.options.map((option, index) => (
               <label
-                key={option}
+                // Keyed by position, not text: two options that read the same
+                // are a duplicate React key, and the list stops re-rendering
+                // reliably when the student moves between questions.
+                key={`${question.id}-${index}`}
                 className={`option ${answers[question.id] === option ? "selected" : ""}`}
               >
                 <input
@@ -213,7 +244,22 @@ export function ExamPage() {
         )}
       </section>
 
-      {error && <p className="error-banner">{error}</p>}
+      {error && (
+        <div className="error-banner exam-error" role="alert">
+          <span>{error}</span>
+          {/* The only way back from a failed send. Without it a student whose
+              time ran out on question three is stranded: the timer has had its
+              one attempt and the finish button only appears on the last page. */}
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => void handleSubmit("manual")}
+            disabled={submitting}
+          >
+            {submitting ? "Sending..." : "Try sending again"}
+          </button>
+        </div>
+      )}
 
       <div className="exam-actions">
         <button

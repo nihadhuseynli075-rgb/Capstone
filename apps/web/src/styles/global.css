@@ -717,6 +717,15 @@ button:focus-visible {
   flex-wrap: wrap;
 }
 
+/* The banner shown when a submission fails, with its retry button alongside. */
+.exam-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 /* --------------------------------------------------------------- results */
 
 .score-hero {
