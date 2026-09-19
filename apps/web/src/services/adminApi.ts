@@ -29,7 +29,11 @@ export async function fetchQuestions(filters: {
   subject?: string;
   difficulty?: string;
   search?: string;
-}): Promise<{ questions: BankQuestion[]; storageMode: "supabase" | "memory" }> {
+}): Promise<{
+  questions: BankQuestion[];
+  storageMode: "supabase" | "memory";
+  usingDefaultPassword: boolean;
+}> {
   const params = new URLSearchParams();
   if (filters.subject) params.set("subject", filters.subject);
   if (filters.difficulty) params.set("difficulty", filters.difficulty);

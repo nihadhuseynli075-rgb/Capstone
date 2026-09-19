@@ -81,9 +81,12 @@ export function MainPage() {
         </div>
 
         <div className="stat">
-          <div className="stat-value">
+          {/* A score is a number and is set like one. "No tests yet" is a
+              sentence, and at the same size it wrapped across three lines and
+              read as the headline of the page. */}
+          <div className={`stat-value ${best ? "" : "stat-value-empty"}`}>
             {best
-              ? `${best.score}/${best.totalQuestions}`
+              ? `${best.score}/${best.totalMarks}`
               : t("main.noTests")}
           </div>
 

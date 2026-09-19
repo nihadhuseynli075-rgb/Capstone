@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { BankQuestion, Difficulty, QuestionDraft, QuestionType } from "@grade9/shared";
-import { subjects } from "@grade9/shared";
+import { markLimits, subjects } from "@grade9/shared";
 import { uploadQuestionImage } from "../services/adminApi";
 
 const OPTION_SLOTS = 4;
@@ -138,10 +138,12 @@ export function QuestionForm({
       return;
     }
 
-    const markValue = Number.parseInt(marks, 10);
+    const markValue = Number(marks);
 
-    if (!Number.isFinite(markValue) || markValue < 1) {
-      setFormError("A question has to be worth at least one mark.");
+    if (!Number.isInteger(markValue) || markValue < markLimits.min || markValue > markLimits.max) {
+      setFormError(
+        `Marks has to be a whole number between ${markLimits.min} and ${markLimits.max}.`
+      );
       return;
     }
 
@@ -276,8 +278,8 @@ export function QuestionForm({
           Marks
           <input
             type="number"
-            min="1"
-            max="100"
+            min={markLimits.min}
+            max={markLimits.max}
             value={marks}
             onChange={(event) => setMarks(event.target.value)}
             placeholder="1"

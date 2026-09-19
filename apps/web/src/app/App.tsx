@@ -134,6 +134,13 @@ function Shell() {
   const { ready } = useAuth();
   const [theme, setTheme] = useTheme();
 
+  // The navigation is a row of buttons on anything wider than a phone. Below
+  // that it collapses behind one button: three buttons and an account chip
+  // wrapped onto a second row and took a fifth of a phone screen before the
+  // page had said anything.
+  const [navOpen, setNavOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+
   // Pulls any guest history onto the account the first time someone signs in.
   useHistoryClaim();
 
@@ -142,6 +149,32 @@ function Shell() {
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
+
+  // Going somewhere is the point of the menu, so arriving closes it.
+  useEffect(() => {
+    setNavOpen(false);
+  }, [path]);
+
+  // The two ways anyone expects to dismiss a menu: Escape, or a tap outside it.
+  useEffect(() => {
+    if (!navOpen) return;
+
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setNavOpen(false);
+    }
+    function handlePointer(event: MouseEvent) {
+      if (headerRef.current && !headerRef.current.contains(event.target as Node)) {
+        setNavOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleKey);
+    document.addEventListener("mousedown", handlePointer);
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+      document.removeEventListener("mousedown", handlePointer);
+    };
+  }, [navOpen]);
 
   // The auth screens bring their own full-page layout, so they render outside
   // the shell rather than inside the content column.
@@ -168,7 +201,7 @@ function Shell() {
 
   return (
     <div className="app-shell">
-      <header className="app-header">
+      <header className="app-header" ref={headerRef}>
         <a
           href="#/"
           className="brand-link"
@@ -182,18 +215,31 @@ function Shell() {
         </a>
 
         {!isExam && (
-          <nav className="app-nav">
-            <button type="button" className="ghost-button" onClick={() => navigate("/build")}>
-              {t("nav.newTest")}
+          <>
+            {/* Shown only on a phone, where the nav below is a drop-down. */}
+            <button
+              type="button"
+              className="ghost-button nav-toggle"
+              aria-expanded={navOpen}
+              aria-controls="app-nav"
+              onClick={() => setNavOpen((current) => !current)}
+            >
+              {t("nav.menu")}
             </button>
-            <button type="button" className="ghost-button" onClick={() => navigate("/history")}>
-              {t("nav.history")}
-            </button>
-            <ThemeToggle theme={theme} onChange={setTheme} />
-            {/* Held back until the stored session is known, so the header does
-                not flash "Sign in" at somebody who already is. */}
-            {ready && <AccountMenu />}
-          </nav>
+
+            <nav id="app-nav" className={`app-nav ${navOpen ? "open" : ""}`}>
+              <button type="button" className="ghost-button" onClick={() => navigate("/build")}>
+                {t("nav.newTest")}
+              </button>
+              <button type="button" className="ghost-button" onClick={() => navigate("/history")}>
+                {t("nav.history")}
+              </button>
+              <ThemeToggle theme={theme} onChange={setTheme} />
+              {/* Held back until the stored session is known, so the header does
+                  not flash "Sign in" at somebody who already is. */}
+              {ready && <AccountMenu />}
+            </nav>
+          </>
         )}
       </header>
 

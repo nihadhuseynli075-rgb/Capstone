@@ -40,6 +40,18 @@ export interface MarkedAttempt {
 }
 
 export function markAttempt(questions: AttemptQuestion[], submitted: SubmittedAnswer[]): MarkedAttempt {
+  // Position first, id second.
+  //
+  // `question_id` on an attempt is set to null if that question is later deleted
+  // from the bank, and an attempt in flight when an admin tidies up would then
+  // have no id to match a submitted answer against: the answer was silently
+  // dropped and the question marked wrong. Position belongs to the attempt and
+  // nothing outside it can move, so it is the one that holds.
+  const answerByPosition = new Map(
+    submitted
+      .filter((item) => typeof item.position === "number")
+      .map((item) => [item.position as number, item.answer])
+  );
   const answerByQuestion = new Map(submitted.map((item) => [item.questionId, item.answer]));
 
   const reviews: QuestionReview[] = [];
@@ -50,8 +62,11 @@ export function markAttempt(questions: AttemptQuestion[], submitted: SubmittedAn
   let available = 0;
 
   for (const question of questions) {
-    // Attempt questions are keyed by their bank id; unanswered means blank.
-    const studentAnswer = answerByQuestion.get(question.questionId ?? "") ?? "";
+    // Unanswered, or an id that no longer resolves, both mean blank.
+    const studentAnswer =
+      answerByPosition.get(question.position) ??
+      (question.questionId === null ? undefined : answerByQuestion.get(question.questionId)) ??
+      "";
     const isCorrect = isAnswerCorrect(question, studentAnswer);
 
     // Marking is still all-or-nothing per question: an answer either matches or

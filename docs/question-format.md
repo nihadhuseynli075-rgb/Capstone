@@ -17,7 +17,7 @@ imported in one paste, rather than typed into the form question by question.
 | `option_c`       | no       | Third option.                                               |
 | `option_d`       | no       | Fourth option.                                              |
 | `correct_answer` | yes      | The letter (`A`, `B`, `C`, `D`) or the full answer text.    |
-| `marks`          | no       | What the question is worth, e.g. `3`. Defaults to `1` if blank. |
+| `marks`          | no       | What the question is worth, e.g. `3`. A whole number from 1 to 100. Defaults to `1` if blank. |
 | `explanation`    | no       | Why the answer is right. Shown to the student after the test. |
 | `image_url`      | no       | Link to a diagram. Leave blank and attach the picture through the admin form instead. |
 | `paper_year`     | no       | e.g. `2024`.                                                |
@@ -38,6 +38,20 @@ Put the number the paper prints in brackets at the end of a question. If a
 question is out of 3, put `3`; do not split it into three rows. Marking itself
 is still all or nothing per question - a right answer takes the marks, a wrong
 one takes none - so a question worth 3 cannot currently be given 2.
+
+A value that is not a whole number from 1 to 100 is reported as a bad row rather
+than rounded to something plausible, because a cell that landed in the wrong
+column would otherwise weight one question above the rest of the paper.
+
+## Rows that are skipped
+
+A row is reported and skipped, with the rest of the paste still importing, when
+`subject`, `topic`, `question` or `correct_answer` is empty, when a
+multiple-choice row has fewer than two options, when `correct_answer` matches
+none of them, or when `difficulty` or `marks` is filled in with something
+unusable. Subject and topic are checked per row, not just as columns: the
+builder filters on both, so a question missing either could never appear in a
+test.
 
 ## Example
 

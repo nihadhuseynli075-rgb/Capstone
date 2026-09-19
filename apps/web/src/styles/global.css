@@ -161,6 +161,16 @@ code {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+/*
+ * The control that opens the navigation on a phone. Hidden by default rather
+ * than shown by default: every width above the phone breakpoint lays the nav
+ * out inline, and there is nothing for this to open.
+ */
+.nav-toggle {
+  display: none;
 }
 
 .app-main {
@@ -575,7 +585,16 @@ button:focus-visible {
   gap: 18px;
 }
 
+/*
+ * Pinned to the top of the screen for the whole test.
+ *
+ * The time remaining is the one thing on this page that changes on its own, and
+ * a student on a phone reading question 4 of a long paper had scrolled it away.
+ */
 .exam-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -585,6 +604,11 @@ button:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px 20px;
+}
+
+/* min-width: 0 is what lets the title truncate instead of widening the bar. */
+.exam-heading {
+  min-width: 0;
 }
 
 .exam-title {
@@ -1013,11 +1037,17 @@ button:focus-visible {
   gap: 8px;
 }
 
+/*
+ * Four things about an attempt: what it was, when, what was scored, and what
+ * that came to as a percentage. Named areas rather than bare columns, so the
+ * phone layout is a rearrangement of the same row instead of a second one.
+ */
 .attempt-row {
   width: 100%;
   display: grid;
-  grid-template-columns: 1.4fr 1fr 0.8fr 0.8fr 1.4fr;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.6fr) auto auto;
+  grid-template-areas: "subject meta score percent";
+  gap: 4px 12px;
   align-items: center;
   text-align: left;
   border: 1px solid var(--border);
@@ -1026,6 +1056,39 @@ button:focus-visible {
   padding: 12px 14px;
   cursor: pointer;
   font-size: 0.92rem;
+}
+
+.attempt-subject {
+  grid-area: subject;
+}
+
+.attempt-meta {
+  grid-area: meta;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+/* A dot between the difficulty and the date, so they read as one line. */
+.attempt-meta .attempt-date::before {
+  content: "·";
+  margin-right: 8px;
+}
+
+.attempt-score {
+  grid-area: score;
+  justify-self: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.attempt-percent {
+  grid-area: percent;
+  justify-self: end;
+  min-width: 4ch;
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .attempt-row:hover {
@@ -1049,12 +1112,6 @@ button:focus-visible {
 
 .attempt-score {
   font-weight: 700;
-}
-
-@media (max-width: 640px) {
-  .attempt-row {
-    grid-template-columns: 1fr 1fr;
-  }
 }
 
 /* ----------------------------------------------------------------- admin */
@@ -1212,4 +1269,351 @@ button:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* ================================================================ responsive
+ *
+ * The app is built phone first: the rules above describe the layout at any
+ * width, and the blocks below are where a phone genuinely needs a different
+ * shape rather than a narrower version of the same one.
+ *
+ *   <= 900px  tablet and under: multi-column panels fold
+ *   <= 640px  phone: the nav collapses, the exam screen re-arranges
+ *   <= 400px  small phone: type and padding tighten
+ *
+ * Grids elsewhere use auto-fit with a minmax floor, which needs no breakpoint.
+ */
+
+/* ------------------------------------------------------------ tablet down */
+
+@media (max-width: 900px) {
+  /* Score and detail side by side needs room for both; below this the number
+     ends up a narrow column beside a wrapping paragraph. */
+  .score-hero {
+    gap: 20px;
+  }
+
+  .score-figure {
+    flex: 1 1 100%;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 20px;
+  }
+
+  .score-unit {
+    align-self: center;
+  }
+}
+
+/* ------------------------------------------------------------- phone down */
+
+@media (max-width: 640px) {
+  .app-main {
+    width: calc(100% - 32px);
+  }
+
+  /* -------------------------------------------------------------- header */
+
+  .nav-toggle {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /*
+   * The nav becomes a panel below the brand row rather than a floating layer:
+   * it pushes the page down, which on a phone is easier to follow than
+   * something that covers what was being read.
+   */
+  .app-nav {
+    display: none;
+    order: 3;
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .app-nav.open {
+    display: flex;
+  }
+
+  .app-nav > * {
+    width: 100%;
+  }
+
+  /* The account chip is a row in the menu here, not a chip in a bar. */
+  .account-menu {
+    width: 100%;
+  }
+
+  .account-trigger {
+    width: 100%;
+    justify-content: flex-start;
+    border-radius: 8px;
+    min-height: 44px;
+  }
+
+  .account-name {
+    max-width: none;
+  }
+
+  .account-dropdown {
+    position: static;
+    min-width: 0;
+    margin-top: 6px;
+    box-shadow: none;
+  }
+
+  /*
+   * Everything tappable clears 44px. The buttons were already covered; these
+   * are the ones that are a link, a chip or a control rather than a button, and
+   * were sitting at 37 to 42.
+   */
+  .app-footer a,
+  .brand-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .chip {
+    min-height: 44px;
+  }
+
+  select {
+    min-height: 44px;
+  }
+
+  /* ---------------------------------------------------------------- exam */
+
+  /*
+   * One line for the paper, one for the clock. The title is allowed to run out
+   * of room and be cut: which test this is matters far less, mid-test, than
+   * how much of it is left.
+   */
+  .exam-bar {
+    flex-wrap: nowrap;
+    gap: 12px;
+    padding: 10px 14px;
+  }
+
+  .exam-title {
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .exam-progress {
+    font-size: 0.82rem;
+  }
+
+  .exam-timer {
+    min-width: 0;
+    flex: none;
+  }
+
+  .timer-value {
+    font-size: 1.4rem;
+  }
+
+  /*
+   * One scrolling strip instead of a block of dots. A 50-question paper wrapped
+   * to seven rows here and pushed the question itself off the screen; the strip
+   * is a fixed 44px however long the test is, and ExamPage keeps the current
+   * question scrolled into view.
+   */
+  .question-palette {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  .question-palette::-webkit-scrollbar {
+    display: none;
+  }
+
+  .palette-dot {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+  }
+
+  .question-card {
+    padding: 18px 16px;
+  }
+
+  .question-prompt {
+    font-size: 1.1rem;
+  }
+
+  /* Options are the thing being tapped, repeatedly, often in a hurry. */
+  .option {
+    padding: 14px;
+    min-height: 52px;
+  }
+
+  .short-answer input {
+    min-height: 48px;
+  }
+
+  /*
+   * Previous and Next sit at the bottom of the screen rather than the bottom of
+   * the document, so a long question does not have to be scrolled past to move
+   * on. Full width each, within reach of a thumb.
+   */
+  .exam-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 15;
+    flex-wrap: nowrap;
+    gap: 10px;
+    margin: 0 -16px -16px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+  }
+
+  .exam-actions button {
+    flex: 1;
+    min-height: 48px;
+  }
+
+  /* The error banner is the exception: its buttons stack rather than squeeze. */
+  .exam-error {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* ------------------------------------------------------------- results */
+
+  .score-meta h1 {
+    font-size: 1.5rem;
+  }
+
+  .review-top {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .review-marks {
+    order: 3;
+    margin-left: 0;
+  }
+
+  /* ------------------------------------------------------------- history */
+
+  /*
+   * Two columns: what the test was on the left, how it went on the right. The
+   * five-cell row above becomes two lines that can be read at a glance.
+   */
+  .attempt-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "subject score"
+      "meta    percent";
+    row-gap: 2px;
+    padding: 12px;
+  }
+
+  .attempt-meta {
+    font-size: 0.85rem;
+  }
+
+  /* ------------------------------------------------------------- builder */
+
+  .summary-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .summary-panel .primary-button {
+    width: 100%;
+  }
+
+  /* --------------------------------------------------------------- admin */
+
+  /*
+   * The tab strip scrolls rather than wrapping, so the panel below always
+   * starts in the same place whichever tab is open.
+   */
+  .tab-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tab-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    flex: 0 0 auto;
+    min-height: 44px;
+  }
+
+  .question-row-actions {
+    width: 100%;
+  }
+
+  .question-row-actions button {
+    flex: 1;
+  }
+
+  .form-actions button {
+    flex: 1;
+  }
+}
+
+/* ------------------------------------------------------- small phone down */
+
+@media (max-width: 400px) {
+  .app-main {
+    width: calc(100% - 24px);
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .exam-actions {
+    margin: 0 -12px -16px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .score-value {
+    font-size: 2.2rem;
+  }
+
+  .chip,
+  .difficulty-card,
+  .topic-option {
+    font-size: 0.92rem;
+  }
+}
+
+/* ------------------------------------------------------------------ motion
+ *
+ * Honoured for the whole app in one place. Everything here is decoration -- a
+ * hover fade, the palette sliding the current question into view -- and none of
+ * it carries meaning that is lost by removing it.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

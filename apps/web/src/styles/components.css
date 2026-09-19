@@ -361,6 +361,16 @@
   font-variant-numeric: tabular-nums;
 }
 
+.stat-value-empty {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--muted);
+  /* Holds the tile to the height it has when there is a score in it. */
+  min-height: calc(1.7rem * 1.1);
+  display: flex;
+  align-items: center;
+}
+
 .stat-label {
   color: var(--muted);
   font-size: 0.85rem;
@@ -455,10 +465,6 @@
   .ghost-button,
   .danger-button {
     min-height: 44px;
-  }
-
-  .account-name {
-    display: none;
   }
 
   .stat-row {

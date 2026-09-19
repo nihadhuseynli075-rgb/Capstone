@@ -1,4 +1,5 @@
 import type { Difficulty, QuestionDraft, QuestionType } from "@grade9/shared";
+import { markLimits } from "@grade9/shared";
 
 /**
  * Imports questions pasted straight out of a spreadsheet.
@@ -221,6 +222,23 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       return;
     }
 
+    // Having the column is not the same as having the value. A question with no
+    // subject or no topic is not a question anyone can ever be asked: the
+    // builder filters on both, so it sits in the bank unreachable and uncounted.
+    // Saying so is the difference between a row that failed and a row that
+    // vanished.
+    const subjectId = cell(row, "subjectId").toLowerCase();
+    if (subjectId.length === 0) {
+      errors.push({ row: rowNumber, message: "Subject is empty." });
+      return;
+    }
+
+    const topicId = cell(row, "topicId").toLowerCase().replace(/\s+/g, "-");
+    if (topicId.length === 0) {
+      errors.push({ row: rowNumber, message: "Topic is empty." });
+      return;
+    }
+
     const options = [
       cell(row, "optionA"),
       cell(row, "optionB"),
@@ -265,12 +283,16 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     // A value that is there but nonsense is a mistake worth reporting rather
     // than quietly rounding to one.
     const rawMarks = cell(row, "marks");
-    const marks = rawMarks.length === 0 ? 1 : Number.parseInt(rawMarks, 10);
+    const marks = rawMarks.length === 0 ? markLimits.min : Number(rawMarks);
 
-    if (!Number.isFinite(marks) || marks < 1) {
+    // Number rather than parseInt: "2.5" and "3 marks" are mistakes worth
+    // reporting, not values to round down to something plausible. The ceiling is
+    // the one the admin form and the API already enforce, so a cell typed into
+    // the wrong column cannot quietly weight one question above the whole paper.
+    if (!Number.isInteger(marks) || marks < markLimits.min || marks > markLimits.max) {
       errors.push({
         row: rowNumber,
-        message: `Marks "${rawMarks}" is not a whole number of one or more.`
+        message: `Marks "${rawMarks}" is not a whole number between ${markLimits.min} and ${markLimits.max}.`
       });
       return;
     }
@@ -278,8 +300,8 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     const yearValue = Number.parseInt(cell(row, "paperYear"), 10);
 
     drafts.push({
-      subjectId: cell(row, "subjectId").toLowerCase(),
-      topicId: cell(row, "topicId").toLowerCase().replace(/\s+/g, "-"),
+      subjectId,
+      topicId,
       difficulty: difficulty ?? "medium",
       type,
       prompt,

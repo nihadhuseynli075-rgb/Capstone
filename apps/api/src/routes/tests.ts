@@ -143,6 +143,9 @@ const submitSchema = z.object({
   answers: z.array(
     z.object({
       questionId: z.string().min(1),
+      // Where the question sat in the paper. Optional so a tab that loaded
+      // before this existed still submits and still marks the same way.
+      position: z.number().int().min(0).optional(),
       answer: z.string()
     })
   )
@@ -169,8 +172,14 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
       return response.status(403).json({ message: "That test belongs to a different student." });
     }
 
+    // Both refusals below are final: no amount of retrying changes them. The
+    // code says which, so the browser can send someone to the results that
+    // already exist rather than leaving them on a paper they cannot put down.
     if (attempt.submittedAt) {
-      return response.status(409).json({ message: "That test has already been submitted." });
+      return response.status(409).json({
+        code: "already-submitted",
+        message: "That test has already been submitted."
+      });
     }
 
     // The countdown in the browser is a convenience, not a control: a student
@@ -186,6 +195,7 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
 
     if (limitMinutes !== null && elapsedSeconds > limitMinutes * 60 + SUBMIT_GRACE_SECONDS) {
       return response.status(409).json({
+        code: "time-expired",
         message:
           "The time limit for this test ran out, so it can no longer be submitted. Start a new test to try again."
       });

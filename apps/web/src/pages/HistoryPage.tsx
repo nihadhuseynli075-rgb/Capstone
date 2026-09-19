@@ -112,12 +112,17 @@ export function HistoryPage() {
                 onClick={() => navigate(`/results/${attempt.id}`)}
               >
                 <span className="attempt-subject">{subjectName(attempt.subjectId)}</span>
-                <span className="attempt-mode">{attempt.difficultyMode}</span>
+                {/* Difficulty and date travel together: on a phone the row is
+                    two columns, and they are one line of small print under the
+                    subject rather than two cells of a puzzle. */}
+                <span className="attempt-meta">
+                  <span className="attempt-mode">{attempt.difficultyMode}</span>
+                  <span className="attempt-date">{formatDate(attempt.submittedAt)}</span>
+                </span>
                 <span className="attempt-score">
                   {attempt.score}/{attempt.totalMarks}
                 </span>
                 <span className="attempt-percent">{attempt.percentage}%</span>
-                <span className="attempt-date">{formatDate(attempt.submittedAt)}</span>
               </button>
             </li>
           ))}

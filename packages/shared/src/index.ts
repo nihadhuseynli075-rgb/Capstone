@@ -63,6 +63,19 @@ export const difficultyPresets: Record<Difficulty, DifficultyPreset> = {
   }
 };
 
+/**
+ * What a single question may be worth.
+ *
+ * Shared rather than written out in each place that checks it. The admin form
+ * and the API schema already agreed on a ceiling of 100; the spreadsheet
+ * importer did not, which let one mis-typed cell make a question worth more
+ * than the rest of the paper put together.
+ */
+export const markLimits = {
+  min: 1,
+  max: 100
+} as const;
+
 export const customLimits = {
   minQuestions: 5,
   maxQuestions: 50,
@@ -161,6 +174,17 @@ export interface MockTest {
 
 export interface SubmittedAnswer {
   questionId: string;
+  /**
+   * Where the question sat in the paper.
+   *
+   * Sent alongside the id because deleting a question from the bank sets the
+   * attempt's `question_id` to null, and an answer that could only be matched
+   * by id would then be dropped and marked wrong. Position is the attempt's
+   * own numbering, so nothing outside the attempt can move it.
+   *
+   * Optional so a submission from an older tab still marks the way it did.
+   */
+  position?: number;
   answer: string;
 }
 

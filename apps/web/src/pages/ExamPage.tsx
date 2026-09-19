@@ -3,6 +3,7 @@ import type { SubmittedAnswer } from "@grade9/shared";
 import { topicName } from "@grade9/shared";
 import { navigate } from "../app/router";
 import { clearActiveTest, loadActiveTest, saveLastResult, type ActiveTest } from "../lib/examSession";
+import { ApiError } from "../services/apiClient";
 import { submitTest } from "../services/testsApi";
 
 function formatClock(totalSeconds: number): string {
@@ -20,8 +21,14 @@ export function ExamPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Set when the server will never accept this paper, however many times it is
+  // offered. Retrying is then the one thing not to suggest.
+  const [dead, setDead] = useState(false);
+
   // Auto-submit and a manual click can race; this makes sure only one wins.
   const submittedRef = useRef(false);
+
+  const paletteRef = useRef<HTMLDivElement>(null);
 
   // The countdown fires once when it reaches zero and then leaves it alone.
   // Without this the timer retries the same failing request on every tick, so a
@@ -52,8 +59,11 @@ export function ExamPage() {
       setSubmitting(true);
       setError(null);
 
-      const payload: SubmittedAnswer[] = active.test.questions.map((question) => ({
+      const payload: SubmittedAnswer[] = active.test.questions.map((question, index) => ({
         questionId: question.id,
+        // The paper's own numbering, which survives the question being deleted
+        // from the bank while this test is open.
+        position: index,
         answer: answers[question.id] ?? ""
       }));
 
@@ -65,7 +75,29 @@ export function ExamPage() {
         clearActiveTest();
         navigate("/results");
       } catch (cause) {
-        // Let them try again rather than losing the paper to a network blip.
+        const code = cause instanceof ApiError ? cause.code : null;
+
+        // Already marked: the score exists, and the results screen is where the
+        // student was trying to get to in the first place.
+        if (code === "already-submitted") {
+          clearActiveTest();
+          navigate(`/results/${active.test.id}`);
+          return;
+        }
+
+        // Out of time: nothing was saved and nothing can be. Say so once and
+        // offer the way out, rather than a retry button that cannot work and a
+        // paper that cannot be left without an "are you sure".
+        if (code === "time-expired") {
+          clearActiveTest();
+          setSubmitting(false);
+          setDead(true);
+          setError((cause as Error).message);
+          return;
+        }
+
+        // Anything else is a blip. Let them try again rather than losing the
+        // paper to a dropped connection.
         submittedRef.current = false;
         setSubmitting(false);
         setError(
@@ -115,6 +147,36 @@ export function ExamPage() {
     void handleSubmit("time-up");
   }, [secondsLeft, handleSubmit]);
 
+  // On a phone the question palette is a single scrolling strip rather than
+  // fifty dots wrapped over seven rows, so moving through the paper has to drag
+  // the current question back into view. Left alone, question 30 is reached by
+  // a Next button that appears to do nothing.
+  useEffect(() => {
+    const strip = paletteRef.current;
+    if (!strip) return;
+
+    // Wide enough to show every dot at once: nothing to scroll, and asking for
+    // it would only shove the page around.
+    if (strip.scrollWidth <= strip.clientWidth) return;
+
+    const dot = strip.querySelector<HTMLElement>(".palette-dot.current");
+    if (!dot) return;
+
+    // The strip is scrolled, rather than the dot asked to bring itself into
+    // view: scrollIntoView walks every scrollable ancestor, so it would also
+    // shift the page vertically to suit a bar that is already pinned in place.
+    const stripBox = strip.getBoundingClientRect();
+    const dotBox = dot.getBoundingClientRect();
+    const centred =
+      strip.scrollLeft + (dotBox.left - stripBox.left) - (strip.clientWidth - dotBox.width) / 2;
+
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    strip.scrollTo({
+      left: Math.max(0, Math.min(centred, strip.scrollWidth - strip.clientWidth)),
+      behavior: still ? "auto" : "smooth"
+    });
+  }, [currentIndex]);
+
   // Catch a tab close or a browser back mid-test.
   useEffect(() => {
     function warn(event: BeforeUnloadEvent) {
@@ -153,7 +215,7 @@ export function ExamPage() {
   return (
     <div className="exam-layout">
       <div className="exam-bar">
-        <div>
+        <div className="exam-heading">
           <h1 className="exam-title">{active.test.title}</h1>
           <p className="exam-progress">
             Question {currentIndex + 1} of {questions.length} - {answeredCount} answered
@@ -180,7 +242,7 @@ export function ExamPage() {
         </p>
       )}
 
-      <div className="question-palette" role="navigation" aria-label="Jump to question">
+      <div className="question-palette" ref={paletteRef} role="navigation" aria-label="Jump to question">
         {questions.map((item, index) => (
           <button
             key={item.id}
@@ -251,17 +313,30 @@ export function ExamPage() {
       {error && (
         <div className="error-banner exam-error" role="alert">
           <span>{error}</span>
-          {/* The only way back from a failed send. Without it a student whose
-              time ran out on question three is stranded: the timer has had its
-              one attempt and the finish button only appears on the last page. */}
-          <button
-            type="button"
-            className="ghost-button"
-            onClick={() => void handleSubmit("manual")}
-            disabled={submitting}
-          >
-            {submitting ? "Sending..." : "Try sending again"}
-          </button>
+          {dead ? (
+            // This paper is finished with, one way or another. Offering to send
+            // it again would be offering something that cannot happen.
+            <>
+              <button type="button" className="ghost-button" onClick={() => navigate("/history")}>
+                Test history
+              </button>
+              <button type="button" className="ghost-button" onClick={() => navigate("/build")}>
+                Start a new test
+              </button>
+            </>
+          ) : (
+            /* The only way back from a failed send. Without it a student whose
+               time ran out on question three is stranded: the timer has had its
+               one attempt and the finish button only appears on the last page. */
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => void handleSubmit("manual")}
+              disabled={submitting}
+            >
+              {submitting ? "Sending..." : "Try sending again"}
+            </button>
+          )}
         </div>
       )}
 

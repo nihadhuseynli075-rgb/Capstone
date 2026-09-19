@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import type { QuestionDraft } from "@grade9/shared";
+import { markLimits } from "@grade9/shared";
 import { env, storageMode } from "../lib/env";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { login, logout, requireAdmin } from "../modules/admin/adminAuth";
@@ -25,7 +26,12 @@ const questionSchema = z
     options: z.array(z.string().min(1)).default([]),
     correctAnswer: z.string().min(1, "A correct answer is required"),
     // Defaults to one so a sheet or a form without a marks column still works.
-    marks: z.number().int().min(1, "A question must be worth at least one mark").max(100).default(1),
+    marks: z
+      .number()
+      .int()
+      .min(markLimits.min, "A question must be worth at least one mark")
+      .max(markLimits.max)
+      .default(markLimits.min),
     explanation: z.string().default(""),
     imageUrl: z.string().nullable().default(null),
     paperYear: z.number().int().min(1900).max(2100).nullable().default(null),
@@ -88,7 +94,10 @@ adminRouter.get("/questions", requireAdmin, async (request, response, next) => {
       search: typeof request.query.search === "string" ? request.query.search : undefined
     });
 
-    response.json({ questions, storageMode });
+    // Sent on every listing, not only on the login reply. The admin token
+    // outlives a page reload, so a dashboard that only learned this at sign-in
+    // dropped the warning for exactly the person who never signs in again.
+    response.json({ questions, storageMode, usingDefaultPassword: env.adminPasswordIsDefault });
   } catch (error) {
     next(error);
   }

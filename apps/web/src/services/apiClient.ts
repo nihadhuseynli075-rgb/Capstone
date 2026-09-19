@@ -3,12 +3,21 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000
 export class ApiError extends Error {
   readonly status: number;
   readonly issues: unknown;
+  /**
+   * What kind of failure this is, where the status alone is not enough.
+   *
+   * Two different 409s come back from submitting a test - already marked, and
+   * out of time - and they want opposite things from the browser. The message
+   * is written for a person to read, so it is the wrong thing to branch on.
+   */
+  readonly code: string | null;
 
-  constructor(message: string, status: number, issues?: unknown) {
+  constructor(message: string, status: number, issues?: unknown, code?: string | null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.issues = issues;
+    this.code = code ?? null;
   }
 }
 
@@ -67,7 +76,8 @@ export async function apiRequest<T>(
     throw new ApiError(
       typeof payload.message === "string" ? payload.message : `Request failed (${response.status}).`,
       response.status,
-      payload.issues
+      payload.issues,
+      typeof payload.code === "string" ? payload.code : null
     );
   }
 

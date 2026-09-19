@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { BankQuestion, QuestionDraft } from "@grade9/shared";
-import { subjectName, topicName } from "@grade9/shared";
+import { markLimits, subjectName, topicName } from "@grade9/shared";
 import { QuestionForm } from "../components/QuestionForm";
 import { ApiError } from "../services/apiClient";
 import {
@@ -16,7 +16,7 @@ import {
 } from "../services/adminApi";
 
 const CSV_TEMPLATE =
-  "subject,topic,difficulty,type,question,option_a,option_b,option_c,option_d,correct_answer,explanation,paper_year,source";
+  "subject,topic,difficulty,type,question,option_a,option_b,option_c,option_d,correct_answer,marks,explanation,paper_year,source";
 
 type Tab = "add" | "list" | "import";
 
@@ -79,7 +79,10 @@ export function AdminPage() {
   const [usingDefaultPassword, setUsingDefaultPassword] = useState(false);
 
   const [subjectFilter, setSubjectFilter] = useState("");
+  // What is typed, and what has actually been asked for. Kept apart so the
+  // bank is not queried once per keystroke.
   const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [editing, setEditing] = useState<BankQuestion | null>(null);
   const [saving, setSaving] = useState(false);
@@ -110,14 +113,28 @@ export function AdminPage() {
 
   const refresh = useCallback(async () => {
     try {
-      const data = await fetchQuestions({ subject: subjectFilter || undefined, search: search || undefined });
+      const data = await fetchQuestions({
+        subject: subjectFilter || undefined,
+        search: searchQuery || undefined
+      });
       setQuestions(data.questions);
       setStorageMode(data.storageMode);
+      // Re-read on every listing rather than only at sign-in: the token outlives
+      // a page reload, so a warning that arrived once with the login reply was
+      // gone the moment the page was refreshed.
+      setUsingDefaultPassword(data.usingDefaultPassword);
       setError(null);
     } catch (cause) {
       handleFailure(cause);
     }
-  }, [subjectFilter, search, handleFailure]);
+  }, [subjectFilter, searchQuery, handleFailure]);
+
+  // Typing settles before the bank is asked. Without this every letter of a
+  // search term was its own round trip, and the answers could land out of order.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearchQuery(search), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     if (token) void refresh();
@@ -345,6 +362,11 @@ export function AdminPage() {
           <p className="panel-hint">
             correct_answer can be the letter (A, B, C, D) or the full answer text. Leave the option
             columns empty for short-answer questions.
+          </p>
+
+          <p className="panel-hint">
+            marks is what the paper says the question is worth, between {markLimits.min} and{" "}
+            {markLimits.max}. Leave it blank and the question counts for one.
           </p>
 
           <label>
