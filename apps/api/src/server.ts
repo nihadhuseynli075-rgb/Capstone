@@ -7,7 +7,31 @@ import { testsRouter } from "./routes/tests";
 
 const app = express();
 
-app.use(cors({ origin: env.webOrigin }));
+// Vite asks for port 5173 but silently moves to 5174, 5175 and so on when
+// something else already holds it, so pinning CORS to one exact origin breaks
+// the app on a machine that happens to have 5173 busy. In development any
+// localhost port is the dev server, so allow them all and let WEB_ORIGIN stay
+// authoritative everywhere else.
+const LOCALHOST_ORIGIN = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/;
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Same-origin requests, curl and the smoke test send no Origin header.
+      if (!origin || origin === env.webOrigin) {
+        callback(null, true);
+        return;
+      }
+
+      if (env.allowAnyLocalhostOrigin && LOCALHOST_ORIGIN.test(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Origin ${origin} is not allowed by CORS.`));
+    }
+  })
+);
 
 // Question diagrams arrive base64 encoded in the JSON body, so the default
 // 100kb limit is far too small.

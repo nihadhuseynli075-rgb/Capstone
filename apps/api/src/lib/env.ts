@@ -17,6 +17,14 @@ function optional(name: string): string | undefined {
 export const env = {
   port: Number(process.env.API_PORT ?? 4000),
   webOrigin: process.env.WEB_ORIGIN ?? "http://localhost:5173",
+  /**
+   * Whether any localhost port may call the API, rather than WEB_ORIGIN alone.
+   *
+   * Vite falls back to 5174 and upwards when 5173 is taken, which otherwise
+   * leaves the browser blocked by CORS with no obvious cause. Off in
+   * production, where the real origin is the only one that should work.
+   */
+  allowAnyLocalhostOrigin: process.env.NODE_ENV !== "production",
   supabaseUrl: optional("SUPABASE_URL"),
   supabaseServiceRoleKey: optional("SUPABASE_SERVICE_ROLE_KEY"),
   /**
