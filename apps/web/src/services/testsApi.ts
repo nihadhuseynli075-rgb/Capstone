@@ -73,6 +73,7 @@ export interface PastAttempt {
   attemptId: string;
   settings: TestSettings;
   score: number;
+  totalMarks: number;
   totalQuestions: number;
   percentage: number;
   timeTakenSeconds: number;

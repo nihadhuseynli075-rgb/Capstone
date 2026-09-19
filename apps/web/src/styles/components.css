@@ -474,3 +474,18 @@
     min-height: 44px;
   }
 }
+
+/*
+ * The lockup on the auth panel is the reversed one, so the name follows the
+ * panel's own white rather than the navy it uses everywhere else.
+ */
+.auth-aside .wordmark-text {
+  color: inherit;
+}
+
+/* A note under an admin form field, e.g. what "marks" means. */
+.field-hint {
+  font-weight: 400;
+  font-size: 0.82rem;
+  color: var(--muted);
+}

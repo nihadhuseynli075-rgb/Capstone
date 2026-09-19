@@ -35,16 +35,27 @@ export function clearActiveTest(): void {
   window.sessionStorage.removeItem(ACTIVE_TEST_KEY);
 }
 
-export function saveLastResult(result: TestResult): void {
+/**
+ * A just-marked result, plus the subject it came from.
+ *
+ * The API returns topic ids but not the subject, and topic names are only
+ * resolvable within a subject. Carrying it here is what lets the results screen
+ * say "Functions and Graphs" rather than falling back to the tidied-up id.
+ */
+export interface StoredResult extends TestResult {
+  subjectId?: string;
+}
+
+export function saveLastResult(result: StoredResult): void {
   window.sessionStorage.setItem(LAST_RESULT_KEY, JSON.stringify(result));
 }
 
-export function loadLastResult(): TestResult | null {
+export function loadLastResult(): StoredResult | null {
   const raw = window.sessionStorage.getItem(LAST_RESULT_KEY);
   if (!raw) return null;
 
   try {
-    return JSON.parse(raw) as TestResult;
+    return JSON.parse(raw) as StoredResult;
   } catch {
     return null;
   }

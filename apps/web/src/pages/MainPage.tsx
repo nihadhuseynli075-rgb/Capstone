@@ -14,10 +14,14 @@ import { fetchHistory } from "../services/testsApi";
  */
 export function MainPage() {
   const { t } = useLanguage();
-  const { user, configured } = useAuth();
+  const { ready, user, configured } = useAuth();
   const [attempts, setAttempts] = useState<AttemptSummary[] | null>(null);
 
+  // Held until the session is known, so the tiles are not filled in with the
+  // guest key's history and then corrected a moment later.
   useEffect(() => {
+    if (!ready) return;
+
     let active = true;
 
     fetchHistory()
@@ -31,7 +35,7 @@ export function MainPage() {
     return () => {
       active = false;
     };
-  }, [user?.id]);
+  }, [ready, user?.id]);
 
   const best =
     attempts && attempts.length > 0

@@ -105,6 +105,7 @@ const headerAliases: Record<string, string[]> = {
   optionC: ["option_c", "c", "optionc", "answer_c"],
   optionD: ["option_d", "d", "optiond", "answer_d"],
   correctAnswer: ["correct_answer", "answer", "correct", "correctanswer"],
+  marks: ["marks", "mark", "points", "point", "weight"],
   explanation: ["explanation", "reason", "why"],
   imageUrl: ["image_url", "image", "picture", "imageurl"],
   paperYear: ["paper_year", "year", "paperyear"],
@@ -260,6 +261,20 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       return;
     }
 
+    // Blank means one mark, which is what the paper means by saying nothing.
+    // A value that is there but nonsense is a mistake worth reporting rather
+    // than quietly rounding to one.
+    const rawMarks = cell(row, "marks");
+    const marks = rawMarks.length === 0 ? 1 : Number.parseInt(rawMarks, 10);
+
+    if (!Number.isFinite(marks) || marks < 1) {
+      errors.push({
+        row: rowNumber,
+        message: `Marks "${rawMarks}" is not a whole number of one or more.`
+      });
+      return;
+    }
+
     const yearValue = Number.parseInt(cell(row, "paperYear"), 10);
 
     drafts.push({
@@ -270,6 +285,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       prompt,
       options: type === "multiple-choice" ? options : [],
       correctAnswer,
+      marks,
       explanation: cell(row, "explanation"),
       imageUrl: cell(row, "imageUrl") || null,
       paperYear: Number.isFinite(yearValue) ? yearValue : null,

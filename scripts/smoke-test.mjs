@@ -344,10 +344,17 @@ async function main() {
     body: { studentKey, answers: allRight, timeTakenSeconds: 30 }
   });
 
+  const secondTestMarks = secondTest.questions.reduce((sum, question) => sum + question.marks, 0);
+
   check(
     "all-correct scores full marks",
-    rightResult.body.score === secondTest.questions.length,
-    `${rightResult.body.score}/${secondTest.questions.length}`
+    rightResult.body.score === secondTestMarks,
+    `${rightResult.body.score}/${secondTestMarks}`
+  );
+  check(
+    "the total is the marks available, not the question count",
+    rightResult.body.totalMarks === secondTestMarks,
+    `totalMarks ${rightResult.body.totalMarks}, expected ${secondTestMarks}`
   );
   check("percentage is 100", rightResult.body.percentage === 100, `${rightResult.body.percentage}`);
   check(
@@ -361,10 +368,98 @@ async function main() {
     JSON.stringify(rightResult.body.comparison)
   );
 
+  section("Marks");
+  // A question worth three, sat alongside one worth one. Getting the big one
+  // right and the small one wrong has to beat the other way round, which a
+  // count of correct answers could never show.
+  const marksTopic = `marks-${Date.now()}`;
+
+  const bigQuestion = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({
+      topicId: marksTopic,
+      difficulty: "hard",
+      prompt: "Factorise fully: 2x^2 + 7x + 3",
+      options: ["(2x+1)(x+3)", "(2x+3)(x+1)", "(x+1)(x+3)"],
+      correctAnswer: "(2x+1)(x+3)",
+      marks: 3
+    })
+  });
+  check("a question can be worth more than one mark", bigQuestion.status === 201, JSON.stringify(bigQuestion.body));
+  check(
+    "the marks come back on the question",
+    bigQuestion.body.question?.marks === 3,
+    `marks ${bigQuestion.body.question?.marks}`
+  );
+
+  const smallQuestion = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({
+      topicId: marksTopic,
+      difficulty: "hard",
+      prompt: "What is 2 + 2?",
+      options: ["3", "4", "5"],
+      correctAnswer: "4"
+    })
+  });
+  check("marks default to one when not given", smallQuestion.body.question?.marks === 1, `marks ${smallQuestion.body.question?.marks}`);
+
+  const marksTest = await call("/api/tests/generate", {
+    method: "POST",
+    body: {
+      studentKey,
+      subjectId: "math",
+      topicIds: [marksTopic],
+      difficultyMode: "custom",
+      questionCount: 5,
+      timeLimitMinutes: 20
+    }
+  });
+
+  const served = marksTest.body.test.questions;
+  check("the student is told what each question is worth", served.every((q) => typeof q.marks === "number"), JSON.stringify(served.map((q) => q.marks)));
+
+  // Answer only the three-mark question correctly.
+  const bigId = bigQuestion.body.question.id;
+  const marksAnswers = served.map((question) => ({
+    questionId: question.id,
+    answer: question.id === bigId ? "(2x+1)(x+3)" : "definitely wrong"
+  }));
+
+  const marksResult = await call(`/api/tests/${marksTest.body.test.id}/submit`, {
+    method: "POST",
+    body: { studentKey, answers: marksAnswers, timeTakenSeconds: 20 }
+  });
+
+  check("a weighted test marks out of its marks", marksResult.body.totalMarks === 4, `totalMarks ${marksResult.body.totalMarks}`);
+  check("the three-mark question is worth three", marksResult.body.score === 3, `score ${marksResult.body.score}`);
+  check(
+    "the percentage follows the marks, not the questions",
+    marksResult.body.percentage === 75,
+    `${marksResult.body.percentage}% - one of two questions right is 50%, three of four marks is 75%`
+  );
+  check(
+    "the review says what each question was worth",
+    marksResult.body.reviews.every((review) => review.score <= review.marks),
+    JSON.stringify(marksResult.body.reviews.map((r) => `${r.score}/${r.marks}`))
+  );
+  check(
+    "the topic breakdown is in marks too",
+    marksResult.body.topicBreakdown.every((topic) => typeof topic.marks === "number" && topic.score <= topic.marks),
+    JSON.stringify(marksResult.body.topicBreakdown)
+  );
+
   section("History");
   const history = await call(`/api/tests/history?studentKey=${encodeURIComponent(studentKey)}`);
   check("history responds 200", history.status === 200);
-  check("both attempts are listed", history.body.attempts?.length === 2, `${history.body.attempts?.length}`);
+  check("every attempt is listed", history.body.attempts?.length === 3, `${history.body.attempts?.length}`);
+  check(
+    "history rows carry the marks available",
+    history.body.attempts?.every((attempt) => typeof attempt.totalMarks === "number" && attempt.totalMarks > 0),
+    JSON.stringify(history.body.attempts?.map((a) => `${a.score}/${a.totalMarks}`))
+  );
 
   const otherHistory = await call(`/api/tests/history?studentKey=${encodeURIComponent("nobody-at-all-here")}`);
   check(
@@ -377,6 +472,11 @@ async function main() {
     `/api/tests/attempts/${secondTest.id}?studentKey=${encodeURIComponent(studentKey)}`
   );
   check("a past attempt can be reopened", review.status === 200, JSON.stringify(review.body));
+  check(
+    "the reopened attempt still knows its marks",
+    review.body.totalMarks > 0 && review.body.reviews?.every((item) => item.marks >= 1),
+    `totalMarks ${review.body.totalMarks}`
+  );
   check(
     "the reopened attempt keeps the answers given",
     review.body.reviews?.every((item) => item.isCorrect === true),

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { LogoMark } from "../../lib/brand";
+import { LogoStacked } from "../../lib/brand";
 
 /**
  * The shell both auth screens sit in.
@@ -24,7 +24,7 @@ export function AuthLayout({
   return (
     <div className="auth-layout">
       <aside className="auth-aside" aria-hidden="true">
-        <LogoMark size={48} />
+        <LogoStacked size={54} tone="light" />
         <p className="auth-aside-title">
           Practise the real exam, then find out exactly what to fix.
         </p>

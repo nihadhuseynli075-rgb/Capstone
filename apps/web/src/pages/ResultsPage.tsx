@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { AttemptComparison, QuestionReview, TopicPerformance } from "@grade9/shared";
 import { subjectName, topicName } from "@grade9/shared";
 import { navigate } from "../app/router";
+import { useAuth } from "../features/auth/AuthContext";
 import { loadLastResult } from "../lib/examSession";
 import { fetchAttempt } from "../services/testsApi";
 
@@ -9,6 +10,7 @@ interface ResultView {
   attemptId: string;
   subjectId: string | null;
   score: number;
+  totalMarks: number;
   totalQuestions: number;
   percentage: number;
   timeTakenSeconds: number;
@@ -22,13 +24,9 @@ function breakdownFromReviews(reviews: QuestionReview[]): TopicPerformance[] {
   const topics = new Map<string, TopicPerformance>();
 
   for (const review of reviews) {
-    const entry = topics.get(review.topicId) ?? {
-      topicId: review.topicId,
-      correctAnswers: 0,
-      totalQuestions: 0
-    };
-    entry.totalQuestions += 1;
-    if (review.isCorrect) entry.correctAnswers += 1;
+    const entry = topics.get(review.topicId) ?? { topicId: review.topicId, score: 0, marks: 0 };
+    entry.marks += review.marks;
+    entry.score += review.score;
     topics.set(review.topicId, entry);
   }
 
@@ -46,8 +44,14 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
   const [view, setView] = useState<ResultView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showOnlyMistakes, setShowOnlyMistakes] = useState(false);
+  const { ready, user } = useAuth();
 
   useEffect(() => {
+    // Reopening a past attempt is checked against the student key, so asking
+    // before the session has loaded sends the guest key and comes back as
+    // "that test belongs to a different student".
+    if (attemptId && !ready) return;
+
     if (attemptId) {
       fetchAttempt(attemptId)
         .then((attempt) =>
@@ -55,6 +59,7 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
             attemptId: attempt.attemptId,
             subjectId: attempt.settings.subjectId,
             score: attempt.score,
+            totalMarks: attempt.totalMarks,
             totalQuestions: attempt.totalQuestions,
             percentage: attempt.percentage,
             timeTakenSeconds: attempt.timeTakenSeconds,
@@ -75,8 +80,9 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
 
     setView({
       attemptId: stored.attemptId,
-      subjectId: null,
+      subjectId: stored.subjectId ?? null,
       score: stored.score,
+      totalMarks: stored.totalMarks,
       totalQuestions: stored.totalQuestions,
       percentage: stored.percentage,
       timeTakenSeconds: stored.timeTakenSeconds,
@@ -84,7 +90,7 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
       reviews: stored.reviews,
       comparison: stored.comparison
     });
-  }, [attemptId]);
+  }, [attemptId, ready, user?.id]);
 
   // Keep the original question number attached, so filtering to mistakes still
   // says "Q4" rather than renumbering what is left.
@@ -116,8 +122,9 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
         <div className="score-figure">
           <span className="score-value">
             {view.score}
-            <span className="score-total">/{view.totalQuestions}</span>
+            <span className="score-total">/{view.totalMarks}</span>
           </span>
+          <span className="score-unit">marks</span>
           <span className="score-percent">{view.percentage}%</span>
         </div>
 
@@ -126,7 +133,8 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
             {view.subjectId ? `${subjectName(view.subjectId)} test complete` : "Test complete"}
           </h1>
           <p>
-            Finished in {formatDuration(view.timeTakenSeconds)} - {mistakeCount} mistake
+            {view.totalQuestions} question{view.totalQuestions === 1 ? "" : "s"} in{" "}
+            {formatDuration(view.timeTakenSeconds)} - {mistakeCount} mistake
             {mistakeCount === 1 ? "" : "s"} to review.
           </p>
 
@@ -134,9 +142,9 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
             <p className={`comparison ${view.comparison.isPersonalBest ? "best" : ""}`}>
               {view.comparison.isPersonalBest
                 ? view.comparison.previousBest
-                  ? `New personal best. Your previous best was ${view.comparison.previousBest.score}/${view.comparison.previousBest.totalQuestions}.`
+                  ? `New personal best. Your previous best was ${view.comparison.previousBest.score}/${view.comparison.previousBest.totalMarks}.`
                   : "First test recorded. Everything from here is measured against this one."
-                : `Your best so far is ${view.comparison.previousBest?.score}/${view.comparison.previousBest?.totalQuestions} on a ${view.comparison.previousBest?.difficultyMode} test.`}
+                : `Your best so far is ${view.comparison.previousBest?.score}/${view.comparison.previousBest?.totalMarks} on a ${view.comparison.previousBest?.difficultyMode} test.`}
             </p>
           )}
         </div>
@@ -147,16 +155,14 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
         <ul className="topic-bars">
           {view.topicBreakdown.map((topic) => {
             const percent =
-              topic.totalQuestions === 0
-                ? 0
-                : Math.round((topic.correctAnswers / topic.totalQuestions) * 100);
+              topic.marks === 0 ? 0 : Math.round((topic.score / topic.marks) * 100);
 
             return (
               <li key={topic.topicId}>
                 <div className="topic-bar-header">
                   <span>{topicName(view.subjectId ?? "", topic.topicId)}</span>
                   <span>
-                    {topic.correctAnswers}/{topic.totalQuestions}
+                    {topic.score}/{topic.marks}
                   </span>
                 </div>
                 <div className="topic-bar-track">
@@ -189,6 +195,9 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
             <li key={review.questionId} className={`review ${review.isCorrect ? "correct" : "wrong"}`}>
               <div className="review-top">
                 <span className="review-index">Q{number}</span>
+                <span className="review-marks">
+                  {review.score}/{review.marks} {review.marks === 1 ? "mark" : "marks"}
+                </span>
                 <span className={`review-badge ${review.isCorrect ? "correct" : "wrong"}`}>
                   {review.isCorrect ? "Correct" : "Wrong"}
                 </span>

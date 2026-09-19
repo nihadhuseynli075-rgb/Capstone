@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Wordmark } from "../lib/brand";
-import { applyTheme, getStoredTheme, type Theme } from "../lib/theme";
+import { applyTheme, useTheme, type Theme } from "../lib/theme";
 import { useLanguage } from "../lib/i18n";
 import { AuthProvider, useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
@@ -132,11 +132,13 @@ function Shell() {
   const path = useRoute();
   const { t } = useLanguage();
   const { ready } = useAuth();
-  const [theme, setTheme] = useState<Theme>(() => getStoredTheme());
+  const [theme, setTheme] = useTheme();
 
   // Pulls any guest history onto the account the first time someone signs in.
   useHistoryClaim();
 
+  // Paints the stored theme on first load. Later changes are applied by the
+  // theme store itself, wherever they were made from.
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);

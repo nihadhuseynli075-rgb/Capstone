@@ -24,6 +24,8 @@ const questionSchema = z
     prompt: z.string().min(1, "Question text is required"),
     options: z.array(z.string().min(1)).default([]),
     correctAnswer: z.string().min(1, "A correct answer is required"),
+    // Defaults to one so a sheet or a form without a marks column still works.
+    marks: z.number().int().min(1, "A question must be worth at least one mark").max(100).default(1),
     explanation: z.string().default(""),
     imageUrl: z.string().nullable().default(null),
     paperYear: z.number().int().min(1900).max(2100).nullable().default(null),

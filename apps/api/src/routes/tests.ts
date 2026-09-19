@@ -99,10 +99,12 @@ testsRouter.post("/generate", async (request, response, next) => {
         prompt: question.prompt,
         options: question.options,
         correctAnswer: question.correctAnswer,
+        marks: question.marks,
         explanation: question.explanation,
         imageUrl: question.imageUrl,
         studentAnswer: null,
-        isCorrect: null
+        isCorrect: null,
+        score: null
       }))
     });
 
@@ -200,6 +202,7 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
     await completeAttempt({
       attemptId: attempt.id,
       score: marked.score,
+      totalMarks: marked.totalMarks,
       totalQuestions: marked.totalQuestions,
       percentage: marked.percentage,
       timeTakenSeconds,
@@ -209,6 +212,7 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
     const result: TestResult = {
       attemptId: attempt.id,
       score: marked.score,
+      totalMarks: marked.totalMarks,
       totalQuestions: marked.totalQuestions,
       percentage: marked.percentage,
       correctAnswers: marked.correctAnswers,
@@ -296,6 +300,9 @@ testsRouter.get("/attempts/:attemptId", async (request, response, next) => {
       attemptId: attempt.id,
       settings: attempt.settings,
       score: attempt.score ?? 0,
+      totalMarks:
+        attempt.totalMarks ??
+        attempt.questions.reduce((sum, question) => sum + question.marks, 0),
       totalQuestions: attempt.totalQuestions ?? attempt.questions.length,
       percentage: attempt.percentage ?? 0,
       timeTakenSeconds: attempt.timeTakenSeconds ?? 0,
@@ -309,6 +316,10 @@ testsRouter.get("/attempts/:attemptId", async (request, response, next) => {
         studentAnswer: question.studentAnswer ?? "",
         correctAnswer: question.correctAnswer,
         isCorrect: question.isCorrect ?? false,
+        // Older rows predate per-question scores; a correct answer was worth
+        // the question's marks, which were one each.
+        score: question.score ?? (question.isCorrect ? question.marks : 0),
+        marks: question.marks,
         explanation: question.explanation
       }))
     });

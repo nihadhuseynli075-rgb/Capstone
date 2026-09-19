@@ -119,6 +119,13 @@ export interface BankQuestion {
   prompt: string;
   options: string[];
   correctAnswer: string;
+  /**
+   * What the question is worth, as printed on the paper.
+   *
+   * One unless the paper says otherwise, which is what makes a bank entered
+   * before marks existed still score exactly as it did.
+   */
+  marks: number;
   explanation: string;
   imageUrl: string | null;
   paperYear: number | null;
@@ -139,6 +146,8 @@ export interface ExamQuestion {
   type: QuestionType;
   prompt: string;
   options: string[];
+  /** Shown during the test, the way a paper prints "[3 marks]". */
+  marks: number;
   imageUrl: string | null;
 }
 
@@ -165,13 +174,24 @@ export interface QuestionReview {
   studentAnswer: string;
   correctAnswer: string;
   isCorrect: boolean;
+  /** Marks awarded, between 0 and `marks`. */
+  score: number;
+  /** Marks the question was worth when it was served. */
+  marks: number;
   explanation: string;
 }
 
+/**
+ * How a topic went, in marks rather than questions answered.
+ *
+ * Counting questions would let the bars disagree with the score above them:
+ * three one-mark questions right out of four looks like 75%, while the same
+ * attempt missing a four-mark question is 3/7.
+ */
 export interface TopicPerformance {
   topicId: string;
-  correctAnswers: number;
-  totalQuestions: number;
+  score: number;
+  marks: number;
 }
 
 /** How this attempt compares to the previous best. */
@@ -179,6 +199,7 @@ export interface AttemptComparison {
   isPersonalBest: boolean;
   previousBest: {
     score: number;
+    totalMarks: number;
     totalQuestions: number;
     percentage: number;
     difficultyMode: DifficultyMode;
@@ -188,7 +209,10 @@ export interface AttemptComparison {
 
 export interface TestResult {
   attemptId: string;
+  /** Marks earned, not questions answered correctly. */
   score: number;
+  /** Marks available across the paper: the denominator for `percentage`. */
+  totalMarks: number;
   totalQuestions: number;
   percentage: number;
   correctAnswers: number;
@@ -205,7 +229,9 @@ export interface AttemptSummary {
   subjectId: string;
   topicIds: string[];
   difficultyMode: DifficultyMode;
+  /** Marks earned, not questions answered correctly. */
   score: number;
+  totalMarks: number;
   totalQuestions: number;
   percentage: number;
   timeTakenSeconds: number;
