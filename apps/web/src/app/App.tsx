@@ -7,6 +7,7 @@ import { LoginPage } from "../features/auth/LoginPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
 import { useHistoryClaim } from "../features/auth/useHistoryClaim";
 import { AdminPage } from "../pages/AdminPage";
+import { FriendsPage } from "../pages/FriendsPage";
 import { ExamPage } from "../pages/ExamPage";
 import { HistoryPage } from "../pages/HistoryPage";
 import { MainPage } from "../pages/MainPage";
@@ -153,6 +154,7 @@ function Shell() {
     if (path === "/build") return <TestBuilderPage />;
     if (path === "/exam") return <ExamPage />;
     if (path === "/history") return <HistoryPage />;
+    if (path === "/friends") return <FriendsPage />;
     if (path === "/settings") return <SettingsPage />;
     if (path.startsWith("/results")) {
       const attemptId = path.split("/")[2];
