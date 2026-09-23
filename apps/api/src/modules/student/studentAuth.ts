@@ -1,4 +1,5 @@
 import type { Request } from "express";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { isUuid } from "../../lib/ids";
 import { supabaseAdmin } from "../../lib/supabaseAdmin";
 
@@ -7,15 +8,35 @@ function bearerToken(request: Request): string | null {
   return header.startsWith("Bearer ") ? header.slice(7) : null;
 }
 
+/**
+ * The account a request's access token belongs to, if it is a live one.
+ *
+ * getClaims checks the signature here, against the project's published keys,
+ * when the project signs tokens with asymmetric keys, and only asks the auth
+ * server when it still uses a shared secret. getUser asked the auth server on
+ * every request, before any of the request's own work began.
+ */
 async function authenticatedUserId(request: Request): Promise<string | null> {
   if (!supabaseAdmin) return null;
 
   const token = bearerToken(request);
   if (!token) return null;
 
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user.id;
+  const { data, error } = await supabaseAdmin.auth.getClaims(token);
+
+  if (error) {
+    // A bad, expired or signed-out token simply means not signed in. The auth
+    // server being down or unreachable is not that: answering "sign in again"
+    // would send a student who is signed in round in a loop, so it is reported
+    // as the failure it is.
+    if (isAuthRetryableFetchError(error)) {
+      throw new Error(`Could not check your sign-in just now. Try again in a moment. (${error.message})`);
+    }
+    return null;
+  }
+
+  const userId = data?.claims.sub;
+  return typeof userId === "string" && userId.length > 0 ? userId : null;
 }
 
 /**

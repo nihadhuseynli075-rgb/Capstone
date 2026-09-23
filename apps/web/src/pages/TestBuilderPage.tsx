@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AttemptSummary, Difficulty, DifficultyMode } from "@grade9/shared";
 import { customLimits, difficultyPresets } from "@grade9/shared";
-import { navigate, routeParam } from "../app/router";
+import { navigate, useRouteParam } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
 import { saveActiveTest } from "../lib/examSession";
 import {
@@ -42,24 +42,31 @@ export function TestBuilderPage() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const requestedSubject = useRouteParam("subject");
+
   useEffect(() => {
     fetchCatalog()
-      .then((subjects) => {
-        setCatalog(subjects);
-        // A subject shortcut on the home page arrives as ?subject=. Otherwise
-        // start on the first subject that has anything in it.
-        const requested = routeParam("subject");
-        const first =
-          subjects.find((subject) => subject.id === requested) ??
-          subjects.find((subject) => subject.total > 0) ??
-          subjects[0];
-        if (first) {
-          setSubjectId(first.id);
-          setTopicIds(first.topics.filter((topic) => topic.total > 0).map((topic) => topic.id));
-        }
-      })
+      .then(setCatalog)
       .catch((cause: Error) => setLoadError(cause.message));
   }, []);
+
+  // A subject shortcut arrives as ?subject=, whether the builder is opening or
+  // already open when the address changes. Otherwise start on the first subject
+  // that has anything in it. Picking a subject by hand leaves the address alone,
+  // so it is never undone by this.
+  useEffect(() => {
+    if (!catalog) return;
+
+    const first =
+      catalog.find((subject) => subject.id === requestedSubject) ??
+      catalog.find((subject) => subject.total > 0) ??
+      catalog[0];
+
+    if (first) {
+      setSubjectId(first.id);
+      setTopicIds(first.topics.filter((topic) => topic.total > 0).map((topic) => topic.id));
+    }
+  }, [catalog, requestedSubject]);
 
   // Past results, for the last score on each topic. Waits for the session like
   // the history page does, or a signed-in student is asked about with the guest

@@ -873,6 +873,13 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
   }
 
   async function handleAuth(request, response, url, route) {
+    // Faults for the auth server are registered with a table of "auth/<route>",
+    // e.g. "auth/user", standing in for the auth server being down.
+    const fault = takeFault(request.method, `auth/${route}`, url.search);
+    if (fault) {
+      return sendAuthError(response, fault.status ?? 503, fault.code ?? "unavailable", fault.message ?? "injected failure");
+    }
+
     if (route === "signup" && request.method === "POST") {
       const body = (await readBody(request)) ?? {};
       try {

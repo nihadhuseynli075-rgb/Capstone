@@ -21,6 +21,26 @@ export function routeParam(name: string): string | null {
   return new URLSearchParams(hash.slice(start + 1)).get(name);
 }
 
+/**
+ * One value from the route's query, kept up to date as the address changes.
+ *
+ * The query is not part of the route, so moving from "/build?subject=math" to
+ * "/build?subject=english" keeps the same page mounted: a value read once when
+ * the page loaded would still say "math".
+ */
+export function useRouteParam(name: string): string | null {
+  const [value, setValue] = useState(() => routeParam(name));
+
+  useEffect(() => {
+    const handleChange = () => setValue(routeParam(name));
+    handleChange();
+    window.addEventListener("hashchange", handleChange);
+    return () => window.removeEventListener("hashchange", handleChange);
+  }, [name]);
+
+  return value;
+}
+
 export function navigate(path: string): void {
   window.location.hash = path;
 }

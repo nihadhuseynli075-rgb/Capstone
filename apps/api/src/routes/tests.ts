@@ -224,7 +224,8 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
     const marked = markAttempt(attempt.questions, parsed.data.answers);
 
     // Read history before saving, so this attempt is not compared against itself.
-    const history = await listAttempts(parsed.data.studentKey);
+    // Headline figures only: the comparison never looks at topics.
+    const history = await listAttempts(parsed.data.studentKey, { topicBreakdown: false });
 
     const recorded = await completeAttempt({
       attemptId: attempt.id,

@@ -316,6 +316,19 @@ async function main() {
     const expired = await call(`/api/tests/history?studentKey=${aliceId}`, { token: aliceToken });
     check("an ended session's token is refused", expired.status === 401, `got ${expired.status}`);
 
+    section("The auth server being down");
+    // Not the same as being signed out: telling a signed-in student to sign in
+    // again would only send them round in a loop.
+    await control("faults", { method: "GET", table: "auth/user", times: 1, status: 503 });
+    const authDown = await call(`/api/tests/history?studentKey=${bob.user.id}`, { token: bobToken });
+    check(
+      "an unreachable auth server is reported as a failure, not as signed out",
+      authDown.status === 500 && /Could not check your sign-in/.test(authDown.body.message ?? ""),
+      `${authDown.status} ${JSON.stringify(authDown.body)}`
+    );
+    const authBack = await call(`/api/tests/history?studentKey=${bob.user.id}`, { token: bobToken });
+    check("the same token works once it is back", authBack.status === 200, `got ${authBack.status}`);
+
     section("Attempt ids that cannot exist");
     const badReview = await call(`/api/tests/attempts/not-a-real-id?studentKey=${guestKey}`);
     check("reopening a malformed attempt id is a 404", badReview.status === 404, `got ${badReview.status}: ${JSON.stringify(badReview.body)}`);
@@ -347,6 +360,34 @@ async function main() {
     check("the stored score is the accepted one", raceReview.body.score === winner.body.score, `stored ${raceReview.body.score}, accepted ${winner.body.score}`);
     const storedSum = (raceReview.body.reviews ?? []).reduce((sum, review) => sum + review.score, 0);
     check("the stored answers are the accepted ones", storedSum === winner.body.score, `answers add up to ${storedSum}, score is ${winner.body.score}`);
+
+    section("What marking a submission reads");
+    // The previous-best comparison needs headline figures only. Reading every
+    // question of every past paper there made each submission slower the more
+    // tests the student had sat.
+    const readerKey = randomUUID();
+    const earlier = (await generate(readerKey)).body.test;
+    await submit(earlier, readerKey, rightAnswers(earlier));
+    const later = (await generate(readerKey)).body.test;
+    const logBefore = (await control("requests")).body.requests.length;
+    const laterResult = await submit(later, readerKey, wrongAnswers(later));
+    const submitReads = (await control("requests")).body.requests
+      .slice(logBefore)
+      .filter((entry) => entry.method === "GET" && entry.table === "test_attempts")
+      .map((entry) => decodeURIComponent(entry.search));
+    check("the submission is marked against the earlier one", laterResult.body.comparison?.previousBest !== null, JSON.stringify(laterResult.body.comparison));
+    const historyReads = submitReads.filter((search) => search.includes(`student_key=eq.${readerKey}`));
+    check(
+      "the previous-best lookup reads no question rows",
+      historyReads.length === 1 && !historyReads[0].includes("attempt_questions"),
+      JSON.stringify(historyReads)
+    );
+    const readerHistory = await call(`/api/tests/history?studentKey=${readerKey}`);
+    check(
+      "the history page still gets its per-topic figures",
+      readerHistory.body.attempts?.every((attempt) => Array.isArray(attempt.topicBreakdown) && attempt.topicBreakdown.length > 0),
+      JSON.stringify(readerHistory.body.attempts?.map((attempt) => attempt.topicBreakdown))
+    );
 
     section("A save that fails halfway can be retried");
     const retryKey = randomUUID();
@@ -406,6 +447,25 @@ async function main() {
       imported.body.errors?.some((issue) => issue.row === 3),
       JSON.stringify(imported.body.errors)
     );
+
+    section("A bank bigger than one page of rows");
+    // Supabase stops a single read at 1,000 rows, and the catalog used to count
+    // the bank from one read, so everything past the first thousand vanished
+    // from the builder's figures without any error.
+    const bulkSubject = `bulk-${Date.now()}`;
+    const bulkRows = ["subject,topic,difficulty,question,correct_answer"];
+    for (let index = 0; index < 1005; index += 1) {
+      bulkRows.push(`${bulkSubject},counting,easy,"Bulk question ${index}",${index}`);
+    }
+    const bulk = await call("/api/admin/questions/import", {
+      method: "POST",
+      token: adminToken,
+      body: { csv: bulkRows.join("\n") }
+    });
+    check("1,005 questions import", bulk.body.importedCount === 1005, `imported ${bulk.body.importedCount}`);
+    const bulkCatalog = await call("/api/catalog");
+    const counted = bulkCatalog.body.subjects?.find((subject) => subject.id === bulkSubject)?.total;
+    check("the catalog counts every one of them", counted === 1005, `counted ${counted}`);
   } finally {
     stopApi();
     await standin.close();

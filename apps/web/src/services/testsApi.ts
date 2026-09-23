@@ -25,9 +25,33 @@ export interface CatalogSubject {
   total: number;
 }
 
-export async function fetchCatalog(): Promise<CatalogSubject[]> {
-  const data = await apiRequest<{ subjects: CatalogSubject[] }>("/api/catalog");
-  return data.subjects;
+/**
+ * How long one catalog answers every caller.
+ *
+ * The subject shortcuts and the builder a tap later both need it, and each
+ * asked for it on its own; the counts only move when an admin adds questions.
+ */
+const CATALOG_FRESH_MS = 30_000;
+
+let catalogRequest: { at: number; subjects: Promise<CatalogSubject[]> } | null = null;
+
+export function fetchCatalog(): Promise<CatalogSubject[]> {
+  if (catalogRequest && Date.now() - catalogRequest.at < CATALOG_FRESH_MS) {
+    return catalogRequest.subjects;
+  }
+
+  const request = {
+    at: Date.now(),
+    subjects: apiRequest<{ subjects: CatalogSubject[] }>("/api/catalog").then((data) => data.subjects)
+  };
+  catalogRequest = request;
+
+  // A failure is not worth keeping: the next caller should ask again.
+  request.subjects.catch(() => {
+    if (catalogRequest === request) catalogRequest = null;
+  });
+
+  return request.subjects;
 }
 
 /**

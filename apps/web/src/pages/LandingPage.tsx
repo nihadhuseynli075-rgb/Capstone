@@ -1,58 +1,59 @@
 import { navigate } from "../app/router";
 import { SubjectShortcuts } from "../components/SubjectShortcuts";
+import { useAuth } from "../features/auth/AuthContext";
 import { Wordmark } from "../lib/brand";
 import { useLanguage } from "../lib/i18n";
 import "../styles/landing.css";
 
 export function LandingPage() {
   const { t } = useLanguage();
+  const { configured } = useAuth();
 
   return (
     <div className="landing-page">
       <header className="landing-header">
         <Wordmark size={34} />
 
-        <nav className="landing-nav">
-          <button
-            type="button"
-            className="landing-login"
-            onClick={() => navigate("/login")}
-          >
-            Log In
-          </button>
+        {/* Without Supabase both of these lead to a form that cannot be sent,
+            so they are only offered when accounts are switched on. The practice
+            test below works either way. */}
+        {configured && (
+          <nav className="landing-nav">
+            <button
+              type="button"
+              className="landing-login"
+              onClick={() => navigate("/login")}
+            >
+              {t("landing.logIn")}
+            </button>
 
-          <button
-            type="button"
-            className="landing-signup"
-            onClick={() => navigate("/register")}
-          >
-            Sign Up
-          </button>
-        </nav>
+            <button
+              type="button"
+              className="landing-signup"
+              onClick={() => navigate("/register")}
+            >
+              {t("landing.signUp")}
+            </button>
+          </nav>
+        )}
       </header>
 
       <main>
         <section className="landing-hero">
           <div className="landing-left">
             <p className="landing-label">
-              GRADE 9 EXAM PREPARATION
+              {t("landing.label")}
             </p>
 
             <h1>
-              REACH YOUR
-              <span>PEAK.</span>
+              {t("landing.titleLead")}
+              <span>{t("landing.titlePeak")}</span>
             </h1>
 
             <div className="landing-description-box">
-              <p>
-                ExamPeak helps Grade 9 students prepare for final exams
-                through mock tests, daily quizzes and detailed results.
-              </p>
+              <p>{t("landing.intro")}</p>
 
-              <p>
-                Practice by subject and difficulty, identify weak topics
-                and track your progress as you improve.
-              </p>
+              <p>{t("landing.introMore")}</p>
             </div>
 
             <div className="landing-start">
@@ -94,44 +95,32 @@ export function LandingPage() {
           <article className="landing-feature">
             <span className="feature-number">01</span>
 
-            <h2>Mock Tests</h2>
+            <h2>{t("landing.mockTests")}</h2>
 
-            <p>
-              Create practice tests based on subject, topic and
-              difficulty using Grade 9 exam-style questions.
-            </p>
+            <p>{t("landing.mockTestsBody")}</p>
           </article>
 
           <article className="landing-feature">
             <span className="feature-number">02</span>
 
-            <h2>Daily Quizzes</h2>
+            <h2>{t("landing.dailyQuizzes")}</h2>
 
-            <p>
-              Complete new daily challenges designed to become
-              progressively more difficult.
-            </p>
+            <p>{t("landing.dailyQuizzesBody")}</p>
           </article>
 
           <article className="landing-feature">
             <span className="feature-number">03</span>
 
-            <h2>Track Progress</h2>
+            <h2>{t("landing.trackProgress")}</h2>
 
-            <p>
-              Review your scores, test history and mistakes to
-              understand where you can improve.
-            </p>
+            <p>{t("landing.trackProgressBody")}</p>
           </article>
         </section>
 
         <section className="landing-bottom">
           <span>EXAMPEAK</span>
 
-          <p>
-            One place to practise, measure your progress and prepare
-            with confidence for your Grade 9 final exams.
-          </p>
+          <p>{t("landing.closing")}</p>
         </section>
       </main>
     </div>

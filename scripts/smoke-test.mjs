@@ -511,6 +511,15 @@ async function main() {
   section("Two submissions of one paper at once");
   // A second tab, or a retry racing the original. Exactly one may be kept, and
   // what is stored has to be that one, not a mix of the two.
+  //
+  // In memory storage the API handles one request start to finish before it
+  // reads the next, so the two never overlap and this proves the refusal, not
+  // the race. The race needs database round trips to overlap in: with Supabase
+  // storage it is real, and npm run smoke:supabase runs this suite that way and
+  // then again with added latency to force it.
+  if (health.body.storageMode === "memory") {
+    console.log("        memory storage: checks the refusal only; the race itself runs in npm run smoke:supabase");
+  }
   const racerKey = `${studentKey}-racer`;
   const race = await call("/api/tests/generate", {
     method: "POST",

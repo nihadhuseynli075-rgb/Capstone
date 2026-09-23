@@ -63,6 +63,27 @@ const en = {
   "subject.english": "English",
   "subject.russian": "Russian",
 
+  "landing.logIn": "Log In",
+  "landing.signUp": "Sign Up",
+  "landing.label": "GRADE 9 EXAM PREPARATION",
+  "landing.titleLead": "REACH YOUR",
+  "landing.titlePeak": "PEAK.",
+  "landing.intro":
+    "ExamPeak helps Grade 9 students prepare for final exams through mock tests, daily quizzes and detailed results.",
+  "landing.introMore":
+    "Practice by subject and difficulty, identify weak topics and track your progress as you improve.",
+  "landing.mockTests": "Mock Tests",
+  "landing.mockTestsBody":
+    "Create practice tests based on subject, topic and difficulty using Grade 9 exam-style questions.",
+  "landing.dailyQuizzes": "Daily Quizzes",
+  "landing.dailyQuizzesBody":
+    "Complete new daily challenges designed to become progressively more difficult.",
+  "landing.trackProgress": "Track Progress",
+  "landing.trackProgressBody":
+    "Review your scores, test history and mistakes to understand where you can improve.",
+  "landing.closing":
+    "One place to practise, measure your progress and prepare with confidence for your Grade 9 final exams.",
+
   "settings.title": "Settings",
   "settings.subtitle": "Your account and how the site looks.",
   "settings.profile": "Profile",
@@ -135,6 +156,27 @@ const ru: Dictionary = {
   "subject.english": "Английский язык",
   "subject.russian": "Русский язык",
 
+  "landing.logIn": "Войти",
+  "landing.signUp": "Регистрация",
+  "landing.label": "ПОДГОТОВКА К ЭКЗАМЕНАМ 9 КЛАССА",
+  "landing.titleLead": "ДОСТИГНИТЕ СВОЕЙ",
+  "landing.titlePeak": "ВЕРШИНЫ.",
+  "landing.intro":
+    "ExamPeak помогает девятиклассникам готовиться к выпускным экзаменам: пробные тесты, ежедневные викторины и подробные результаты.",
+  "landing.introMore":
+    "Тренируйтесь по предметам и уровням сложности, находите слабые темы и следите за своим прогрессом.",
+  "landing.mockTests": "Пробные тесты",
+  "landing.mockTestsBody":
+    "Составляйте тренировочные тесты по предмету, теме и сложности из заданий в формате экзамена 9 класса.",
+  "landing.dailyQuizzes": "Ежедневные викторины",
+  "landing.dailyQuizzesBody":
+    "Проходите новые задания каждый день: с каждым разом они становятся сложнее.",
+  "landing.trackProgress": "Ваш прогресс",
+  "landing.trackProgressBody":
+    "Смотрите свои баллы, историю тестов и ошибки, чтобы понять, над чем ещё стоит поработать.",
+  "landing.closing":
+    "Всё в одном месте: тренируйтесь, следите за прогрессом и уверенно готовьтесь к выпускным экзаменам 9 класса.",
+
   "settings.title": "Настройки",
   "settings.subtitle": "Ваш аккаунт и внешний вид сайта.",
   "settings.profile": "Профиль",
@@ -202,6 +244,27 @@ const az: Dictionary = {
   "subject.math": "Riyaziyyat",
   "subject.english": "İngilis dili",
   "subject.russian": "Rus dili",
+
+  "landing.logIn": "Daxil ol",
+  "landing.signUp": "Qeydiyyat",
+  "landing.label": "9-CU SİNİF İMTAHANLARINA HAZIRLIQ",
+  "landing.titleLead": "ZİRVƏNİZƏ",
+  "landing.titlePeak": "ÇATIN.",
+  "landing.intro":
+    "ExamPeak 9-cu sinif şagirdlərinə sınaq testləri, gündəlik viktorinalar və ətraflı nəticələrlə buraxılış imtahanlarına hazırlaşmağa kömək edir.",
+  "landing.introMore":
+    "Fənn və çətinlik səviyyəsinə görə məşq edin, zəif mövzuları tapın və inkişafınızı izləyin.",
+  "landing.mockTests": "Sınaq testləri",
+  "landing.mockTestsBody":
+    "9-cu sinif imtahan formatında suallarla fənn, mövzu və çətinliyə görə məşq testləri yaradın.",
+  "landing.dailyQuizzes": "Gündəlik viktorinalar",
+  "landing.dailyQuizzesBody":
+    "Hər gün yeni tapşırıqları yerinə yetirin: onlar getdikcə çətinləşir.",
+  "landing.trackProgress": "İnkişafınız",
+  "landing.trackProgressBody":
+    "Nəyi yaxşılaşdıra biləcəyinizi görmək üçün ballarınıza, test tarixçənizə və səhvlərinizə baxın.",
+  "landing.closing":
+    "Məşq etmək, inkişafınızı ölçmək və 9-cu sinif buraxılış imtahanlarına inamla hazırlaşmaq üçün hər şey bir yerdə.",
 
   "settings.title": "Tənzimləmələr",
   "settings.subtitle": "Hesabınız və saytın görünüşü.",

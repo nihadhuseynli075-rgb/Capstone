@@ -326,8 +326,18 @@ function breakdownOf(
   return [...topics.values()];
 }
 
-/** Submitted attempts for one student, newest first. */
-export async function listAttempts(studentKey: string): Promise<AttemptSummary[]> {
+/**
+ * Submitted attempts for one student, newest first.
+ *
+ * `topicBreakdown: false` leaves out the per-topic figures, and with them the
+ * read of every question of every past paper. Marking a submission only needs
+ * the headline figures to find the previous best, and it runs inside the time
+ * limit's grace period, so it should not grow with the student's history.
+ */
+export async function listAttempts(
+  studentKey: string,
+  { topicBreakdown = true }: { topicBreakdown?: boolean } = {}
+): Promise<AttemptSummary[]> {
   if (!supabaseAdmin) {
     return [...memoryAttempts.values()]
       .filter((attempt) => attempt.studentKey === studentKey && attempt.submittedAt !== null)
@@ -343,22 +353,27 @@ export async function listAttempts(studentKey: string): Promise<AttemptSummary[]
         percentage: attempt.percentage ?? 0,
         timeTakenSeconds: attempt.timeTakenSeconds ?? 0,
         submittedAt: attempt.submittedAt ?? attempt.createdAt,
-        topicBreakdown: breakdownOf(attempt.questions)
+        topicBreakdown: topicBreakdown ? breakdownOf(attempt.questions) : undefined
       }));
   }
 
   // Only the columns the breakdown needs from each question, not the prompts,
   // options and explanations of every paper the student has sat.
+  const columns: string = topicBreakdown
+    ? "*, attempt_questions(topic_id, marks, score, is_correct)"
+    : "*";
+
   const { data, error } = await supabaseAdmin
     .from("test_attempts")
-    .select("*, attempt_questions(topic_id, marks, score, is_correct)")
+    .select(columns)
     .eq("student_key", studentKey)
     .not("submitted_at", "is", null)
     .order("submitted_at", { ascending: false });
 
   if (error) throw new Error(`Failed to load history: ${error.message}`);
 
-  return (data as Array<Record<string, unknown>>).map((row) => ({
+  // The column list is chosen at run time, so the client cannot type the rows.
+  return (data as unknown as Array<Record<string, unknown>>).map((row) => ({
     id: row.id as string,
     subjectId: row.subject_id as string,
     topicIds: (row.topic_ids ?? []) as string[],
@@ -371,14 +386,16 @@ export async function listAttempts(studentKey: string): Promise<AttemptSummary[]
     percentage: Number(row.percentage ?? 0),
     timeTakenSeconds: (row.time_taken_seconds ?? 0) as number,
     submittedAt: (row.submitted_at ?? row.created_at) as string,
-    topicBreakdown: breakdownOf(
-      ((row.attempt_questions ?? []) as Array<Record<string, unknown>>).map((question) => ({
-        topicId: question.topic_id as string,
-        marks: (question.marks ?? 1) as number,
-        score: (question.score ?? null) as number | null,
-        isCorrect: (question.is_correct ?? null) as boolean | null
-      }))
-    )
+    topicBreakdown: topicBreakdown
+      ? breakdownOf(
+          ((row.attempt_questions ?? []) as Array<Record<string, unknown>>).map((question) => ({
+            topicId: question.topic_id as string,
+            marks: (question.marks ?? 1) as number,
+            score: (question.score ?? null) as number | null,
+            isCorrect: (question.is_correct ?? null) as boolean | null
+          }))
+        )
+      : undefined
   }));
 }
 

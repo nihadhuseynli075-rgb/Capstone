@@ -174,11 +174,53 @@ export async function deleteQuestion(id: string): Promise<boolean> {
   return (data ?? []).length > 0;
 }
 
+type CountedQuestion = Pick<BankQuestion, "subjectId" | "topicId" | "difficulty">;
+
+/** Rows asked for at a time. Supabase cuts any single read off at 1,000 by default. */
+const PAGE_SIZE = 1000;
+
+/**
+ * The three columns a count needs, for every question in the bank.
+ *
+ * listQuestions reads every column, images and explanations included, and
+ * stops without complaint at the first 1,000 rows, so counting through it grew
+ * with the bank and then quietly undercounted it. This pages until the bank
+ * runs out: a page shorter than asked for is not trusted to be the last, since
+ * the project's row limit could be lower than the page size.
+ */
+async function questionsToCount(): Promise<CountedQuestion[]> {
+  if (!supabaseAdmin) return [...memoryQuestions.values()];
+
+  const rows: CountedQuestion[] = [];
+
+  for (let from = 0; ; ) {
+    const { data, error } = await supabaseAdmin
+      .from("questions")
+      .select("subject_id, topic_id, difficulty")
+      .order("id")
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) throw new Error(`Failed to count questions: ${error.message}`);
+
+    const page = (data ?? []) as Array<Pick<QuestionRow, "subject_id" | "topic_id" | "difficulty">>;
+    if (page.length === 0) return rows;
+
+    for (const row of page) {
+      rows.push({
+        subjectId: row.subject_id,
+        topicId: row.topic_id,
+        difficulty: row.difficulty as Difficulty
+      });
+    }
+    from += page.length;
+  }
+}
+
 /** Counts per subject and topic, used to build the catalog the builder shows. */
 export async function questionCounts(): Promise<
   Array<{ subjectId: string; topicId: string; difficulty: Difficulty; count: number }>
 > {
-  const all = await listQuestions();
+  const all = await questionsToCount();
   const tally = new Map<string, { subjectId: string; topicId: string; difficulty: Difficulty; count: number }>();
 
   for (const question of all) {
