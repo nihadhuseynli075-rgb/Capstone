@@ -9,12 +9,16 @@ import { LoginPage } from "../features/auth/LoginPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
 import { useHistoryClaim } from "../features/auth/useHistoryClaim";
 
+import { Avatar } from "../features/profile/Avatar";
+import { ProfileProvider, useProfile } from "../features/profile/ProfileContext";
+
 import { AdminPage } from "../pages/AdminPage";
 import { FriendsPage } from "../pages/FriendsPage";
 import { ExamPage } from "../pages/ExamPage";
 import { HistoryPage } from "../pages/HistoryPage";
 import { LandingPage } from "../pages/LandingPage";
 import { MainPage } from "../pages/MainPage";
+import { ProfilePage } from "../pages/ProfilePage";
 import { ResultsPage } from "../pages/ResultsPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { TestBuilderPage } from "../pages/TestBuilderPage";
@@ -55,29 +59,6 @@ function ThemeToggle({
 }
 
 
-function initialsOf(name: string): string {
-  const parts = name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-
-  if (parts.length === 0) {
-    return "?";
-  }
-
-  if (parts.length === 1) {
-    return parts[0]
-      .slice(0, 2)
-      .toUpperCase();
-  }
-
-  return (
-    parts[0][0] +
-    parts[parts.length - 1][0]
-  ).toUpperCase();
-}
-
-
 function AccountMenu() {
   const { t } = useLanguage();
 
@@ -85,6 +66,12 @@ function AccountMenu() {
     user,
     signOut
   } = useAuth();
+
+  /*
+   * The profile's name and photo, once loaded.
+   * Until then, the name on the account.
+   */
+  const { profile } = useProfile();
 
   const [open, setOpen] =
     useState(false);
@@ -150,6 +137,10 @@ function AccountMenu() {
   }
 
 
+  const name =
+    profile?.fullName ?? user.fullName;
+
+
   return (
     <div
       className="account-menu"
@@ -166,15 +157,13 @@ function AccountMenu() {
         aria-expanded={open}
         aria-haspopup="menu"
       >
-        <span
-          className="avatar"
-          aria-hidden="true"
-        >
-          {initialsOf(user.fullName)}
-        </span>
+        <Avatar
+          name={name}
+          photoUrl={profile?.avatarUrl}
+        />
 
         <span className="account-name">
-          {user.fullName}
+          {name}
         </span>
       </button>
 
@@ -186,13 +175,25 @@ function AccountMenu() {
         >
           <div className="account-dropdown-head">
             <strong>
-              {user.fullName}
+              {name}
             </strong>
 
             <span>
               {user.email}
             </span>
           </div>
+
+          <button
+            type="button"
+            className="account-item"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              navigate("/profile");
+            }}
+          >
+            {t("nav.profile")}
+          </button>
 
           <button
             type="button"
@@ -238,6 +239,7 @@ function isAppPage(path: string): boolean {
       "/exam",
       "/history",
       "/friends",
+      "/profile",
       "/settings",
       "/admin"
     ].includes(path) ||
@@ -393,6 +395,10 @@ function Shell() {
       return <FriendsPage />;
     }
 
+    if (path === "/profile") {
+      return <ProfilePage />;
+    }
+
     if (path === "/settings") {
       return <SettingsPage />;
     }
@@ -523,7 +529,9 @@ function Shell() {
 export function App() {
   return (
     <AuthProvider>
-      <Shell />
+      <ProfileProvider>
+        <Shell />
+      </ProfileProvider>
     </AuthProvider>
   );
 }

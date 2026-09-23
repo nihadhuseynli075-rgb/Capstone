@@ -33,6 +33,12 @@ function purgeExpired(): void {
 }
 
 export function login(password: string): string | null {
+  // The fallback password is written in the repository, so in production it is
+  // no password at all: the dashboard stays shut until a real one is set. Only
+  // this dashboard closes; students can still sit tests. The reason is said at
+  // startup rather than here, where it would tell a stranger what is wrong.
+  if (env.adminPasswordIsDefault && env.isProduction) return null;
+
   if (!constantTimeEquals(password, env.adminPassword)) return null;
 
   purgeExpired();

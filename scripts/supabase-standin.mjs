@@ -1,12 +1,22 @@
 /**
- * A local stand-in for the two Supabase services this app talks to.
+ * A local stand-in for the three Supabase services this app talks to.
  *
  *   node scripts/supabase-standin.mjs            (listens on 54399)
  *
  * It answers the PostgREST calls the API makes (/rest/v1) against the four
- * tables in supabase/migrations that the API reads and writes, and the GoTrue
- * calls both the API and the browser make (/auth/v1) for email and password
- * accounts. It holds everything in memory and needs nothing installed.
+ * tables in supabase/migrations that the API reads and writes, the GoTrue
+ * calls both the API and the browser make (/auth/v1) for accounts, including
+ * the admin calls the API makes with the service role key, and the storage
+ * calls (/storage/v1) for profile photos. It holds everything in memory and
+ * needs nothing installed.
+ *
+ * It also plays Google, so signing in with Google and connecting it from the
+ * profile page can be tried in a browser with no Google project: the trip to
+ * Google comes straight back the way Supabase sends it, signed in as the one
+ * Google account set through POST /__standin/google. To try the app against
+ * it, run the API with SUPABASE_URL pointing here and SUPABASE_SERVICE_ROLE_KEY
+ * set to anything, and the web app with VITE_SUPABASE_URL pointing here and
+ * VITE_SUPABASE_ANON_KEY set to anything.
  *
  * It exists because the Supabase code paths otherwise only run against a real
  * project, and there is not always one to hand. So it imitates the Postgres
@@ -19,12 +29,23 @@
  * nothing about row level security, whether the migration SQL runs, or real
  * network behaviour. Check those against a real, disposable project.
  *
+ * Two differences worth knowing when reading a passing run:
+ *
+ *   * Tokens here are signed with a shared secret, so `getClaims` in the API
+ *     falls back to asking this stand-in about every one. A real project
+ *     signing with asymmetric keys checks the signature on its own and cannot
+ *     tell that a session has been signed out, which is why deleting an
+ *     account asks the auth server outright (see isLiveSession).
+ *   * The profiles table here is written by this file imitating the triggers in
+ *     the migrations, not by the triggers themselves. Keep the two in step:
+ *     what `createUser` does is meant to be what 0007's handle_new_user does.
+ *
  * Tests steer it through /__standin: create accounts, expire their sessions,
  * inject failures and latency, and read or edit rows directly.
  */
 
 import http from "node:http";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -52,7 +73,7 @@ function column(type, options = {}) {
 
 const oneOf = (values) => (value) => values.includes(value);
 
-/** The tables the API touches, as the migrations leave them after 0001-0005. */
+/** The tables the API touches, as the migrations leave them after 0001-0007. */
 const SCHEMA = {
   profiles: {
     columns: {
@@ -60,7 +81,8 @@ const SCHEMA = {
       full_name: column("text"),
       email: column("text"),
       grade_level: column("int", { notNull: true, default: () => 9 }),
-      created_at: column("timestamptz", { notNull: true, default: nowIso })
+      created_at: column("timestamptz", { notNull: true, default: nowIso }),
+      avatar_url: column("text")
     },
     checks: []
   },
@@ -609,6 +631,24 @@ function createAuth(db) {
   const accessTokens = new Map();
   const refreshTokens = new Map();
 
+  function appMetadata(user) {
+    return { provider: user.provider, providers: [...new Set(user.identities.map((identity) => identity.provider))] };
+  }
+
+  /** One way into an account, as GoTrue lists it under `identities`. */
+  function newIdentity(user, provider, email) {
+    return {
+      identity_id: randomUUID(),
+      id: provider === "email" ? user.id : `google-${randomUUID()}`,
+      user_id: user.id,
+      provider,
+      identity_data: { email, sub: user.id, email_verified: true },
+      created_at: nowIso(),
+      last_sign_in_at: nowIso(),
+      updated_at: nowIso()
+    };
+  }
+
   function publicUser(user) {
     return {
       id: user.id,
@@ -619,9 +659,9 @@ function createAuth(db) {
       phone: "",
       confirmed_at: user.createdAt,
       last_sign_in_at: nowIso(),
-      app_metadata: { provider: "email", providers: ["email"] },
+      app_metadata: appMetadata(user),
       user_metadata: { ...user.metadata },
-      identities: [],
+      identities: user.identities.map((identity) => structuredClone(identity)),
       created_at: user.createdAt,
       updated_at: user.updatedAt,
       is_anonymous: false
@@ -640,6 +680,10 @@ function createAuth(db) {
         sub: user.id,
         email: user.email,
         role: "authenticated",
+        // Real tokens carry both, and the API reads them when it has to make
+        // a missing profile.
+        app_metadata: appMetadata(user),
+        user_metadata: { ...user.metadata },
         session_id: sessionId
       }),
       base64Url(`standin-${randomUUID()}`)
@@ -659,7 +703,11 @@ function createAuth(db) {
     };
   }
 
-  function createUser({ email, password, metadata = {} }) {
+  /**
+   * Makes an account. `provider` is how it signed up: "email", or "google",
+   * whose metadata carries the Google name and photo the way Supabase's does.
+   */
+  function createUser({ email, password, metadata = {}, provider = "email" }) {
     const normalized = String(email ?? "").trim().toLowerCase();
     if ([...users.values()].some((user) => user.email === normalized)) {
       throw new PgError(422, "user_already_exists", "User already registered");
@@ -668,28 +716,122 @@ function createAuth(db) {
     const user = {
       id: randomUUID(),
       email: normalized,
-      password: String(password ?? ""),
+      // An account made through Google has no password until one is set.
+      password: password === null || password === undefined ? null : String(password),
       metadata: { ...metadata },
+      provider,
+      identities: [],
       createdAt: nowIso(),
       updatedAt: nowIso()
     };
+    user.identities.push(newIdentity(user, provider, normalized));
     users.set(user.id, user);
 
-    // The handle_new_user trigger from 0002.
+    const text = (key) => (typeof metadata[key] === "string" ? metadata[key].trim() : "");
+    const googlePhoto = provider === "google" ? text("avatar_url") || text("picture") : "";
+
+    // The handle_new_user trigger, as 0007 leaves it: the name squeezed onto
+    // one line and cut to 60 characters, and the photo taken only from a
+    // Google sign-up, and only from one of Google's own addresses.
     db.insert(
       "profiles",
       {
         id: user.id,
-        full_name:
-          typeof metadata.full_name === "string" && metadata.full_name.length > 0
-            ? metadata.full_name
-            : normalized.split("@")[0],
-        email: normalized
+        full_name: (text("full_name") || text("name") || normalized.split("@")[0])
+          .replace(/\s+/g, " ")
+          .slice(0, 60),
+        email: normalized,
+        avatar_url: /^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com\//i.test(googlePhoto) ? googlePhoto : null
       },
       new URLSearchParams()
     );
 
     return user;
+  }
+
+  /**
+   * The handle_user_update trigger, as 0007 leaves it: only the email is kept
+   * in step. A new name in the metadata, which is what every Google sign-in
+   * writes, no longer reaches the profile.
+   */
+  function userUpdated(user, previousEmail) {
+    user.updatedAt = nowIso();
+    if (user.email !== previousEmail) {
+      db.update("profiles", { email: user.email }, new URLSearchParams({ id: `eq.${user.id}` }));
+    }
+  }
+
+  function updateMetadata(user, changes) {
+    user.metadata = { ...user.metadata, ...changes };
+    userUpdated(user, user.email);
+  }
+
+  /** profiles.id references auth.users on delete cascade, and the rest hangs off the profile. */
+  function deleteUser(userId) {
+    users.delete(userId);
+    endSessions((entry) => entry.userId === userId);
+    db.remove("profiles", new URLSearchParams({ id: `eq.${userId}` }));
+  }
+
+  function googleIdentityOwner(email) {
+    return [...users.values()].find((user) =>
+      user.identities.some((identity) => identity.provider === "google" && identity.identity_data.email === email)
+    );
+  }
+
+  function googleMetadata({ email, name, picture }) {
+    return { full_name: name, name, avatar_url: picture, picture, email, email_verified: true };
+  }
+
+  /**
+   * Signing in with Google, the three ways GoTrue decides it: an account
+   * already has this Google identity; an account has the same (verified)
+   * email, and Google is linked onto it automatically; or there is no account
+   * yet and one is made. The first two write Google's name and photo over the
+   * account's metadata, which is exactly what the profile has to survive.
+   */
+  function signInWithGoogle(account) {
+    const email = String(account.email).trim().toLowerCase();
+
+    const linked = googleIdentityOwner(email);
+    if (linked) {
+      updateMetadata(linked, googleMetadata({ ...account, email }));
+      return linked;
+    }
+
+    const sameEmail = [...users.values()].find((user) => user.email === email);
+    if (sameEmail) {
+      sameEmail.identities.push(newIdentity(sameEmail, "google", email));
+      updateMetadata(sameEmail, googleMetadata({ ...account, email }));
+      return sameEmail;
+    }
+
+    return createUser({ email, password: null, metadata: googleMetadata({ ...account, email }), provider: "google" });
+  }
+
+  /** Connecting Google to an account that is signed in, from its profile. */
+  function linkGoogle(user, account) {
+    const email = String(account.email).trim().toLowerCase();
+    const owner = googleIdentityOwner(email);
+
+    if (owner && owner.id !== user.id) {
+      throw new PgError(422, "identity_already_exists", "Identity is already linked to another user");
+    }
+
+    if (!owner) user.identities.push(newIdentity(user, "google", email));
+    updateMetadata(user, googleMetadata({ ...account, email }));
+  }
+
+  function unlinkIdentity(user, identityId) {
+    if (user.identities.length <= 1) {
+      throw new PgError(422, "single_identity_not_deletable", "User must have at least 1 identity after unlinking");
+    }
+
+    const index = user.identities.findIndex((identity) => identity.identity_id === identityId);
+    if (index === -1) throw new PgError(404, "identity_not_found", "Identity doesn't exist");
+
+    user.identities.splice(index, 1);
+    user.updatedAt = nowIso();
   }
 
   /** The signed-in user a bearer token belongs to, or null if it is not live. */
@@ -710,10 +852,16 @@ function createAuth(db) {
     issueSession,
     createUser,
     userForToken,
+    userUpdated,
+    updateMetadata,
+    deleteUser,
+    signInWithGoogle,
+    linkGoogle,
+    unlinkIdentity,
     signIn(email, password) {
       const normalized = String(email ?? "").trim().toLowerCase();
       const user = [...users.values()].find((item) => item.email === normalized);
-      if (!user || user.password !== password) return null;
+      if (!user || user.password === null || user.password !== password) return null;
       return issueSession(user);
     },
     refresh(refreshToken) {
@@ -762,12 +910,45 @@ function readBody(request) {
   });
 }
 
+/** A request body as bytes, for uploads, which are not JSON. */
+function readRawBody(request) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    request.on("data", (chunk) => chunks.push(chunk));
+    request.on("end", () => resolve(Buffer.concat(chunks)));
+    request.on("error", reject);
+  });
+}
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Where the photo on somebody's Google account would live.
+ *
+ * One of Google's own addresses, because that is all the app stores. Nothing
+ * is served from it, so a browser shows the student's initials instead, which
+ * is what a Google photo that has since been changed does too.
+ */
+const STANDIN_GOOGLE_PHOTO = "https://lh3.googleusercontent.com/a/standin-google-student";
 
 export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
   const db = createDatabase();
   const auth = createAuth(db);
-  const state = { latencyMs: 0, faults: [], requests: [] };
+  const state = {
+    latencyMs: 0,
+    faults: [],
+    requests: [],
+    // Google, as far as the stand-in plays it: switched on, allowing accounts
+    // to connect it, with one Google account that every trip signs in as.
+    // A test changes any of it through POST /__standin/google, and sets
+    // `nextError` to make the next trip come back failed.
+    google: {
+      enabled: true,
+      manualLinking: true,
+      account: { email: "google.student@standin.test", name: "Google Student", picture: STANDIN_GOOGLE_PHOTO },
+      nextError: null
+    }
+  };
 
   function send(response, status, payload, headers = {}) {
     const body = payload === undefined ? "" : JSON.stringify(payload);
@@ -916,6 +1097,31 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
           : sendAuthError(response, 400, "refresh_token_not_found", "Invalid Refresh Token: Refresh Token Not Found");
       }
 
+      // The pkce half of the trip: the code from the address, plus the
+      // verifier the browser kept, swapped for the session.
+      if (grant === "pkce") {
+        const pending = authCodes.get(body.auth_code);
+        authCodes.delete(body.auth_code);
+
+        if (!pending) {
+          return sendAuthError(response, 404, "flow_state_not_found", "invalid flow state, no valid flow state found");
+        }
+
+        if (typeof body.code_verifier !== "string" || s256(body.code_verifier) !== pending.challenge) {
+          return sendAuthError(
+            response,
+            400,
+            "bad_code_verifier",
+            "code challenge does not match previously saved code verifier"
+          );
+        }
+
+        const user = auth.users.get(pending.userId);
+        return user
+          ? send(response, 200, auth.issueSession(user))
+          : sendAuthError(response, 404, "user_not_found", "User not found");
+      }
+
       return sendAuthError(response, 400, "unsupported_grant_type", "Unsupported grant type");
     }
 
@@ -931,18 +1137,7 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
         const body = (await readBody(request)) ?? {};
         if (body.data && typeof body.data === "object") user.metadata = { ...user.metadata, ...body.data };
         if (typeof body.password === "string") user.password = body.password;
-        user.updatedAt = nowIso();
-
-        // The handle_user_update trigger from 0002, which keeps the old name
-        // when the metadata has none.
-        const params = new URLSearchParams({ id: `eq.${user.id}` });
-        db.update(
-          "profiles",
-          typeof user.metadata.full_name === "string"
-            ? { full_name: user.metadata.full_name, email: user.email }
-            : { email: user.email },
-          params
-        );
+        auth.userUpdated(user, user.email);
         return send(response, 200, auth.publicUser(user));
       }
     }
@@ -953,23 +1148,354 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
     }
 
     if (route === "settings" && request.method === "GET") {
-      return send(response, 200, { external: { email: true }, disable_signup: false, mailer_autoconfirm: true });
+      return send(response, 200, {
+        external: { email: true, google: state.google.enabled },
+        disable_signup: false,
+        mailer_autoconfirm: true
+      });
+    }
+
+    // The browser is sent here to sign in with Google. There is no Google
+    // screen: the stand-in answers as if the student had picked the account.
+    if (route === "authorize" && request.method === "GET") {
+      if (url.searchParams.get("provider") !== "google" || !state.google.enabled) {
+        return sendAuthError(response, 400, "validation_failed", "Unsupported provider: provider is not enabled");
+      }
+
+      const redirectTo = url.searchParams.get("redirect_to");
+      if (!redirectTo) return sendAuthError(response, 400, "validation_failed", "The stand-in needs a redirect_to");
+
+      const failure = takeGoogleError();
+      if (failure) return redirectWithError(response, redirectTo, failure);
+
+      const user = auth.signInWithGoogle(state.google.account);
+      return redirectSignedIn(response, redirectTo, user, url.searchParams.get("code_challenge"));
     }
 
     return sendAuthError(response, 404, "not_found", `The stand-in does not implement ${request.method} /auth/v1/${route}`);
   }
 
+  function takeGoogleError() {
+    const failure = state.google.nextError;
+    state.google.nextError = null;
+    return failure;
+  }
+
+  /**
+   * Codes handed out by the authorize endpoints, waiting to be swapped for a
+   * session. One use each, as GoTrue's are.
+   */
+  const authCodes = new Map();
+
+  const s256 = (verifier) => createHash("sha256").update(verifier).digest("base64url");
+
+  /**
+   * Back to the app the way the pkce flow does it: a one-time code in the
+   * query, worth nothing without the verifier the browser kept.
+   */
+  function redirectWithCode(response, redirectTo, user, challenge) {
+    const code = randomUUID();
+    authCodes.set(code, { userId: user.id, challenge });
+
+    const address = new URL(redirectTo);
+    address.searchParams.set("code", code);
+
+    response.writeHead(302, { Location: address.toString() });
+    response.end();
+  }
+
+  /**
+   * Finishes a trip to Google, in whichever flow the client asked for.
+   *
+   * A `code_challenge` on the way out means pkce, which is what the web app
+   * uses; without one it is the implicit flow, which returns the tokens
+   * themselves. Both are here so the stand-in keeps matching the app if that
+   * setting ever changes.
+   */
+  function redirectSignedIn(response, redirectTo, user, challenge) {
+    return challenge
+      ? redirectWithCode(response, redirectTo, user, challenge)
+      : redirectWithSession(response, redirectTo, auth.issueSession(user));
+  }
+
+  /**
+   * Back to the app with a session, the way GoTrue's implicit flow does it: the
+   * tokens joined onto the address after a "#", by plain string joining.
+   */
+  function redirectWithSession(response, redirectTo, session) {
+    const fragment = new URLSearchParams({
+      access_token: session.access_token,
+      expires_at: String(session.expires_at),
+      expires_in: String(session.expires_in),
+      provider_token: "standin-google-token",
+      refresh_token: session.refresh_token,
+      sb: "",
+      token_type: "bearer"
+    });
+
+    response.writeHead(302, { Location: `${redirectTo}#${fragment.toString()}` });
+    response.end();
+  }
+
+  /** Back to the app with a failure, which GoTrue puts in both the query and the fragment. */
+  function redirectWithError(response, redirectTo, { error = "server_error", code = "", description = "" }) {
+    const address = new URL(redirectTo);
+    const params = new URLSearchParams({ error, error_code: code, error_description: description });
+    for (const [name, value] of params) address.searchParams.set(name, value);
+    address.hash = params.toString();
+
+    response.writeHead(302, { Location: address.toString() });
+    response.end();
+  }
+
+  /** /auth/v1/user/identities/...: starting to connect Google, and disconnecting it. */
+  async function handleIdentities(request, response, url, rest) {
+    const user = auth.userForToken(bearer(request));
+    if (!user) return sendAuthError(response, 401, "no_authorization", "This endpoint requires a valid Bearer token");
+
+    if (rest.length === 1 && rest[0] === "authorize" && request.method === "GET") {
+      if (url.searchParams.get("provider") !== "google" || !state.google.enabled) {
+        return sendAuthError(response, 400, "validation_failed", "Unsupported provider: provider is not enabled");
+      }
+      if (!state.google.manualLinking) {
+        return sendAuthError(response, 422, "manual_linking_disabled", "Manual linking is disabled");
+      }
+
+      // The client asks for the address rather than being redirected, then
+      // sends the browser there itself.
+      const next = new URL(`http://${request.headers.host}/auth/v1/__google/link`);
+      next.searchParams.set("user", user.id);
+      next.searchParams.set("redirect_to", url.searchParams.get("redirect_to") ?? "");
+
+      // Connecting Google goes through the same flow as signing in with it, so
+      // the challenge has to survive the hop through the page below.
+      const challenge = url.searchParams.get("code_challenge");
+      if (challenge) next.searchParams.set("code_challenge", challenge);
+
+      return send(response, 200, { url: next.toString() });
+    }
+
+    if (rest.length === 1 && request.method === "DELETE") {
+      try {
+        auth.unlinkIdentity(user, rest[0]);
+      } catch (error) {
+        if (error instanceof PgError) return sendAuthError(response, error.status, error.code, error.message);
+        throw error;
+      }
+      return send(response, 200, {});
+    }
+
+    return sendAuthError(response, 404, "not_found", `The stand-in does not implement ${request.method} ${url.pathname}`);
+  }
+
+  /** Where the browser lands to finish connecting Google, standing in for Google's own screen. */
+  function handleGoogleLink(request, response, url) {
+    const user = auth.users.get(url.searchParams.get("user") ?? "");
+    const redirectTo = url.searchParams.get("redirect_to");
+    if (!user || !redirectTo) return send(response, 400, { message: "The stand-in needs a user and a redirect_to" });
+
+    const failure = takeGoogleError();
+    if (failure) return redirectWithError(response, redirectTo, failure);
+
+    try {
+      auth.linkGoogle(user, state.google.account);
+    } catch (error) {
+      if (error instanceof PgError && error.code === "identity_already_exists") {
+        return redirectWithError(response, redirectTo, {
+          error: "invalid_request",
+          code: "identity_already_exists",
+          description: error.message
+        });
+      }
+      throw error;
+    }
+
+    return redirectSignedIn(response, redirectTo, user, url.searchParams.get("code_challenge"));
+  }
+
+  /**
+   * The admin API the server side calls with the service role key: here,
+   * reading, updating and deleting one user.
+   */
+  async function handleAdminUser(request, response, userId) {
+    const fault = takeFault(request.method, "auth/admin");
+    if (fault) return sendAuthError(response, fault.status ?? 503, "unavailable", "injected failure");
+
+    // Supabase refuses the admin API to anything but the service role key,
+    // and a student's own token is the likeliest wrong key to be sent.
+    if (auth.userForToken(bearer(request))) {
+      return sendAuthError(response, 403, "not_admin", "User not allowed");
+    }
+
+    const user = auth.users.get(userId);
+    if (!user) return sendAuthError(response, 404, "user_not_found", "User not found");
+
+    if (request.method === "GET") return send(response, 200, auth.publicUser(user));
+
+    if (request.method === "PUT") {
+      const body = (await readBody(request)) ?? {};
+      if (body.user_metadata && typeof body.user_metadata === "object") {
+        auth.updateMetadata(user, body.user_metadata);
+      }
+      return send(response, 200, auth.publicUser(user));
+    }
+
+    if (request.method === "DELETE") {
+      auth.deleteUser(user.id);
+      return send(response, 200, auth.publicUser(user));
+    }
+
+    return sendAuthError(response, 405, "method_not_allowed", `Unsupported method ${request.method}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // Storage
+  // -------------------------------------------------------------------------
+  // The buckets the migrations create, both public. Objects are kept under
+  // "<bucket>/<path>", holding the bytes exactly as they were uploaded.
+  // Failures come back the way Supabase storage sends them: HTTP 400, with
+  // the real status inside the body.
+
+  const buckets = new Set(["question-images", "avatars"]);
+  const objects = new Map();
+
+  function sendStorageError(response, status, statusCode, error, message) {
+    send(response, status, { statusCode: String(statusCode), error, message });
+  }
+
+  /** Everything under /storage/v1/object: `parts` is the path after that. */
+  async function handleStorage(request, response, parts) {
+    const [first, ...rest] = parts;
+
+    if (first === "list" && request.method === "POST") {
+      const bucket = rest[0];
+      // Registered as "storage/<bucket>/list", so a failing list can be told
+      // apart from a failing upload, which is a POST as well.
+      const fault = takeFault("POST", `storage/${bucket}/list`);
+      if (fault) return sendStorageError(response, 400, fault.status ?? 500, "internal", "injected failure");
+      if (!buckets.has(bucket)) return sendStorageError(response, 400, 404, "Bucket not found", "Bucket not found");
+
+      const body = (await readBody(request)) ?? {};
+      const prefix = String(body.prefix ?? "").replace(/^\/+|\/+$/g, "");
+      const base = prefix.length > 0 ? `${bucket}/${prefix}/` : `${bucket}/`;
+      const entries = new Map();
+
+      for (const [key, object] of objects) {
+        if (!key.startsWith(base)) continue;
+        const remainder = key.slice(base.length);
+        const slash = remainder.indexOf("/");
+
+        if (slash === -1) {
+          entries.set(remainder, {
+            name: remainder,
+            id: object.id,
+            created_at: object.createdAt,
+            updated_at: object.createdAt,
+            last_accessed_at: object.createdAt,
+            metadata: { size: object.bytes.length, mimetype: object.contentType }
+          });
+        } else {
+          // Anything deeper shows as a folder, which storage lists with no id.
+          const folder = remainder.slice(0, slash);
+          if (!entries.has(folder)) {
+            entries.set(folder, { name: folder, id: null, created_at: null, updated_at: null, last_accessed_at: null, metadata: null });
+          }
+        }
+      }
+
+      const offset = Number(body.offset ?? 0);
+      const limit = Number(body.limit ?? 100);
+      const listed = [...entries.values()].sort((a, b) => a.name.localeCompare(b.name));
+      return send(response, 200, listed.slice(offset, offset + limit));
+    }
+
+    if (first === "public" && (request.method === "GET" || request.method === "HEAD")) {
+      const object = buckets.has(rest[0]) ? objects.get(rest.join("/")) : undefined;
+      if (!object) return sendStorageError(response, 400, 404, "not_found", "Object not found");
+
+      response.writeHead(200, {
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": object.contentType,
+        "Content-Length": object.bytes.length,
+        "Cache-Control": object.cacheControl
+      });
+      return response.end(request.method === "HEAD" ? undefined : object.bytes);
+    }
+
+    const bucket = first;
+    if (!buckets.has(bucket)) return sendStorageError(response, 400, 404, "Bucket not found", "Bucket not found");
+
+    const fault = takeFault(request.method, `storage/${bucket}`);
+    if (fault) return sendStorageError(response, 400, fault.status ?? 500, "internal", "injected failure");
+
+    if (request.method === "POST" && rest.length > 0) {
+      const key = `${bucket}/${rest.join("/")}`;
+      if (objects.has(key) && request.headers["x-upsert"] !== "true") {
+        return sendStorageError(response, 400, 409, "Duplicate", "The resource already exists");
+      }
+
+      const object = {
+        id: randomUUID(),
+        bytes: await readRawBody(request),
+        contentType: request.headers["content-type"] ?? "application/octet-stream",
+        cacheControl: request.headers["cache-control"] ?? "no-cache",
+        createdAt: nowIso()
+      };
+      objects.set(key, object);
+      return send(response, 200, { Id: object.id, Key: key });
+    }
+
+    if (request.method === "DELETE" && rest.length === 0) {
+      const body = (await readBody(request)) ?? {};
+      const removed = [];
+
+      for (const path of Array.isArray(body.prefixes) ? body.prefixes : []) {
+        const key = `${bucket}/${path}`;
+        const object = objects.get(key);
+        if (!object) continue;
+        objects.delete(key);
+        removed.push({ bucket_id: bucket, name: path, id: object.id });
+      }
+
+      return send(response, 200, removed);
+    }
+
+    return sendStorageError(response, 400, 404, "not_found", `The stand-in does not implement ${request.method} on this storage path`);
+  }
+
   async function handleControl(request, response, url, parts) {
     const [area, table, id] = parts;
-    const body = request.method === "GET" ? undefined : ((await readBody(request)) ?? {});
+    const body = request.method === "GET" || request.method === "DELETE" ? undefined : ((await readBody(request)) ?? {});
 
     if (area === "users" && request.method === "POST") {
       const user = auth.createUser({
         email: body.email ?? `${randomUUID()}@standin.test`,
-        password: body.password ?? "password1",
-        metadata: body.fullName ? { full_name: body.fullName } : {}
+        // A Google sign-up has no password, as on Supabase.
+        password: body.password ?? (body.provider === "google" ? null : "password1"),
+        metadata: body.metadata ?? (body.fullName ? { full_name: body.fullName } : {}),
+        provider: body.provider ?? "email"
       });
       return send(response, 200, { user: auth.publicUser(user), session: auth.issueSession(user) });
+    }
+
+    // The account as the Supabase dashboard would show it, metadata and all.
+    if (area === "users" && table && request.method === "GET") {
+      const user = auth.users.get(table);
+      return user ? send(response, 200, { user: auth.publicUser(user) }) : send(response, 404, { message: "no such user" });
+    }
+
+    // Stored files, as "<bucket>/<path>", optionally under ?prefix=.
+    if (area === "objects" && request.method === "GET") {
+      const prefix = url.searchParams.get("prefix") ?? "";
+      return send(response, 200, {
+        objects: [...objects.keys()].filter((key) => key.startsWith(prefix)).sort()
+      });
+    }
+
+    // How Google behaves: { enabled, manualLinking, account, nextError }.
+    if (area === "google" && request.method === "POST") {
+      Object.assign(state.google, body);
+      return send(response, 200, { google: state.google });
     }
 
     if (area === "expire-sessions" && request.method === "POST") {
@@ -1003,6 +1529,13 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
         const [row] = db.update(table, body, params);
         return send(response, row ? 200 : 404, row ? db.project(table, row, parseSelect("*")) : { message: "not found" });
       }
+
+      // For example a profile that was never made, as for an account that
+      // signed up before the trigger that makes them existed.
+      if (request.method === "DELETE" && id) {
+        const removed = db.remove(table, new URLSearchParams({ id: `eq.${id}` }));
+        return send(response, removed.length > 0 ? 200 : 404, { removed: removed.length });
+      }
     }
 
     return send(response, 404, { message: `Unknown stand-in control route ${request.method} ${url.pathname}` });
@@ -1028,6 +1561,18 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
       }
       if (parts[0] === "auth" && parts[1] === "v1" && parts.length === 3) {
         return await handleAuth(request, response, url, parts[2]);
+      }
+      if (parts[0] === "auth" && parts[1] === "v1" && parts[2] === "admin" && parts[3] === "users" && parts.length === 5) {
+        return await handleAdminUser(request, response, decodeURIComponent(parts[4]));
+      }
+      if (parts[0] === "auth" && parts[1] === "v1" && parts[2] === "user" && parts[3] === "identities") {
+        return await handleIdentities(request, response, url, parts.slice(4).map((part) => decodeURIComponent(part)));
+      }
+      if (parts[0] === "auth" && parts[1] === "v1" && parts[2] === "__google" && parts[3] === "link") {
+        return handleGoogleLink(request, response, url);
+      }
+      if (parts[0] === "storage" && parts[1] === "v1" && parts[2] === "object") {
+        return await handleStorage(request, response, parts.slice(3).map((part) => decodeURIComponent(part)));
       }
       if (parts[0] === "__standin") {
         return await handleControl(request, response, url, parts.slice(1));

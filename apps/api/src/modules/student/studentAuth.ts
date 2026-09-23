@@ -4,6 +4,26 @@ import { bearerToken } from "../../lib/bearerToken";
 import { supabaseAdmin } from "../../lib/supabaseAdmin";
 import { accountIdFor } from "../../repositories/profileRepository";
 
+/** A signed-in student, as their access token describes them. */
+export interface SignedInAccount {
+  id: string;
+  /** Empty only for an account made without one, which this app never does. */
+  email: string;
+  /**
+   * How the account was first made: "email" or "google". Supabase sets this
+   * itself, so unlike `metadata` it can be trusted.
+   */
+  provider: string | null;
+  /**
+   * The account's own name and photo, as its token carries them.
+   *
+   * Written by the sign-up request, and by every Google sign-in after it, and
+   * changeable by the account holder at any time through Supabase. So it is
+   * input: checked before it is used, never trusted as a fact.
+   */
+  metadata: Record<string, unknown>;
+}
+
 /**
  * The account a request's access token belongs to, if it is a live one.
  *
@@ -12,7 +32,7 @@ import { accountIdFor } from "../../repositories/profileRepository";
  * server when it still uses a shared secret. getUser asked the auth server on
  * every request, before any of the request's own work began.
  */
-async function authenticatedUserId(request: Request): Promise<string | null> {
+export async function signedInAccount(request: Request): Promise<SignedInAccount | null> {
   if (!supabaseAdmin) return null;
 
   const token = bearerToken(request);
@@ -31,8 +51,43 @@ async function authenticatedUserId(request: Request): Promise<string | null> {
     return null;
   }
 
-  const userId = data?.claims.sub;
-  return typeof userId === "string" && userId.length > 0 ? userId : null;
+  const claims = data?.claims;
+  if (!claims || typeof claims.sub !== "string" || claims.sub.length === 0) return null;
+
+  return {
+    id: claims.sub,
+    email: typeof claims.email === "string" ? claims.email : "",
+    provider: typeof claims.app_metadata?.provider === "string" ? claims.app_metadata.provider : null,
+    metadata: claims.user_metadata ?? {}
+  };
+}
+
+/**
+ * Whether the request's token belongs to a session that has not ended.
+ *
+ * `signedInAccount` checks the token's signature, which a project signing with
+ * asymmetric keys does without asking anyone: a token from a session that has
+ * since been signed out still passes, until it expires about an hour later.
+ * This asks the auth server, which knows. It costs a round trip, so it is for
+ * the few things that cannot be undone rather than for every request.
+ */
+export async function isLiveSession(request: Request): Promise<boolean> {
+  if (!supabaseAdmin) return false;
+
+  const token = bearerToken(request);
+  if (!token) return false;
+
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+
+  if (error) {
+    // As above: unreachable is not the same as signed out.
+    if (isAuthRetryableFetchError(error)) {
+      throw new Error(`Could not check your sign-in just now. Try again in a moment. (${error.message})`);
+    }
+    return false;
+  }
+
+  return data.user !== null;
 }
 
 /** Whether a key is a guest's: one no account owns. */
@@ -52,7 +107,7 @@ export async function canUseStudentKey(request: Request, studentKey: string): Pr
 /** Claiming guest history always targets a real signed-in account. */
 export async function isAuthenticatedStudent(request: Request, studentKey: string): Promise<boolean> {
   if (!supabaseAdmin) return true;
-  return (await authenticatedUserId(request)) === studentKey;
+  return (await signedInAccount(request))?.id === studentKey;
 }
 
 /**

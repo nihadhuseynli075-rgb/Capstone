@@ -22,7 +22,22 @@ export const supabase =
         auth: {
           persistSession: true,
           autoRefreshToken: true,
-          detectSessionInUrl: true
+          detectSessionInUrl: true,
+          /**
+           * Sign-ins come back as a one-time code, not as the tokens themselves.
+           *
+           * The default, "implicit", returns from Google to
+           * "#access_token=...&refresh_token=...", and the library clears that
+           * by setting the hash, which leaves the old address in the browser's
+           * history. On a shared school computer the next person could read a
+           * refresh token out of it and sign in as whoever used it last.
+           *
+           * With pkce the address carries "?code=" instead, worth nothing
+           * without the verifier kept in this browser, and used once. The
+           * library swaps it for the session and takes the code out of the
+           * address with replaceState, so nothing is left behind.
+           */
+          flowType: "pkce"
         }
       })
     : null;

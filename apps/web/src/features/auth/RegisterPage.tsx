@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { navigate } from "../../app/router";
 import { useAuth } from "./AuthContext";
-import { AuthLayout, Field, PasswordField } from "./AuthLayout";
+import { AuthDivider, AuthLayout, Field, PasswordField } from "./AuthLayout";
+import { GoogleButton } from "./GoogleButton";
 import { passwordStrength, validateEmail, validateName, validatePassword } from "./authValidation";
 
 export function RegisterPage() {
@@ -101,13 +102,17 @@ export function RegisterPage() {
         </p>
       )}
 
-      <form className="auth-form" onSubmit={handleSubmit} noValidate>
-        {formError && (
-          <p className="error-banner" role="alert">
-            {formError}
-          </p>
-        )}
+      {formError && (
+        <p className="error-banner" role="alert">
+          {formError}
+        </p>
+      )}
 
+      <GoogleButton disabled={submitting || !configured} onError={setFormError} />
+
+      <AuthDivider label="or sign up with your email" />
+
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
         <Field
           id="register-name"
           label="Name"

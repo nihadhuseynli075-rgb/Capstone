@@ -6,8 +6,8 @@
  * Starts the local stand-in in scripts/supabase-standin.mjs, starts the API
  * pointed at it, runs the ordinary smoke test through it, then checks what only
  * exists in Supabase mode: account keys backed by tokens, who may move whose
- * history, two submissions of one paper at once, and recovering from writes
- * that fail halfway.
+ * history, two submissions of one paper at once, recovering from writes that
+ * fail halfway, and the profile page's reads, renames, photos and deletion.
  *
  * The stand-in imitates PostgREST and GoTrue closely enough to catch the API
  * sending the wrong request or mishandling an error. It is not a real project:
@@ -389,6 +389,325 @@ async function main() {
     const late = await submit(lateTest, lateKey, rightAnswers(lateTest));
     check("a paper past its time is refused", late.status === 409 && late.body.code === "time-expired", `${late.status} ${JSON.stringify(late.body)}`);
 
+    section("Profiles need a signed-in account");
+    const profileNoToken = await call("/api/profile");
+    check("a profile is not readable without a token", profileNoToken.status === 401, `got ${profileNoToken.status}`);
+    const profileJunkToken = await call("/api/profile", { token: "not-a-token" });
+    check("nor with something that is not a token", profileJunkToken.status === 401, `got ${profileJunkToken.status}`);
+
+    section("Reading a profile");
+    const carol = (await control("users", { email: "carol@standin.test", fullName: "Carol" })).body;
+    const carolId = carol.user.id;
+    const carolToken = carol.session.access_token;
+    const carolProfile = await call("/api/profile", { token: carolToken });
+    check(
+      "the profile made at sign-up is returned",
+      carolProfile.status === 200 &&
+        carolProfile.body.profile?.id === carolId &&
+        carolProfile.body.profile?.fullName === "Carol" &&
+        carolProfile.body.profile?.email === "carol@standin.test" &&
+        carolProfile.body.profile?.avatarUrl === null &&
+        typeof carolProfile.body.profile?.createdAt === "string",
+      JSON.stringify(carolProfile.body)
+    );
+
+    const googlePhoto = "https://lh3.googleusercontent.com/a/gina-photo";
+    const gina = (
+      await control("users", {
+        email: "gina@standin.test",
+        provider: "google",
+        metadata: { full_name: "Gina Google", name: "Gina Google", avatar_url: googlePhoto, picture: googlePhoto }
+      })
+    ).body;
+    const ginaToken = gina.session.access_token;
+    const ginaProfile = await call("/api/profile", { token: ginaToken });
+    check(
+      "a Google sign-up starts with its Google name and photo",
+      ginaProfile.body.profile?.fullName === "Gina Google" && ginaProfile.body.profile?.avatarUrl === googlePhoto,
+      JSON.stringify(ginaProfile.body)
+    );
+
+    section("A profile that was never made");
+    // As for an account that signed up before the sign-up trigger existed in
+    // the project. Its metadata says whatever its sign-up request said.
+    const mallory = (
+      await control("users", {
+        email: "mallory@standin.test",
+        metadata: { full_name: "Mallory", avatar_url: "https://tracker.example/pixel.png" }
+      })
+    ).body;
+    await request(standin.url, `/__standin/rows/profiles/${mallory.user.id}`, { method: "DELETE" });
+    const malloryProfile = await call("/api/profile", { token: mallory.session.access_token });
+    check(
+      "it is made the first time it is read",
+      malloryProfile.status === 200 && malloryProfile.body.profile?.fullName === "Mallory",
+      `${malloryProfile.status} ${JSON.stringify(malloryProfile.body)}`
+    );
+    check(
+      "and an email sign-up does not get to choose its photo's address",
+      malloryProfile.body.profile?.avatarUrl === null,
+      JSON.stringify(malloryProfile.body)
+    );
+    await request(standin.url, `/__standin/rows/profiles/${gina.user.id}`, { method: "DELETE" });
+    const ginaRemade = await call("/api/profile", { token: ginaToken });
+    check(
+      "a Google account's is made with its Google photo",
+      ginaRemade.body.profile?.avatarUrl === googlePhoto,
+      JSON.stringify(ginaRemade.body)
+    );
+
+    // Sign-up metadata is whatever the request carried, and a sign-up does not
+    // have to come from our app.
+    const hostile = (
+      await control("users", {
+        email: "hostile@standin.test",
+        provider: "google",
+        metadata: {
+          full_name: `${"x".repeat(200)}\n\nCheat at\tmaths`,
+          avatar_url: "https://tracker.example/pixel.png"
+        }
+      })
+    ).body;
+    await request(standin.url, `/__standin/rows/profiles/${hostile.user.id}`, { method: "DELETE" });
+    const hostileProfile = (await call("/api/profile", { token: hostile.session.access_token })).body.profile;
+    check(
+      "a name from sign-up is cut to length and squeezed onto one line",
+      hostileProfile?.fullName.length === 60 && !/[\n\t]/.test(hostileProfile.fullName),
+      JSON.stringify(hostileProfile?.fullName)
+    );
+    check(
+      "a photo address that is not Google's is refused, even from a Google sign-up",
+      hostileProfile?.avatarUrl === null,
+      JSON.stringify(hostileProfile?.avatarUrl)
+    );
+
+    section("Renaming");
+    const rename = (token, fullName) => call("/api/profile", { method: "PATCH", token, body: { fullName } });
+    const tooShort = await rename(carolToken, "  C  ");
+    check("a one-letter name is refused", tooShort.status === 400, `got ${tooShort.status}`);
+    const tooLong = await rename(carolToken, "x".repeat(61));
+    check("so is one past the limit", tooLong.status === 400, `got ${tooLong.status}`);
+    const renamed = await rename(carolToken, "  Carol \n  Smith ");
+    check(
+      "a new name is saved, with its spacing tidied",
+      renamed.status === 200 && renamed.body.profile?.fullName === "Carol Smith",
+      JSON.stringify(renamed.body)
+    );
+    const [carolRow] = await rows("profiles", `?id=eq.${carolId}`);
+    check("in the profile row", carolRow?.full_name === "Carol Smith", JSON.stringify(carolRow));
+    const carolAccount = (await control(`users/${carolId}`)).body.user;
+    check(
+      "and on the account, for the browser to show before the profile loads",
+      carolAccount?.user_metadata?.full_name === "Carol Smith",
+      JSON.stringify(carolAccount?.user_metadata)
+    );
+
+    // What every Google sign-in does to the account: Google's name over the top.
+    await request(standin.url, "/auth/v1/user", {
+      method: "PUT",
+      token: carolToken,
+      body: { data: { full_name: "Name From Google" } }
+    });
+    const afterGoogle = await call("/api/profile", { token: carolToken });
+    check(
+      "a sign-in that rewrites the account's name leaves the profile's alone",
+      afterGoogle.body.profile?.fullName === "Carol Smith",
+      JSON.stringify(afterGoogle.body)
+    );
+
+    section("Profile photos");
+    const PNG = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "base64"
+    );
+    const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 1)]);
+    const uploadPhoto = (token, bytes) =>
+      call("/api/profile/photo", { method: "PUT", token, body: { dataBase64: bytes.toString("base64") } });
+    const removePhoto = (token) => call("/api/profile/photo", { method: "DELETE", token });
+    const photoFiles = async (accountId) => (await control(`objects?prefix=avatars/${accountId}/`)).body.objects ?? [];
+
+    const svg = await uploadPhoto(carolToken, Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>'));
+    check("a file that is not a photo is refused", svg.status === 400, `${svg.status} ${JSON.stringify(svg.body)}`);
+    const huge = await uploadPhoto(carolToken, Buffer.concat([JPEG, Buffer.alloc(2 * 1024 * 1024)]));
+    check("a photo over 2 MB is refused", huge.status === 413, `got ${huge.status}`);
+    check("and neither leaves a file behind", (await photoFiles(carolId)).length === 0, JSON.stringify(await photoFiles(carolId)));
+
+    const firstPhoto = await uploadPhoto(carolToken, PNG);
+    const firstUrl = firstPhoto.body.profile?.avatarUrl ?? "";
+    check(
+      "a photo uploads into the account's own folder",
+      firstPhoto.status === 200 && firstUrl.startsWith(`${standin.url}/storage/v1/object/public/avatars/${carolId}/`),
+      `${firstPhoto.status} ${JSON.stringify(firstPhoto.body)}`
+    );
+    const served = await fetch(firstUrl);
+    const servedBytes = Buffer.from(await served.arrayBuffer());
+    check(
+      "and is served from the public bucket as the image it is",
+      served.status === 200 && served.headers.get("content-type") === "image/png" && servedBytes.equals(PNG),
+      `${served.status} ${served.headers.get("content-type")}`
+    );
+
+    const secondPhoto = await uploadPhoto(carolToken, JPEG);
+    const secondUrl = secondPhoto.body.profile?.avatarUrl ?? "";
+    check(
+      "a new photo takes its place at a new address",
+      secondPhoto.status === 200 && secondUrl !== firstUrl && secondUrl.endsWith(".jpg"),
+      JSON.stringify(secondPhoto.body)
+    );
+    const afterReplace = await photoFiles(carolId);
+    check(
+      "and the old file is deleted",
+      afterReplace.length === 1 && secondUrl.endsWith(afterReplace[0]),
+      JSON.stringify(afterReplace)
+    );
+
+    const removed = await removePhoto(carolToken);
+    check(
+      "removing the photo clears it from the profile",
+      removed.status === 200 && removed.body.profile?.avatarUrl === null,
+      JSON.stringify(removed.body)
+    );
+    check("and deletes the file", (await photoFiles(carolId)).length === 0, JSON.stringify(await photoFiles(carolId)));
+    const goneFile = await fetch(secondUrl);
+    check("which stops being served", goneFile.status !== 200, `got ${goneFile.status}`);
+
+    const ginaRemoved = await removePhoto(ginaToken);
+    check(
+      "a Google photo can be removed as well",
+      ginaRemoved.status === 200 && ginaRemoved.body.profile?.avatarUrl === null,
+      JSON.stringify(ginaRemoved.body)
+    );
+
+    // Two tabs at once. Sweeping the folder after each upload meant each one
+    // deleted the other's file, leaving the profile pointing at nothing.
+    await control("latency", { ms: 40 });
+    const bothAtOnce = await Promise.all([uploadPhoto(carolToken, PNG), uploadPhoto(carolToken, JPEG)]);
+    await control("latency", { ms: 0 });
+    const settled = (await call("/api/profile", { token: carolToken })).body.profile;
+    const remaining = await photoFiles(carolId);
+    check(
+      "both uploads are accepted",
+      bothAtOnce.every((upload) => upload.status === 200),
+      JSON.stringify(bothAtOnce.map((upload) => upload.status))
+    );
+    check(
+      "and the photo left on the profile is one whose file is still there",
+      remaining.some((path) => settled?.avatarUrl?.endsWith(path)),
+      `${settled?.avatarUrl} is not among ${JSON.stringify(remaining)}`
+    );
+    await removePhoto(carolToken);
+
+    // Named rather than counted: the two uploads above raced on purpose, and
+    // the one that lost is still in the folder until the account is deleted.
+    const stuck = await uploadPhoto(carolToken, PNG);
+    const stuckPath = (stuck.body.profile?.avatarUrl ?? "").split("/public/")[1];
+    await control("faults", { method: "DELETE", table: "storage/avatars", times: 1 });
+    const stuckRemoval = await removePhoto(carolToken);
+    check(
+      "a photo whose file cannot be deleted says so rather than claiming it is gone",
+      stuckRemoval.status === 500 && /could not be deleted/.test(stuckRemoval.body.message ?? ""),
+      `${stuckRemoval.status} ${JSON.stringify(stuckRemoval.body)}`
+    );
+    const stillShown = await call("/api/profile", { token: carolToken });
+    check(
+      "and it is left on the profile, so trying again can still find the file",
+      typeof stillShown.body.profile?.avatarUrl === "string",
+      JSON.stringify(stillShown.body.profile?.avatarUrl)
+    );
+    const retriedRemoval = await removePhoto(carolToken);
+    check(
+      "and removing it again finishes the job",
+      retriedRemoval.status === 200 && !(await photoFiles(carolId)).includes(stuckPath),
+      `${retriedRemoval.status}, ${stuckPath} still in ${JSON.stringify(await photoFiles(carolId))}`
+    );
+
+    section("Deleting an account");
+    const carolTest = (await generate(carolId, carolToken)).body.test;
+    await submit(carolTest, carolId, rightAnswers(carolTest), carolToken);
+    // The link to the account is looked up when a paper is generated, and a
+    // failed lookup records the paper under the account's id with no link.
+    await control("faults", { method: "GET", table: "profiles", times: 1 });
+    const unlinkedTest = (await generate(carolId, carolToken)).body.test;
+    const [unlinkedRow] = await rows("test_attempts", `?id=eq.${unlinkedTest?.id}`);
+    check(
+      "a paper can be under the account's id without being linked to it",
+      unlinkedRow?.student_key === carolId && unlinkedRow?.student_id === null,
+      JSON.stringify(unlinkedRow)
+    );
+    await uploadPhoto(carolToken, PNG);
+
+    const deleteCarol = (confirmEmail) =>
+      call("/api/profile", { method: "DELETE", token: carolToken, body: confirmEmail === undefined ? {} : { confirmEmail } });
+
+    const unconfirmed = await deleteCarol(undefined);
+    check("deleting needs the email typed back", unconfirmed.status === 400, `got ${unconfirmed.status}`);
+
+    // Deleting cannot be undone, and the email to confirm with can be read
+    // straight out of the token, so this one operation asks the auth server
+    // whether the session is still live rather than trusting the signature.
+    const strandedSession = (await control("users", { email: "stranded@standin.test", fullName: "Stranded" })).body;
+    await control("expire-sessions", { userId: strandedSession.user.id });
+    const strandedDelete = await call("/api/profile", {
+      method: "DELETE",
+      token: strandedSession.session.access_token,
+      body: { confirmEmail: "stranded@standin.test" }
+    });
+    check(
+      "a token from a session that has ended cannot delete the account",
+      strandedDelete.status === 401,
+      `got ${strandedDelete.status}`
+    );
+    check(
+      "and the account is still there",
+      (await rows("profiles", `?id=eq.${strandedSession.user.id}`)).length === 1
+    );
+    const misconfirmed = await deleteCarol("someone-else@standin.test");
+    check(
+      "and the right one",
+      misconfirmed.status === 400 && misconfirmed.body.code === "confirmation-mismatch",
+      JSON.stringify(misconfirmed.body)
+    );
+
+    await control("faults", { method: "DELETE", table: "storage/avatars", times: 1 });
+    const halfway = await deleteCarol("carol@standin.test");
+    check("a deletion that cannot remove the photos is reported", halfway.status === 500, `got ${halfway.status}`);
+    const stillThere = await call("/api/profile", { token: carolToken });
+    const historyStillThere = await rows("test_attempts", `?student_key=eq.${carolId}`);
+    check(
+      "and stops before the history or the account go",
+      stillThere.status === 200 && historyStillThere.length === 2,
+      `${stillThere.status}, ${historyStillThere.length} attempts`
+    );
+
+    const deleted = await deleteCarol("  CAROL@standin.test ");
+    check(
+      "the account is deleted, whatever case the email is typed in",
+      deleted.status === 200 && deleted.body.deleted === true,
+      `${deleted.status} ${JSON.stringify(deleted.body)}`
+    );
+    const afterDelete = await call("/api/profile", { token: carolToken });
+    check("its token stops working", afterDelete.status === 401, `got ${afterDelete.status}`);
+    check("the account is gone", (await control(`users/${carolId}`)).status === 404);
+    check("so is its profile", (await rows("profiles", `?id=eq.${carolId}`)).length === 0);
+    const leftByKey = await rows("test_attempts", `?student_key=eq.${carolId}`);
+    const leftById = await rows("test_attempts", `?student_id=eq.${carolId}`);
+    check(
+      "every paper it sat is gone, linked to it or not",
+      leftByKey.length === 0 && leftById.length === 0,
+      `${leftByKey.length} by key, ${leftById.length} by id`
+    );
+    const leftAnswers = await rows("attempt_questions", `?attempt_id=in.(${carolTest.id},${unlinkedTest.id})`);
+    check("with every answer on them", leftAnswers.length === 0, `${leftAnswers.length} left`);
+    check("and every photo", (await photoFiles(carolId)).length === 0, JSON.stringify(await photoFiles(carolId)));
+
+    const ginaAfter = await call("/api/profile", { token: ginaToken });
+    const aliceRowsAfter = await rows("test_attempts", `?student_id=eq.${aliceId}`);
+    check(
+      "nobody else's profile or history is touched",
+      ginaAfter.status === 200 && aliceRowsAfter.length > 0,
+      `${ginaAfter.status}, ${aliceRowsAfter.length} of Alice's attempts`
+    );
+
     section("A bank bigger than one page of rows");
     // Supabase stops a single read at 1,000 rows, and the catalog used to count
     // the bank from one read, so everything past the first thousand vanished
@@ -414,6 +733,39 @@ async function main() {
     // Each page carries the total, so the read stops the moment it has every
     // row rather than asking once more for an empty page.
     check("and reads the bank in as many pages as it fills", catalogPages.length === 2, `${catalogPages.length} pages`);
+
+    // -----------------------------------------------------------------------
+    // Not a Supabase code path, but this is the suite that starts APIs of its
+    // own, and the only way to check what a particular .env does is to run one
+    // with it.
+    // -----------------------------------------------------------------------
+    section("A blank ADMIN_PASSWORD means the built-in default, not an empty password");
+    const blankPort = await freePort();
+    const blankUrl = `http://127.0.0.1:${blankPort}`;
+    const blankApi = spawn(process.execPath, ["--import", "tsx", path.join("apps", "api", "src", "server.ts")], {
+      cwd: root,
+      // Exactly what .env.example tells you to write: the line is there and
+      // empty. dotenv reads that as "", which is not the same as unset.
+      env: { ...process.env, SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "", API_PORT: String(blankPort), ADMIN_PASSWORD: "" },
+      stdio: ["ignore", "ignore", "ignore"]
+    });
+
+    try {
+      await waitForHealth(blankUrl, blankApi);
+      const emptyPassword = await request(blankUrl, "/api/admin/login", { method: "POST", body: { password: "" } });
+      check("an empty password is refused", emptyPassword.status === 401, `got ${emptyPassword.status}`);
+      const fallback = await request(blankUrl, "/api/admin/login", { method: "POST", body: { password: "capstone123" } });
+      check(
+        "and the documented default is what actually works",
+        fallback.status === 200 && fallback.body.usingDefaultPassword === true,
+        `${fallback.status} ${JSON.stringify(fallback.body)}`
+      );
+    } catch (error) {
+      // A failure here is this one check's, not the whole suite's.
+      check("an API with a blank ADMIN_PASSWORD starts", false, error.message);
+    } finally {
+      if (blankApi.exitCode === null) blankApi.kill();
+    }
   } finally {
     stopApi();
     await standin.close();

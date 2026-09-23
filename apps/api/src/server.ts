@@ -3,6 +3,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { env, storageMode } from "./lib/env";
 import { adminRouter } from "./routes/admin";
 import { catalogRouter } from "./routes/catalog";
+import { profileRouter } from "./routes/profile";
 import { testsRouter } from "./routes/tests";
 
 const app = express();
@@ -48,6 +49,7 @@ app.get("/health", (_request, response) => {
 
 app.use("/api/catalog", catalogRouter);
 app.use("/api/tests", testsRouter);
+app.use("/api/profile", profileRouter);
 app.use("/api/admin", adminRouter);
 
 app.use((_request, response) => {
@@ -71,7 +73,11 @@ app.listen(env.port, () => {
     );
   }
 
-  if (env.adminPasswordIsDefault) {
+  if (env.adminPasswordIsDefault && env.isProduction) {
+    console.error(
+      "[api] ADMIN_PASSWORD is not set, so the admin dashboard is closed: its fallback password is written in the repository for anyone to read. Set ADMIN_PASSWORD in .env and restart to open it. Everything students use is unaffected."
+    );
+  } else if (env.adminPasswordIsDefault) {
     console.warn(
       `[api] ADMIN_PASSWORD is not set, so the admin dashboard is using the default password "${env.adminPassword}". Set your own in .env.`
     );

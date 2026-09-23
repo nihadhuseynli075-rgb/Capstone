@@ -6,13 +6,16 @@
  * actual guard.
  */
 
+import { profileLimits } from "@grade9/shared";
+
 export const MIN_PASSWORD_LENGTH = 8;
 
+/** The same limits the API holds a new name to, so the two cannot disagree. */
 export function validateName(value: string): string | null {
-  const trimmed = value.trim();
+  const trimmed = value.trim().replace(/\s+/g, " ");
   if (trimmed.length === 0) return "Enter your name.";
-  if (trimmed.length < 2) return "That name is too short.";
-  if (trimmed.length > 60) return "That name is too long.";
+  if (trimmed.length < profileLimits.nameMin) return "That name is too short.";
+  if (trimmed.length > profileLimits.nameMax) return "That name is too long.";
   return null;
 }
 

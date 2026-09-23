@@ -57,6 +57,12 @@ async function main() {
   });
   check("wrong password is rejected", badLogin.status === 401, `got ${badLogin.status}`);
 
+  // Never a way in, whatever ADMIN_PASSWORD says. A blank `ADMIN_PASSWORD=` in
+  // .env, which .env.example suggests for development, once became the
+  // password itself, so leaving the box empty signed anyone in.
+  const emptyLogin = await call("/api/admin/login", { method: "POST", body: { password: "" } });
+  check("an empty password is rejected", emptyLogin.status === 401, `got ${emptyLogin.status}`);
+
   const unauthorised = await call("/api/admin/questions");
   check("questions require a token", unauthorised.status === 401, `got ${unauthorised.status}`);
 
@@ -554,6 +560,16 @@ async function main() {
       body: { studentKey: accountKey, guestKey }
     });
     check("claiming again moves nothing", movedAgain.body.claimed === 0, JSON.stringify(movedAgain.body));
+
+    // Profiles belong to accounts, and there are none without Supabase;
+    // smoke-supabase.mjs covers them.
+    section("Profiles");
+    const profile = await call("/api/profile");
+    check(
+      "the profile page is told profiles need Supabase, rather than failing",
+      profile.status === 503 && profile.body.code === "profiles-unavailable",
+      `${profile.status} ${JSON.stringify(profile.body)}`
+    );
   }
 
   section("Spreadsheet import edge cases");
