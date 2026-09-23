@@ -140,6 +140,11 @@ function parseDifficulty(value: string): Difficulty | null {
   return difficulties.includes(normalized as Difficulty) ? (normalized as Difficulty) : null;
 }
 
+/** A whole number within a column's limits, the rule the API applies too. */
+function isWholeNumberWithin(value: number, limits: { min: number; max: number }): boolean {
+  return Number.isInteger(value) && value >= limits.min && value <= limits.max;
+}
+
 function parseType(value: string, optionCount: number): QuestionType {
   const normalized = value.trim().toLowerCase().replace(/[\s_]+/g, "-");
   if (normalized === "short-answer" || normalized === "short" || normalized === "text") {
@@ -296,7 +301,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     // reporting, not values to round down to something plausible. The ceiling is
     // the one the admin form and the API already enforce, so a cell typed into
     // the wrong column cannot quietly weight one question above the whole paper.
-    if (!Number.isInteger(marks) || marks < markLimits.min || marks > markLimits.max) {
+    if (!isWholeNumberWithin(marks, markLimits)) {
       errors.push({
         row: rowNumber,
         message: `Marks "${rawMarks}" is not a whole number between ${markLimits.min} and ${markLimits.max}.`
@@ -311,10 +316,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     const rawYear = cell(row, "paperYear");
     const paperYear = rawYear.length === 0 ? null : Number(rawYear);
 
-    if (
-      paperYear !== null &&
-      (!Number.isInteger(paperYear) || paperYear < paperYearLimits.min || paperYear > paperYearLimits.max)
-    ) {
+    if (paperYear !== null && !isWholeNumberWithin(paperYear, paperYearLimits)) {
       errors.push({
         row: rowNumber,
         message: `Paper year "${rawYear}" is not a year between ${paperYearLimits.min} and ${paperYearLimits.max}.`

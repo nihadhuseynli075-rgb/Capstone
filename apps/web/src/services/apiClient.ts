@@ -1,5 +1,3 @@
-import { supabase } from "../lib/supabaseClient";
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
 
 export class ApiError extends Error {
@@ -36,17 +34,9 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const headers: Record<string, string> = {};
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
-  if (options.token) {
-    headers.Authorization = `Bearer ${options.token}`;
-  } else if (supabase) {
-    // Student account ids are public identifiers, not credentials. Back them
-    // with the current Supabase access token on every API request. getSession
-    // also picks up a refreshed token without coupling this client to React.
-    const { data } = await supabase.auth.getSession();
-    if (data.session?.access_token) {
-      headers.Authorization = `Bearer ${data.session.access_token}`;
-    }
-  }
+  // Student requests get their account's token from testsApi, admin requests
+  // their session token from adminApi. Nothing else needs one.
+  if (options.token) headers.Authorization = `Bearer ${options.token}`;
 
   let response: Response;
 

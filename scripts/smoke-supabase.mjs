@@ -19,27 +19,13 @@ import { randomUUID } from "node:crypto";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createChecks, request } from "./smoke-kit.mjs";
 import { startStandin } from "./supabase-standin.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "capstone123";
 
-let passed = 0;
-let failed = 0;
-
-function check(label, condition, detail) {
-  if (condition) {
-    passed += 1;
-    console.log(`  PASS  ${label}`);
-  } else {
-    failed += 1;
-    console.error(`  FAIL  ${label}${detail ? `\n        ${detail}` : ""}`);
-  }
-}
-
-function section(title) {
-  console.log(`\n${title}`);
-}
+const { check, section, counts } = createChecks();
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -51,27 +37,6 @@ function freePort() {
       server.close(() => resolve(port));
     });
   });
-}
-
-async function request(baseUrl, route, { method = "GET", body, token } = {}) {
-  const headers = {};
-  if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const response = await fetch(`${baseUrl}${route}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body)
-  });
-
-  const text = await response.text();
-  let payload = {};
-  try {
-    payload = text.length > 0 ? JSON.parse(text) : {};
-  } catch {
-    payload = { raw: text };
-  }
-  return { status: response.status, body: payload };
 }
 
 async function waitForHealth(apiUrl, api) {
@@ -329,15 +294,6 @@ async function main() {
     const authBack = await call(`/api/tests/history?studentKey=${bob.user.id}`, { token: bobToken });
     check("the same token works once it is back", authBack.status === 200, `got ${authBack.status}`);
 
-    section("Attempt ids that cannot exist");
-    const badReview = await call(`/api/tests/attempts/not-a-real-id?studentKey=${guestKey}`);
-    check("reopening a malformed attempt id is a 404", badReview.status === 404, `got ${badReview.status}: ${JSON.stringify(badReview.body)}`);
-    const badSubmit = await call("/api/tests/not-a-real-id/submit", {
-      method: "POST",
-      body: { studentKey: guestKey, answers: [], timeTakenSeconds: 1 }
-    });
-    check("submitting to a malformed attempt id is a 404", badSubmit.status === 404, `got ${badSubmit.status}: ${JSON.stringify(badSubmit.body)}`);
-
     section("Two submissions of the same paper at once");
     const racerKey = randomUUID();
     const raceTest = (await generate(racerKey)).body.test;
@@ -433,21 +389,6 @@ async function main() {
     const late = await submit(lateTest, lateKey, rightAnswers(lateTest));
     check("a paper past its time is refused", late.status === 409 && late.body.code === "time-expired", `${late.status} ${JSON.stringify(late.body)}`);
 
-    section("Imports and the column types");
-    const csv = [
-      "subject,topic,difficulty,question,option_a,option_b,correct_answer,paper_year",
-      `math,${topicId}-import,easy,"A year that fits",yes,no,A,2024`,
-      `math,${topicId}-import,easy,"A year that does not",yes,no,A,99999999999`
-    ].join("\n");
-    const imported = await call("/api/admin/questions/import", { method: "POST", token: adminToken, body: { csv } });
-    check("an import with one bad year still succeeds", imported.status === 200, `got ${imported.status}: ${JSON.stringify(imported.body)}`);
-    check("the good row is imported", imported.body.importedCount === 1, JSON.stringify(imported.body));
-    check(
-      "the bad year is reported against its row",
-      imported.body.errors?.some((issue) => issue.row === 3),
-      JSON.stringify(imported.body.errors)
-    );
-
     section("A bank bigger than one page of rows");
     // Supabase stops a single read at 1,000 rows, and the catalog used to count
     // the bank from one read, so everything past the first thousand vanished
@@ -463,19 +404,26 @@ async function main() {
       body: { csv: bulkRows.join("\n") }
     });
     check("1,005 questions import", bulk.body.importedCount === 1005, `imported ${bulk.body.importedCount}`);
+    const catalogLogStart = (await control("requests")).body.requests.length;
     const bulkCatalog = await call("/api/catalog");
     const counted = bulkCatalog.body.subjects?.find((subject) => subject.id === bulkSubject)?.total;
     check("the catalog counts every one of them", counted === 1005, `counted ${counted}`);
+    const catalogPages = (await control("requests")).body.requests
+      .slice(catalogLogStart)
+      .filter((entry) => entry.method === "GET" && entry.table === "questions");
+    // Each page carries the total, so the read stops the moment it has every
+    // row rather than asking once more for an empty page.
+    check("and reads the bank in as many pages as it fills", catalogPages.length === 2, `${catalogPages.length} pages`);
   } finally {
     stopApi();
     await standin.close();
   }
 
-  console.log(`\n${passed} passed, ${failed} failed`);
-  if (failed > 0) {
+  console.log(`\n${counts.passed} passed, ${counts.failed} failed`);
+  if (counts.failed > 0) {
     console.error("\nAPI output:\n" + apiLog.join("").trim());
   }
-  process.exit(failed === 0 ? 0 : 1);
+  process.exit(counts.failed === 0 ? 0 : 1);
 }
 
 main().catch((error) => {

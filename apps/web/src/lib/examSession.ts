@@ -1,6 +1,7 @@
 import type { MockTest, TestResult } from "@grade9/shared";
 
 const ACTIVE_TEST_KEY = "examPeak.activeTest";
+const PROGRESS_KEY = "examPeak.activeTestProgress";
 const LAST_RESULT_KEY = "examPeak.lastResult";
 
 export interface ActiveTest {
@@ -9,18 +10,31 @@ export interface ActiveTest {
   startedAt: number;
   short: boolean;
   requestedCount: number;
-  /** Optional so an exam saved by an older build can still be resumed. */
-  answers?: Record<string, string>;
-  currentIndex?: number;
+  /** Answers so far, by question id. */
+  answers: Record<string, string>;
+  /** The question on screen. */
+  currentIndex: number;
 }
 
 /**
  * The in-progress test lives in session storage rather than React state so that
  * an accidental refresh mid-exam does not wipe the paper, and so the countdown
  * can be recalculated from the original start time instead of counting ticks.
+ *
+ * The paper and the student's progress through it are kept apart. The paper
+ * never changes once the test starts and can be large (without Supabase,
+ * diagrams travel inside it as data URLs), so it is written once, here. Every
+ * answer after that rewrites only the small progress record (saveProgress).
  */
 export function saveActiveTest(active: ActiveTest): void {
-  window.sessionStorage.setItem(ACTIVE_TEST_KEY, JSON.stringify(active));
+  const { answers, currentIndex, ...paper } = active;
+  window.sessionStorage.setItem(ACTIVE_TEST_KEY, JSON.stringify(paper));
+  saveProgress(paper.test.id, answers, currentIndex);
+}
+
+/** Records the answers and the question on screen for the paper in progress. */
+export function saveProgress(testId: string, answers: Record<string, string>, currentIndex: number): void {
+  window.sessionStorage.setItem(PROGRESS_KEY, JSON.stringify({ testId, answers, currentIndex }));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -60,8 +74,11 @@ function isExamQuestion(value: unknown): value is Record<string, unknown> {
  * blank page that reloading only repeated. What the screen cannot do without is
  * required; the answers and the question on screen are repaired rather than
  * refused, since dropping a bad value there costs nothing that matters.
+ *
+ * Progress is taken from the progress record when it is for this paper. A paper
+ * saved by an older build carries its answers inside it instead.
  */
-function readActiveTest(value: unknown): ActiveTest | null {
+function readActiveTest(value: unknown, progress: unknown): ActiveTest | null {
   if (!isRecord(value) || !isRecord(value.test) || !isRecord(value.test.settings)) return null;
 
   const test = value.test;
@@ -81,14 +98,16 @@ function readActiveTest(value: unknown): ActiveTest | null {
     return null;
   }
 
+  const saved = isRecord(progress) && progress.testId === test.id ? progress : value;
+
   const answers: Record<string, string> = {};
-  if (isRecord(value.answers)) {
-    for (const [questionId, answer] of Object.entries(value.answers)) {
+  if (isRecord(saved.answers)) {
+    for (const [questionId, answer] of Object.entries(saved.answers)) {
       if (typeof answer === "string") answers[questionId] = answer;
     }
   }
 
-  const index = value.currentIndex;
+  const index = saved.currentIndex;
 
   return {
     test: {
@@ -114,7 +133,8 @@ export function loadActiveTest(): ActiveTest | null {
   const raw = window.sessionStorage.getItem(ACTIVE_TEST_KEY);
   if (!raw) return null;
 
-  const active = readActiveTest(parseStored(raw));
+  const progress = window.sessionStorage.getItem(PROGRESS_KEY);
+  const active = readActiveTest(parseStored(raw), progress === null ? null : parseStored(progress));
 
   // It can never be resumed, so drop it rather than meet it on every visit.
   if (!active) clearActiveTest();
@@ -123,6 +143,7 @@ export function loadActiveTest(): ActiveTest | null {
 
 export function clearActiveTest(): void {
   window.sessionStorage.removeItem(ACTIVE_TEST_KEY);
+  window.sessionStorage.removeItem(PROGRESS_KEY);
 }
 
 /**

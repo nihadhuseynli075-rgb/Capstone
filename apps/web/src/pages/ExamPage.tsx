@@ -5,8 +5,8 @@ import { navigate } from "../app/router";
 import {
   clearActiveTest,
   loadActiveTest,
-  saveActiveTest,
   saveLastResult,
+  saveProgress,
   type ActiveTest
 } from "../lib/examSession";
 import { ApiError } from "../services/apiClient";
@@ -54,17 +54,17 @@ export function ExamPage() {
       return;
     }
     setActive(stored);
-    setAnswers(stored.answers ?? {});
-    setCurrentIndex(stored.currentIndex ?? 0);
+    setAnswers(stored.answers);
+    setCurrentIndex(stored.currentIndex);
   }, []);
 
-  // Keep the saved copy in step with the answers and the question on screen,
-  // so a refresh resumes exactly where the student was.
+  // Keep the saved progress in step with the answers and the question on
+  // screen, so a refresh resumes exactly where the student was.
   useEffect(() => {
     if (!active || closedRef.current) return;
 
     try {
-      saveActiveTest({ ...active, answers, currentIndex });
+      saveProgress(active.test.id, answers, currentIndex);
     } catch {
       // A full or unavailable store only costs resuming after a refresh. The
       // paper is still here in memory and still submits.

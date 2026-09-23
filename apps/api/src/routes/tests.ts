@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import type { MockTest, TestResult, TestSettings } from "@grade9/shared";
-import { customLimits, resolveSettings } from "@grade9/shared";
+import { customLimits, resolveSettings, studentKeyLimits } from "@grade9/shared";
 import {
   claimAttempts,
   completeAttempt,
@@ -26,7 +26,16 @@ export const testsRouter = Router();
  * locally and sends it with each request. Swapping this for a real user id later
  * is a change in one place.
  */
-const studentKeySchema = z.string().min(8).max(100);
+const studentKeySchema = z.string().min(studentKeyLimits.min).max(studentKeyLimits.max);
+
+/**
+ * The refusal for a paper already handed in, however it happened: submitted
+ * earlier, or by another request a moment ago. The browser branches on `code`.
+ */
+const alreadySubmitted = {
+  code: "already-submitted",
+  message: "That test has already been submitted."
+} as const;
 
 const generateSchema = z
   .object({
@@ -71,14 +80,6 @@ testsRouter.post("/generate", async (request, response, next) => {
 
   const { studentKey, subjectId, topicIds, difficultyMode } = parsed.data;
 
-  try {
-    if (!(await canUseStudentKey(request, studentKey))) {
-      return response.status(401).json({ message: "Sign in again to continue." });
-    }
-  } catch (error) {
-    return next(error);
-  }
-
   const resolved = resolveSettings(difficultyMode, {
     questionCount: parsed.data.questionCount ?? customLimits.minQuestions,
     timeLimitMinutes: parsed.data.timeLimitMinutes ?? null
@@ -87,6 +88,10 @@ testsRouter.post("/generate", async (request, response, next) => {
   const settings: TestSettings = { subjectId, topicIds, difficultyMode, ...resolved };
 
   try {
+    if (!(await canUseStudentKey(request, studentKey))) {
+      return response.status(401).json({ message: "Sign in again to continue." });
+    }
+
     const generated = await generateMockTest(settings);
 
     if (generated.questions.length === 0) {
@@ -193,10 +198,7 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
     // code says which, so the browser can send someone to the results that
     // already exist rather than leaving them on a paper they cannot put down.
     if (attempt.submittedAt) {
-      return response.status(409).json({
-        code: "already-submitted",
-        message: "That test has already been submitted."
-      });
+      return response.status(409).json(alreadySubmitted);
     }
 
     // The countdown in the browser is a convenience, not a control: a student
@@ -241,10 +243,7 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
     // and now: a second tab, or a retry racing the original. Its result is the
     // one kept, so this one is refused the same way a late resubmit is.
     if (!recorded) {
-      return response.status(409).json({
-        code: "already-submitted",
-        message: "That test has already been submitted."
-      });
+      return response.status(409).json(alreadySubmitted);
     }
 
     const result: TestResult = {
@@ -315,7 +314,7 @@ testsRouter.post("/claim", async (request, response, next) => {
 testsRouter.get("/history", async (request, response, next) => {
   const studentKey = typeof request.query.studentKey === "string" ? request.query.studentKey : "";
 
-  if (studentKey.length < 8) {
+  if (studentKey.length < studentKeyLimits.min) {
     return response.status(400).json({ message: "A student key is required." });
   }
 

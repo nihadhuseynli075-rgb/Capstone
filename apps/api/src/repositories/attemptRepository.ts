@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import type { AttemptSummary, DifficultyMode, TestSettings, TopicPerformance } from "@grade9/shared";
 import { isUuid } from "../lib/ids";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
+import { accountIdFor } from "./profileRepository";
+
+/** Answer rows written at once when a submission is saved. */
+const ANSWER_WRITES_AT_ONCE = 8;
 
 /**
  * A question exactly as it was served to the student for one attempt.
@@ -56,24 +60,10 @@ const memoryAttempts = new Map<string, StoredAttempt>();
  * Guests are the common case early on and cost one lookup that finds nothing;
  * this runs once when a test is generated, not on every request.
  */
-async function findAccountId(studentKey: string): Promise<string | null> {
-  if (!supabaseAdmin) return null;
-
-  // Guest keys are uuids too, so this only rules out the older non-uuid keys.
-  // The profiles lookup is what actually decides.
-  if (!isUuid(studentKey)) return null;
-
-  const { data, error } = await supabaseAdmin
-    .from("profiles")
-    .select("id")
-    .eq("id", studentKey)
-    .maybeSingle();
-
+function findAccountId(studentKey: string): Promise<string | null> {
   // Not being able to link an attempt is not a reason to refuse to start the
   // test. `student_key` still identifies the student either way.
-  if (error) return null;
-
-  return data ? (data.id as string) : null;
+  return accountIdFor(studentKey).catch(() => null);
 }
 
 export async function createAttempt(input: {
@@ -277,32 +267,39 @@ export async function completeAttempt(input: {
   if (error) throw new Error(`Failed to save result: ${error.message}`);
   if ((taken ?? []).length === 0) return false;
 
-  // The answers are separate writes through PostgREST, not one transaction. If
-  // one fails, reopen the attempt, so the student's retry can save everything
-  // again rather than being refused as already submitted with answers missing.
-  try {
-    for (const answer of input.answers) {
-      const { error: answerError } = await supabaseAdmin
-        .from("attempt_questions")
-        .update({
-          student_answer: answer.studentAnswer,
-          is_correct: answer.isCorrect,
-          score: answer.score
-        })
-        .eq("attempt_id", input.attemptId)
-        .eq("position", answer.position);
+  // The answers are separate writes through PostgREST, not one transaction, so
+  // they go a few at a time rather than one after another: a 50-question paper
+  // was 50 round trips in a row. If one fails, reopen the attempt, so the
+  // student's retry can save everything again rather than being refused as
+  // already submitted with answers missing.
+  const client = supabaseAdmin;
 
-      if (answerError) throw new Error(`Failed to save answer: ${answerError.message}`);
-    }
-  } catch (cause) {
-    const { error: reopenError } = await supabaseAdmin
+  for (let start = 0; start < input.answers.length; start += ANSWER_WRITES_AT_ONCE) {
+    const writes = await Promise.all(
+      input.answers.slice(start, start + ANSWER_WRITES_AT_ONCE).map((answer) =>
+        client
+          .from("attempt_questions")
+          .update({
+            student_answer: answer.studentAnswer,
+            is_correct: answer.isCorrect,
+            score: answer.score
+          })
+          .eq("attempt_id", input.attemptId)
+          .eq("position", answer.position)
+      )
+    );
+
+    const failed = writes.find((write) => write.error)?.error;
+    if (!failed) continue;
+
+    const { error: reopenError } = await client
       .from("test_attempts")
       .update({ score: null, percentage: null, time_taken_seconds: null, submitted_at: null })
       .eq("id", input.attemptId)
       .eq("submitted_at", submittedAt);
 
     const reopenDetail = reopenError ? ` Reopening the test also failed: ${reopenError.message}` : "";
-    throw new Error(`${(cause as Error).message}.${reopenDetail}`);
+    throw new Error(`Failed to save answer: ${failed.message}.${reopenDetail}`);
   }
 
   return true;

@@ -1,12 +1,8 @@
 import type { Request } from "express";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
-import { isUuid } from "../../lib/ids";
+import { bearerToken } from "../../lib/bearerToken";
 import { supabaseAdmin } from "../../lib/supabaseAdmin";
-
-function bearerToken(request: Request): string | null {
-  const header = request.headers.authorization ?? "";
-  return header.startsWith("Bearer ") ? header.slice(7) : null;
-}
+import { accountIdFor } from "../../repositories/profileRepository";
 
 /**
  * The account a request's access token belongs to, if it is a live one.
@@ -39,26 +35,9 @@ async function authenticatedUserId(request: Request): Promise<string | null> {
   return typeof userId === "string" && userId.length > 0 ? userId : null;
 }
 
-/**
- * Whether a key is a guest's rather than an account's.
- *
- * Account ids are uuids, so any other key can only be a guest's. It is also
- * one the profiles lookup cannot be asked about: the id column is a uuid, and
- * Postgres rejects a malformed value there outright instead of finding nothing.
- */
+/** Whether a key is a guest's: one no account owns. */
 async function isGuestKey(studentKey: string): Promise<boolean> {
-  if (!supabaseAdmin || !isUuid(studentKey)) return true;
-
-  const { data, error } = await supabaseAdmin
-    .from("profiles")
-    .select("id")
-    .eq("id", studentKey)
-    .maybeSingle();
-
-  if (error) throw new Error(`Failed to verify student account: ${error.message}`);
-
-  // No account owns this key, so it is a guest credential.
-  return data === null;
+  return (await accountIdFor(studentKey)) === null;
 }
 
 /**
@@ -67,11 +46,7 @@ async function isGuestKey(studentKey: string): Promise<boolean> {
  * account's Supabase access token.
  */
 export async function canUseStudentKey(request: Request, studentKey: string): Promise<boolean> {
-  if (!supabaseAdmin) return true;
-
-  if ((await authenticatedUserId(request)) === studentKey) return true;
-
-  return isGuestKey(studentKey);
+  return (await isAuthenticatedStudent(request, studentKey)) || isGuestKey(studentKey);
 }
 
 /** Claiming guest history always targets a real signed-in account. */

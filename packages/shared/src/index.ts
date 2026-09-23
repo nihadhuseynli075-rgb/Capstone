@@ -89,6 +89,18 @@ export const paperYearLimits = {
   max: 2100
 } as const;
 
+/**
+ * How long a student key may be.
+ *
+ * Shared for the same reason again: the browser has to recognise a stored
+ * guest key the API would refuse, and a copy of these numbers on each side
+ * would drift until every request a guest makes failed.
+ */
+export const studentKeyLimits = {
+  min: 8,
+  max: 100
+} as const;
+
 export const customLimits = {
   minQuestions: 5,
   maxQuestions: 50,

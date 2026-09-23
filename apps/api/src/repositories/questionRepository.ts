@@ -86,6 +86,44 @@ function matchesFilter(question: BankQuestion, filter: QuestionFilter): boolean 
   return true;
 }
 
+/** Rows asked for at a time. Supabase cuts any single read off at 1,000 by default. */
+const PAGE_SIZE = 1000;
+
+interface Page {
+  data: unknown[] | null;
+  error: { message: string } | null;
+  count: number | null;
+}
+
+/**
+ * Every row a query matches, a page at a time.
+ *
+ * A single read stops without complaint at the project's row limit, 1,000 by
+ * default, so a bank bigger than that quietly lost questions: from the admin
+ * list, from the pool tests are drawn from, and from the catalog's counts. Each
+ * page carries the total, so a small bank still costs one request. A page
+ * shorter than asked for is not taken as the end, since the project's limit
+ * could be below the page size.
+ */
+async function readAllPages(
+  readPage: (from: number, to: number) => PromiseLike<Page>,
+  task: string
+): Promise<unknown[]> {
+  const rows: unknown[] = [];
+  let total: number | null = null;
+
+  while (total === null || rows.length < total) {
+    const { data, error, count } = await readPage(rows.length, rows.length + PAGE_SIZE - 1);
+    if (error) throw new Error(`Failed to ${task}: ${error.message}`);
+    if (!data || data.length === 0) break;
+
+    rows.push(...data);
+    total = count ?? total;
+  }
+
+  return rows;
+}
+
 export async function listQuestions(filter: QuestionFilter = {}): Promise<BankQuestion[]> {
   if (!supabaseAdmin) {
     return [...memoryQuestions.values()]
@@ -93,17 +131,26 @@ export async function listQuestions(filter: QuestionFilter = {}): Promise<BankQu
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
-  let query = supabaseAdmin.from("questions").select("*").order("created_at", { ascending: false });
+  const client = supabaseAdmin;
 
-  if (filter.subjectId) query = query.eq("subject_id", filter.subjectId);
-  if (filter.difficulty) query = query.eq("difficulty", filter.difficulty);
-  if (filter.topicIds?.length) query = query.in("topic_id", filter.topicIds);
-  if (filter.search) query = query.ilike("prompt", `%${filter.search}%`);
+  const rows = await readAllPages((from, to) => {
+    // The id settles ties between questions saved in the same instant, so a
+    // row cannot land on two pages, or on none.
+    let query = client
+      .from("questions")
+      .select("*", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .order("id");
 
-  const { data, error } = await query;
-  if (error) throw new Error(`Failed to list questions: ${error.message}`);
+    if (filter.subjectId) query = query.eq("subject_id", filter.subjectId);
+    if (filter.difficulty) query = query.eq("difficulty", filter.difficulty);
+    if (filter.topicIds?.length) query = query.in("topic_id", filter.topicIds);
+    if (filter.search) query = query.ilike("prompt", `%${filter.search}%`);
 
-  return (data as QuestionRow[]).map(toQuestion);
+    return query.range(from, to);
+  }, "list questions");
+
+  return (rows as QuestionRow[]).map(toQuestion);
 }
 
 export async function getQuestion(id: string): Promise<BankQuestion | null> {
@@ -176,44 +223,32 @@ export async function deleteQuestion(id: string): Promise<boolean> {
 
 type CountedQuestion = Pick<BankQuestion, "subjectId" | "topicId" | "difficulty">;
 
-/** Rows asked for at a time. Supabase cuts any single read off at 1,000 by default. */
-const PAGE_SIZE = 1000;
-
 /**
  * The three columns a count needs, for every question in the bank.
  *
- * listQuestions reads every column, images and explanations included, and
- * stops without complaint at the first 1,000 rows, so counting through it grew
- * with the bank and then quietly undercounted it. This pages until the bank
- * runs out: a page shorter than asked for is not trusted to be the last, since
- * the project's row limit could be lower than the page size.
+ * listQuestions reads every column, images and explanations included, none of
+ * which a count looks at.
  */
 async function questionsToCount(): Promise<CountedQuestion[]> {
   if (!supabaseAdmin) return [...memoryQuestions.values()];
 
-  const rows: CountedQuestion[] = [];
+  const client = supabaseAdmin;
 
-  for (let from = 0; ; ) {
-    const { data, error } = await supabaseAdmin
-      .from("questions")
-      .select("subject_id, topic_id, difficulty")
-      .order("id")
-      .range(from, from + PAGE_SIZE - 1);
+  const rows = (await readAllPages(
+    (from, to) =>
+      client
+        .from("questions")
+        .select("subject_id, topic_id, difficulty", { count: "exact" })
+        .order("id")
+        .range(from, to),
+    "count questions"
+  )) as Array<Pick<QuestionRow, "subject_id" | "topic_id" | "difficulty">>;
 
-    if (error) throw new Error(`Failed to count questions: ${error.message}`);
-
-    const page = (data ?? []) as Array<Pick<QuestionRow, "subject_id" | "topic_id" | "difficulty">>;
-    if (page.length === 0) return rows;
-
-    for (const row of page) {
-      rows.push({
-        subjectId: row.subject_id,
-        topicId: row.topic_id,
-        difficulty: row.difficulty as Difficulty
-      });
-    }
-    from += page.length;
-  }
+  return rows.map((row) => ({
+    subjectId: row.subject_id,
+    topicId: row.topic_id,
+    difficulty: row.difficulty as Difficulty
+  }));
 }
 
 /** Counts per subject and topic, used to build the catalog the builder shows. */

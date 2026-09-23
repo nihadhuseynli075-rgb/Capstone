@@ -1,5 +1,6 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
+import { bearerToken } from "../../lib/bearerToken";
 import { env } from "../../lib/env";
 
 /**
@@ -57,10 +58,7 @@ export function isValidToken(token: string): boolean {
 }
 
 export function requireAdmin(request: Request, response: Response, next: NextFunction): void {
-  const header = request.headers.authorization ?? "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-
-  if (!isValidToken(token)) {
+  if (!isValidToken(bearerToken(request) ?? "")) {
     response.status(401).json({ message: "Admin sign-in required." });
     return;
   }

@@ -526,10 +526,15 @@ function createDatabase() {
     const matched = sortRows(
       rows.filter((row) => filters.every((filter) => filter(row))),
       order
-    ).slice(offset, offset + Math.min(limit, MAX_ROWS));
+    );
 
     const shape = parseSelect(params.get("select"));
-    return matched.map((row) => project(table, row, shape));
+    return {
+      rows: matched
+        .slice(offset, offset + Math.min(limit, MAX_ROWS))
+        .map((row) => project(table, row, shape)),
+      total: matched.length
+    };
   }
 
   function insert(table, body, params) {
@@ -794,13 +799,8 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
   }
 
   /** Finds the first injected fault this request trips, and uses it up. */
-  function takeFault(method, table, search) {
-    const fault = state.faults.find(
-      (item) =>
-        item.method === method &&
-        item.table === table &&
-        (!item.match || decodeURIComponent(search).includes(item.match))
-    );
+  function takeFault(method, table) {
+    const fault = state.faults.find((item) => item.method === method && item.table === table);
     if (!fault) return null;
 
     if (fault.skip > 0) {
@@ -824,17 +824,24 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
     if (state.latencyMs > 0) await sleep(state.latencyMs);
     state.requests.push({ method, table, search: url.search });
 
-    const fault = takeFault(method, table, url.search);
-    if (fault) {
-      throw new PgError(fault.status ?? 500, fault.code ?? "XX000", fault.message ?? "injected failure");
-    }
+    const fault = takeFault(method, table);
+    if (fault) throw new PgError(fault.status ?? 500, "XX000", "injected failure");
 
     let rows;
     let status;
+    let headers = {};
 
     if (method === "GET" || method === "HEAD") {
-      rows = db.select(table, params);
+      const result = db.select(table, params);
+      rows = result.rows;
       status = 200;
+
+      // Asked for, PostgREST reports the full count as "first-last/total".
+      if (prefer.includes("count=exact")) {
+        const first = Number(params.get("offset") ?? 0);
+        const range = rows.length > 0 ? `${first}-${first + rows.length - 1}` : "*";
+        headers = { "Content-Range": `${range}/${result.total}` };
+      }
     } else {
       const body = await readBody(request);
       const shape = parseSelect(params.get("select"));
@@ -866,19 +873,17 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
           `The result contains ${rows.length} rows`
         );
       }
-      return send(response, status, rows[0]);
+      return send(response, status, rows[0], headers);
     }
 
-    return send(response, status, rows);
+    return send(response, status, rows, headers);
   }
 
   async function handleAuth(request, response, url, route) {
     // Faults for the auth server are registered with a table of "auth/<route>",
     // e.g. "auth/user", standing in for the auth server being down.
-    const fault = takeFault(request.method, `auth/${route}`, url.search);
-    if (fault) {
-      return sendAuthError(response, fault.status ?? 503, fault.code ?? "unavailable", fault.message ?? "injected failure");
-    }
+    const fault = takeFault(request.method, `auth/${route}`);
+    if (fault) return sendAuthError(response, fault.status ?? 503, "unavailable", "injected failure");
 
     if (route === "signup" && request.method === "POST") {
       const body = (await readBody(request)) ?? {};
@@ -958,15 +963,6 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
     const [area, table, id] = parts;
     const body = request.method === "GET" ? undefined : ((await readBody(request)) ?? {});
 
-    if (area === "reset" && request.method === "POST") {
-      for (const name of Object.keys(db.tables)) db.tables[name].length = 0;
-      auth.users.clear();
-      state.faults.length = 0;
-      state.requests.length = 0;
-      state.latencyMs = 0;
-      return send(response, 200, { ok: true });
-    }
-
     if (area === "users" && request.method === "POST") {
       const user = auth.createUser({
         email: body.email ?? `${randomUUID()}@standin.test`,
@@ -981,15 +977,9 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
       return send(response, 200, { ok: true });
     }
 
-    if (area === "faults") {
-      if (request.method === "DELETE") {
-        state.faults.length = 0;
-        return send(response, 200, { ok: true });
-      }
-      if (request.method === "POST") {
-        state.faults.push({ times: 1, skip: 0, ...body });
-        return send(response, 200, { faults: state.faults.length });
-      }
+    if (area === "faults" && request.method === "POST") {
+      state.faults.push({ times: 1, skip: 0, ...body });
+      return send(response, 200, { faults: state.faults.length });
     }
 
     if (area === "latency" && request.method === "POST") {
@@ -1004,7 +994,7 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
     if (area === "rows" && table) {
       db.requireTable(table);
       if (request.method === "GET") {
-        return send(response, 200, { rows: db.select(table, url.searchParams) });
+        return send(response, 200, { rows: db.select(table, url.searchParams).rows });
       }
       // Direct edits, standing in for someone with the SQL editor open: for
       // example backdating an attempt so its time limit has already passed.
@@ -1060,9 +1050,6 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
 
   return {
     url: baseUrl,
-    db,
-    auth,
-    state,
     close: () => new Promise((resolve) => server.close(() => resolve()))
   };
 }

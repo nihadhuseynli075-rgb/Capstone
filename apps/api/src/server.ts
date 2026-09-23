@@ -29,7 +29,12 @@ app.use(
       }
 
       callback(new Error(`Origin ${origin} is not allowed by CORS.`));
-    }
+    },
+    // A signed-in student's requests carry an Authorization header, so each
+    // needs the browser's preflight check first. Without a max age browsers
+    // remember the answer for about five seconds; ten minutes turns a round
+    // trip on nearly every request into one per session.
+    maxAge: 600
   })
 );
 

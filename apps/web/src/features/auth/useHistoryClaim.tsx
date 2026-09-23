@@ -13,9 +13,10 @@ import { useAuth } from "./AuthContext";
  *
  * Each guest key is claimed once and then recorded as claimed. That record is
  * kept per key rather than per account: the next time the browser needs a
- * guest key it gets a fresh one (see getGuestKey), so tests from a later spell
- * as a guest are under a key of their own and move at the next sign-in, instead
- * of being skipped because the account had claimed this browser once before.
+ * guest key it gets a fresh one (see guestKey in lib/studentKey), so tests
+ * from a later spell as a guest are under a key of their own and move at the
+ * next sign-in, instead of being skipped because the account had claimed this
+ * browser once before.
  *
  * It is deliberately quiet: if the claim fails, the tests are still there under
  * the guest key and the next sign-in tries again.

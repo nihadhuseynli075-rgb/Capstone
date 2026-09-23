@@ -9,7 +9,7 @@ import type {
   TestSettings
 } from "@grade9/shared";
 import { apiRequest } from "./apiClient";
-import { resolveStudentKey } from "../lib/studentKey";
+import { resolveStudentIdentity, type StudentIdentity } from "../lib/studentKey";
 
 export interface CatalogTopic {
   id: string;
@@ -81,6 +81,20 @@ async function afterClaim(): Promise<void> {
   window.clearTimeout(timer);
 }
 
+/**
+ * Sends a request as the current student: their key, the token backing it, and
+ * only once any claim of guest history in flight has finished.
+ *
+ * The order matters. The claim is started by an effect that runs after the
+ * page's own, and reading the session first gives it the moment it needs to
+ * register. Keeping both steps here is what lets every request rely on that.
+ */
+async function asStudent<T>(send: (identity: StudentIdentity) => Promise<T>): Promise<T> {
+  const identity = await resolveStudentIdentity();
+  await afterClaim();
+  return send(identity);
+}
+
 export interface GenerateRequest {
   subjectId: string;
   topicIds: string[];
@@ -95,34 +109,37 @@ export interface GenerateResponse {
   requestedCount: number;
 }
 
-export async function generateMockTest(request: GenerateRequest): Promise<GenerateResponse> {
-  return apiRequest<GenerateResponse>("/api/tests/generate", {
-    method: "POST",
-    body: { ...request, studentKey: await resolveStudentKey() }
-  });
+export function generateMockTest(request: GenerateRequest): Promise<GenerateResponse> {
+  return asStudent(({ studentKey, token }) =>
+    apiRequest<GenerateResponse>("/api/tests/generate", {
+      method: "POST",
+      body: { ...request, studentKey },
+      token
+    })
+  );
 }
 
-export async function submitTest(
+/** A paper started as a guest belongs to the account once the claim has moved it. */
+export function submitTest(
   attemptId: string,
   answers: SubmittedAnswer[],
   timeTakenSeconds: number
 ): Promise<TestResult> {
-  const studentKey = await resolveStudentKey();
-  // A paper started as a guest belongs to the account only once it has moved.
-  await afterClaim();
-
-  return apiRequest<TestResult>(`/api/tests/${attemptId}/submit`, {
-    method: "POST",
-    body: { studentKey, answers, timeTakenSeconds }
-  });
+  return asStudent(({ studentKey, token }) =>
+    apiRequest<TestResult>(`/api/tests/${attemptId}/submit`, {
+      method: "POST",
+      body: { studentKey, answers, timeTakenSeconds },
+      token
+    })
+  );
 }
 
 export async function fetchHistory(): Promise<AttemptSummary[]> {
-  const studentKey = await resolveStudentKey();
-  await afterClaim();
-
-  const data = await apiRequest<{ attempts: AttemptSummary[] }>(
-    `/api/tests/history?studentKey=${encodeURIComponent(studentKey)}`
+  const data = await asStudent(({ studentKey, token }) =>
+    apiRequest<{ attempts: AttemptSummary[] }>(
+      `/api/tests/history?studentKey=${encodeURIComponent(studentKey)}`,
+      { token }
+    )
   );
   return data.attempts;
 }
@@ -139,38 +156,38 @@ export interface PastAttempt {
   reviews: QuestionReview[];
 }
 
-export async function fetchAttempt(attemptId: string): Promise<PastAttempt> {
-  const studentKey = await resolveStudentKey();
-  await afterClaim();
-
-  return apiRequest<PastAttempt>(
-    `/api/tests/attempts/${encodeURIComponent(attemptId)}?studentKey=${encodeURIComponent(studentKey)}`
+export function fetchAttempt(attemptId: string): Promise<PastAttempt> {
+  return asStudent(({ studentKey, token }) =>
+    apiRequest<PastAttempt>(
+      `/api/tests/attempts/${encodeURIComponent(attemptId)}?studentKey=${encodeURIComponent(studentKey)}`,
+      { token }
+    )
   );
 }
 
 /**
  * Moves attempts taken as a guest onto the signed-in account.
  *
- * The signed-in key is filled in by `resolveStudentKey`, so this only has to
- * say which guest key to pull across.
+ * The signed-in key is filled in by `resolveStudentIdentity`, so this only has
+ * to say which guest key to pull across.
  */
 export function claimGuestHistory(guestKey: string): Promise<{ claimed: number }> {
-  const claim = (async () =>
+  const claim = resolveStudentIdentity().then(({ studentKey, token }) =>
     apiRequest<{ claimed: number }>("/api/tests/claim", {
       method: "POST",
-      body: { studentKey: await resolveStudentKey(), guestKey }
-    }))();
+      body: { studentKey, guestKey },
+      token
+    })
+  );
 
   // Waiters only need to know it has finished; a failed claim is the caller's
   // to report, and leaves the history where it was.
-  const settled = claim.then(
-    () => undefined,
-    () => undefined
-  );
+  const settled: Promise<void> = claim
+    .then(() => undefined, () => undefined)
+    .finally(() => {
+      if (claimInFlight === settled) claimInFlight = null;
+    });
   claimInFlight = settled;
-  void settled.then(() => {
-    if (claimInFlight === settled) claimInFlight = null;
-  });
 
   return claim;
 }

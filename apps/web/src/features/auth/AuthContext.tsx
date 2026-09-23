@@ -102,7 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // No new guest key is made here. A key whose tests were moved onto the
     // account is recorded as claimed and replaced the first time it is needed
-    // again (see getGuestKey), which also covers a session that simply ran out.
+    // again (see guestKey in lib/studentKey), which also covers a session that
+    // simply ran out.
     // A key whose move never happened is kept, so those tests are still there
     // to be claimed at the next sign-in rather than stranded under a key this
     // browser has forgotten.

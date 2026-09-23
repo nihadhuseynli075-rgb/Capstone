@@ -3,6 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import type { QuestionDraft } from "@grade9/shared";
 import { markLimits, paperYearLimits } from "@grade9/shared";
+import { bearerToken } from "../lib/bearerToken";
 import { env, storageMode } from "../lib/env";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { login, logout, requireAdmin } from "../modules/admin/adminAuth";
@@ -83,7 +84,7 @@ adminRouter.post("/login", (request, response) => {
 });
 
 adminRouter.post("/logout", requireAdmin, (request, response) => {
-  logout((request.headers.authorization ?? "").slice(7));
+  logout(bearerToken(request) ?? "");
   response.json({ ok: true });
 });
 

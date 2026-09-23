@@ -10,47 +10,13 @@
  * failure so it can be trusted as a check rather than read as a log.
  */
 
+import { createChecks, request } from "./smoke-kit.mjs";
+
 const BASE_URL = process.env.SMOKE_API_URL ?? "http://localhost:4000";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "capstone123";
 
-let passed = 0;
-let failed = 0;
-
-function check(label, condition, detail) {
-  if (condition) {
-    passed += 1;
-    console.log(`  PASS  ${label}`);
-  } else {
-    failed += 1;
-    console.error(`  FAIL  ${label}${detail ? `\n        ${detail}` : ""}`);
-  }
-}
-
-function section(title) {
-  console.log(`\n${title}`);
-}
-
-async function call(path, { method = "GET", body, token } = {}) {
-  const headers = {};
-  if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const response = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body)
-  });
-
-  const text = await response.text();
-  let payload = {};
-  try {
-    payload = text.length > 0 ? JSON.parse(text) : {};
-  } catch {
-    payload = { raw: text };
-  }
-
-  return { status: response.status, body: payload };
-}
+const { check, section, counts } = createChecks();
+const call = (path, options) => request(BASE_URL, path, options);
 
 const studentKey = `smoke-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
@@ -626,8 +592,8 @@ async function main() {
   const afterLogout = await call("/api/admin/questions", { token });
   check("the token stops working after logout", afterLogout.status === 401, `got ${afterLogout.status}`);
 
-  console.log(`\n${passed} passed, ${failed} failed`);
-  process.exit(failed === 0 ? 0 : 1);
+  console.log(`\n${counts.passed} passed, ${counts.failed} failed`);
+  process.exit(counts.failed === 0 ? 0 : 1);
 }
 
 main().catch((error) => {
