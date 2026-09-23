@@ -284,6 +284,11 @@ async function main() {
     body: { studentKey, answers: allWrong, timeTakenSeconds: 42 }
   });
   check("submission responds 200", wrongResult.status === 200, JSON.stringify(wrongResult.body));
+  check(
+    "the submitted duration is kept",
+    wrongResult.body.timeTakenSeconds >= 42,
+    `timeTakenSeconds ${wrongResult.body.timeTakenSeconds}`
+  );
   check("all-wrong scores zero", wrongResult.body.score === 0, `score ${wrongResult.body.score}`);
   check(
     "every question comes back for review",
@@ -491,6 +496,120 @@ async function main() {
     otherStudentReview.status === 403,
     `got ${otherStudentReview.status}`
   );
+
+  section("Attempt ids that cannot exist");
+  const malformedReview = await call(
+    `/api/tests/attempts/not-a-real-id?studentKey=${encodeURIComponent(studentKey)}`
+  );
+  check("reopening a malformed attempt id is a 404", malformedReview.status === 404, `got ${malformedReview.status}`);
+  const malformedSubmit = await call("/api/tests/not-a-real-id/submit", {
+    method: "POST",
+    body: { studentKey, answers: [], timeTakenSeconds: 1 }
+  });
+  check("submitting to a malformed attempt id is a 404", malformedSubmit.status === 404, `got ${malformedSubmit.status}`);
+
+  section("Two submissions of one paper at once");
+  // A second tab, or a retry racing the original. Exactly one may be kept, and
+  // what is stored has to be that one, not a mix of the two.
+  const racerKey = `${studentKey}-racer`;
+  const race = await call("/api/tests/generate", {
+    method: "POST",
+    body: { studentKey: racerKey, subjectId: "math", topicIds: ["algebra"], difficultyMode: "easy" }
+  });
+  const raceTest = race.body.test;
+  const raceAnswers = (answer) =>
+    raceTest.questions.map((question, position) => ({ questionId: question.id, position, answer }));
+  const [raceFirst, raceSecond] = await Promise.all([
+    call(`/api/tests/${raceTest.id}/submit`, {
+      method: "POST",
+      body: { studentKey: racerKey, answers: raceAnswers("first"), timeTakenSeconds: 5 }
+    }),
+    call(`/api/tests/${raceTest.id}/submit`, {
+      method: "POST",
+      body: { studentKey: racerKey, answers: raceAnswers("second"), timeTakenSeconds: 5 }
+    })
+  ]);
+  const raceStatuses = [raceFirst.status, raceSecond.status].sort();
+  check(
+    "only one of two simultaneous submissions is accepted",
+    raceStatuses[0] === 200 && raceStatuses[1] === 409,
+    `statuses ${raceFirst.status} and ${raceSecond.status}`
+  );
+  const raceLoser = raceFirst.status === 409 ? raceFirst : raceSecond;
+  check(
+    "the other is told it was already submitted",
+    raceLoser.body.code === "already-submitted",
+    JSON.stringify(raceLoser.body)
+  );
+  const winningAnswer = raceFirst.status === 200 ? "first" : "second";
+  const raceReview = await call(
+    `/api/tests/attempts/${raceTest.id}?studentKey=${encodeURIComponent(racerKey)}`
+  );
+  check(
+    "the stored answers are the accepted submission's",
+    raceReview.body.reviews?.every((item) => item.studentAnswer === winningAnswer),
+    JSON.stringify(raceReview.body.reviews?.map((item) => item.studentAnswer))
+  );
+
+  if (health.body.storageMode === "memory") {
+    // With Supabase this needs a signed-in account; smoke-supabase.mjs covers it.
+    section("Moving guest history onto an account");
+    const guestKey = `${studentKey}-guest`;
+    const accountKey = `${studentKey}-account`;
+    const guestPaper = await call("/api/tests/generate", {
+      method: "POST",
+      body: { studentKey: guestKey, subjectId: "math", topicIds: ["algebra"], difficultyMode: "easy" }
+    });
+    await call(`/api/tests/${guestPaper.body.test.id}/submit`, {
+      method: "POST",
+      body: { studentKey: guestKey, answers: [], timeTakenSeconds: 5 }
+    });
+
+    const moved = await call("/api/tests/claim", {
+      method: "POST",
+      body: { studentKey: accountKey, guestKey }
+    });
+    check("a guest's attempts move onto the account", moved.body.claimed === 1, JSON.stringify(moved.body));
+    const accountHistory = await call(`/api/tests/history?studentKey=${encodeURIComponent(accountKey)}`);
+    check("the account now lists them", accountHistory.body.attempts?.length === 1, JSON.stringify(accountHistory.body));
+    const guestHistory = await call(`/api/tests/history?studentKey=${encodeURIComponent(guestKey)}`);
+    check("the guest key is left with nothing", guestHistory.body.attempts?.length === 0, JSON.stringify(guestHistory.body));
+    const movedAgain = await call("/api/tests/claim", {
+      method: "POST",
+      body: { studentKey: accountKey, guestKey }
+    });
+    check("claiming again moves nothing", movedAgain.body.claimed === 0, JSON.stringify(movedAgain.body));
+  }
+
+  section("Spreadsheet import edge cases");
+  const edgeCsv = [
+    "subject,topic,difficulty,question,option_a,option_b,option_c,option_d,correct_answer,paper_year",
+    // option_b is blank, so "C" must still mean the text under option_c.
+    'math,import-edges,easy,"Which of these is prime?","4","","7","9","C",2024',
+    'math,import-edges,easy,"A year with a digit too many","yes","no","","","A",20245',
+    'math,import-edges,easy,"A year that is not whole","yes","no","","","A",2024.5',
+    'math,import-edges,easy,"A year nobody wrote down","yes","no","","","A",'
+  ].join("\n");
+  const edges = await call("/api/admin/questions/import", { method: "POST", token, body: { csv: edgeCsv } });
+  check("the edge-case import responds 200", edges.status === 200, JSON.stringify(edges.body));
+  const prime = edges.body.questions?.find((question) => question.prompt === "Which of these is prime?");
+  check(
+    "a letter names its column even when an earlier option is blank",
+    prime?.correctAnswer === "7",
+    `correct answer ${JSON.stringify(prime?.correctAnswer)}`
+  );
+  check(
+    "a year that cannot be one is reported against its row",
+    edges.body.errors?.some((issue) => issue.row === 3),
+    JSON.stringify(edges.body.errors)
+  );
+  check(
+    "a year that is not a whole number is reported, not rounded",
+    edges.body.errors?.some((issue) => issue.row === 4),
+    JSON.stringify(edges.body.errors)
+  );
+  const yearless = edges.body.questions?.find((question) => question.prompt === "A year nobody wrote down");
+  check("a blank year is stored as unknown", yearless !== undefined && yearless.paperYear === null, JSON.stringify(yearless));
 
   section("Sign out");
   const loggedOut = await call("/api/admin/logout", { method: "POST", token });

@@ -52,9 +52,18 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
     // "that test belongs to a different student".
     if (attemptId && !ready) return;
 
+    // A new attempt, or a different account, starts clean: an error left from
+    // the last request stayed on screen over a result that had since loaded,
+    // and the previous attempt's result sat under the new one's address.
+    let active = true;
+    setError(null);
+
     if (attemptId) {
+      setView(null);
+
       fetchAttempt(attemptId)
-        .then((attempt) =>
+        .then((attempt) => {
+          if (!active) return;
           setView({
             attemptId: attempt.attemptId,
             subjectId: attempt.settings.subjectId,
@@ -66,10 +75,15 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
             topicBreakdown: breakdownFromReviews(attempt.reviews),
             reviews: attempt.reviews,
             comparison: null
-          })
-        )
-        .catch((cause: Error) => setError(cause.message));
-      return;
+          });
+        })
+        .catch((cause: Error) => {
+          if (active) setError(cause.message);
+        });
+
+      return () => {
+        active = false;
+      };
     }
 
     const stored = loadLastResult();

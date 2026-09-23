@@ -155,7 +155,9 @@ export function TestBuilderPage() {
         test: response.test,
         startedAt: Date.now(),
         short: response.short,
-        requestedCount: response.requestedCount
+        requestedCount: response.requestedCount,
+        answers: {},
+        currentIndex: 0
       });
 
       navigate("/exam");

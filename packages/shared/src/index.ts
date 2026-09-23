@@ -76,6 +76,19 @@ export const markLimits = {
   max: 100
 } as const;
 
+/**
+ * The years a past paper can be from.
+ *
+ * Shared for the same reason as markLimits: the API schema allowed only these,
+ * while the spreadsheet importer took any number at all, so one stray cell
+ * could be saved as a nonsense year or, too large for the column, fail the
+ * whole import.
+ */
+export const paperYearLimits = {
+  min: 1900,
+  max: 2100
+} as const;
+
 export const customLimits = {
   minQuestions: 5,
   maxQuestions: 50,

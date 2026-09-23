@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SubmittedAnswer } from "@grade9/shared";
 import { topicName } from "@grade9/shared";
 import { navigate } from "../app/router";
-import { clearActiveTest, loadActiveTest, saveLastResult, type ActiveTest } from "../lib/examSession";
+import {
+  clearActiveTest,
+  loadActiveTest,
+  saveActiveTest,
+  saveLastResult,
+  type ActiveTest
+} from "../lib/examSession";
 import { ApiError } from "../services/apiClient";
 import { submitTest } from "../services/testsApi";
 
@@ -28,6 +34,11 @@ export function ExamPage() {
   // Auto-submit and a manual click can race; this makes sure only one wins.
   const submittedRef = useRef(false);
 
+  // Set once the paper is over - marked, found already marked, or out of time -
+  // and its saved copy cleared. Saving after that would put a finished paper
+  // back, to be reopened on the next visit to this page.
+  const closedRef = useRef(false);
+
   const paletteRef = useRef<HTMLDivElement>(null);
 
   // The countdown fires once when it reaches zero and then leaves it alone.
@@ -43,7 +54,22 @@ export function ExamPage() {
       return;
     }
     setActive(stored);
+    setAnswers(stored.answers ?? {});
+    setCurrentIndex(stored.currentIndex ?? 0);
   }, []);
+
+  // Keep the saved copy in step with the answers and the question on screen,
+  // so a refresh resumes exactly where the student was.
+  useEffect(() => {
+    if (!active || closedRef.current) return;
+
+    try {
+      saveActiveTest({ ...active, answers, currentIndex });
+    } catch {
+      // A full or unavailable store only costs resuming after a refresh. The
+      // paper is still here in memory and still submits.
+    }
+  }, [active, answers, currentIndex]);
 
   const deadline = useMemo(() => {
     if (!active || active.test.settings.timeLimitMinutes === null) return null;
@@ -71,15 +97,27 @@ export function ExamPage() {
 
       try {
         const result = await submitTest(active.test.id, payload, timeTakenSeconds);
-        saveLastResult({ ...result, subjectId: active.test.settings.subjectId });
+
+        // The fresh result is shown from storage, comparison and all. If it
+        // will not fit, the saved copy on the server is the way to it instead:
+        // the submission has succeeded, and must not look as if it failed.
+        let stored = true;
+        try {
+          saveLastResult({ ...result, subjectId: active.test.settings.subjectId });
+        } catch {
+          stored = false;
+        }
+
+        closedRef.current = true;
         clearActiveTest();
-        navigate("/results");
+        navigate(stored ? "/results" : `/results/${active.test.id}`);
       } catch (cause) {
         const code = cause instanceof ApiError ? cause.code : null;
 
         // Already marked: the score exists, and the results screen is where the
         // student was trying to get to in the first place.
         if (code === "already-submitted") {
+          closedRef.current = true;
           clearActiveTest();
           navigate(`/results/${active.test.id}`);
           return;
@@ -89,6 +127,7 @@ export function ExamPage() {
         // offer the way out, rather than a retry button that cannot work and a
         // paper that cannot be left without an "are you sure".
         if (code === "time-expired") {
+          closedRef.current = true;
           clearActiveTest();
           setSubmitting(false);
           setDead(true);
@@ -195,6 +234,10 @@ export function ExamPage() {
   const answeredCount = questions.filter((item) => (answers[item.id] ?? "").trim().length > 0).length;
   const isLast = currentIndex === questions.length - 1;
 
+  function goToQuestion(index: number) {
+    setCurrentIndex(Math.max(0, Math.min(index, questions.length - 1)));
+  }
+
   function setAnswer(value: string) {
     setAnswers((current) => ({ ...current, [question.id]: value }));
   }
@@ -250,7 +293,7 @@ export function ExamPage() {
             className={`palette-dot ${index === currentIndex ? "current" : ""} ${
               (answers[item.id] ?? "").trim().length > 0 ? "answered" : ""
             }`}
-            onClick={() => setCurrentIndex(index)}
+            onClick={() => goToQuestion(index)}
             aria-label={`Question ${index + 1}${
               (answers[item.id] ?? "").trim().length > 0 ? ", answered" : ", not answered"
             }`}
@@ -344,7 +387,7 @@ export function ExamPage() {
         <button
           type="button"
           className="ghost-button"
-          onClick={() => setCurrentIndex((index) => Math.max(0, index - 1))}
+          onClick={() => goToQuestion(currentIndex - 1)}
           disabled={currentIndex === 0}
         >
           Previous
@@ -363,7 +406,7 @@ export function ExamPage() {
           <button
             type="button"
             className="primary-button"
-            onClick={() => setCurrentIndex((index) => Math.min(questions.length - 1, index + 1))}
+            onClick={() => goToQuestion(currentIndex + 1)}
           >
             Next
           </button>

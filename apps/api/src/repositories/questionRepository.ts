@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { BankQuestion, Difficulty, QuestionDraft } from "@grade9/shared";
+import { isUuid } from "../lib/ids";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 
 export interface QuestionFilter {
@@ -110,6 +111,8 @@ export async function getQuestion(id: string): Promise<BankQuestion | null> {
     return memoryQuestions.get(id) ?? null;
   }
 
+  if (!isUuid(id)) return null;
+
   const { data, error } = await supabaseAdmin.from("questions").select("*").eq("id", id).maybeSingle();
   if (error) throw new Error(`Failed to load question: ${error.message}`);
 
@@ -143,6 +146,9 @@ export async function updateQuestion(id: string, draft: QuestionDraft): Promise<
     return updated;
   }
 
+  // Not a uuid, so not a question: a 404, rather than Postgres rejecting it.
+  if (!isUuid(id)) return null;
+
   const { data, error } = await supabaseAdmin
     .from("questions")
     .update(toRow(draft))
@@ -159,6 +165,8 @@ export async function deleteQuestion(id: string): Promise<boolean> {
   if (!supabaseAdmin) {
     return memoryQuestions.delete(id);
   }
+
+  if (!isUuid(id)) return false;
 
   const { data, error } = await supabaseAdmin.from("questions").delete().eq("id", id).select("id");
   if (error) throw new Error(`Failed to delete question: ${error.message}`);

@@ -1,22 +1,24 @@
 import { useEffect, useRef } from "react";
-import { getGuestKey, hasGuestHistory } from "../../lib/studentKey";
+import { isGuestKeyClaimed, markGuestKeyClaimed, peekGuestKey } from "../../lib/studentKey";
 import { claimGuestHistory } from "../../services/testsApi";
 import { useAuth } from "./AuthContext";
 
-const CLAIMED_KEY = "examPeak.historyClaimed";
-
 /**
- * Moves tests taken before signing up onto the new account.
+ * Moves tests taken before signing in onto the account.
  *
  * Someone can try the app as a guest, like it, and make an account. Their
  * attempts are stored against the browser's guest key, so without this they
  * would appear to lose everything at the moment they signed up. One call after
- * the first sign-in reassigns them.
+ * signing in reassigns them.
  *
- * The result is recorded in local storage so this runs once per browser per
- * account rather than on every page load. It is deliberately quiet: if the
- * claim fails, the tests are still there under the guest key and the next sign
- * in tries again.
+ * Each guest key is claimed once and then recorded as claimed. That record is
+ * kept per key rather than per account: the next time the browser needs a
+ * guest key it gets a fresh one (see getGuestKey), so tests from a later spell
+ * as a guest are under a key of their own and move at the next sign-in, instead
+ * of being skipped because the account had claimed this browser once before.
+ *
+ * It is deliberately quiet: if the claim fails, the tests are still there under
+ * the guest key and the next sign-in tries again.
  */
 export function useHistoryClaim(): void {
   const { user } = useAuth();
@@ -24,20 +26,16 @@ export function useHistoryClaim(): void {
 
   useEffect(() => {
     if (!user || running.current) return;
-    if (!hasGuestHistory()) return;
 
-    const guestKey = getGuestKey();
-    // Nothing to move if the guest key is already this account's id.
-    if (guestKey === user.id) return;
-
-    const marker = `${CLAIMED_KEY}.${user.id}`;
-    if (window.localStorage.getItem(marker) === guestKey) return;
+    // No key means no test was ever taken here as a guest.
+    const guestKey = peekGuestKey();
+    if (!guestKey || guestKey === user.id || isGuestKeyClaimed(guestKey)) return;
 
     running.current = true;
 
     claimGuestHistory(guestKey)
       .then(() => {
-        window.localStorage.setItem(marker, guestKey);
+        markGuestKeyClaimed(guestKey);
       })
       .catch(() => {
         // Left for the next sign-in to retry.

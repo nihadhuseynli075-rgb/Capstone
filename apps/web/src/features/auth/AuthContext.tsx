@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase } from "../../lib/supabaseClient";
-import { resetGuestKey, setSignedInUserId } from "../../lib/studentKey";
+import { setSignedInUserId } from "../../lib/studentKey";
 import { authErrorMessage } from "./authErrors";
 
 export interface AuthUser {
@@ -100,11 +100,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) return;
     await supabase.auth.signOut();
 
-    // Start a fresh guest identity. Tests taken from here belong to whoever is
-    // using the browser now, not the account just left, and the old key has
-    // already been marked as claimed - reusing it would mean this next batch of
-    // guest attempts was never moved across on the following sign-in.
-    resetGuestKey();
+    // No new guest key is made here. A key whose tests were moved onto the
+    // account is recorded as claimed and replaced the first time it is needed
+    // again (see getGuestKey), which also covers a session that simply ran out.
+    // A key whose move never happened is kept, so those tests are still there
+    // to be claimed at the next sign-in rather than stranded under a key this
+    // browser has forgotten.
   }, []);
 
   const updateName = useCallback(async (fullName: string) => {

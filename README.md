@@ -33,9 +33,9 @@ dashboard shows a banner, so this is never a silent surprise.
    question bank has no anon policy at all.
 4. Set `ADMIN_PASSWORD` to something other than the default.
 5. In the Supabase dashboard open **SQL Editor → New query**, paste
-   [`supabase/migrations/0001_initial_schema.sql`](supabase/migrations/0001_initial_schema.sql)
-   and run it, then do the same with
-   [`0002_auth_profiles.sql`](supabase/migrations/0002_auth_profiles.sql).
+   [`supabase/run-all.sql`](supabase/run-all.sql), and run it. The script applies
+   migrations `0001` through `0006` in order and is safe to rerun when an older
+   project already has some of them.
 6. Under **Authentication → Providers**, make sure Email is enabled.
 7. Restart the API. `GET /health` should now report `"storageMode": "supabase"`.
 
@@ -67,6 +67,18 @@ the personal-best comparison:
 ```bash
 npm run smoke
 ```
+
+The Supabase code paths - accounts, moving guest history, two submissions of
+one paper at once, recovering from a write that fails halfway - only run with
+Supabase connected. This starts a local stand-in for Supabase's REST and auth
+APIs, points a fresh API at it, and checks them, with no project needed:
+
+```bash
+npm run smoke:supabase
+```
+
+The stand-in is not Supabase: row level security and the migration SQL are
+only proven against a real project.
 
 ## Layout
 

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import type { QuestionDraft } from "@grade9/shared";
-import { markLimits } from "@grade9/shared";
+import { markLimits, paperYearLimits } from "@grade9/shared";
 import { env, storageMode } from "../lib/env";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { login, logout, requireAdmin } from "../modules/admin/adminAuth";
@@ -34,7 +34,13 @@ const questionSchema = z
       .default(markLimits.min),
     explanation: z.string().default(""),
     imageUrl: z.string().nullable().default(null),
-    paperYear: z.number().int().min(1900).max(2100).nullable().default(null),
+    paperYear: z
+      .number()
+      .int()
+      .min(paperYearLimits.min)
+      .max(paperYearLimits.max)
+      .nullable()
+      .default(null),
     source: z.string().nullable().default(null)
   })
   .superRefine((value, context) => {

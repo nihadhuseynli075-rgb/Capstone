@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AttemptSummary, DifficultyMode, TestSettings, TopicPerformance } from "@grade9/shared";
+import { isUuid } from "../lib/ids";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 
 /**
@@ -60,9 +61,7 @@ async function findAccountId(studentKey: string): Promise<string | null> {
 
   // Guest keys are uuids too, so this only rules out the older non-uuid keys.
   // The profiles lookup is what actually decides.
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studentKey)) {
-    return null;
-  }
+  if (!isUuid(studentKey)) return null;
 
   const { data, error } = await supabaseAdmin
     .from("profiles")
@@ -143,7 +142,18 @@ export async function createAttempt(input: {
     }))
   );
 
-  if (questionsError) throw new Error(`Failed to save attempt questions: ${questionsError.message}`);
+  if (questionsError) {
+    // The parent and its snapshots are two HTTP writes through PostgREST rather
+    // than one transaction. Remove the parent if the second write fails so an
+    // empty, unfinishable attempt is never left in history.
+    const { error: cleanupError } = await supabaseAdmin
+      .from("test_attempts")
+      .delete()
+      .eq("id", attempt.id);
+
+    const cleanupDetail = cleanupError ? ` Cleanup also failed: ${cleanupError.message}` : "";
+    throw new Error(`Failed to save attempt questions: ${questionsError.message}.${cleanupDetail}`);
+  }
 
   return attempt;
 }
@@ -152,6 +162,9 @@ export async function getAttempt(id: string): Promise<StoredAttempt | null> {
   if (!supabaseAdmin) {
     return memoryAttempts.get(id) ?? null;
   }
+
+  // A mangled results link is a test that does not exist, not a server error.
+  if (!isUuid(id)) return null;
 
   const { data, error } = await supabaseAdmin
     .from("test_attempts")
@@ -203,6 +216,13 @@ export async function getAttempt(id: string): Promise<StoredAttempt | null> {
   };
 }
 
+/**
+ * Records a marked submission, unless the attempt has been submitted already.
+ *
+ * Returns false when another submission of the same paper got there first: a
+ * second tab, or a retry racing the original. Both would otherwise be marked
+ * and saved, and the student could be shown one score while another was kept.
+ */
 export async function completeAttempt(input: {
   attemptId: string;
   score: number;
@@ -211,12 +231,12 @@ export async function completeAttempt(input: {
   percentage: number;
   timeTakenSeconds: number;
   answers: Array<{ position: number; studentAnswer: string; isCorrect: boolean; score: number }>;
-}): Promise<void> {
+}): Promise<boolean> {
   const submittedAt = new Date().toISOString();
 
   if (!supabaseAdmin) {
     const attempt = memoryAttempts.get(input.attemptId);
-    if (!attempt) return;
+    if (!attempt || attempt.submittedAt !== null) return false;
 
     attempt.score = input.score;
     attempt.totalMarks = input.totalMarks;
@@ -233,10 +253,14 @@ export async function completeAttempt(input: {
         question.score = answer.score;
       }
     }
-    return;
+    return true;
   }
 
-  const { error } = await supabaseAdmin
+  // Take the attempt first, and only while it is still open. The filter on
+  // submitted_at makes the update a compare-and-set: of two submissions racing
+  // each other exactly one matches the row, and the other finds out before it
+  // has written a single answer over the first one's.
+  const { data: taken, error } = await supabaseAdmin
     .from("test_attempts")
     .update({
       score: input.score,
@@ -246,23 +270,42 @@ export async function completeAttempt(input: {
       time_taken_seconds: input.timeTakenSeconds,
       submitted_at: submittedAt
     })
-    .eq("id", input.attemptId);
+    .eq("id", input.attemptId)
+    .is("submitted_at", null)
+    .select("id");
 
   if (error) throw new Error(`Failed to save result: ${error.message}`);
+  if ((taken ?? []).length === 0) return false;
 
-  for (const answer of input.answers) {
-    const { error: answerError } = await supabaseAdmin
-      .from("attempt_questions")
-      .update({
-        student_answer: answer.studentAnswer,
-        is_correct: answer.isCorrect,
-        score: answer.score
-      })
-      .eq("attempt_id", input.attemptId)
-      .eq("position", answer.position);
+  // The answers are separate writes through PostgREST, not one transaction. If
+  // one fails, reopen the attempt, so the student's retry can save everything
+  // again rather than being refused as already submitted with answers missing.
+  try {
+    for (const answer of input.answers) {
+      const { error: answerError } = await supabaseAdmin
+        .from("attempt_questions")
+        .update({
+          student_answer: answer.studentAnswer,
+          is_correct: answer.isCorrect,
+          score: answer.score
+        })
+        .eq("attempt_id", input.attemptId)
+        .eq("position", answer.position);
 
-    if (answerError) throw new Error(`Failed to save answer: ${answerError.message}`);
+      if (answerError) throw new Error(`Failed to save answer: ${answerError.message}`);
+    }
+  } catch (cause) {
+    const { error: reopenError } = await supabaseAdmin
+      .from("test_attempts")
+      .update({ score: null, percentage: null, time_taken_seconds: null, submitted_at: null })
+      .eq("id", input.attemptId)
+      .eq("submitted_at", submittedAt);
+
+    const reopenDetail = reopenError ? ` Reopening the test also failed: ${reopenError.message}` : "";
+    throw new Error(`${(cause as Error).message}.${reopenDetail}`);
   }
+
+  return true;
 }
 
 /** Marks earned and available per topic, from an attempt's marked questions. */
@@ -340,12 +383,13 @@ export async function listAttempts(studentKey: string): Promise<AttemptSummary[]
 }
 
 /**
- * Reassigns a guest's submitted attempts to a signed-in student.
+ * Reassigns a guest's attempts to a signed-in student.
  *
  * Called once when someone who had been practising as a guest creates an
  * account, so their existing history follows them rather than disappearing.
- * Only attempts still owned by the guest key move, so replaying the call is
- * harmless.
+ * Unfinished attempts move too, so a paper started as a guest can still be
+ * handed in once the student has signed in. Only attempts still owned by the
+ * guest key move, so replaying the call is harmless.
  */
 export async function claimAttempts(guestKey: string, studentKey: string): Promise<number> {
   if (guestKey === studentKey) return 0;

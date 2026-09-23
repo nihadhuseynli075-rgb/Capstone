@@ -11,6 +11,11 @@ import {
 } from "../repositories/attemptRepository";
 import { compareToPrevious, markAttempt } from "../services/marking";
 import { generateMockTest, toExamQuestion } from "../services/mockTestGenerator";
+import {
+  canClaimFrom,
+  canUseStudentKey,
+  isAuthenticatedStudent
+} from "../modules/student/studentAuth";
 
 export const testsRouter = Router();
 
@@ -65,6 +70,14 @@ testsRouter.post("/generate", async (request, response, next) => {
   }
 
   const { studentKey, subjectId, topicIds, difficultyMode } = parsed.data;
+
+  try {
+    if (!(await canUseStudentKey(request, studentKey))) {
+      return response.status(401).json({ message: "Sign in again to continue." });
+    }
+  } catch (error) {
+    return next(error);
+  }
 
   const resolved = resolveSettings(difficultyMode, {
     questionCount: parsed.data.questionCount ?? customLimits.minQuestions,
@@ -162,6 +175,10 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
   }
 
   try {
+    if (!(await canUseStudentKey(request, parsed.data.studentKey))) {
+      return response.status(401).json({ message: "Sign in again to continue." });
+    }
+
     const attempt = await getAttempt(request.params.attemptId);
 
     if (!attempt) {
@@ -202,14 +219,14 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
     }
 
     // Never record less time than actually passed, whatever the browser claims.
-    const timeTakenSeconds = Math.min(parsed.data.timeTakenSeconds, elapsedSeconds);
+    const timeTakenSeconds = Math.max(parsed.data.timeTakenSeconds, elapsedSeconds);
 
     const marked = markAttempt(attempt.questions, parsed.data.answers);
 
     // Read history before saving, so this attempt is not compared against itself.
     const history = await listAttempts(parsed.data.studentKey);
 
-    await completeAttempt({
+    const recorded = await completeAttempt({
       attemptId: attempt.id,
       score: marked.score,
       totalMarks: marked.totalMarks,
@@ -218,6 +235,16 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
       timeTakenSeconds,
       answers: marked.answers
     });
+
+    // Another submission of this paper was recorded between the check above
+    // and now: a second tab, or a retry racing the original. Its result is the
+    // one kept, so this one is refused the same way a late resubmit is.
+    if (!recorded) {
+      return response.status(409).json({
+        code: "already-submitted",
+        message: "That test has already been submitted."
+      });
+    }
 
     const result: TestResult = {
       attemptId: attempt.id,
@@ -254,7 +281,8 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
  * they sign in, rather than letting the history look wiped.
  *
  * Anyone holding a guest key can claim it, which is the same trust level the
- * rest of the student endpoints already run on: the key is the credential.
+ * rest of the student endpoints already run on: the key is the credential. An
+ * account's id is not a guest key, so it can never be claimed from.
  */
 testsRouter.post("/claim", async (request, response, next) => {
   const parsed = z
@@ -266,6 +294,16 @@ testsRouter.post("/claim", async (request, response, next) => {
   }
 
   try {
+    if (!(await isAuthenticatedStudent(request, parsed.data.studentKey))) {
+      return response.status(401).json({ message: "Sign in again to move guest history." });
+    }
+
+    if (!(await canClaimFrom(parsed.data.guestKey, parsed.data.studentKey))) {
+      return response.status(403).json({
+        message: "That history belongs to an account, so it cannot be moved."
+      });
+    }
+
     const claimed = await claimAttempts(parsed.data.guestKey, parsed.data.studentKey);
     response.json({ claimed });
   } catch (error) {
@@ -281,6 +319,10 @@ testsRouter.get("/history", async (request, response, next) => {
   }
 
   try {
+    if (!(await canUseStudentKey(request, studentKey))) {
+      return response.status(401).json({ message: "Sign in again to view this history." });
+    }
+
     response.json({ attempts: await listAttempts(studentKey) });
   } catch (error) {
     next(error);
@@ -292,6 +334,10 @@ testsRouter.get("/attempts/:attemptId", async (request, response, next) => {
   const studentKey = typeof request.query.studentKey === "string" ? request.query.studentKey : "";
 
   try {
+    if (!(await canUseStudentKey(request, studentKey))) {
+      return response.status(401).json({ message: "Sign in again to view this result." });
+    }
+
     const attempt = await getAttempt(request.params.attemptId);
 
     if (!attempt) {

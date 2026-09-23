@@ -1,5 +1,5 @@
 import type { Difficulty, QuestionDraft, QuestionType } from "@grade9/shared";
-import { markLimits } from "@grade9/shared";
+import { markLimits, paperYearLimits } from "@grade9/shared";
 
 /**
  * Imports questions pasted straight out of a spreadsheet.
@@ -157,23 +157,29 @@ function parseType(value: string, optionCount: number): QuestionType {
  *
  * Spreadsheets normally record the letter, but the bank stores the answer text
  * so that marking never has to care about option ordering.
+ *
+ * `options` is the option columns as they are in the sheet, blanks included. A
+ * letter names a column, so with option_b left empty "C" is still whatever is
+ * under option_c; counting only the filled-in options would quietly make it
+ * option_d, and the question would mark the wrong answer as right.
  */
 export function resolveCorrectAnswer(raw: string, options: string[]): string | null {
   const value = raw.trim();
   if (value.length === 0) return null;
-  if (options.length === 0) return value;
 
-  const exact = options.find((option) => option === value);
+  const filled = options.filter((option) => option.length > 0);
+  if (filled.length === 0) return value;
+
+  const exact = filled.find((option) => option === value);
   if (exact) return exact;
 
   const letterMatch = /^\(?([a-dA-D])\)?[.)]?$/.exec(value);
   if (letterMatch) {
-    const position = letterMatch[1].toUpperCase().charCodeAt(0) - 65;
-    if (position >= 0 && position < options.length) return options[position];
-    return null;
+    const chosen = options[letterMatch[1].toUpperCase().charCodeAt(0) - 65] ?? "";
+    return chosen.length > 0 ? chosen : null;
   }
 
-  const caseInsensitive = options.find(
+  const caseInsensitive = filled.find(
     (option) => option.trim().toLowerCase() === value.toLowerCase()
   );
   return caseInsensitive ?? null;
@@ -239,12 +245,13 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       return;
     }
 
-    const options = [
+    const optionCells = [
       cell(row, "optionA"),
       cell(row, "optionB"),
       cell(row, "optionC"),
       cell(row, "optionD")
-    ].filter((option) => option.length > 0);
+    ];
+    const options = optionCells.filter((option) => option.length > 0);
 
     const type = parseType(cell(row, "type"), options.length);
 
@@ -258,7 +265,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
 
     const correctAnswer = resolveCorrectAnswer(
       cell(row, "correctAnswer"),
-      type === "multiple-choice" ? options : []
+      type === "multiple-choice" ? optionCells : []
     );
 
     if (!correctAnswer) {
@@ -297,7 +304,23 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       return;
     }
 
-    const yearValue = Number.parseInt(cell(row, "paperYear"), 10);
+    // Blank means the year is not known. Anything else is held to the rule the
+    // admin form and the API apply, like marks above: parseInt read "2024.5" as
+    // 2024 and "20 24" as 20, and a number too big for the column failed the
+    // whole import instead of this one row.
+    const rawYear = cell(row, "paperYear");
+    const paperYear = rawYear.length === 0 ? null : Number(rawYear);
+
+    if (
+      paperYear !== null &&
+      (!Number.isInteger(paperYear) || paperYear < paperYearLimits.min || paperYear > paperYearLimits.max)
+    ) {
+      errors.push({
+        row: rowNumber,
+        message: `Paper year "${rawYear}" is not a year between ${paperYearLimits.min} and ${paperYearLimits.max}.`
+      });
+      return;
+    }
 
     drafts.push({
       subjectId,
@@ -310,7 +333,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       marks,
       explanation: cell(row, "explanation"),
       imageUrl: cell(row, "imageUrl") || null,
-      paperYear: Number.isFinite(yearValue) ? yearValue : null,
+      paperYear,
       source: cell(row, "source") || null
     });
   });

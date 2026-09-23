@@ -1,7 +1,7 @@
 -- Exampeak: the whole schema, in one run.
 --
 -- Paste this into the Supabase SQL editor (Dashboard -> SQL Editor -> New
--- query) and run it. It is migrations 0001 to 0005 concatenated in order, with
+-- query) and run it. It is migrations 0001 to 0006 concatenated in order, with
 -- nothing else added, so it stays the same thing the numbered files say.
 --
 -- ---------------------------------------------------------------------------
@@ -14,8 +14,8 @@
 -- touch rows that are still null.
 --
 -- So running the lot is a no-op for anything already applied. If you know
--- 0001-0004 are in, running 0005_daily_quiz_and_friends.sql on its own does
--- the same job faster.
+-- 0001-0005 are in, running 0006_view_privileges.sql on its own does the
+-- same job faster.
 --
 -- The whole thing is one transaction. If any statement fails, nothing is
 -- applied and the database is left exactly as it was, rather than half
@@ -943,6 +943,44 @@ grant select on friends_of to authenticated;
 --     "write a quiz version" action on an existing question, so that
 --     `source_question_id` gets filled in as a matter of course rather than
 --     left null by whoever is in a hurry.
+
+
+-- ---------------------------------------------------------------------------
+-- 0006_view_privileges.sql
+-- ---------------------------------------------------------------------------
+
+-- Exampeak: keep the leaderboard and the friends list away from anonymous readers.
+--
+-- Run this in the Supabase SQL editor after 0005_daily_quiz_and_friends.sql.
+--
+-- 0005 created two views and granted them to `authenticated`. Two things it
+-- did not account for:
+--
+-- 1. Supabase grants every new table and view in `public` to `anon` as well,
+--    through default privileges. Row level security is what normally makes
+--    that harmless, but a view runs with its owner's rights and skips row level
+--    security, so the grant is all there is. Anyone holding the anon key -
+--    which ships inside the web app - could read every student's name, id and
+--    scores from `leaderboard`, and every friendship from `friends_of`, without
+--    signing in.
+--
+-- 2. `friends_of` runs with its owner's rights too, so even a signed-in
+--    student could read every other student's friendships through it. The
+--    policies 0005 put on `friendships` never applied to it.
+--
+-- The leaderboard is meant to show every student to every signed-in student,
+-- so it keeps running as its owner and only loses the anonymous grant.
+-- `friends_of` switches to running as whoever reads it, so the friendships
+-- policies decide what each student sees: their own friendships, which is all
+-- the friends filter on the leaderboard needs.
+--
+-- `security_invoker` needs Postgres 15 or later, which Supabase projects have
+-- run since 2023. Every statement here is safe to run twice.
+
+revoke all on leaderboard from anon;
+revoke all on friends_of from anon;
+
+alter view friends_of set (security_invoker = true);
 
 
 commit;
