@@ -8,8 +8,17 @@ import { useEffect, useState } from "react";
  * Hash routes also mean any static host serves the app without rewrite rules.
  */
 export function currentPath(): string {
-  const hash = window.location.hash.replace(/^#/, "");
-  return hash.length > 0 ? hash : "/";
+  // The query is not part of the route: "/build?subject=math" is still "/build".
+  const path = window.location.hash.replace(/^#/, "").split("?")[0];
+  return path.length > 0 ? path : "/";
+}
+
+/** One value from the route's query, e.g. `subject` in "#/build?subject=math". */
+export function routeParam(name: string): string | null {
+  const hash = window.location.hash;
+  const start = hash.indexOf("?");
+  if (start === -1) return null;
+  return new URLSearchParams(hash.slice(start + 1)).get(name);
 }
 
 export function navigate(path: string): void {

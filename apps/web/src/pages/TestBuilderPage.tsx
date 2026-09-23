@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Difficulty, DifficultyMode } from "@grade9/shared";
+import type { AttemptSummary, Difficulty, DifficultyMode } from "@grade9/shared";
 import { customLimits, difficultyPresets } from "@grade9/shared";
-import { navigate } from "../app/router";
+import { navigate, routeParam } from "../app/router";
+import { useAuth } from "../features/auth/AuthContext";
 import { saveActiveTest } from "../lib/examSession";
-import { fetchCatalog, generateMockTest, type CatalogSubject } from "../services/testsApi";
+import {
+  fetchCatalog,
+  fetchHistory,
+  generateMockTest,
+  type CatalogSubject
+} from "../services/testsApi";
 
 const difficultyOptions: Array<{ mode: DifficultyMode; label: string; detail: string }> = [
   { mode: "easy", label: "Easy", detail: difficultyPresets.easy.description },
@@ -12,9 +18,18 @@ const difficultyOptions: Array<{ mode: DifficultyMode; label: string; detail: st
   { mode: "custom", label: "Custom", detail: "Choose the length and timer yourself" }
 ];
 
+/** The same bands as the topic bars on the results screen. */
+function scoreBand(percent: number): "weak" | "ok" | "strong" {
+  if (percent < 50) return "weak";
+  if (percent < 80) return "ok";
+  return "strong";
+}
+
 export function TestBuilderPage() {
+  const { ready, user } = useAuth();
   const [catalog, setCatalog] = useState<CatalogSubject[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [history, setHistory] = useState<AttemptSummary[] | null>(null);
 
   const [subjectId, setSubjectId] = useState("math");
   const [topicIds, setTopicIds] = useState<string[]>([]);
@@ -31,7 +46,13 @@ export function TestBuilderPage() {
     fetchCatalog()
       .then((subjects) => {
         setCatalog(subjects);
-        const first = subjects.find((subject) => subject.total > 0) ?? subjects[0];
+        // A subject shortcut on the home page arrives as ?subject=. Otherwise
+        // start on the first subject that has anything in it.
+        const requested = routeParam("subject");
+        const first =
+          subjects.find((subject) => subject.id === requested) ??
+          subjects.find((subject) => subject.total > 0) ??
+          subjects[0];
         if (first) {
           setSubjectId(first.id);
           setTopicIds(first.topics.filter((topic) => topic.total > 0).map((topic) => topic.id));
@@ -40,10 +61,53 @@ export function TestBuilderPage() {
       .catch((cause: Error) => setLoadError(cause.message));
   }, []);
 
+  // Past results, for the last score on each topic. Waits for the session like
+  // the history page does, or a signed-in student is asked about with the guest
+  // key. A failure costs the scores and nothing else: building a test does not
+  // depend on them.
+  useEffect(() => {
+    if (!ready) return;
+
+    let active = true;
+
+    fetchHistory()
+      .then((rows) => {
+        if (active) setHistory(rows);
+      })
+      .catch(() => {
+        if (active) setHistory([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [ready, user?.id]);
+
   const subject = useMemo(
     () => catalog?.find((item) => item.id === subjectId) ?? null,
     [catalog, subjectId]
   );
+
+  /**
+   * The latest percentage on each topic of this subject. History comes newest
+   * first, so the first result found for a topic is the one to keep. Only this
+   * subject's attempts count: English and Russian both have a "grammar".
+   */
+  const lastScores = useMemo(() => {
+    const scores = new Map<string, number>();
+
+    for (const attempt of history ?? []) {
+      if (attempt.subjectId !== subjectId) continue;
+
+      for (const topic of attempt.topicBreakdown ?? []) {
+        if (topic.marks > 0 && !scores.has(topic.topicId)) {
+          scores.set(topic.topicId, Math.round((topic.score / topic.marks) * 100));
+        }
+      }
+    }
+
+    return scores;
+  }, [history, subjectId]);
 
   /** How many questions the bank can actually supply for the current choices. */
   const availableCount = useMemo(() => {
@@ -162,21 +226,42 @@ export function TestBuilderPage() {
       <section className="panel">
         <h2>Topics</h2>
         <div className="topic-grid">
-          {subject.topics.map((topic) => (
-            <label key={topic.id} className={`topic-option ${topic.total === 0 ? "empty" : ""}`}>
-              <input
-                type="checkbox"
-                checked={topicIds.includes(topic.id)}
-                onChange={() => toggleTopic(topic.id)}
-              />
-              <span className="topic-name">{topic.name}</span>
-              <span className="topic-count">
-                {topic.total === 0
-                  ? "no questions yet"
-                  : `${topic.total} question${topic.total === 1 ? "" : "s"}`}
-              </span>
-            </label>
-          ))}
+          {subject.topics.map((topic) => {
+            const selected = topicIds.includes(topic.id);
+            const last = lastScores.get(topic.id);
+            const band = last === undefined ? "" : scoreBand(last);
+
+            return (
+              <label
+                key={topic.id}
+                className={`topic-option ${topic.total === 0 ? "empty" : ""} ${
+                  selected ? "selected" : ""
+                }`}
+              >
+                <input type="checkbox" checked={selected} onChange={() => toggleTopic(topic.id)} />
+                <span className="topic-name">{topic.name}</span>
+                <span className="topic-count">
+                  {topic.total === 0
+                    ? "no questions yet"
+                    : `${topic.total} question${topic.total === 1 ? "" : "s"}`}
+                  {/* "Not tried yet" only once something in this subject has
+                      been: on a first visit it would be on every tile and say
+                      nothing. Nor on a topic with no questions to try. */}
+                  {last !== undefined ? (
+                    <span className={`topic-last ${band}`}> · Last score {last}%</span>
+                  ) : (
+                    lastScores.size > 0 &&
+                    topic.total > 0 && <span className="topic-last"> · Not tried yet</span>
+                  )}
+                </span>
+                {last !== undefined && (
+                  <span className="topic-meter" aria-hidden="true">
+                    <span className={`topic-meter-fill ${band}`} style={{ width: `${last}%` }} />
+                  </span>
+                )}
+              </label>
+            );
+          })}
         </div>
       </section>
 

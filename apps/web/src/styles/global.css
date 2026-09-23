@@ -24,6 +24,8 @@
   --brand: #0c82c8;
   --brand-strong: #0a3a58;
   --brand-soft: #e0eefa;
+  /* The wordmark navy, as the edge a primary button stands on. */
+  --brand-edge: #0a3a58;
   --success: #1c8a5b;
   --success-soft: #e2f5ec;
   --danger: #c0392b;
@@ -46,6 +48,7 @@
   --brand: #3aa6e6;
   --brand-strong: #3aa6e6;
   --brand-soft: #123650;
+  --brand-edge: #1d6f9f;
   --success: #4ade80;
   --success-soft: #14332a;
   --danger: #f87171;
@@ -268,18 +271,35 @@ code {
   padding: 10px 18px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease,
+    box-shadow 0.08s ease;
 }
 
+/*
+ * The main action stands on a darker edge, the way Duolingo's and Brilliant's
+ * buttons do, so it reads as something to press rather than a field on a form.
+ * Pressing it sinks it onto the edge.
+ */
 .primary-button {
   border: 1px solid var(--brand);
   background: var(--brand);
   color: #ffffff;
+  box-shadow: 0 3px 0 var(--brand-edge);
 }
 
 .primary-button:hover:not(:disabled) {
   background: var(--brand-strong);
   border-color: var(--brand-strong);
+}
+
+.primary-button:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--brand-edge);
+}
+
+/* Nothing to press, so nothing to stand on. */
+.primary-button:disabled {
+  box-shadow: none;
 }
 
 [data-theme="dark"] .primary-button {
@@ -496,10 +516,15 @@ button:focus-visible {
   gap: 10px;
 }
 
+/*
+ * A topic is a tile: what it is, how much the bank holds, and how the student
+ * did on it last time, with a bar underneath so the weak ones stand out before
+ * a word is read.
+ */
 .topic-option {
   display: grid;
   grid-template-columns: auto 1fr;
-  grid-template-areas: "check name" "check count";
+  grid-template-areas: "check name" "check count" "meter meter";
   gap: 0 10px;
   align-items: center;
   border: 1px solid var(--border);
@@ -507,6 +532,10 @@ button:focus-visible {
   padding: 12px 14px;
   cursor: pointer;
   font-weight: 500;
+}
+
+.topic-option.selected {
+  border-color: var(--brand);
 }
 
 .topic-option input {
@@ -528,6 +557,51 @@ button:focus-visible {
 
 .topic-option.empty {
   opacity: 0.6;
+}
+
+.topic-last.weak,
+.topic-last.ok,
+.topic-last.strong {
+  font-weight: 600;
+}
+
+.topic-last.weak {
+  color: var(--danger);
+}
+
+.topic-last.ok {
+  color: var(--warning);
+}
+
+.topic-last.strong {
+  color: var(--success);
+}
+
+.topic-meter {
+  grid-area: meter;
+  height: 6px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  overflow: hidden;
+}
+
+.topic-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.topic-meter-fill.weak {
+  background: var(--danger);
+}
+
+.topic-meter-fill.ok {
+  background: var(--warning);
+}
+
+.topic-meter-fill.strong {
+  background: var(--success);
 }
 
 .difficulty-card {

@@ -260,6 +260,13 @@ export interface AttemptSummary {
   percentage: number;
   timeTakenSeconds: number;
   submittedAt: string;
+  /**
+   * How each topic on the paper went, which is what lets the builder show a
+   * student their last score on every topic.
+   *
+   * Optional so a history row from an API that predates it still reads.
+   */
+  topicBreakdown?: TopicPerformance[];
 }
 
 /**

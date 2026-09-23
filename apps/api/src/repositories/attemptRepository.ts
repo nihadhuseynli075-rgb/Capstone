@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { AttemptSummary, DifficultyMode, TestSettings } from "@grade9/shared";
+import type { AttemptSummary, DifficultyMode, TestSettings, TopicPerformance } from "@grade9/shared";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 
 /**
@@ -265,6 +265,24 @@ export async function completeAttempt(input: {
   }
 }
 
+/** Marks earned and available per topic, from an attempt's marked questions. */
+function breakdownOf(
+  questions: Array<{ topicId: string; marks: number; score: number | null; isCorrect: boolean | null }>
+): TopicPerformance[] {
+  const topics = new Map<string, TopicPerformance>();
+
+  for (const question of questions) {
+    const topic = topics.get(question.topicId) ?? { topicId: question.topicId, score: 0, marks: 0 };
+    topic.marks += question.marks;
+    // Older rows predate per-question scores, as on the results screen: a
+    // correct answer was worth the question's marks.
+    topic.score += question.score ?? (question.isCorrect ? question.marks : 0);
+    topics.set(question.topicId, topic);
+  }
+
+  return [...topics.values()];
+}
+
 /** Submitted attempts for one student, newest first. */
 export async function listAttempts(studentKey: string): Promise<AttemptSummary[]> {
   if (!supabaseAdmin) {
@@ -281,13 +299,16 @@ export async function listAttempts(studentKey: string): Promise<AttemptSummary[]
         totalQuestions: attempt.totalQuestions ?? 0,
         percentage: attempt.percentage ?? 0,
         timeTakenSeconds: attempt.timeTakenSeconds ?? 0,
-        submittedAt: attempt.submittedAt ?? attempt.createdAt
+        submittedAt: attempt.submittedAt ?? attempt.createdAt,
+        topicBreakdown: breakdownOf(attempt.questions)
       }));
   }
 
+  // Only the columns the breakdown needs from each question, not the prompts,
+  // options and explanations of every paper the student has sat.
   const { data, error } = await supabaseAdmin
     .from("test_attempts")
-    .select("*")
+    .select("*, attempt_questions(topic_id, marks, score, is_correct)")
     .eq("student_key", studentKey)
     .not("submitted_at", "is", null)
     .order("submitted_at", { ascending: false });
@@ -306,7 +327,15 @@ export async function listAttempts(studentKey: string): Promise<AttemptSummary[]
     totalQuestions: (row.total_questions ?? 0) as number,
     percentage: Number(row.percentage ?? 0),
     timeTakenSeconds: (row.time_taken_seconds ?? 0) as number,
-    submittedAt: (row.submitted_at ?? row.created_at) as string
+    submittedAt: (row.submitted_at ?? row.created_at) as string,
+    topicBreakdown: breakdownOf(
+      ((row.attempt_questions ?? []) as Array<Record<string, unknown>>).map((question) => ({
+        topicId: question.topic_id as string,
+        marks: (question.marks ?? 1) as number,
+        score: (question.score ?? null) as number | null,
+        isCorrect: (question.is_correct ?? null) as boolean | null
+      }))
+    )
   }));
 }
 

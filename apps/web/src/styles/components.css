@@ -34,7 +34,8 @@
   justify-content: center;
   gap: 20px;
   padding: clamp(32px, 5vw, 64px);
-  background: linear-gradient(160deg, var(--brand-strong), var(--brand));
+  background: var(--brand-strong);
+  border-right: 1px solid var(--brand);
   color: #ffffff;
 }
 
@@ -49,7 +50,7 @@
   font-size: clamp(1.5rem, 2.4vw, 2.1rem);
   font-weight: 800;
   line-height: 1.25;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   max-width: 18ch;
 }
 
@@ -128,7 +129,7 @@
   font-size: 16px;
   min-height: 46px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 6px;
   padding: 10px 12px;
   background: var(--surface);
 }
@@ -244,7 +245,7 @@
   gap: 8px;
   border: 1px solid var(--border);
   background: var(--surface);
-  border-radius: 999px;
+  border-radius: var(--radius);
   padding: 5px 12px 5px 5px;
   cursor: pointer;
   font-weight: 600;
@@ -253,6 +254,7 @@
 
 .account-trigger:hover {
   border-color: var(--brand);
+  background: var(--brand-soft);
 }
 
 .avatar {
@@ -286,7 +288,7 @@
   flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 6px;
 }
@@ -314,7 +316,7 @@
   text-align: left;
   border: none;
   background: transparent;
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 10px 12px;
   cursor: pointer;
   font-weight: 600;
@@ -376,6 +378,137 @@
   font-size: 0.85rem;
 }
 
+/*
+ * The guest welcome. One promise, one button to start, and the subjects right
+ * under it: the whole pitch fits on one phone screen, the way the Brilliant and
+ * Duolingo home pages do it.
+ */
+.welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.welcome .eyebrow {
+  margin: 0;
+}
+
+.welcome-title {
+  max-width: 22ch;
+  margin: 0;
+}
+
+.welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* The page's main call to action, a size up from an ordinary button. */
+.cta {
+  min-height: 48px;
+  padding: 12px 22px;
+  font-size: 1rem;
+}
+
+/* The second choice stands on an edge too, a quieter one in the border colour. */
+.ghost-button.cta {
+  box-shadow: 0 2px 0 var(--border);
+}
+
+.ghost-button.cta:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 var(--border);
+}
+
+/* ---------------------------------------------------------- subject cards */
+
+.subject-shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subject-shortcuts-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.subject-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.subject-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  font-weight: 600;
+  box-shadow: 0 2px 0 var(--border);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease,
+    box-shadow 0.08s ease;
+}
+
+.subject-card:hover:not(:disabled) {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  box-shadow: 0 2px 0 var(--brand);
+}
+
+.subject-card:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 var(--brand);
+}
+
+.subject-card:disabled {
+  box-shadow: none;
+}
+
+.subject-glyph {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.subject-card:hover:not(:disabled) .subject-glyph {
+  background: var(--surface);
+}
+
+/* min-width: 0 lets a long name ("Английский язык") wrap instead of pushing
+   the count out of the card. */
+.subject-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.subject-count {
+  flex: none;
+  border-radius: 999px;
+  padding: 2px 10px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .action-card.disabled {
   cursor: not-allowed;
   opacity: 0.65;
@@ -425,7 +558,7 @@
 .segmented {
   display: inline-flex;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 4px;
   gap: 4px;
   background: var(--surface-alt);
@@ -435,7 +568,7 @@
 .segmented button {
   border: none;
   background: transparent;
-  border-radius: 7px;
+  border-radius: 6px;
   padding: 9px 18px;
   cursor: pointer;
   font-weight: 600;
@@ -469,6 +602,15 @@
 
   .stat-row {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Stacked and full width, where a thumb can reach both. */
+  .welcome-actions {
+    flex-direction: column;
+  }
+
+  .welcome-actions .cta {
+    width: 100%;
   }
 
   .segmented {
