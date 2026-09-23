@@ -38,9 +38,8 @@ const en = {
   "main.greeting": "Welcome back",
   "main.greetingGuest": "Welcome to Exampeak",
   "main.eyebrow": "Grade 9 final exam prep",
-  "main.heroTitle": "Practise the real exam, then find out exactly what to fix.",
   "main.startPractice": "Start a practice test",
-  "main.haveAccount": "I already have an account",
+  "main.noAccountNeeded": "No account needed",
   "main.subjectsTitle": "Jump straight into a subject",
   "main.lede":
     "Build a mock test from past-paper questions, sit it start to finish, and get your score, your mistakes and the reason behind every one of them at the end.",
@@ -111,9 +110,8 @@ const ru: Dictionary = {
   "main.greeting": "С возвращением",
   "main.greetingGuest": "Добро пожаловать в Exampeak",
   "main.eyebrow": "Подготовка к выпускным экзаменам 9 класса",
-  "main.heroTitle": "Решайте задания настоящего экзамена и узнайте, над чем именно стоит поработать.",
   "main.startPractice": "Начать пробный тест",
-  "main.haveAccount": "У меня уже есть аккаунт",
+  "main.noAccountNeeded": "Аккаунт не нужен",
   "main.subjectsTitle": "Сразу к предмету",
   "main.lede":
     "Составьте пробный тест из заданий прошлых лет, пройдите его целиком и в конце получите свой балл, свои ошибки и объяснение каждой из них.",
@@ -180,9 +178,8 @@ const az: Dictionary = {
   "main.greeting": "Yenidən xoş gəldiniz",
   "main.greetingGuest": "Exampeak-ə xoş gəldiniz",
   "main.eyebrow": "9-cu sinif buraxılış imtahanlarına hazırlıq",
-  "main.heroTitle": "Əsl imtahan suallarında məşq edin, sonra nəyi düzəltməli olduğunuzu dəqiq öyrənin.",
   "main.startPractice": "Sınaq testinə başla",
-  "main.haveAccount": "Artıq hesabım var",
+  "main.noAccountNeeded": "Hesab tələb olunmur",
   "main.subjectsTitle": "Birbaşa fənnə keçin",
   "main.lede":
     "Keçmiş illərin suallarından sınaq testi qurun, əvvəldən sona qədər həll edin və sonda balınızı, səhvlərinizi və hər birinin səbəbini görün.",

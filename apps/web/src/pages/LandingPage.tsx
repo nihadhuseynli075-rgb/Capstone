@@ -1,8 +1,12 @@
 import { navigate } from "../app/router";
+import { SubjectShortcuts } from "../components/SubjectShortcuts";
 import { Wordmark } from "../lib/brand";
+import { useLanguage } from "../lib/i18n";
 import "../styles/landing.css";
 
 export function LandingPage() {
+  const { t } = useLanguage();
+
   return (
     <div className="landing-page">
       <header className="landing-header">
@@ -50,6 +54,22 @@ export function LandingPage() {
                 and track your progress as you improve.
               </p>
             </div>
+
+            <div className="landing-start">
+              <button
+                type="button"
+                className="landing-cta"
+                onClick={() => navigate("/build")}
+              >
+                {t("main.startPractice")}
+              </button>
+
+              <span className="landing-cta-note">
+                {t("main.noAccountNeeded")}
+              </span>
+            </div>
+
+            <SubjectShortcuts className="landing-subjects" />
           </div>
 
           <div className="landing-right">

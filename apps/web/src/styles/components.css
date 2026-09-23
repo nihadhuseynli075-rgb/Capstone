@@ -378,50 +378,6 @@
   font-size: 0.85rem;
 }
 
-/*
- * The guest welcome. One promise, one button to start, and the subjects right
- * under it: the whole pitch fits on one phone screen, the way the Brilliant and
- * Duolingo home pages do it.
- */
-.welcome {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.welcome .eyebrow {
-  margin: 0;
-}
-
-.welcome-title {
-  max-width: 22ch;
-  margin: 0;
-}
-
-.welcome-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-/* The page's main call to action, a size up from an ordinary button. */
-.cta {
-  min-height: 48px;
-  padding: 12px 22px;
-  font-size: 1rem;
-}
-
-/* The second choice stands on an edge too, a quieter one in the border colour. */
-.ghost-button.cta {
-  box-shadow: 0 2px 0 var(--border);
-}
-
-.ghost-button.cta:active:not(:disabled) {
-  transform: translateY(1px);
-  box-shadow: 0 1px 0 var(--border);
-}
-
 /* ---------------------------------------------------------- subject cards */
 
 .subject-shortcuts {
@@ -602,15 +558,6 @@
 
   .stat-row {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  /* Stacked and full width, where a thumb can reach both. */
-  .welcome-actions {
-    flex-direction: column;
-  }
-
-  .welcome-actions .cta {
-    width: 100%;
   }
 
   .segmented {

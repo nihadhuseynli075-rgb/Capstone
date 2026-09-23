@@ -187,6 +187,114 @@
 }
 
 
+/* START: the way in without an account */
+
+.landing-start {
+  margin-top: 34px;
+
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+
+  gap: 14px 18px;
+}
+
+.landing-cta {
+  height: 54px;
+
+  padding: 0 28px;
+
+  border: 1px solid #0c82c8;
+  border-radius: 8px;
+
+  color: #ffffff;
+
+  background:
+    linear-gradient(
+      135deg,
+      #0c82c8,
+      #086a9f
+    );
+
+  /* The same pressable edge as the app's main buttons. */
+  box-shadow: 0 4px 0 #05466b;
+
+  font: inherit;
+  font-size: 16px;
+  font-weight: 750;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.08s ease,
+    box-shadow 0.08s ease,
+    filter 0.2s ease;
+}
+
+.landing-cta:hover {
+  filter: brightness(1.1);
+}
+
+.landing-cta:active {
+  transform: translateY(3px);
+
+  box-shadow: 0 1px 0 #05466b;
+}
+
+.landing-cta-note {
+  color: #9bb6c7;
+
+  font-size: 14px;
+}
+
+/* The subject shortcuts, recoloured for the dark page. */
+
+.landing-subjects {
+  max-width: 600px;
+
+  margin-top: 30px;
+}
+
+.landing-subjects .subject-shortcuts-title {
+  color: #9bb6c7;
+}
+
+.landing-subjects .subject-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.landing-subjects .subject-card {
+  border-color: rgba(120, 166, 190, 0.28);
+
+  color: #f5f9fc;
+
+  background: rgba(255, 255, 255, 0.03);
+
+  box-shadow: 0 2px 0 rgba(120, 166, 190, 0.28);
+}
+
+.landing-subjects .subject-card:hover:not(:disabled) {
+  border-color: #0c82c8;
+
+  background: rgba(12, 130, 200, 0.12);
+
+  box-shadow: 0 2px 0 #0c82c8;
+}
+
+.landing-subjects .subject-glyph,
+.landing-subjects .subject-card:hover:not(:disabled) .subject-glyph {
+  color: #77d2ff;
+
+  background: rgba(12, 130, 200, 0.16);
+}
+
+.landing-subjects .subject-count {
+  color: #9bb6c7;
+
+  background: rgba(255, 255, 255, 0.06);
+}
+
+
 /* RIGHT VISUAL */
 
 .landing-right {
@@ -497,6 +605,15 @@
     border-left: none;
   }
 
+  .landing-start {
+    justify-content: center;
+  }
+
+  .landing-subjects {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
   .landing-right {
     min-height: 480px;
   }
@@ -558,6 +675,15 @@
   }
 
   .landing-features {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-start {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .landing-subjects .subject-grid {
     grid-template-columns: 1fr;
   }
 

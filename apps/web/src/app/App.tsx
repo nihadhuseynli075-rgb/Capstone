@@ -227,6 +227,25 @@ function AccountMenu() {
 }
 
 
+/*
+ * Страницы приложения.
+ * Всё остальное — главная.
+ */
+function isAppPage(path: string): boolean {
+  return (
+    [
+      "/build",
+      "/exam",
+      "/history",
+      "/friends",
+      "/settings",
+      "/admin"
+    ].includes(path) ||
+    path.startsWith("/results")
+  );
+}
+
+
 function Shell() {
   const path = useRoute();
 
@@ -336,19 +355,21 @@ function Shell() {
 
   /*
    * Если пользователь НЕ вошёл,
-   * показываем Landing Page.
+   * главная для него — Landing Page:
+   * "/" и любой адрес, которого нет в приложении.
    *
-   * Даже если он вручную напишет
-   * /build, /history и т.д.
+   * Сами страницы (/build, /exam, /results,
+   * /history и т.д.) открыты и гостям:
+   * пробный тест можно пройти без аккаунта.
    */
-  if (!user) {
+  if (!user && !isAppPage(path)) {
     return <LandingPage />;
   }
 
 
   /*
-   * Всё ниже только для
-   * залогиненных пользователей.
+   * Всё ниже — само приложение,
+   * и для гостей, и для вошедших.
    */
 
   const isExam =
