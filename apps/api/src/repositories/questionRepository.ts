@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { BankQuestion, Difficulty, QuestionDraft, QuestionStatus } from "@grade9/shared";
+import type { BankQuestion, Difficulty, QuestionDraft, QuestionStatus, QuestionType } from "@grade9/shared";
 import { isUuid } from "../lib/ids";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 
@@ -13,6 +13,8 @@ export interface QuestionFilter {
    * The admin list is the one reader that wants the unfinished ones too.
    */
   readyOnly?: boolean;
+  /** Types to leave out, e.g. written questions while there is no marker. */
+  excludeTypes?: QuestionType[];
 }
 
 /** Shape of a row in the `questions` table. */
@@ -95,6 +97,7 @@ function matchesFilter(question: BankQuestion, filter: QuestionFilter): boolean 
   if (filter.topicIds?.length && !filter.topicIds.includes(question.topicId)) return false;
   if (filter.difficulty && question.difficulty !== filter.difficulty) return false;
   if (filter.readyOnly && question.status !== "ready") return false;
+  if (filter.excludeTypes?.includes(question.type)) return false;
   if (filter.search) {
     const needle = filter.search.toLowerCase();
     if (!question.prompt.toLowerCase().includes(needle)) return false;
@@ -163,6 +166,7 @@ export async function listQuestions(filter: QuestionFilter = {}): Promise<BankQu
     if (filter.topicIds?.length) query = query.in("topic_id", filter.topicIds);
     if (filter.search) query = query.ilike("prompt", `%${filter.search}%`);
     if (filter.readyOnly) query = query.eq("status", "ready");
+    if (filter.excludeTypes?.length) query = query.not("type", "in", `(${filter.excludeTypes.join(",")})`);
 
     return query.range(from, to);
   }, "list questions");
@@ -245,7 +249,7 @@ export async function deleteQuestion(id: string): Promise<boolean> {
   return (data ?? []).length > 0;
 }
 
-type CountedQuestion = Pick<BankQuestion, "subjectId" | "topicId" | "difficulty">;
+type CountedQuestion = Pick<BankQuestion, "subjectId" | "topicId" | "difficulty" | "type">;
 
 /**
  * The three columns a count needs, for every ready question in the bank.
@@ -263,25 +267,26 @@ async function questionsToCount(): Promise<CountedQuestion[]> {
     (from, to) =>
       client
         .from("questions")
-        .select("subject_id, topic_id, difficulty", { count: "exact" })
+        .select("subject_id, topic_id, difficulty, type", { count: "exact" })
         .eq("status", "ready")
         .order("id")
         .range(from, to),
     "count questions"
-  )) as Array<Pick<QuestionRow, "subject_id" | "topic_id" | "difficulty">>;
+  )) as Array<Pick<QuestionRow, "subject_id" | "topic_id" | "difficulty" | "type">>;
 
   return rows.map((row) => ({
     subjectId: row.subject_id,
     topicId: row.topic_id,
-    difficulty: row.difficulty as Difficulty
+    difficulty: row.difficulty as Difficulty,
+    type: row.type as QuestionType
   }));
 }
 
 /** Counts of ready questions per subject and topic, for the catalog the builder shows. */
-export async function questionCounts(): Promise<
-  Array<{ subjectId: string; topicId: string; difficulty: Difficulty; count: number }>
-> {
-  const all = await questionsToCount();
+export async function questionCounts(
+  options: { excludeTypes?: QuestionType[] } = {}
+): Promise<Array<{ subjectId: string; topicId: string; difficulty: Difficulty; count: number }>> {
+  const all = (await questionsToCount()).filter((question) => !options.excludeTypes?.includes(question.type));
   const tally = new Map<string, { subjectId: string; topicId: string; difficulty: Difficulty; count: number }>();
 
   for (const question of all) {

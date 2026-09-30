@@ -153,6 +153,11 @@ function parseType(value: string, optionCount: number): QuestionType {
   if (normalized === "multiple-choice" || normalized === "mcq" || normalized === "multiple") {
     return "multiple-choice";
   }
+  // Written answers marked by the AI marker; the answer column holds the
+  // marking guide.
+  if (normalized === "open-ended" || normalized === "open" || normalized === "written" || normalized === "essay") {
+    return "open-ended";
+  }
   // Blank type column: infer from whether options were supplied.
   return optionCount >= 2 ? "multiple-choice" : "short-answer";
 }

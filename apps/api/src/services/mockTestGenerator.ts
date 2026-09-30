@@ -1,5 +1,6 @@
 import type { BankQuestion, ExamQuestion, TestSettings } from "@grade9/shared";
 import { subjectName, topicName } from "@grade9/shared";
+import { writtenMarkingEnabled } from "../lib/env";
 import { listQuestions } from "../repositories/questionRepository";
 
 export interface GeneratedTest {
@@ -34,7 +35,10 @@ export async function generateMockTest(settings: TestSettings): Promise<Generate
     difficulty: settings.difficultyMode === "custom" ? undefined : settings.difficultyMode,
     // A draft has no options or answer yet, and an image-pending one is missing
     // the diagram it is about.
-    readyOnly: true
+    readyOnly: true,
+    // A written answer needs the AI marker. Without one, never serve a
+    // question nobody can mark.
+    excludeTypes: writtenMarkingEnabled ? [] : ["open-ended"]
   });
 
   const picked = shuffle(pool).slice(0, settings.questionCount);

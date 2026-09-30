@@ -129,6 +129,20 @@ bank: add questions one at a time through a form, or paste a whole spreadsheet
 export at once. See [docs/question-format.md](docs/question-format.md) for the
 column format.
 
+## Written answers, marked by AI
+
+Open-ended questions (a picture story, "explain this in your own words") are
+marked by Claude acting as a strict Grade 9 teacher: it marks only against the
+question's marking guide, which lives in the question's answer field, and gives
+the student two to four sentences of feedback in the question's language. The
+prompt and the call are in `apps/api/src/services/writtenMarking.ts`.
+
+It needs `ANTHROPIC_API_KEY` in `.env`. Without it, written questions are never
+put in a test, so no one sits a question that cannot be marked. If the marker
+cannot be reached when a paper is handed in, that answer is left out of the
+score rather than counted wrong. Each written answer costs roughly one to three
+US cents to mark; nothing else in the app calls the API.
+
 ## Testing
 
 ```bash

@@ -40,6 +40,22 @@ function formatDuration(seconds: number): string {
   return `${minutes}m ${String(rest).padStart(2, "0")}s`;
 }
 
+/**
+ * Written answers can earn some of their marks, and one the marker could not
+ * reach is neither right nor wrong, so the badge says which.
+ */
+function verdictOf(review: QuestionReview): { label: string; tone: "correct" | "partial" | "wrong" | "unmarked" } {
+  if (review.counted === false) return { label: "Not marked", tone: "unmarked" };
+  if (review.isCorrect) return { label: review.type === "open-ended" ? "Full marks" : "Correct", tone: "correct" };
+  if (review.type === "open-ended" && review.score > 0) return { label: "Partly right", tone: "partial" };
+  return { label: "Wrong", tone: "wrong" };
+}
+
+/** Anything short of full marks is worth another look, except an answer nobody marked. */
+function isMistake(review: QuestionReview): boolean {
+  return !review.isCorrect && review.counted !== false;
+}
+
 export function ResultsPage({ attemptId }: { attemptId?: string }) {
   const [view, setView] = useState<ResultView | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +127,7 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
   const visibleReviews = useMemo(() => {
     if (!view) return [];
     const numbered = view.reviews.map((review, index) => ({ review, number: index + 1 }));
-    return showOnlyMistakes ? numbered.filter((item) => !item.review.isCorrect) : numbered;
+    return showOnlyMistakes ? numbered.filter((item) => isMistake(item.review)) : numbered;
   }, [view, showOnlyMistakes]);
 
   if (error) {
@@ -128,7 +144,7 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
 
   if (!view) return <p>Loading your results...</p>;
 
-  const mistakeCount = view.reviews.filter((review) => !review.isCorrect).length;
+  const mistakeCount = view.reviews.filter(isMistake).length;
 
   return (
     <div className="stack">
@@ -206,15 +222,15 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
 
         <ol className="review-list">
           {visibleReviews.map(({ review, number }) => (
-            <li key={review.questionId} className={`review ${review.isCorrect ? "correct" : "wrong"}`}>
+            <li key={review.questionId} className={`review ${verdictOf(review).tone}`}>
               <div className="review-top">
                 <span className="review-index">Q{number}</span>
                 <span className="review-marks">
-                  {review.score}/{review.marks} {review.marks === 1 ? "mark" : "marks"}
+                  {review.counted === false
+                    ? "Not counted"
+                    : `${review.score}/${review.marks} ${review.marks === 1 ? "mark" : "marks"}`}
                 </span>
-                <span className={`review-badge ${review.isCorrect ? "correct" : "wrong"}`}>
-                  {review.isCorrect ? "Correct" : "Wrong"}
-                </span>
+                <span className={`review-badge ${verdictOf(review).tone}`}>{verdictOf(review).label}</span>
               </div>
 
               <p className="review-prompt">{review.prompt}</p>
@@ -226,17 +242,44 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
               <div className="review-answers">
                 <p>
                   <span className="review-label">Your answer</span>
-                  <span className={review.isCorrect ? "answer-correct" : "answer-wrong"}>
+                  <span
+                    // A written answer is rarely all wrong, so it is not painted red:
+                    // the marks and the feedback say how it went.
+                    className={
+                      review.type === "open-ended"
+                        ? `written-answer-text${review.isCorrect ? " answer-correct" : ""}`
+                        : review.isCorrect
+                          ? "answer-correct"
+                          : "answer-wrong"
+                    }
+                  >
                     {review.studentAnswer.trim().length > 0 ? review.studentAnswer : "Left blank"}
                   </span>
                 </p>
                 {!review.isCorrect && (
                   <p>
-                    <span className="review-label">Correct answer</span>
-                    <span className="answer-correct">{review.correctAnswer}</span>
+                    <span className="review-label">
+                      {review.type === "open-ended" ? "What the marker looked for" : "Correct answer"}
+                    </span>
+                    <span className={review.type === "open-ended" ? "written-answer-text" : "answer-correct"}>
+                      {review.correctAnswer}
+                    </span>
                   </p>
                 )}
               </div>
+
+              {review.feedback && (
+                <p className="review-feedback">
+                  <strong>Teacher's feedback: </strong>
+                  {review.feedback}
+                </p>
+              )}
+
+              {review.counted === false && (
+                <p className="review-feedback unmarked">
+                  This answer could not be marked just now, so it is not counted in your score either way.
+                </p>
+              )}
 
               {review.explanation.trim().length > 0 && (
                 <p className="review-explanation">

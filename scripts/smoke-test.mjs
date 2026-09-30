@@ -602,6 +602,63 @@ async function main() {
   const yearless = edges.body.questions?.find((question) => question.prompt === "A year nobody wrote down");
   check("a blank year is stored as unknown", yearless !== undefined && yearless.paperYear === null, JSON.stringify(yearless));
 
+  section("Written answers");
+  // Its own topic, so the checks below see only this question.
+  const writtenTopic = `written-${Date.now()}`;
+  const noGuide = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ topicId: writtenTopic, type: "open-ended", options: [], correctAnswer: "   " })
+  });
+  check("a written question needs a marking guide", noGuide.status === 400, `got ${noGuide.status}`);
+
+  const writtenQuestion = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({
+      topicId: writtenTopic,
+      type: "open-ended",
+      prompt: "Explain in your own words why 2x + 6 = 14 gives x = 4.",
+      options: [],
+      correctAnswer: "1 mark: subtracts 6 from both sides. 1 mark: divides by 2.",
+      marks: 2
+    })
+  });
+  check("a written question saves", writtenQuestion.status === 201, JSON.stringify(writtenQuestion.body));
+  check("and keeps its marking guide", writtenQuestion.body.question?.correctAnswer?.startsWith("1 mark"));
+
+  // Whether the API has an AI marker decides whether the question is served.
+  // Asking it, rather than assuming, keeps this right whichever way it runs.
+  const writtenMarking = (await call("/api/admin/questions", { token })).body.writtenMarking === true;
+  const writtenCatalog = await call("/api/catalog");
+  const writtenTotal =
+    (writtenCatalog.body.subjects ?? [])
+      .find((subject) => subject.id === "math")
+      ?.topics.find((topic) => topic.id === writtenTopic)?.total ?? 0;
+  const writtenTest = await call("/api/tests/generate", {
+    method: "POST",
+    body: {
+      studentKey,
+      subjectId: "math",
+      topicIds: [writtenTopic],
+      difficultyMode: "custom",
+      questionCount: 5,
+      timeLimitMinutes: null
+    }
+  });
+
+  if (writtenMarking) {
+    check("with a marker, a written question is counted in the catalog", writtenTotal === 1, `total ${writtenTotal}`);
+    check(
+      "and is put in tests",
+      writtenTest.status === 200 && writtenTest.body.test?.questions?.[0]?.type === "open-ended",
+      `got ${writtenTest.status}: ${JSON.stringify(writtenTest.body)}`
+    );
+  } else {
+    check("without a marker, a written question is not counted in the catalog", writtenTotal === 0, `total ${writtenTotal}`);
+    check("and is never put in a test", writtenTest.status === 409, `got ${writtenTest.status}`);
+  }
+
   section("Sign out");
   const loggedOut = await call("/api/admin/logout", { method: "POST", token });
   check("logout responds 200", loggedOut.status === 200);

@@ -56,7 +56,7 @@ function isExamQuestion(value: unknown): value is Record<string, unknown> {
     typeof value.subjectId === "string" &&
     typeof value.topicId === "string" &&
     typeof value.difficulty === "string" &&
-    (value.type === "multiple-choice" || value.type === "short-answer") &&
+    (value.type === "multiple-choice" || value.type === "short-answer" || value.type === "open-ended") &&
     typeof value.prompt === "string" &&
     Array.isArray(value.options) &&
     value.options.every((option) => typeof option === "string") &&

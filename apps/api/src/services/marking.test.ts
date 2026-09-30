@@ -21,6 +21,7 @@ function question(overrides: Partial<AttemptQuestion> = {}): AttemptQuestion {
     studentAnswer: null,
     isCorrect: null,
     score: null,
+    feedback: null,
     ...overrides
   };
 }

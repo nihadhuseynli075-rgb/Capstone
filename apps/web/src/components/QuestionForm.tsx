@@ -77,7 +77,9 @@ export function QuestionForm({
     setOptions(padded);
 
     setCorrectIndex(Math.max(0, initial.options.indexOf(initial.correctAnswer)));
-    setShortAnswer(initial.type === "short-answer" ? initial.correctAnswer : "");
+    // Short answers and written questions both keep their text here: the
+    // answer for one, the marking guide for the other.
+    setShortAnswer(initial.type === "multiple-choice" ? "" : initial.correctAnswer);
     setExplanation(initial.explanation);
     setImageUrl(initial.imageUrl);
     setMarks(String(initial.marks));
@@ -134,7 +136,7 @@ export function QuestionForm({
         return;
       }
     } else if (shortAnswer.trim().length === 0) {
-      setFormError("Type the correct answer.");
+      setFormError(type === "open-ended" ? "Write the marking guide." : "Type the correct answer.");
       return;
     }
 
@@ -215,6 +217,7 @@ export function QuestionForm({
           <select value={type} onChange={(event) => setType(event.target.value as QuestionType)}>
             <option value="multiple-choice">Multiple choice</option>
             <option value="short-answer">Short answer</option>
+            <option value="open-ended">Written answer (AI-marked)</option>
           </select>
         </label>
       </div>
@@ -251,6 +254,24 @@ export function QuestionForm({
             </div>
           ))}
         </fieldset>
+      ) : type === "open-ended" ? (
+        <label>
+          Marking guide
+          <textarea
+            rows={5}
+            value={shortAnswer}
+            onChange={(event) => setShortAnswer(event.target.value)}
+            placeholder={
+              "What earns each mark, as the paper's mark scheme says. For example:\n" +
+              "1 mark: explains the meaning in their own words.\n" +
+              "1 mark: gives a supporting example from the text."
+            }
+          />
+          <span className="field-hint">
+            The AI marker acts as a Grade 9 teacher and marks only against this guide, so spell out
+            what each mark needs. Students see it after the test.
+          </span>
+        </label>
       ) : (
         <label>
           Correct answer

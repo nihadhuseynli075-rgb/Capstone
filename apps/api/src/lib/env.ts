@@ -54,8 +54,17 @@ export const env = {
   adminPasswordIsDefault: optional("ADMIN_PASSWORD") === undefined,
   questionImageBucket: process.env.SUPABASE_IMAGE_BUCKET ?? "question-images",
   /** Profile photos, one folder per account. Created by migration 0007. */
-  avatarBucket: process.env.SUPABASE_AVATAR_BUCKET ?? "avatars"
+  avatarBucket: process.env.SUPABASE_AVATAR_BUCKET ?? "avatars",
+  /**
+   * Key for the AI marker that marks written (open-ended) answers.
+   *
+   * Without it written questions are simply never put in a test, so nobody
+   * sits a question that cannot be marked.
+   */
+  anthropicApiKey: optional("ANTHROPIC_API_KEY")
 };
+
+export const writtenMarkingEnabled = Boolean(env.anthropicApiKey);
 
 export const supabaseConfigured = Boolean(env.supabaseUrl && env.supabaseServiceRoleKey);
 

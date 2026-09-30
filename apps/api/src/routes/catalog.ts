@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { Difficulty } from "@grade9/shared";
 import { subjects, topicName } from "@grade9/shared";
+import { writtenMarkingEnabled } from "../lib/env";
 import { questionCounts } from "../repositories/questionRepository";
 
 export const catalogRouter = Router();
@@ -29,7 +30,8 @@ export interface CatalogSubject {
  */
 catalogRouter.get("/", async (_request, response, next) => {
   try {
-    const counts = await questionCounts();
+    // Counted the way tests are drawn: no written questions without a marker.
+    const counts = await questionCounts({ excludeTypes: writtenMarkingEnabled ? [] : ["open-ended"] });
 
     const catalog = new Map<string, CatalogSubject>();
 

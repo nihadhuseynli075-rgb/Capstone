@@ -787,3 +787,62 @@
   color: var(--warning);
   background: var(--warning-soft);
 }
+
+/* ------------------------------------------------------- written answers */
+
+/* The answer box for an open-ended question, with its word count under it. */
+.written-answer {
+  max-width: none;
+}
+
+.written-answer textarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.written-answer-count {
+  align-self: flex-end;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+/* A written answer, and the marking guide, keep the student's line breaks. */
+.written-answer-text {
+  white-space: pre-wrap;
+}
+
+/* Some of the marks, and an answer the marker could not reach. */
+.review.partial {
+  border-left-color: var(--warning);
+}
+
+.review.unmarked {
+  border-left-color: var(--border);
+}
+
+.review-badge.partial {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.review-badge.unmarked {
+  background: var(--surface-alt);
+  color: var(--muted);
+}
+
+.review-feedback {
+  margin: 0;
+  border-left: 3px solid var(--brand);
+  background: var(--brand-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.review-feedback.unmarked {
+  border-left-color: var(--border);
+  background: var(--surface-alt);
+  color: var(--muted);
+}

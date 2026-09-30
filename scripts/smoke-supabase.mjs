@@ -15,6 +15,7 @@
  */
 
 import { spawn } from "node:child_process";
+import http from "node:http";
 import { randomUUID } from "node:crypto";
 import net from "node:net";
 import path from "node:path";
@@ -65,8 +66,56 @@ function runSharedSmoke(apiUrl) {
   });
 }
 
+/**
+ * A stand-in for the Claude API, so written answers are marked end to end
+ * without calling (or paying for) the real one. The API finds it through
+ * ANTHROPIC_BASE_URL, which the SDK reads. It gives every answer the score
+ * named in it ("SCORE:2"), and fails with a 500 for any answer saying
+ * "MARKER DOWN", which the SDK retries and then gives up on.
+ */
+async function startFakeMarker() {
+  const requests = [];
+  const server = http.createServer((request, response) => {
+    let raw = "";
+    request.on("data", (chunk) => (raw += chunk));
+    request.on("end", () => {
+      const body = JSON.parse(raw || "{}");
+      requests.push({ path: request.url, headers: request.headers, body });
+      const text = body.messages?.[0]?.content?.at(-1)?.text ?? "";
+      const answer = /<student_answer>\n([\s\S]*?)\n<\/student_answer>/.exec(text)?.[1] ?? "";
+
+      if (answer.includes("MARKER DOWN")) {
+        response.writeHead(500, { "content-type": "application/json" });
+        return response.end(JSON.stringify({ type: "error", error: { type: "api_error", message: "down" } }));
+      }
+
+      const score = Number(/SCORE:(\d+)/.exec(answer)?.[1] ?? 0);
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          id: `msg_fake_${requests.length}`,
+          type: "message",
+          role: "assistant",
+          model: body.model,
+          content: [{ type: "text", text: JSON.stringify({ score, feedback: `Fake feedback for a ${score}.` }) }],
+          stop_reason: "end_turn",
+          stop_sequence: null,
+          usage: { input_tokens: 100, output_tokens: 20 }
+        })
+      );
+    });
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  return {
+    url: `http://127.0.0.1:${server.address().port}`,
+    requests,
+    close: () => new Promise((resolve) => server.close(() => resolve()))
+  };
+}
+
 async function main() {
   const standin = await startStandin({ port: 0 });
+  const marker = await startFakeMarker();
   const apiPort = await freePort();
   const apiUrl = `http://127.0.0.1:${apiPort}`;
   const apiLog = [];
@@ -78,7 +127,9 @@ async function main() {
       SUPABASE_URL: standin.url,
       SUPABASE_SERVICE_ROLE_KEY: "standin-service-role-key",
       API_PORT: String(apiPort),
-      ADMIN_PASSWORD
+      ADMIN_PASSWORD,
+      ANTHROPIC_API_KEY: "smoke-fake-key",
+      ANTHROPIC_BASE_URL: marker.url
     },
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -278,6 +329,124 @@ async function main() {
 
     const rightAnswers = (test) => answersFor(test, (question) => answerKey.get(question.id) ?? "");
     const wrongAnswers = (test) => answersFor(test, () => "definitely wrong");
+
+    section("Written answers, marked by the AI marker");
+    const writtenTopic = `${topicId}-written`;
+    const writtenCreated = await call("/api/admin/questions", {
+      method: "POST",
+      token: adminToken,
+      body: {
+        subjectId: "russian",
+        topicId: writtenTopic,
+        difficulty: "hard",
+        type: "open-ended",
+        prompt: "Объясните значение выражения «зарубить на носу».",
+        options: [],
+        correctAnswer: "1 балл: запомнить крепко. 1 балл: своими словами. 1 балл: пример из текста.",
+        marks: 3,
+        explanation: ""
+      }
+    });
+    check("a written question saves", writtenCreated.status === 201, JSON.stringify(writtenCreated.body));
+
+    const writtenKey = randomUUID();
+    const writtenPaper = async () =>
+      (
+        await call("/api/tests/generate", {
+          method: "POST",
+          body: {
+            studentKey: writtenKey,
+            subjectId: "russian",
+            topicIds: [writtenTopic],
+            difficultyMode: "custom",
+            questionCount: 5,
+            timeLimitMinutes: 30
+          }
+        })
+      ).body.test;
+    const submitWritten = (paper, answer) =>
+      call(`/api/tests/${paper.id}/submit`, {
+        method: "POST",
+        body: {
+          studentKey: writtenKey,
+          timeTakenSeconds: 5,
+          answers: [{ questionId: paper.questions[0].id, position: 0, answer }]
+        }
+      });
+
+    const markedPaper = await writtenPaper();
+    check("with a marker, the written question is put in a test", markedPaper?.questions?.[0]?.type === "open-ended");
+
+    const overlong = await submitWritten(markedPaper, "x".repeat(4001));
+    check("an answer longer than 4,000 characters is refused before any marking", overlong.status === 400, `got ${overlong.status}`);
+
+    const markedCallsBefore = marker.requests.length;
+    const marked = await submitWritten(markedPaper, "Значит запомнить навсегда. SCORE:2");
+    const markedReview = marked.body.reviews?.[0];
+    check("the paper is marked", marked.status === 200, JSON.stringify(marked.body));
+    check("the written answer gets the marks the marker gave", markedReview?.score === 2 && marked.body.totalMarks === 3);
+    check("and its feedback", markedReview?.feedback === "Fake feedback for a 2.", JSON.stringify(markedReview));
+    check("partial marks are not full marks", markedReview?.isCorrect === false && markedReview?.counted === true);
+    check("the score is out of the question's marks", marked.body.percentage === 66.7, String(marked.body.percentage));
+
+    const markerCall = marker.requests[markedCallsBefore];
+    check("the marker was asked once", marker.requests.length === markedCallsBefore + 1);
+    check(
+      "as claude-opus-5-5, with the key",
+      markerCall?.body.model === "claude-opus-5-5" && markerCall?.headers["x-api-key"] === "smoke-fake-key"
+    );
+    check("with the Grade 9 teacher prompt", /Grade 9 teacher/.test(markerCall?.body.system ?? ""));
+    check(
+      "with refusal fallbacks on",
+      markerCall?.body.fallbacks === "default" &&
+        /server-side-fallback-2026-07-01/.test(markerCall?.headers["anthropic-beta"] ?? "")
+    );
+    check(
+      "and a structured score to return",
+      markerCall?.body.output_config?.format?.type === "json_schema",
+      JSON.stringify(markerCall?.body.output_config)
+    );
+
+    const [storedWritten] = await rows("attempt_questions", `?attempt_id=eq.${markedPaper.id}`);
+    check(
+      "the feedback is stored with the answer",
+      storedWritten?.feedback === "Fake feedback for a 2." && storedWritten?.score === 2
+    );
+
+    const reopened = await call(`/api/tests/attempts/${markedPaper.id}?studentKey=${writtenKey}`);
+    const reopenedReview = reopened.body.reviews?.[0];
+    check(
+      "reopening the result shows the same feedback, without marking again",
+      reopenedReview?.feedback === "Fake feedback for a 2." &&
+        reopenedReview?.counted === true &&
+        marker.requests.length === markedCallsBefore + 1,
+      JSON.stringify(reopenedReview)
+    );
+
+    const downPaper = await writtenPaper();
+    const unmarked = await submitWritten(downPaper, "MARKER DOWN, but a real answer");
+    const unmarkedReview = unmarked.body.reviews?.[0];
+    check("a paper still submits when the marker is down", unmarked.status === 200, JSON.stringify(unmarked.body));
+    check(
+      "and the answer is left out of the score, not counted wrong",
+      unmarkedReview?.counted === false && unmarked.body.totalMarks === 0 && unmarked.body.incorrectAnswers === 0,
+      JSON.stringify(unmarked.body)
+    );
+    const [storedUnmarked] = await rows("attempt_questions", `?attempt_id=eq.${downPaper.id}`);
+    check("it is stored with no score", storedUnmarked?.score === null && storedUnmarked?.is_correct === null);
+    const reopenedUnmarked = await call(`/api/tests/attempts/${downPaper.id}?studentKey=${writtenKey}`);
+    check("and reopens as not counted", reopenedUnmarked.body.reviews?.[0]?.counted === false);
+
+    const blankPaper = await writtenPaper();
+    const callsBeforeBlank = marker.requests.length;
+    const blank = await submitWritten(blankPaper, "   ");
+    check(
+      "a blank written answer scores 0 without asking the marker",
+      blank.body.reviews?.[0]?.score === 0 &&
+        blank.body.reviews?.[0]?.counted === true &&
+        marker.requests.length === callsBeforeBlank,
+      JSON.stringify(blank.body.reviews)
+    );
 
     section("Account keys need that account's token");
     const alice = (await control("users", { email: "alice@standin.test", fullName: "Alice" })).body;
@@ -875,6 +1044,7 @@ async function main() {
   } finally {
     stopApi();
     await standin.close();
+    await marker.close();
   }
 
   console.log(`\n${counts.passed} passed, ${counts.failed} failed`);

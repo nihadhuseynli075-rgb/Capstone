@@ -82,6 +82,7 @@ export function AdminPage() {
 
   const [questions, setQuestions] = useState<BankQuestion[]>([]);
   const [storageMode, setStorageMode] = useState<string>("");
+  const [writtenMarking, setWrittenMarking] = useState(true);
   const [usingDefaultPassword, setUsingDefaultPassword] = useState(false);
 
   const [subjectFilter, setSubjectFilter] = useState("");
@@ -125,6 +126,7 @@ export function AdminPage() {
       });
       setQuestions(data.questions);
       setStorageMode(data.storageMode);
+      setWrittenMarking(data.writtenMarking ?? true);
       // Re-read on every listing rather than only at sign-in: the token outlives
       // a page reload, so a warning that arrived once with the login reply was
       // gone the moment the page was refreshed.
@@ -234,6 +236,13 @@ export function AdminPage() {
           Supabase is not connected, so anything added here is kept in the API's memory and
           disappears when it restarts. Fill in SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in
           <code> .env</code> to store questions for real.
+        </p>
+      )}
+
+      {!writtenMarking && questions.some((question) => question.type === "open-ended") && (
+        <p className="warning-banner">
+          AI marking is not set up, so written (open-ended) questions are kept out of tests until it
+          is. Add ANTHROPIC_API_KEY to <code>.env</code> and restart the API to switch it on.
         </p>
       )}
 
@@ -373,7 +382,8 @@ export function AdminPage() {
 
           <p className="panel-hint">
             correct_answer can be the letter (A, B, C, D) or the full answer text. Leave the option
-            columns empty for short-answer questions.
+            columns empty for short-answer questions. For a written answer marked by the AI marker,
+            set type to <code>open-ended</code> and put the marking guide in correct_answer.
           </p>
 
           <p className="panel-hint">

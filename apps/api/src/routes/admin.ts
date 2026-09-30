@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { QuestionDraft } from "@grade9/shared";
 import { markLimits, paperYearLimits } from "@grade9/shared";
 import { bearerToken } from "../lib/bearerToken";
-import { env, storageMode } from "../lib/env";
+import { env, storageMode, writtenMarkingEnabled } from "../lib/env";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { login, logout, requireAdmin } from "../modules/admin/adminAuth";
 import {
@@ -22,10 +22,12 @@ const questionSchema = z
     subjectId: z.string().min(1),
     topicId: z.string().min(1),
     difficulty: z.enum(["easy", "medium", "hard"]),
-    type: z.enum(["multiple-choice", "short-answer"]),
+    type: z.enum(["multiple-choice", "short-answer", "open-ended"]),
     prompt: z.string().min(1, "Question text is required"),
     options: z.array(z.string().min(1)).default([]),
-    correctAnswer: z.string().min(1, "A correct answer is required"),
+    // For an open-ended question this is the marking guide the AI marker
+    // works from.
+    correctAnswer: z.string().trim().min(1, "A correct answer (or, for a written question, a marking guide) is required"),
     // Defaults to one so a sheet or a form without a marks column still works.
     marks: z
       .number()
@@ -104,7 +106,13 @@ adminRouter.get("/questions", requireAdmin, async (request, response, next) => {
     // Sent on every listing, not only on the login reply. The admin token
     // outlives a page reload, so a dashboard that only learned this at sign-in
     // dropped the warning for exactly the person who never signs in again.
-    response.json({ questions, storageMode, usingDefaultPassword: env.adminPasswordIsDefault });
+    response.json({
+      questions,
+      storageMode,
+      usingDefaultPassword: env.adminPasswordIsDefault,
+      // Without the AI marker, written questions are kept out of tests.
+      writtenMarking: writtenMarkingEnabled
+    });
   } catch (error) {
     next(error);
   }

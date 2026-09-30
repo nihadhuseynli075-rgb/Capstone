@@ -10,7 +10,7 @@ imported in one paste, rather than typed into the form question by question.
 | `subject`        | yes      | `math`, `english` or `russian`                              |
 | `topic`          | yes      | Free text, e.g. `algebra`. Spaces become dashes.            |
 | `difficulty`     | no       | `easy`, `medium` or `hard`. Defaults to `medium` if blank.  |
-| `type`           | no       | `multiple-choice` or `short-answer`. Worked out from whether options are filled in if blank. |
+| `type`           | no       | `multiple-choice`, `short-answer`, or `open-ended` for a written answer marked by the AI marker (put its marking guide in `correct_answer`). Worked out from whether options are filled in if blank. |
 | `question`       | yes      | The question text, exactly as on the paper.                 |
 | `option_a`       | for MCQ  | First option.                                               |
 | `option_b`       | for MCQ  | Second option. At least two options are needed.             |

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SubmittedAnswer } from "@grade9/shared";
-import { topicName } from "@grade9/shared";
+import { topicName, writtenAnswerMaxLength } from "@grade9/shared";
 import { navigate } from "../app/router";
 import {
   clearActiveTest,
@@ -11,6 +11,11 @@ import {
 } from "../lib/examSession";
 import { ApiError } from "../services/apiClient";
 import { submitTest } from "../services/testsApi";
+
+/** Words as a teacher would count them: runs of letters or digits, in any script. */
+function wordCount(text: string): number {
+  return text.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0;
+}
 
 function formatClock(totalSeconds: number): string {
   const safe = Math.max(0, totalSeconds);
@@ -339,6 +344,19 @@ export function ExamPage() {
               </label>
             ))}
           </div>
+        ) : question.type === "open-ended" ? (
+          <label className="short-answer written-answer">
+            Your answer
+            <textarea
+              value={answers[question.id] ?? ""}
+              onChange={(event) => setAnswer(event.target.value)}
+              placeholder="Write your answer here. A teacher-style marker will read it when you submit."
+              rows={8}
+              maxLength={writtenAnswerMaxLength}
+            />
+            {/* Tasks set a minimum ("at least 35 words"), so show the count. */}
+            <span className="written-answer-count">{wordCount(answers[question.id] ?? "")} words</span>
+          </label>
         ) : (
           <label className="short-answer">
             Your answer

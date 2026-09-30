@@ -19,7 +19,17 @@ export type Difficulty = "easy" | "medium" | "hard";
  */
 export type DifficultyMode = Difficulty | "custom";
 
-export type QuestionType = "multiple-choice" | "short-answer";
+/**
+ * How a question is answered, and so how it is marked.
+ *
+ * `open-ended` is a written answer (a paragraph, a short essay, an explanation)
+ * with no single right wording. It is marked by an AI marker against the
+ * question's marking guide, which lives where other types keep their answer.
+ */
+export type QuestionType = "multiple-choice" | "short-answer" | "open-ended";
+
+/** The longest written answer accepted, so a paste cannot run up the marking bill. */
+export const writtenAnswerMaxLength = 4000;
 
 export interface Topic {
   id: string;
@@ -277,6 +287,15 @@ export interface QuestionReview {
   /** Marks the question was worth when it was served. */
   marks: number;
   explanation: string;
+  /** Optional so a review from an API that predates it still reads. */
+  type?: QuestionType;
+  /** The marker's feedback on a written answer. Absent for other types. */
+  feedback?: string | null;
+  /**
+   * False when a written answer could not be marked, so the question was left
+   * out of the score rather than counted as wrong. Absent means counted.
+   */
+  counted?: boolean;
 }
 
 /**

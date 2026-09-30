@@ -73,7 +73,7 @@ function column(type, options = {}) {
 
 const oneOf = (values) => (value) => values.includes(value);
 
-/** The tables the API touches, as the migrations leave them after 0001-0008. */
+/** The tables the API touches, as the migrations leave them after 0001-0009. */
 const SCHEMA = {
   profiles: {
     columns: {
@@ -111,7 +111,7 @@ const SCHEMA = {
     },
     checks: [
       ["questions_difficulty_check", (row) => oneOf(["easy", "medium", "hard"])(row.difficulty)],
-      ["questions_type_check", (row) => oneOf(["multiple-choice", "short-answer"])(row.type)],
+      ["questions_type_check", (row) => oneOf(["multiple-choice", "short-answer", "open-ended"])(row.type)],
       ["questions_marks_positive", (row) => row.marks > 0],
       ["questions_status_check", (row) => oneOf(["draft", "image-pending", "ready"])(row.status)],
       [
@@ -170,7 +170,9 @@ const SCHEMA = {
       is_correct: column("bool"),
       created_at: column("timestamptz", { notNull: true, default: nowIso }),
       marks: column("int", { notNull: true, default: () => 1 }),
-      score: column("int")
+      score: column("int"),
+      // 0009.
+      feedback: column("text")
     },
     checks: [
       [

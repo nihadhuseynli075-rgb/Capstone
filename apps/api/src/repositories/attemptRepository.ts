@@ -29,8 +29,13 @@ export interface AttemptQuestion {
   imageUrl: string | null;
   studentAnswer: string | null;
   isCorrect: boolean | null;
-  /** Marks awarded. Null until the attempt is submitted. */
+  /**
+   * Marks awarded. Null until the attempt is submitted, and after it for a
+   * written answer the marker could not reach, which is left out of the total.
+   */
   score: number | null;
+  /** The marker's feedback on a written answer. Null for every other type. */
+  feedback: string | null;
 }
 
 export interface StoredAttempt {
@@ -193,7 +198,8 @@ export async function getAttempt(id: string): Promise<StoredAttempt | null> {
         imageUrl: (row.image_url ?? null) as string | null,
         studentAnswer: (row.student_answer ?? null) as string | null,
         isCorrect: (row.is_correct ?? null) as boolean | null,
-        score: (row.score ?? null) as number | null
+        score: (row.score ?? null) as number | null,
+        feedback: (row.feedback ?? null) as string | null
       }))
       .sort((a, b) => a.position - b.position),
     score: (data.score ?? null) as number | null,
@@ -220,7 +226,13 @@ export async function completeAttempt(input: {
   totalQuestions: number;
   percentage: number;
   timeTakenSeconds: number;
-  answers: Array<{ position: number; studentAnswer: string; isCorrect: boolean; score: number }>;
+  answers: Array<{
+    position: number;
+    studentAnswer: string;
+    isCorrect: boolean | null;
+    score: number | null;
+    feedback: string | null;
+  }>;
 }): Promise<boolean> {
   const submittedAt = new Date().toISOString();
 
@@ -241,6 +253,7 @@ export async function completeAttempt(input: {
         question.studentAnswer = answer.studentAnswer;
         question.isCorrect = answer.isCorrect;
         question.score = answer.score;
+        question.feedback = answer.feedback;
       }
     }
     return true;
@@ -282,7 +295,8 @@ export async function completeAttempt(input: {
           .update({
             student_answer: answer.studentAnswer,
             is_correct: answer.isCorrect,
-            score: answer.score
+            score: answer.score,
+            feedback: answer.feedback
           })
           .eq("attempt_id", input.attemptId)
           .eq("position", answer.position)
@@ -312,6 +326,10 @@ function breakdownOf(
   const topics = new Map<string, TopicPerformance>();
 
   for (const question of questions) {
+    // A written answer the marker could not reach: left out of the paper's
+    // total, so out of its topic's too.
+    if (question.score === null && question.isCorrect === null) continue;
+
     const topic = topics.get(question.topicId) ?? { topicId: question.topicId, score: 0, marks: 0 };
     topic.marks += question.marks;
     // Older rows predate per-question scores, as on the results screen: a

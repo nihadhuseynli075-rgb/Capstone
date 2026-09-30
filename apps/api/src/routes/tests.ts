@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import type { MockTest, TestResult, TestSettings } from "@grade9/shared";
-import { customLimits, resolveSettings, studentKeyLimits } from "@grade9/shared";
+import type { MockTest, QuestionType, TestResult, TestSettings } from "@grade9/shared";
+import { customLimits, resolveSettings, studentKeyLimits, writtenAnswerMaxLength } from "@grade9/shared";
 import {
   claimAttempts,
   completeAttempt,
@@ -9,8 +9,9 @@ import {
   getAttempt,
   listAttempts
 } from "../repositories/attemptRepository";
-import { compareToPrevious, markAttempt } from "../services/marking";
+import { compareToPrevious, markAttempt, resolveAnswers } from "../services/marking";
 import { generateMockTest, toExamQuestion } from "../services/mockTestGenerator";
+import { markWrittenAnswers } from "../services/writtenMarking";
 import {
   canClaimFrom,
   canUseStudentKey,
@@ -122,7 +123,8 @@ testsRouter.post("/generate", async (request, response, next) => {
         imageUrl: question.imageUrl,
         studentAnswer: null,
         isCorrect: null,
-        score: null
+        score: null,
+        feedback: null
       }))
     });
 
@@ -164,7 +166,9 @@ const submitSchema = z.object({
       // Where the question sat in the paper. Optional so a tab that loaded
       // before this existed still submits and still marks the same way.
       position: z.number().int().min(0).optional(),
-      answer: z.string()
+      // Written answers go to a paid marker, so a paste of a whole book is
+      // refused rather than sent. Far beyond anything a Grade 9 task asks for.
+      answer: z.string().max(writtenAnswerMaxLength)
     })
   )
 });
@@ -223,7 +227,14 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
     // Never record less time than actually passed, whatever the browser claims.
     const timeTakenSeconds = Math.max(parsed.data.timeTakenSeconds, elapsedSeconds);
 
-    const marked = markAttempt(attempt.questions, parsed.data.answers);
+    // Written answers go to the AI marker first, all at once. One it cannot
+    // reach comes back unmarked and is left out of the score, never failed.
+    const written = await markWrittenAnswers(
+      attempt.questions,
+      resolveAnswers(attempt.questions, parsed.data.answers)
+    );
+
+    const marked = markAttempt(attempt.questions, parsed.data.answers, written);
 
     // Read history before saving, so this attempt is not compared against itself.
     // Headline figures only: the comparison never looks at topics.
@@ -376,7 +387,11 @@ testsRouter.get("/attempts/:attemptId", async (request, response, next) => {
         // the question's marks, which were one each.
         score: question.score ?? (question.isCorrect ? question.marks : 0),
         marks: question.marks,
-        explanation: question.explanation
+        explanation: question.explanation,
+        type: question.type as QuestionType,
+        feedback: question.feedback,
+        // Only a written answer the marker could not reach has neither.
+        counted: !(question.score === null && question.isCorrect === null)
       }))
     });
   } catch (error) {

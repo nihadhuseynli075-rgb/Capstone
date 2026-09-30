@@ -33,6 +33,8 @@ export async function fetchQuestions(filters: {
   questions: BankQuestion[];
   storageMode: "supabase" | "memory";
   usingDefaultPassword: boolean;
+  /** Whether the AI marker is set up. Optional so an older API still reads. */
+  writtenMarking?: boolean;
 }> {
   const params = new URLSearchParams();
   if (filters.subject) params.set("subject", filters.subject);
