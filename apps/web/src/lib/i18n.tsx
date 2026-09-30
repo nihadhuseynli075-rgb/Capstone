@@ -25,6 +25,7 @@ export const languages = [
 export type Language = (typeof languages)[number]["id"];
 
 const en = {
+  "nav.dashboard": "Dashboard",
   "nav.newTest": "New test",
   "nav.history": "History",
   "nav.settings": "Settings",
@@ -118,6 +119,7 @@ export type TranslationKey = keyof typeof en;
 type Dictionary = Record<TranslationKey, string>;
 
 const ru: Dictionary = {
+  "nav.dashboard": "Главная",
   "nav.newTest": "Новый тест",
   "nav.history": "История",
   "nav.settings": "Настройки",
@@ -207,6 +209,7 @@ const ru: Dictionary = {
 };
 
 const az: Dictionary = {
+  "nav.dashboard": "Ana səhifə",
   "nav.newTest": "Yeni test",
   "nav.history": "Tarixçə",
   "nav.settings": "Tənzimləmələr",

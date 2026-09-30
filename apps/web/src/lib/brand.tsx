@@ -38,7 +38,7 @@ export function LogoMark({
       src={logoMark}
       alt="Exampeak"
       style={{
-        width: (size * 100) / 65,
+        width: size * 2.18,
         height: size,
         objectFit: "contain",
         display: "block",

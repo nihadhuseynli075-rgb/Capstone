@@ -327,10 +327,6 @@ function Shell() {
   }, [navOpen]);
 
 
-  /*
-   * Ждём, пока Supabase проверит,
-   * залогинен пользователь или нет.
-   */
   if (!ready) {
     return (
       <div className="landing-loading">
@@ -340,9 +336,6 @@ function Shell() {
   }
 
 
-  /*
-   * Эти страницы доступны без аккаунта.
-   */
   if (path === "/login") {
     return <LoginPage />;
   }
@@ -353,24 +346,10 @@ function Shell() {
   }
 
 
-  /*
-   * Если пользователь НЕ вошёл,
-   * главная для него — Landing Page:
-   * "/" и любой адрес, которого нет в приложении.
-   *
-   * Сами страницы (/build, /exam, /results,
-   * /history и т.д.) открыты и гостям:
-   * пробный тест можно пройти без аккаунта.
-   */
   if (!user && !isAppPage(path)) {
     return <LandingPage />;
   }
 
-
-  /*
-   * Всё ниже — само приложение,
-   * и для гостей, и для вошедших.
-   */
 
   const isExam =
     path === "/exam";
@@ -467,6 +446,16 @@ function Shell() {
                 }`
               }
             >
+              <button
+                type="button"
+                className="ghost-button dashboard-button"
+                onClick={() =>
+                  navigate("/")
+                }
+              >
+                {t("nav.dashboard")}
+              </button>
+
               <button
                 type="button"
                 className="ghost-button"
