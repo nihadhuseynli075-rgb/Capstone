@@ -134,6 +134,112 @@ async function main() {
     }
     check("the stand-in bank takes new questions", bankIds.every((id) => typeof id === "string"));
 
+    section("Unfinished questions stay out of tests");
+    // Papers are loaded from the SQL editor in stages: the questions first, the
+    // options and pictures later. Its own topic, so the papers below are not
+    // affected by what happens to it here.
+    const stagedTopic = `${topicId}-staged`;
+    const staged = await call("/api/admin/questions", {
+      method: "POST",
+      token: adminToken,
+      body: {
+        subjectId: "math",
+        topicId: stagedTopic,
+        difficulty: "easy",
+        type: "multiple-choice",
+        prompt: "What is 2 + 5?",
+        options: ["6", "7", "8"],
+        correctAnswer: "7",
+        explanation: ""
+      }
+    });
+    const stagedId = staged.body.question?.id;
+    check("a question saved through the admin form is ready", staged.body.question?.status === "ready", JSON.stringify(staged.body));
+
+    const stagedCount = async () => {
+      const catalog = await call("/api/catalog");
+      const math = (catalog.body.subjects ?? []).find((subject) => subject.id === "math");
+      return math?.topics.find((topic) => topic.id === stagedTopic)?.total ?? 0;
+    };
+    const generateStaged = () =>
+      call("/api/tests/generate", {
+        method: "POST",
+        body: {
+          studentKey: randomUUID(),
+          subjectId: "math",
+          topicIds: [stagedTopic],
+          difficultyMode: "custom",
+          questionCount: 5,
+          timeLimitMinutes: 30
+        }
+      });
+
+    check("a ready question is counted in the catalog", (await stagedCount()) === 1);
+
+    // What a paper loaded without its options looks like.
+    const drafted = await request(standin.url, `/__standin/rows/questions/${stagedId}`, {
+      method: "PATCH",
+      body: { status: "draft", options: [], correct_answer: "" }
+    });
+    check("a question can be held back as a draft", drafted.status === 200, JSON.stringify(drafted.body));
+    check("a draft is not counted in the catalog", (await stagedCount()) === 0);
+
+    const draftTest = await generateStaged();
+    check(
+      "a draft is never put in a test",
+      draftTest.status === 409 && !(draftTest.body.test?.questions ?? []).some((question) => question.id === stagedId),
+      `got ${draftTest.status}: ${JSON.stringify(draftTest.body)}`
+    );
+
+    const adminList = (await call("/api/admin/questions", { token: adminToken })).body.questions ?? [];
+    check(
+      "the admin list still shows the draft, flagged",
+      adminList.some((question) => question.id === stagedId && question.status === "draft"),
+      JSON.stringify(adminList.find((question) => question.id === stagedId))
+    );
+
+    const pictureWait = await request(standin.url, `/__standin/rows/questions/${stagedId}`, {
+      method: "PATCH",
+      body: { status: "image-pending" }
+    });
+    check("a question can wait for its picture", pictureWait.status === 200, JSON.stringify(pictureWait.body));
+    check("a question waiting for its picture is not counted either", (await stagedCount()) === 0);
+
+    const readyTooSoon = await request(standin.url, `/__standin/rows/questions/${stagedId}`, {
+      method: "PATCH",
+      body: { status: "ready" }
+    });
+    check(
+      "the database will not mark a question with no answer ready",
+      readyTooSoon.status >= 400 && JSON.stringify(readyTooSoon.body).includes("questions_ready_is_complete"),
+      `got ${readyTooSoon.status}: ${JSON.stringify(readyTooSoon.body)}`
+    );
+
+    // Filling in the options through the admin form is what finishes it.
+    const finished = await call(`/api/admin/questions/${stagedId}`, {
+      method: "PUT",
+      token: adminToken,
+      body: {
+        subjectId: "math",
+        topicId: stagedTopic,
+        difficulty: "easy",
+        type: "multiple-choice",
+        prompt: "What is 2 + 5?",
+        options: ["6", "7", "8"],
+        correctAnswer: "7",
+        explanation: ""
+      }
+    });
+    check("saving it complete through the form makes it ready", finished.body.question?.status === "ready", JSON.stringify(finished.body));
+    check("once ready it is counted again", (await stagedCount()) === 1);
+
+    const readyTest = await generateStaged();
+    check(
+      "once ready it is put in tests again",
+      readyTest.status === 200 && readyTest.body.test?.questions?.some((question) => question.id === stagedId),
+      `got ${readyTest.status}: ${JSON.stringify(readyTest.body)}`
+    );
+
     const answerKey = new Map(
       ((await call("/api/admin/questions", { token: adminToken })).body.questions ?? []).map((question) => [
         question.id,
