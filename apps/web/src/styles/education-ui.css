@@ -73,6 +73,37 @@ body {
   background: var(--brand-soft);
 }
 
+/*
+ * The phone header's menu button. The doubled class matters: .ghost-button's
+ * padding further down would otherwise squeeze the icon.
+ */
+.ghost-button.icon-button {
+  /* No display here: .nav-toggle decides when the button shows at all. */
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+}
+
+.icon-button svg {
+  flex: none;
+}
+
+@media (max-width: 640px) {
+  .app-header .nav-toggle {
+    border-color: color-mix(in srgb, var(--border) 80%, transparent);
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .app-header .nav-toggle:hover:not(:disabled) {
+    border-color: var(--brand);
+    color: var(--brand);
+  }
+}
+
 /* The page you are on. */
 .app-nav .ghost-button[aria-current="page"] {
   background: var(--brand-soft);

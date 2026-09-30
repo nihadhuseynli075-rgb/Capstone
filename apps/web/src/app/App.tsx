@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Wordmark } from "../lib/brand";
-import { applyTheme, useTheme, type Theme } from "../lib/theme";
+import { applyTheme, useTheme } from "../lib/theme";
 import { useLanguage, type TranslationKey } from "../lib/i18n";
 
 import { AuthProvider, useAuth } from "../features/auth/AuthContext";
@@ -26,35 +26,19 @@ import { TestBuilderPage } from "../pages/TestBuilderPage";
 import { navigate, useRoute } from "./router";
 
 
-function ThemeToggle({
-  theme,
-  onChange
-}: {
-  theme: Theme;
-  onChange: (theme: Theme) => void;
-}) {
-  const { t } = useLanguage();
-
-  const next =
-    theme === "light"
-      ? "dark"
-      : "light";
-
-  const label =
-    theme === "light"
-      ? t("nav.darkMode")
-      : t("nav.lightMode");
-
+/**
+ * Three lines that fold into a cross while the menu is open. The stroke
+ * follows the text colour, so it suits both themes.
+ */
+function HamburgerIcon({ open }: { open: boolean }) {
   return (
-    <button
-      type="button"
-      className="ghost-button"
-      onClick={() => onChange(next)}
-      aria-label={label}
-      title={label}
-    >
-      {label}
-    </button>
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      {open ? (
+        <path d="M6 6l12 12M18 6L6 18" />
+      ) : (
+        <path d="M4 7h16M4 12h16M4 17h16" />
+      )}
+    </svg>
   );
 }
 
@@ -258,10 +242,7 @@ function Shell() {
     user
   } = useAuth();
 
-  const [
-    theme,
-    setTheme
-  ] = useTheme();
+  const [theme] = useTheme();
 
   const [
     navOpen,
@@ -435,16 +416,18 @@ function Shell() {
           <>
             <button
               type="button"
-              className="ghost-button nav-toggle"
+              className="ghost-button icon-button nav-toggle"
               aria-expanded={navOpen}
               aria-controls="app-nav"
+              aria-label={t("nav.menu")}
+              title={t("nav.menu")}
               onClick={() =>
                 setNavOpen(
                   (current) => !current
                 )
               }
             >
-              {t("nav.menu")}
+              <HamburgerIcon open={navOpen} />
             </button>
 
 
@@ -477,11 +460,7 @@ function Shell() {
                 </button>
               ))}
 
-              <ThemeToggle
-                theme={theme}
-                onChange={setTheme}
-              />
-
+              {/* Light and dark mode live in Settings, under the account menu. */}
               <AccountMenu />
             </nav>
           </>
