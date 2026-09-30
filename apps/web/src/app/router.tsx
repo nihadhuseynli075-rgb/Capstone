@@ -31,6 +31,18 @@ export function navigate(path: string): void {
   window.location.hash = path;
 }
 
+/**
+ * Swaps the whole address for `path`, without adding a step to the history.
+ *
+ * For tidying up after a sign-in redirect, which leaves its result in the
+ * query string and the hash. Going back should not land on that. Replacing
+ * the address raises no event of its own, so one is sent for useRoute.
+ */
+export function replaceRoute(path: string): void {
+  window.history.replaceState(window.history.state, "", `${window.location.pathname}#${path}`);
+  window.dispatchEvent(new HashChangeEvent("hashchange"));
+}
+
 export function useRoute(): string {
   const path = useSyncExternalStore(subscribeToHash, currentPath);
 

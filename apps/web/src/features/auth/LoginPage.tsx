@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { navigate } from "../../app/router";
 import { useAuth } from "./AuthContext";
-import { AuthLayout, Field, PasswordField } from "./AuthLayout";
+import { AuthDivider, AuthLayout, Field, PasswordField } from "./AuthLayout";
+import { GoogleButton } from "./GoogleButton";
 import { validateEmail } from "./authValidation";
 
 export function LoginPage() {
-  const { signIn, user, configured } = useAuth();
+  const { signIn, user, configured, redirectResult, clearRedirectResult } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,6 +18,16 @@ export function LoginPage() {
   useEffect(() => {
     if (user) navigate("/");
   }, [user]);
+
+  // A trip to Google, or an email link, that did not sign in comes back here
+  // with the reason. Anything that failed while still signed in is shown on
+  // the profile instead, so whatever reaches this page belongs on it.
+  useEffect(() => {
+    if (redirectResult?.error) {
+      setFormError(redirectResult.error);
+      clearRedirectResult();
+    }
+  }, [redirectResult, clearRedirectResult]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -59,13 +70,17 @@ export function LoginPage() {
         </p>
       )}
 
-      <form className="auth-form" onSubmit={handleSubmit} noValidate>
-        {formError && (
-          <p className="error-banner" role="alert">
-            {formError}
-          </p>
-        )}
+      {formError && (
+        <p className="error-banner" role="alert">
+          {formError}
+        </p>
+      )}
 
+      <GoogleButton disabled={submitting || !configured} onError={setFormError} />
+
+      <AuthDivider label="or sign in with your email" />
+
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
         <Field
           id="login-email"
           label="Email"

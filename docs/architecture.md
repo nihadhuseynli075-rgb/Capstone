@@ -59,6 +59,21 @@ past papers. Rather than hard-code a list, `/api/catalog` merges the starter
 topics with every topic that actually appears in the bank. Entering a question
 under a new topic makes it selectable by students immediately.
 
+**The profile is the API's to write.** A student's name and photo live in the
+`profiles` table, and only the API changes them. Supabase keeps a name and a
+photo on the account too, but every Google sign-in overwrites those with
+Google's, so a name changed there would quietly change back. The browser still
+talks to Supabase directly for signing in, passwords and connecting Google,
+which are Supabase's to decide; it never writes a profile row. Photos are
+uploaded through the API as well, which checks that the bytes really are a
+JPG, PNG or WebP before anything reaches the public bucket.
+
+**Deleting an account takes everything with it, in a safe order.** Photos
+first, then test history, then the account itself, which cascades through the
+profile to everything linked to it. Each step can be repeated, and the account
+goes last, so if a step fails part-way the student can still sign in and try
+again rather than leaving files or tests behind that no account can reach.
+
 ## Boundaries
 
 - `apps/web` is the interface, both student and admin. It holds no secrets and

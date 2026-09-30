@@ -109,6 +109,37 @@ export const customLimits = {
 } as const;
 
 /**
+ * What a profile may hold.
+ *
+ * Shared so the profile form and the API refuse the same names. The photo
+ * limit is on the file as it is uploaded: the browser squares and shrinks a
+ * photo to a few dozen kilobytes first, so only something that skipped that
+ * step comes anywhere near it.
+ */
+export const profileLimits = {
+  nameMin: 2,
+  nameMax: 60,
+  photoMaxBytes: 2 * 1024 * 1024
+} as const;
+
+/**
+ * A student's profile: how they appear in the app.
+ *
+ * It lives in the `profiles` table and only the API writes it. The name kept
+ * on the Supabase account is not the one to read: signing in with Google
+ * rewrites that name and photo from Google every time, which would quietly
+ * undo any change the student made here.
+ */
+export interface StudentProfile {
+  id: string;
+  fullName: string;
+  email: string;
+  /** Null when there is no photo, and the app shows initials instead. */
+  avatarUrl: string | null;
+  createdAt: string;
+}
+
+/**
  * What the student chose in the builder.
  *
  * A `timeLimitMinutes` of null means an untimed test, which is only reachable

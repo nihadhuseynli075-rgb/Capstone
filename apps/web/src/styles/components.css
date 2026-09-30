@@ -538,6 +538,186 @@
   box-shadow: var(--shadow);
 }
 
+/* ---------------------------------------------------------------- google */
+
+/*
+ * White with the four-colour mark, the way Google's sign-in guidelines ask,
+ * so it reads as Google's button rather than one more of ours. In dark mode
+ * it goes to Google's own dark version rather than staying a white slab.
+ */
+.google-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 1px solid #747775;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f1f1f;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.google-button:hover:not(:disabled) {
+  background: #f2f2f2;
+}
+
+.google-button svg {
+  flex: none;
+}
+
+[data-theme="dark"] .google-button {
+  border-color: #8e918f;
+  background: #131314;
+  color: #e3e3e3;
+}
+
+[data-theme="dark"] .google-button:hover:not(:disabled) {
+  background: #1f1f20;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* --------------------------------------------------------------- profile */
+
+/* The header's avatar and the profile's share one class; a photo fills it. */
+.avatar {
+  overflow: hidden;
+}
+
+.avatar-photo {
+  object-fit: cover;
+  background: var(--surface-alt);
+}
+
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.profile-identity-text {
+  min-width: 0;
+}
+
+.profile-identity-text h2 {
+  margin: 0 0 2px;
+  font-size: 1.35rem;
+  overflow-wrap: anywhere;
+}
+
+.profile-identity-text p {
+  margin: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.profile-since {
+  font-size: 0.85rem;
+}
+
+.method-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.method {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+.method + .method {
+  border-top: 1px solid var(--border);
+}
+
+.method-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--muted);
+}
+
+.method-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.method-text span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.method-status {
+  flex: none;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: var(--success-soft);
+  color: var(--success);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.danger-panel {
+  border-color: var(--danger);
+}
+
+.danger-panel h2 {
+  color: var(--danger);
+}
+
+/* The last step of deleting an account, which should look like it means it. */
+.danger-button.danger-solid {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.danger-button.danger-solid:hover:not(:disabled) {
+  background: var(--danger);
+  filter: brightness(0.92);
+}
+
+[data-theme="dark"] .danger-button.danger-solid {
+  color: #2a0f0f;
+}
+
+/* A button inside a sentence, such as "Try again" in an error banner. */
+.link-button {
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* ---------------------------------------------------------- small screens */
 
 @media (max-width: 640px) {

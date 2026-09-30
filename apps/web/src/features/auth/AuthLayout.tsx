@@ -51,6 +51,11 @@ export function AuthLayout({
   );
 }
 
+/** The rule between the Google button and the email form, with a word in the middle. */
+export function AuthDivider({ label }: { label: string }) {
+  return <p className="auth-divider">{label}</p>;
+}
+
 /** A labelled input that shows its error underneath and links the two for screen readers. */
 export function Field({
   id,

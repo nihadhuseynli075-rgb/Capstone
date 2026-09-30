@@ -397,6 +397,37 @@ export async function listAttempts(
 }
 
 /**
+ * Deletes every attempt recorded under a key, with its questions.
+ *
+ * Deleting an account already cascades to the attempts linked to it through
+ * `student_id`. This catches the rest: any recorded under the account's id
+ * while that link could not be made (see findAccountId), which would otherwise
+ * outlive the account they belonged to.
+ */
+export async function deleteAttemptsFor(studentKey: string): Promise<number> {
+  if (!supabaseAdmin) {
+    let deleted = 0;
+    for (const [id, attempt] of memoryAttempts) {
+      if (attempt.studentKey === studentKey) {
+        memoryAttempts.delete(id);
+        deleted += 1;
+      }
+    }
+    return deleted;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("test_attempts")
+    .delete()
+    .eq("student_key", studentKey)
+    .select("id");
+
+  if (error) throw new Error(`Failed to delete test history: ${error.message}`);
+
+  return (data ?? []).length;
+}
+
+/**
  * Reassigns a guest's attempts to a signed-in student.
  *
  * Called once when someone who had been practising as a guest creates an

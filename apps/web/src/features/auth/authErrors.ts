@@ -1,3 +1,5 @@
+import { isAuthImplicitGrantRedirectError, type AuthError } from "@supabase/supabase-js";
+
 /**
  * Supabase auth errors, rewritten for a fifteen-year-old.
  *
@@ -43,10 +45,55 @@ const MESSAGES: Array<{ match: RegExp; message: string }> = [
     match: /^not-configured$/,
     message:
       "Accounts are not switched on yet because Supabase is not connected. You can still take tests as a guest."
+  },
+  {
+    match: /^google-not-enabled$|provider is not enabled|unsupported provider/i,
+    message: "Signing in with Google is not switched on yet. Use your email and password for now."
+  },
+  {
+    match: /manual linking is disabled|manual_linking_disabled/i,
+    message: "Connecting Google to an account that already exists is not switched on yet."
+  },
+  {
+    match: /identity is already linked|identity_already_exists/i,
+    message: "That Google account is already connected to a different Exampeak account."
+  },
+  {
+    match: /at least 1 identity|single_identity_not_deletable/i,
+    message: "Google is the only way into this account, so it cannot be disconnected."
+  },
+  {
+    match: /database error saving new user/i,
+    message: "Your account could not be set up just now. Try again in a moment."
   }
 ];
 
 export function authErrorMessage(raw: string): string {
   const hit = MESSAGES.find((entry) => entry.match.test(raw));
   return hit ? hit.message : raw;
+}
+
+/**
+ * Why a trip to Google, or a link from an email, came back without signing in.
+ *
+ * Supabase sends the reason back as a code and a sentence. The code is the
+ * steadier thing to go on, since the sentences are reworded between releases.
+ */
+export function redirectErrorMessage(error: AuthError | null, intent: "sign-in" | "link" | "email-link"): string {
+  const details = error && isAuthImplicitGrantRedirectError(error) ? error.details : null;
+
+  if (details?.code === "otp_expired") {
+    return "That link has expired or has already been used. Sign in, or sign up again to be sent a new one.";
+  }
+
+  if (details?.code === "identity_already_exists") return authErrorMessage("identity_already_exists");
+
+  // Pressing Cancel on Google's screen.
+  if (details?.error === "access_denied") {
+    return intent === "link"
+      ? "Connecting Google was cancelled, so nothing has changed."
+      : "Signing in with Google was cancelled. Try again, or use your email and password.";
+  }
+
+  return error ? authErrorMessage(error.message) : "Signing in did not finish. Try again.";
 }

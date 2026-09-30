@@ -14,9 +14,20 @@ function optional(name: string): string | undefined {
   return value && value.trim().length > 0 ? value.trim() : undefined;
 }
 
+const isProduction = process.env.NODE_ENV === "production";
+
+/**
+ * The admin password when none is set.
+ *
+ * It is written here and in `.env.example`, so it is a convenience for getting
+ * started rather than a secret, and the dashboard refuses it in production.
+ */
+const DEV_ADMIN_PASSWORD = "capstone123";
+
 export const env = {
   port: Number(process.env.API_PORT ?? 4000),
   webOrigin: process.env.WEB_ORIGIN ?? "http://localhost:5173",
+  isProduction,
   /**
    * Whether any localhost port may call the API, rather than WEB_ORIGIN alone.
    *
@@ -24,7 +35,7 @@ export const env = {
    * leaves the browser blocked by CORS with no obvious cause. Off in
    * production, where the real origin is the only one that should work.
    */
-  allowAnyLocalhostOrigin: process.env.NODE_ENV !== "production",
+  allowAnyLocalhostOrigin: !isProduction,
   supabaseUrl: optional("SUPABASE_URL"),
   supabaseServiceRoleKey: optional("SUPABASE_SERVICE_ROLE_KEY"),
   /**
@@ -33,10 +44,17 @@ export const env = {
    * This is a small internal tool for the two of us entering questions, so a
    * single shared password is enough for now. It falls back to a dev default so
    * the app runs out of the box, and the server says so loudly at startup.
+   *
+   * Read through `optional`, which treats blank as unset. `.env.example` says
+   * to leave `ADMIN_PASSWORD=` empty in development, and dotenv reads that as
+   * an empty string: taken literally it became the password itself, so an
+   * empty box opened the dashboard for anyone who found it.
    */
-  adminPassword: process.env.ADMIN_PASSWORD ?? "capstone123",
+  adminPassword: optional("ADMIN_PASSWORD") ?? DEV_ADMIN_PASSWORD,
   adminPasswordIsDefault: optional("ADMIN_PASSWORD") === undefined,
-  questionImageBucket: process.env.SUPABASE_IMAGE_BUCKET ?? "question-images"
+  questionImageBucket: process.env.SUPABASE_IMAGE_BUCKET ?? "question-images",
+  /** Profile photos, one folder per account. Created by migration 0007. */
+  avatarBucket: process.env.SUPABASE_AVATAR_BUCKET ?? "avatars"
 };
 
 export const supabaseConfigured = Boolean(env.supabaseUrl && env.supabaseServiceRoleKey);

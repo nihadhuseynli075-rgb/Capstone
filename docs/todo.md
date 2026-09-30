@@ -51,6 +51,13 @@ put a couple of real questions into it.
       `.env`, everything runs in memory and is lost on restart.
 - [ ] Run `supabase/migrations/0001_initial_schema.sql` in the Supabase SQL
       editor.
+- [ ] Run `supabase/migrations/0007_profiles_and_google.sql` too (or the whole
+      of `supabase/run-all.sql`). The profile page needs it for photos, and it
+      stops Google sign-ins from overwriting a name a student has changed.
+- [ ] Switch on Google sign-in: an OAuth client in Google Cloud, pasted into
+      Supabase, plus the redirect URLs and "Allow manual linking". Steps are in
+      the README under "Signing in with Google". The button already explains
+      itself until this is done.
 - [ ] Walk Nihad through the code flow in the next session.
 
 ## Agreed for later

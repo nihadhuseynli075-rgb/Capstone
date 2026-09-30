@@ -4,6 +4,7 @@ import type { AttemptSummary } from "@grade9/shared";
 import { navigate } from "../app/router";
 import { SubjectShortcuts } from "../components/SubjectShortcuts";
 import { useAuth } from "../features/auth/AuthContext";
+import { useProfile } from "../features/profile/ProfileContext";
 import { useLanguage } from "../lib/i18n";
 import { fetchHistory } from "../services/testsApi";
 
@@ -16,6 +17,7 @@ import { fetchHistory } from "../services/testsApi";
 export function MainPage() {
   const { t } = useLanguage();
   const { ready, user } = useAuth();
+  const { profile } = useProfile();
   const [attempts, setAttempts] = useState<AttemptSummary[] | null>(null);
 
   // Held until the session is known, so the tiles are not filled in with the
@@ -58,7 +60,7 @@ export function MainPage() {
         <div>
           <p className="eyebrow">{t("main.eyebrow")}</p>
 
-          <h1>{`${t("main.greeting")}, ${user.fullName}.`}</h1>
+          <h1>{`${t("main.greeting")}, ${profile?.fullName ?? user.fullName}.`}</h1>
         </div>
       </section>
 
