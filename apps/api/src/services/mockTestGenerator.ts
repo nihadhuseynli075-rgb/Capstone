@@ -31,7 +31,10 @@ export async function generateMockTest(settings: TestSettings): Promise<Generate
   const pool = await listQuestions({
     subjectId: settings.subjectId,
     topicIds: settings.topicIds.length > 0 ? settings.topicIds : undefined,
-    difficulty: settings.difficultyMode === "custom" ? undefined : settings.difficultyMode
+    difficulty: settings.difficultyMode === "custom" ? undefined : settings.difficultyMode,
+    // A draft has no options or answer yet, and an image-pending one is missing
+    // the diagram it is about.
+    readyOnly: true
   });
 
   const picked = shuffle(pool).slice(0, settings.questionCount);

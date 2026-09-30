@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { BankQuestion, QuestionDraft } from "@grade9/shared";
+import type { BankQuestion, QuestionDraft, QuestionStatus } from "@grade9/shared";
 import { markLimits, subjectName, topicName } from "@grade9/shared";
 import { QuestionForm } from "../components/QuestionForm";
 import { ApiError } from "../services/apiClient";
@@ -19,6 +19,12 @@ const CSV_TEMPLATE =
   "subject,topic,difficulty,type,question,option_a,option_b,option_c,option_d,correct_answer,marks,explanation,paper_year,source";
 
 type Tab = "add" | "list" | "import";
+
+/** Why a question is not in tests yet. Saving it complete through the form makes it ready. */
+const statusLabel: Record<Exclude<QuestionStatus, "ready">, string> = {
+  draft: "Draft - not in tests until its options and answer are added",
+  "image-pending": "Image coming soon - not in tests until its picture is added"
+};
 
 function LoginScreen({ onSignedIn }: { onSignedIn: (storageMode: string, isDefault: boolean) => void }) {
   const [password, setPassword] = useState("");
@@ -311,13 +317,19 @@ export function AdminPage() {
               {questions.map((question) => (
                 <li key={question.id} className="question-row">
                   <div className="question-row-main">
+                    {question.status !== "ready" && (
+                      <p className={`question-status question-status-${question.status}`}>
+                        {statusLabel[question.status]}
+                      </p>
+                    )}
                     <p className="question-row-prompt">{question.prompt}</p>
                     <p className="question-row-meta">
                       {subjectName(question.subjectId)} - {topicName(question.subjectId, question.topicId)}{" "}
                       - {question.difficulty} - {question.type}
                       {question.paperYear ? ` - ${question.paperYear}` : ""}
+                      {question.subtopic ? ` - ${question.subtopic}` : ""}
                     </p>
-                    <p className="question-row-answer">Answer: {question.correctAnswer}</p>
+                    <p className="question-row-answer">Answer: {question.correctAnswer || "not entered yet"}</p>
                   </div>
 
                   <div className="question-row-actions">

@@ -73,7 +73,7 @@ function column(type, options = {}) {
 
 const oneOf = (values) => (value) => values.includes(value);
 
-/** The tables the API touches, as the migrations leave them after 0001-0007. */
+/** The tables the API touches, as the migrations leave them after 0001-0008. */
 const SCHEMA = {
   profiles: {
     columns: {
@@ -102,12 +102,26 @@ const SCHEMA = {
       source: column("text"),
       created_at: column("timestamptz", { notNull: true, default: nowIso }),
       updated_at: column("timestamptz", { notNull: true, default: nowIso }),
-      marks: column("int", { notNull: true, default: () => 1 })
+      marks: column("int", { notNull: true, default: () => 1 }),
+      // 0008. external_ref is unique there; nothing in the API writes it, so
+      // the stand-in does not enforce that.
+      status: column("text", { notNull: true, default: () => "ready" }),
+      external_ref: column("text"),
+      subtopic: column("text")
     },
     checks: [
       ["questions_difficulty_check", (row) => oneOf(["easy", "medium", "hard"])(row.difficulty)],
       ["questions_type_check", (row) => oneOf(["multiple-choice", "short-answer"])(row.type)],
-      ["questions_marks_positive", (row) => row.marks > 0]
+      ["questions_marks_positive", (row) => row.marks > 0],
+      ["questions_status_check", (row) => oneOf(["draft", "image-pending", "ready"])(row.status)],
+      [
+        "questions_ready_is_complete",
+        (row) =>
+          row.status !== "ready" ||
+          (String(row.correct_answer).trim() !== "" &&
+            (row.type !== "multiple-choice" ||
+              (Array.isArray(row.options) && row.options.length >= 2 && row.options.includes(row.correct_answer))))
+      ]
     ],
     // The set_updated_at trigger from 0001.
     beforeUpdate: (row) => ({ ...row, updated_at: nowIso() })

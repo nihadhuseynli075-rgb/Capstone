@@ -25,7 +25,7 @@ export function FriendsPage() {
             />
           </label>
 
-          <button type="submit">
+          <button type="submit" className="primary-button">
             Add Friend
           </button>
         </form>

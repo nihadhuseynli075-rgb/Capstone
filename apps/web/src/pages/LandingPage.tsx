@@ -101,7 +101,10 @@ export function LandingPage() {
           </article>
 
           <article className="landing-feature">
-            <span className="feature-number">02</span>
+            <div className="feature-head">
+              <span className="feature-number">02</span>
+              <span className="soon-badge">{t("main.soon")}</span>
+            </div>
 
             <h2>{t("landing.dailyQuizzes")}</h2>
 

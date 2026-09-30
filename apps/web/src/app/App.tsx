@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Wordmark } from "../lib/brand";
 import { applyTheme, useTheme, type Theme } from "../lib/theme";
-import { useLanguage } from "../lib/i18n";
+import { useLanguage, type TranslationKey } from "../lib/i18n";
 
 import { AuthProvider, useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
@@ -356,6 +356,12 @@ function Shell() {
   const isExam =
     path === "/exam";
 
+  const navItems: Array<{ path: string; label: TranslationKey; active: boolean }> = [
+    { path: "/", label: user ? "nav.dashboard" : "nav.home", active: path === "/" },
+    { path: "/build", label: "nav.newTest", active: path === "/build" },
+    { path: "/history", label: "nav.history", active: path === "/history" || path.startsWith("/results") }
+  ];
+
 
   function renderPage() {
     if (path === "/build") {
@@ -455,46 +461,21 @@ function Shell() {
               {/*
                * The wordmark goes home too, but nobody reads a logo as a
                * button: from Settings or Profile there was no visible way back.
+               * Signed in, home is the dashboard; signed out, the landing page.
                */}
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={() =>
-                  navigate("/")
-                }
-              >
-                {t("nav.home")}
-              </button>
-
-              <button
-                type="button"
-                className="ghost-button dashboard-button"
-                onClick={() =>
-                  navigate("/")
-                }
-              >
-                {t("nav.dashboard")}
-              </button>
-
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={() =>
-                  navigate("/build")
-                }
-              >
-                {t("nav.newTest")}
-              </button>
-
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={() =>
-                  navigate("/history")
-                }
-              >
-                {t("nav.history")}
-              </button>
+              {navItems.map((item) => (
+                <button
+                  key={item.path}
+                  type="button"
+                  className="ghost-button"
+                  aria-current={item.active ? "page" : undefined}
+                  onClick={() =>
+                    navigate(item.path)
+                  }
+                >
+                  {t(item.label)}
+                </button>
+              ))}
 
               <ThemeToggle
                 theme={theme}
@@ -516,10 +497,10 @@ function Shell() {
       {!isExam && (
         <footer className="app-footer">
           <span>
-            Exampeak - Grade 9 mock test practice
+            {t("footer.tagline")}
           </span>
 
-          <a href="#/admin">
+          <a href="#/admin" className="footer-admin-link">
             {t("nav.admin")}
           </a>
         </footer>

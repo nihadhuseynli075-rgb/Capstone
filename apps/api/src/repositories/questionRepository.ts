@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { BankQuestion, Difficulty, QuestionDraft } from "@grade9/shared";
+import type { BankQuestion, Difficulty, QuestionDraft, QuestionStatus } from "@grade9/shared";
 import { isUuid } from "../lib/ids";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 
@@ -8,6 +8,11 @@ export interface QuestionFilter {
   topicIds?: string[];
   difficulty?: Difficulty;
   search?: string;
+  /**
+   * Leave out questions that are not ready: anything a student could be given.
+   * The admin list is the one reader that wants the unfinished ones too.
+   */
+  readyOnly?: boolean;
 }
 
 /** Shape of a row in the `questions` table. */
@@ -25,6 +30,8 @@ interface QuestionRow {
   image_url: string | null;
   paper_year: number | null;
   source: string | null;
+  status: string | null;
+  subtopic: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -45,6 +52,10 @@ function toQuestion(row: QuestionRow): BankQuestion {
     imageUrl: row.image_url,
     paperYear: row.paper_year,
     source: row.source,
+    // A database from before 0008 has no status column, and everything in it
+    // was being served, so it all reads as ready.
+    status: (row.status ?? "ready") as QuestionStatus,
+    subtopic: row.subtopic ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -63,7 +74,11 @@ function toRow(draft: QuestionDraft) {
     explanation: draft.explanation,
     image_url: draft.imageUrl,
     paper_year: draft.paperYear,
-    source: draft.source
+    source: draft.source,
+    // Only ever written from the admin form or an import, both of which check
+    // the question is complete first. Saving an unfinished one there is what
+    // finishes it.
+    status: "ready" as QuestionStatus
   };
 }
 
@@ -79,6 +94,7 @@ function matchesFilter(question: BankQuestion, filter: QuestionFilter): boolean 
   if (filter.subjectId && question.subjectId !== filter.subjectId) return false;
   if (filter.topicIds?.length && !filter.topicIds.includes(question.topicId)) return false;
   if (filter.difficulty && question.difficulty !== filter.difficulty) return false;
+  if (filter.readyOnly && question.status !== "ready") return false;
   if (filter.search) {
     const needle = filter.search.toLowerCase();
     if (!question.prompt.toLowerCase().includes(needle)) return false;
@@ -146,6 +162,7 @@ export async function listQuestions(filter: QuestionFilter = {}): Promise<BankQu
     if (filter.difficulty) query = query.eq("difficulty", filter.difficulty);
     if (filter.topicIds?.length) query = query.in("topic_id", filter.topicIds);
     if (filter.search) query = query.ilike("prompt", `%${filter.search}%`);
+    if (filter.readyOnly) query = query.eq("status", "ready");
 
     return query.range(from, to);
   }, "list questions");
@@ -172,7 +189,14 @@ export async function createQuestions(drafts: QuestionDraft[]): Promise<BankQues
   if (!supabaseAdmin) {
     const now = new Date().toISOString();
     return drafts.map((draft) => {
-      const question: BankQuestion = { ...draft, id: randomUUID(), createdAt: now, updatedAt: now };
+      const question: BankQuestion = {
+        ...draft,
+        status: "ready",
+        subtopic: null,
+        id: randomUUID(),
+        createdAt: now,
+        updatedAt: now
+      };
       memoryQuestions.set(question.id, question);
       return question;
     });
@@ -188,7 +212,7 @@ export async function updateQuestion(id: string, draft: QuestionDraft): Promise<
   if (!supabaseAdmin) {
     const existing = memoryQuestions.get(id);
     if (!existing) return null;
-    const updated: BankQuestion = { ...existing, ...draft, updatedAt: new Date().toISOString() };
+    const updated: BankQuestion = { ...existing, ...draft, status: "ready", updatedAt: new Date().toISOString() };
     memoryQuestions.set(id, updated);
     return updated;
   }
@@ -224,13 +248,14 @@ export async function deleteQuestion(id: string): Promise<boolean> {
 type CountedQuestion = Pick<BankQuestion, "subjectId" | "topicId" | "difficulty">;
 
 /**
- * The three columns a count needs, for every question in the bank.
+ * The three columns a count needs, for every ready question in the bank.
  *
  * listQuestions reads every column, images and explanations included, none of
- * which a count looks at.
+ * which a count looks at. Unfinished questions are left out: the counts tell a
+ * student what a test can be built from, and a test never includes those.
  */
 async function questionsToCount(): Promise<CountedQuestion[]> {
-  if (!supabaseAdmin) return [...memoryQuestions.values()];
+  if (!supabaseAdmin) return [...memoryQuestions.values()].filter((question) => question.status === "ready");
 
   const client = supabaseAdmin;
 
@@ -239,6 +264,7 @@ async function questionsToCount(): Promise<CountedQuestion[]> {
       client
         .from("questions")
         .select("subject_id, topic_id, difficulty", { count: "exact" })
+        .eq("status", "ready")
         .order("id")
         .range(from, to),
     "count questions"
@@ -251,7 +277,7 @@ async function questionsToCount(): Promise<CountedQuestion[]> {
   }));
 }
 
-/** Counts per subject and topic, used to build the catalog the builder shows. */
+/** Counts of ready questions per subject and topic, for the catalog the builder shows. */
 export async function questionCounts(): Promise<
   Array<{ subjectId: string; topicId: string; difficulty: Difficulty; count: number }>
 > {

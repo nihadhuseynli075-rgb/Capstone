@@ -764,3 +764,26 @@
   font-size: 0.82rem;
   color: var(--muted);
 }
+
+/*
+ * An admin-list flag for a question that is in the bank but not in tests yet:
+ * a draft waiting for its options, or one waiting for its picture.
+ */
+.question-status {
+  display: inline-block;
+  margin: 0 0 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.question-status-draft {
+  color: var(--muted);
+  background: var(--brand-soft);
+}
+
+.question-status-image-pending {
+  color: var(--warning);
+  background: var(--warning-soft);
+}

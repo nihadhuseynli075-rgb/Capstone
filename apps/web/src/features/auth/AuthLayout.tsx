@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { LogoStacked } from "../../lib/brand";
+import { LogoStacked, Wordmark } from "../../lib/brand";
 
 /**
  * The shell both auth screens sit in.
@@ -36,6 +36,11 @@ export function AuthLayout({
       </aside>
 
       <main className="auth-panel">
+        {/* The brand panel is hidden on a phone, so this is the way home there. */}
+        <a href="#/" className="auth-mobile-brand">
+          <Wordmark size={28} />
+        </a>
+
         <div className="auth-card">
           <header className="auth-card-head">
             <h1>{title}</h1>

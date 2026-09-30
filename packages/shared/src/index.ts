@@ -199,12 +199,30 @@ export interface BankQuestion {
   imageUrl: string | null;
   paperYear: number | null;
   source: string | null;
+  /** Only a ready question is ever put in front of a student. */
+  status: QuestionStatus;
+  /** The paper's own subtopic label, set when a paper is loaded from its sheet. */
+  subtopic: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-/** The fields the admin dashboard actually submits. */
-export type QuestionDraft = Omit<BankQuestion, "id" | "createdAt" | "updatedAt">;
+/**
+ * Where a question is on its way into tests.
+ *
+ * Papers are loaded in stages, questions first and options and diagrams later,
+ * so the bank holds questions nobody can answer yet. `draft` is waiting for its
+ * options or answer, `image-pending` for its diagram.
+ */
+export type QuestionStatus = "draft" | "image-pending" | "ready";
+
+/**
+ * The fields the admin dashboard actually submits.
+ *
+ * Status is not one of them: a question saved through the form has passed the
+ * form's checks, so saving it is what makes it ready.
+ */
+export type QuestionDraft = Omit<BankQuestion, "id" | "createdAt" | "updatedAt" | "status" | "subtopic">;
 
 /** A question as the student sees it: no answer, no explanation. */
 export interface ExamQuestion {

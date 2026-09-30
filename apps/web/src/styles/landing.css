@@ -77,10 +77,13 @@
   position: relative;
   overflow: hidden;
   padding: clamp(30px, 5vw, 54px);
+  /* Dark enough behind the small white text to clear 4.5:1 everywhere. */
   background:
-    radial-gradient(circle at 90% 12%, rgba(255, 255, 255, 0.22), transparent 14rem),
-    linear-gradient(145deg, #1b8df4 0%, #0c82c8 62%, #0870ad 100%);
+    radial-gradient(circle at 90% 12%, rgba(255, 255, 255, 0.14), transparent 14rem),
+    linear-gradient(145deg, #0b78bd 0%, #0a6aa6 62%, #085a8e 100%);
   color: #ffffff;
+  /* The headline is sized against this box, not the window: see :lang below. */
+  container-type: inline-size;
   box-shadow: 0 22px 48px rgba(12, 130, 200, 0.22);
 }
 
@@ -96,9 +99,14 @@
   pointer-events: none;
 }
 
+/* The default brand-blue ring vanishes on the blue hero. */
+.landing-left :focus-visible {
+  outline-color: #ffffff;
+}
+
 .landing-label {
   margin: 0 0 16px;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.92);
   font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.16em;
@@ -112,6 +120,17 @@
   font-weight: 850;
   line-height: 0.93;
   letter-spacing: -0.055em;
+}
+
+/*
+ * Russian and Azerbaijani put one long word on a line ("ДОСТИГНИТЕ",
+ * "ZİRVƏNİZƏ") that cannot wrap, so the size follows the hero's width. The
+ * extra line height keeps the breve on Й clear of the line above.
+ */
+:lang(ru) .landing-left h1,
+:lang(az) .landing-left h1 {
+  font-size: clamp(32px, 14cqi, 78px);
+  line-height: 1.12;
 }
 
 .landing-left h1 span {
@@ -132,7 +151,7 @@
 
 .landing-description-box p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.88);
+  color: #ffffff;
   font-size: 15px;
   line-height: 1.65;
 }
@@ -173,7 +192,7 @@
 }
 
 .landing-cta-note {
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.92);
   font-size: 13px;
 }
 
@@ -186,14 +205,20 @@
 }
 
 .landing-subjects .subject-shortcuts-title {
-  color: rgba(255, 255, 255, 0.82);
+  color: #ffffff;
 }
 
 .landing-subjects .subject-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+/* Narrow cards: glyph, name, then the count on its own row. */
 .landing-subjects .subject-card {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "glyph"
+    "name"
+    "count";
   min-height: 108px;
   border-color: rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.96);
@@ -206,14 +231,34 @@
   border-color: #ffffff;
 }
 
-.landing-subjects .subject-glyph {
+.landing-subjects .subject-glyph,
+.landing-subjects .subject-card:hover:not(:disabled) .subject-glyph {
   background: #e6f4fd;
   color: #0c82c8;
 }
 
 .landing-subjects .subject-count {
+  justify-self: start;
   background: #edf5fa;
-  color: #5a7893;
+  color: #46637a;
+}
+
+/* Not offered yet: an outline on the blue rather than a faded white card. */
+.landing-subjects .subject-card:disabled {
+  border-color: rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.landing-subjects .subject-card:disabled .subject-name {
+  color: #ffffff;
+}
+
+.landing-subjects .subject-card:disabled .subject-glyph,
+.landing-subjects .subject-card:disabled .subject-count {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
 }
 
 /* -------------------------------------------------------------- visual side */
@@ -363,9 +408,16 @@
   font-size: 20px;
 }
 
+.feature-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .landing-feature p {
   margin: 0;
-  color: #6b879b;
+  color: #4f6b80;
   font-size: 14px;
   line-height: 1.65;
 }
@@ -389,17 +441,75 @@
 .landing-bottom p {
   max-width: 650px;
   margin: 0;
-  color: #7893a6;
+  color: #56728a;
   font-size: 13px;
   line-height: 1.7;
 }
 
+/* Shown on every load, signed in or not, so it follows the theme. */
 .landing-loading {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background: #f7f9fc;
-  color: #6b879b;
+  background: var(--bg);
+  color: var(--muted);
+}
+
+/* ----------------------------------------------------------------- dark theme */
+
+[data-theme="dark"] .landing-page {
+  background:
+    radial-gradient(circle at 82% 12%, rgba(58, 166, 230, 0.1), transparent 24rem),
+    var(--bg);
+  color: var(--text);
+}
+
+[data-theme="dark"] .landing-header .wordmark-text {
+  color: var(--brand-strong);
+}
+
+[data-theme="dark"] .landing-login {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: none;
+}
+
+[data-theme="dark"] .landing-left {
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .landing-right,
+[data-theme="dark"] .landing-feature {
+  border-color: var(--border);
+  background: var(--surface);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .landing-right::before {
+  color: var(--muted);
+}
+
+[data-theme="dark"] .landing-orbit {
+  border-color: rgba(58, 166, 230, 0.16);
+}
+
+[data-theme="dark"] .feature-number {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+[data-theme="dark"] .landing-feature h2 {
+  color: var(--text);
+}
+
+[data-theme="dark"] .landing-feature p,
+[data-theme="dark"] .landing-bottom p {
+  color: var(--muted);
+}
+
+[data-theme="dark"] .landing-bottom span {
+  color: var(--brand);
 }
 
 /* ---------------------------------------------------------------- responsive */
@@ -453,7 +563,7 @@
   }
 
   .landing-left h1 {
-    font-size: 52px;
+    font-size: clamp(38px, 13vw, 52px);
   }
 
   .landing-description-box {
@@ -466,6 +576,13 @@
 
   .landing-subjects .subject-card {
     min-height: 74px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "glyph name count";
+    align-items: center;
+  }
+
+  .landing-subjects .subject-count {
+    justify-self: end;
   }
 
   .landing-right {

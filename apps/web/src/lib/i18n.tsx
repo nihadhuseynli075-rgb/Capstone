@@ -25,6 +25,7 @@ export const languages = [
 export type Language = (typeof languages)[number]["id"];
 
 const en = {
+  "nav.home": "Home",
   "nav.dashboard": "Dashboard",
   "nav.newTest": "New test",
   "nav.history": "History",
@@ -36,6 +37,7 @@ const en = {
   "nav.lightMode": "Light mode",
   "nav.admin": "Admin dashboard",
   "nav.menu": "Menu",
+  "footer.tagline": "Exampeak - Grade 9 mock test practice",
 
   "main.greeting": "Welcome back",
   "main.greetingGuest": "Welcome to Exampeak",
@@ -180,6 +182,7 @@ export type TranslationKey = keyof typeof en;
 type Dictionary = Record<TranslationKey, string>;
 
 const ru: Dictionary = {
+  "nav.home": "Главная",
   "nav.dashboard": "Главная",
   "nav.newTest": "Новый тест",
   "nav.history": "История",
@@ -191,6 +194,7 @@ const ru: Dictionary = {
   "nav.lightMode": "Светлая тема",
   "nav.admin": "Панель администратора",
   "nav.menu": "Меню",
+  "footer.tagline": "Exampeak - пробные тесты для 9 класса",
 
   "main.greeting": "С возвращением",
   "main.greetingGuest": "Добро пожаловать в Exampeak",
@@ -331,6 +335,7 @@ const ru: Dictionary = {
 };
 
 const az: Dictionary = {
+  "nav.home": "Ana səhifə",
   "nav.dashboard": "Ana səhifə",
   "nav.newTest": "Yeni test",
   "nav.history": "Tarixçə",
@@ -342,6 +347,7 @@ const az: Dictionary = {
   "nav.lightMode": "İşıqlı rejim",
   "nav.admin": "Admin paneli",
   "nav.menu": "Menyu",
+  "footer.tagline": "Exampeak - 9-cu sinif üçün sınaq testləri",
 
   "main.greeting": "Yenidən xoş gəldiniz",
   "main.greetingGuest": "Exampeak-ə xoş gəldiniz",
