@@ -473,6 +473,20 @@ function Shell() {
                 }`
               }
             >
+              {/*
+               * The wordmark goes home too, but nobody reads a logo as a
+               * button: from Settings or Profile there was no visible way back.
+               */}
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() =>
+                  navigate("/")
+                }
+              >
+                {t("nav.home")}
+              </button>
+
               <button
                 type="button"
                 className="ghost-button"

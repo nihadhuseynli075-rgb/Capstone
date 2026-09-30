@@ -136,6 +136,13 @@ npm run typecheck
 npm run build
 ```
 
+Marking and spreadsheet import have unit tests of their own, which need nothing
+running:
+
+```bash
+npm test
+```
+
 With the API running, the end-to-end check walks the full flow — admin sign-in,
 question CRUD, spreadsheet import, generating a test, marking it, history and
 the personal-best comparison:
