@@ -63,6 +63,10 @@ Next session: **Saturday 3 October, 4:30pm Nihad's time (Baku)**, 30 minutes.
       marker needs a real URL.
 - [ ] Put `SUPABASE_SERVICE_ROLE_KEY` in `.env`. Until it is there, the API runs
       in memory, and profiles and friends answer "unavailable".
+- [ ] For changing an email address (README, "Changing the email address"):
+      keep **Secure email change** on, set up a custom SMTP server so mail
+      reaches students and not only the project's own team, and raise the
+      minimum password length to 8.
 
 ## Earlier: session on 18 August 2026
 
@@ -118,13 +122,6 @@ together and put a couple of real questions into it.
 - [ ] Run `supabase/migrations/0007_profiles_and_google.sql` too (or the whole
       of `supabase/run-all.sql`). The profile page needs it for photos, and it
       stops Google sign-ins from overwriting a name a student has changed.
-- [ ] Run `supabase/migrations/0012_usernames.sql` as well (it is in
-      `run-all.sql`). It gives every profile a username for friend search, and
-      the API will not load a profile until it has been run.
-- [ ] For changing an email address (README, "Changing the email address"):
-      keep **Secure email change** on, set up a custom SMTP server so mail
-      reaches students and not only the project's own team, and raise the
-      minimum password length to 8.
 - [ ] Switch on Google sign-in: an OAuth client in Google Cloud, pasted into
       Supabase, plus the redirect URLs and "Allow manual linking". Steps are in
       the README under "Signing in with Google". The button already explains
