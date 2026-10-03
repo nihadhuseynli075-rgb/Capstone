@@ -168,7 +168,7 @@ def text(value) -> str:
 def loose(value: str) -> str:
     """For comparing an answer's gloss with an option: no quotes, case, end dots."""
     value = re.sub(r"[«»“”\"'‘’]", "", value).casefold()
-    return re.sub(r"\s+", " ", value).strip(" .;")
+    return re.sub(r"\s+", "", value).strip(".;")
 
 
 def header_map(ws) -> tuple[int, dict[str, int]]:
@@ -327,7 +327,9 @@ def build(sheet: Path, ru_maths_path: Path, data: dict) -> tuple[list[Question],
                 raise SystemExit(f"{q.ref}: {len(override['options'])} options in the data file, {len(q.options)} in the sheet")
             q.options = list(override["options"])
         if override.get("translated"):
-            q.machine.append(override.get("translated_what", "question text and English options put into Russian"))
+            q.machine.append(
+                "question and options put into Russian" if "options" in override else "question put into Russian"
+            )
         if "answer" in override:
             q.answer = override["answer"]
 
@@ -363,7 +365,8 @@ def build(sheet: Path, ru_maths_path: Path, data: dict) -> tuple[list[Question],
             q.status = "draft"
             q.missing.append("Not put into Russian yet.")
         if subject == "russian":
-            english = [o for o in [q.prompt, *q.options] if re.search(r"[A-Za-z]{3,}", o)]
+            # Three or more Latin letters, other than a Roman numeral (XVIII).
+            english = [o for o in [q.prompt, *q.options] if re.search(r"\b(?![IVXLCM]+\b)[A-Za-z]{3,}", o)]
             if english:
                 warn(f"{q.ref}: Russian Language text still has English in it: {english[0][:60]!r}")
 
@@ -450,10 +453,10 @@ def write_sql(questions: list[Question], skipped, sheet: Path) -> str:
                     f"--     {PAPERS[paper]['label']:<11} {SUBJECT_NAMES[subject]:<17}"
                     f"{c.get('ready', 0):>3} ready, {c.get('draft', 0):>2} draft"
                 )
-    skipped_text = "; ".join(
-        f"{PAPERS[p]['label']} Q" + ", Q".join(str(n) for _, n, _, _ in sorted(s for s in skipped if s[0] == p))
+    skipped_lines = [
+        f"--       {PAPERS[p]['label']}: Q" + ", Q".join(str(n) for _, n, _, _ in sorted(s for s in skipped if s[0] == p))
         for p in PAPERS
-    )
+    ]
 
     out: list[str] = []
     w = out.append
@@ -481,9 +484,10 @@ def write_sql(questions: list[Question], skipped, sheet: Path) -> str:
     w("--      supabase/seeds/REVIEW.md says what each draft is waiting for.")
     w("--")
     w("-- Left out on purpose, and not touched in the database at all:")
-    w(f"--   * questions with a picture ({skipped_text}). Their diagrams go in")
-    w("--     through the admin form. The 12 April ones stay image-pending, as the")
-    w("--     30 Sep maths seed left them.")
+    w("--   * questions with a picture:")
+    out.extend(skipped_lines)
+    w("--     Their diagrams go in through the admin form. The 12 April maths ones")
+    w("--     stay image-pending, as the 30 Sep maths seed left them.")
     w("--   * Q1-Q4 of each paper, the listening questions: there is no audio.")
     w("--")
     w("-- This supersedes dim-2026-04-12-variant-a/maths-questions.sql. It rewrites")

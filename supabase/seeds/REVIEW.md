@@ -10,10 +10,10 @@ hidden from students until the thing in the "What's missing" column is fixed.
 | Paper | Subject | Ready | Draft |
 | --- | --- | ---: | ---: |
 | 12 Apr (A) | English | 15 | 6 |
-| 12 Apr (A) | Russian Language | 0 | 30 |
+| 12 Apr (A) | Russian Language | 13 | 17 |
 | 12 Apr (A) | Maths | 20 | 0 |
 | 26 Apr (D) | English | 15 | 6 |
-| 26 Apr (D) | Russian Language | 0 | 30 |
+| 26 Apr (D) | Russian Language | 17 | 13 |
 | 26 Apr (D) | Maths | 20 | 1 |
 
 ## What you can do
@@ -56,36 +56,36 @@ hidden from students until the thing in the "What's missing" column is fixed.
 | 12 Apr (A) | 23 | English | multiple-choice | ready |  |  |
 | 12 Apr (A) | 24 | English | multiple-choice | ready |  |  |
 | 12 Apr (A) | 25 | English | multiple-choice | draft | More than one right answer (1 and 5 — embarrassed; disrespectful); the app marks one choice only. Rewrite as A-E options that each list statement numbers, like the other questions. |  |
-| 12 Apr (A) | 27 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 28 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 29 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 30 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 31 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 32 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 33 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 34 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 35 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 36 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 37 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 38 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 39 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 40 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 41 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 42 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 43 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 44 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 45 | Russian Language | open-ended | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 46 | Russian Language | open-ended | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 47 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 48 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 49 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 50 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 51 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 52 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 53 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 54 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 55 | Russian Language | open-ended | draft | Not put into Russian yet. |  |
-| 12 Apr (A) | 56 | Russian Language | open-ended | draft | Not put into Russian yet. |  |
+| 12 Apr (A) | 27 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 12 Apr (A) | 28 | Russian Language | multiple-choice | ready |  | yes: question and options put into Russian |
+| 12 Apr (A) | 29 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 12 Apr (A) | 30 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 12 Apr (A) | 31 | Russian Language | multiple-choice | draft | Two right answers as typed: C (прислушиваясь, помогая) is also a pair of imperfective gerunds, as well as the key's D. Check option C on the paper (perhaps «прислушавшись»). | yes: question put into Russian |
+| 12 Apr (A) | 32 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 12 Apr (A) | 33 | Russian Language | multiple-choice | draft | As typed, every pair A-E is made of relative adjectives, so the key's D is not the only right answer. Check the options against the paper. | yes: question put into Russian |
+| 12 Apr (A) | 34 | Russian Language | multiple-choice | ready |  | yes: question and options put into Russian |
+| 12 Apr (A) | 35 | Russian Language | multiple-choice | ready | The older sheet had «нечто» for d); this one has «некого». The answer E is only right with «некого», so that is what is used. | yes: question put into Russian |
+| 12 Apr (A) | 36 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 12 Apr (A) | 37 | Russian Language | multiple-choice | draft | Needs the text «Приезд бабушки». The five statements were in English in the sheet; check the Russian against the paper. | yes: question put into Russian |
+| 12 Apr (A) | 38 | Russian Language | multiple-choice | draft | Needs the text «Приезд бабушки». The plan points were in English in the sheet; check the Russian against the paper. | yes: question put into Russian |
+| 12 Apr (A) | 39 | Russian Language | multiple-choice | draft | Needs the text «Приезд бабушки». | yes: question and options put into Russian |
+| 12 Apr (A) | 40 | Russian Language | multiple-choice | draft | Needs the text «Приезд бабушки». | yes: question put into Russian |
+| 12 Apr (A) | 41 | Russian Language | multiple-choice | draft | Needs the text «Приезд бабушки»: whether a phrase is literal depends on how the text uses it. | yes: question put into Russian |
+| 12 Apr (A) | 42 | Russian Language | multiple-choice | draft | Needs the text «Приезд бабушки». Check the spelling of the name Мина. | yes: question put into Russian |
+| 12 Apr (A) | 43 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 12 Apr (A) | 44 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 12 Apr (A) | 45 | Russian Language | open-ended | draft | Needs the text «Приезд бабушки». The marking guide is a draft: add the words from the text that count, and set how many marks it is worth. | yes: question put into Russian |
+| 12 Apr (A) | 46 | Russian Language | open-ended | draft | Needs the text, and the highlighted word and underlined expression themselves. The marking guide is a draft: add their meanings, and set the marks. | yes: question put into Russian |
+| 12 Apr (A) | 47 | Russian Language | multiple-choice | draft | Needs the Swarovski text with its numbered sentences. | yes: question and options put into Russian |
+| 12 Apr (A) | 48 | Russian Language | multiple-choice | ready | The definition and the options were in English in the sheet ("grinding / polishing"...) and were put back into Russian. Check they match the paper. | yes: question and options put into Russian |
+| 12 Apr (A) | 49 | Russian Language | multiple-choice | draft | Needs the Swarovski text. The statements were in English in the sheet; check the Russian against the paper. | yes: question and options put into Russian |
+| 12 Apr (A) | 50 | Russian Language | multiple-choice | ready | The options were in English in the sheet ("crystal empire"...) and were put back into Russian. Check they match the paper. | yes: question and options put into Russian |
+| 12 Apr (A) | 51 | Russian Language | multiple-choice | draft | The underlined expression itself is not in the sheet (and the options were in English). | yes: question and options put into Russian |
+| 12 Apr (A) | 52 | Russian Language | multiple-choice | draft | Needs the Swarovski text. The options were in English in the sheet. | yes: question and options put into Russian |
+| 12 Apr (A) | 53 | Russian Language | multiple-choice | ready | The sheet gives the word only in English ("deceive"). Check the exact Russian word on the paper. | yes: question put into Russian |
+| 12 Apr (A) | 54 | Russian Language | multiple-choice | draft | Needs the Swarovski text. The options were in English in the sheet. | yes: question and options put into Russian |
+| 12 Apr (A) | 55 | Russian Language | open-ended | draft | Needs the Swarovski text. The marking guide is a draft: add the expected answers, and set the marks. | yes: question put into Russian |
+| 12 Apr (A) | 56 | Russian Language | open-ended | draft | The expression itself is not in the sheet, and the example needs the Swarovski text. The marking guide is a draft; set the marks. | yes: question put into Russian |
 | 12 Apr (A) | 57 | Maths | multiple-choice | ready |  |  |
 | 12 Apr (A) | 58 | Maths | multiple-choice | ready |  |  |
 | 12 Apr (A) | 59 | Maths | multiple-choice | ready |  |  |
@@ -127,36 +127,36 @@ hidden from students until the thing in the "What's missing" column is fixed.
 | 26 Apr (D) | 23 | English | multiple-choice | ready |  |  |
 | 26 Apr (D) | 24 | English | multiple-choice | ready |  |  |
 | 26 Apr (D) | 25 | English | multiple-choice | draft | More than one right answer (1,4); the app marks one choice only. Rewrite as A-E options that each list statement numbers, like the other questions. |  |
-| 26 Apr (D) | 27 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 28 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 29 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 30 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 31 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 32 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 33 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 34 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 35 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 36 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 37 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 38 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 39 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 40 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 41 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 42 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 43 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 44 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 45 | Russian Language | open-ended | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 46 | Russian Language | open-ended | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 47 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 48 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 49 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 50 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 51 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 52 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 53 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 54 | Russian Language | multiple-choice | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 55 | Russian Language | open-ended | draft | Not put into Russian yet. |  |
-| 26 Apr (D) | 56 | Russian Language | open-ended | draft | Not put into Russian yet. |  |
+| 26 Apr (D) | 27 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 26 Apr (D) | 28 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 26 Apr (D) | 29 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 26 Apr (D) | 30 | Russian Language | multiple-choice | ready | The options were in English in the sheet and were put back into Russian. | yes: question and options put into Russian |
+| 26 Apr (D) | 31 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 26 Apr (D) | 32 | Russian Language | multiple-choice | ready |  | yes: question and options put into Russian |
+| 26 Apr (D) | 33 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 26 Apr (D) | 34 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 26 Apr (D) | 35 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 26 Apr (D) | 36 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 26 Apr (D) | 37 | Russian Language | multiple-choice | draft | Needs the text «Блоха и овчина» (title translated back from English; use the paper's own). The plan points were in English in the sheet. | yes: question put into Russian |
+| 26 Apr (D) | 38 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 26 Apr (D) | 39 | Russian Language | multiple-choice | draft | Needs the text «Блоха и овчина» (title translated back from English). | yes: question put into Russian |
+| 26 Apr (D) | 40 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 26 Apr (D) | 41 | Russian Language | multiple-choice | draft | Needs the text «Блоха и овчина» (title translated back from English). | yes: question and options put into Russian |
+| 26 Apr (D) | 42 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 26 Apr (D) | 43 | Russian Language | multiple-choice | draft | Needs the text «Блоха и овчина». The five endings were in English in the sheet. | yes: question put into Russian |
+| 26 Apr (D) | 44 | Russian Language | multiple-choice | draft | Needs the text «Блоха и овчина». The five characteristics were in English in the sheet. | yes: question put into Russian |
+| 26 Apr (D) | 45 | Russian Language | open-ended | draft | Needs the text «Блоха и овчина». The marking guide is a draft: add the words from the text that count, and set the marks. | yes: question put into Russian |
+| 26 Apr (D) | 46 | Russian Language | open-ended | draft | Needs the text, and the underlined expression itself. The marking guide is a draft; set the marks. | yes: question put into Russian |
+| 26 Apr (D) | 47 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 26 Apr (D) | 48 | Russian Language | multiple-choice | draft | Needs the text «Суть разных профессий» (title translated back from English; use the paper's own). The options were in English in the sheet. | yes: question and options put into Russian |
+| 26 Apr (D) | 49 | Russian Language | multiple-choice | draft | Needs the text «Суть разных профессий» with its numbered sentences. | yes: question and options put into Russian |
+| 26 Apr (D) | 50 | Russian Language | multiple-choice | ready | The options were in English in the sheet and were put back into Russian. Check they match the paper. | yes: question and options put into Russian |
+| 26 Apr (D) | 51 | Russian Language | multiple-choice | draft | Needs the text «Суть разных профессий». The options were in English in the sheet. | yes: question and options put into Russian |
+| 26 Apr (D) | 52 | Russian Language | multiple-choice | ready | The definition was in English in the sheet; check the Russian wording against the paper. | yes: question put into Russian |
+| 26 Apr (D) | 53 | Russian Language | multiple-choice | ready |  | yes: question put into Russian |
+| 26 Apr (D) | 54 | Russian Language | multiple-choice | draft | Needs the text «Суть разных профессий». The five endings were in English in the sheet. | yes: question put into Russian |
+| 26 Apr (D) | 55 | Russian Language | open-ended | draft | Needs the text «Суть разных профессий». The marking guide is a draft: add the expected answers, and set the marks. | yes: question put into Russian |
+| 26 Apr (D) | 56 | Russian Language | open-ended | draft | The example has to come from the text «Суть разных профессий», which is not in the sheet. The marking guide is a draft; set the marks. | yes: question put into Russian |
 | 26 Apr (D) | 58 | Maths | multiple-choice | ready |  | yes: Russian version (shown on the Russian site) translated by machine |
 | 26 Apr (D) | 59 | Maths | multiple-choice | ready |  | yes: Russian version (shown on the Russian site) translated by machine |
 | 26 Apr (D) | 60 | Maths | multiple-choice | ready |  | yes: Russian version (shown on the Russian site) translated by machine |

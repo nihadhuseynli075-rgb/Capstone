@@ -3,6 +3,11 @@
 -- 12 April 2026. Questions only, in Russian. Options and answers come later.
 -- ============================================================================
 --
+-- SUPERSEDED by ../all-questions.sql (October 2026), which loads both April
+-- papers with their options and answers. Kept as a record of the 30 Sep load.
+-- Don't run it again: it would put these questions back to drafts with no
+-- answer, and their text back to Russian only.
+--
 -- Paste the whole file into the Supabase SQL editor and run it once. It is one
 -- transaction: if anything fails, nothing is changed.
 --

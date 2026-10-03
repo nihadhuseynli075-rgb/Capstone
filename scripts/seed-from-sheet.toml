@@ -10,6 +10,8 @@
 #   options    replaces the options, same order A-E as the sheet
 #   translated true when prompt/options were translated by machine (REVIEW.md
 #              then asks Nihad to check it)
+#   answer     replaces the answer (short answer only; multiple choice takes
+#              the option the sheet's letter points at)
 #   guide      marking guide for an open-ended question (goes in correct_answer)
 #   ru_prompt / ru_options / ru_answer
 #              maths only: the Russian version, stored in translations.ru.
@@ -57,6 +59,244 @@ missing = "Needs the Komodo dragon reading passage, which is not in the sheet."
 ["dim-2026-04-12-variant-a:q12"]
 missing = "Also needs the Komodo dragon reading passage."
 
+# ---- Russian Language -----------------------------------------------------
+# The sheet has these in English around the Russian material. Put into
+# Russian here; «quoted» Russian is exactly as Nihad typed it.
+
+["dim-2026-04-12-variant-a:q27"]
+translated = true
+prompt = "Сколько звуков в слове «лестница»?"
+
+["dim-2026-04-12-variant-a:q28"]
+translated = true
+prompt = "Каково значение обособленного обстоятельства в предложении «Несмотря на сильный дождь, мы отправились в деревню»?"
+options = ["уступки", "условия", "причины", "образа действия", "цели"]
+
+["dim-2026-04-12-variant-a:q29"]
+translated = true
+prompt = """Какие существительные относятся ко 2-му склонению?
+1) осень
+2) рояль
+3) якорь
+4) мать
+5) словарь"""
+
+["dim-2026-04-12-variant-a:q30"]
+translated = true
+prompt = "Сколько наречий в предложении «Здесь будет город заложён назло надменному соседу»?"
+
+["dim-2026-04-12-variant-a:q31"]
+translated = true
+prompt = "Укажите пару деепричастий несовершенного вида."
+status = "draft"
+missing = "Two right answers as typed: C (прислушиваясь, помогая) is also a pair of imperfective gerunds, as well as the key's D. Check option C on the paper (perhaps «прислушавшись»)."
+
+["dim-2026-04-12-variant-a:q32"]
+translated = true
+prompt = "В каком предложении употреблена формообразующая частица?"
+
+["dim-2026-04-12-variant-a:q33"]
+translated = true
+prompt = "В каком ряду все прилагательные обозначают относительный признак предмета?"
+status = "draft"
+missing = "As typed, every pair A-E is made of relative adjectives, so the key's D is not the only right answer. Check the options against the paper."
+
+["dim-2026-04-12-variant-a:q34"]
+translated = true
+prompt = "Какой частью речи является выделенное слово «третьем» в предложении «На третьем этаже светилось два окна»?"
+options = ["причастие", "числительное", "существительное", "наречие", "местоимение"]
+
+["dim-2026-04-12-variant-a:q35"]
+translated = true
+prompt = """Распределите местоимения по разрядам.
+1) отрицательные
+2) неопределённые
+a) ничто; b) ничей; c) некто; d) некого; e) несколько"""
+check = "The older sheet had «нечто» for d); this one has «некого». The answer E is only right with «некого», so that is what is used."
+
+["dim-2026-04-12-variant-a:q36"]
+translated = true
+prompt = "Укажите предложение с простым глагольным сказуемым."
+
+["dim-2026-04-12-variant-a:q37"]
+translated = true
+prompt = """Текст «Приезд бабушки». Выберите верное продолжение предложения «Бабушка …».
+1) молча наблюдала за детьми
+2) приехала в гости летом
+3) искала упавшую монету
+4) привезла внукам пирожки
+5) ударила Мишу по руке"""
+status = "draft"
+missing = "Needs the text «Приезд бабушки». The five statements were in English in the sheet; check the Russian against the paper."
+
+["dim-2026-04-12-variant-a:q38"]
+translated = true
+prompt = """Текст «Приезд бабушки». Восстановите последовательность пунктов плана.
+1) Неуместный вопрос
+2) Строгое замечание бабушки
+3) Дерзкий поступок сестры
+4) Приезд гостьи"""
+status = "draft"
+missing = "Needs the text «Приезд бабушки». The plan points were in English in the sheet; check the Russian against the paper."
+
+["dim-2026-04-12-variant-a:q39"]
+translated = true
+prompt = "Текст «Приезд бабушки». Определите тип речи во втором абзаце и его признак."
+options = [
+  "повествование; тезис и аргументы",
+  "повествование; развитие событий",
+  "описание; наличие вывода",
+  "рассуждение; указание признаков предмета",
+  "описание; перечисление признаков",
+]
+status = "draft"
+missing = "Needs the text «Приезд бабушки»."
+
+["dim-2026-04-12-variant-a:q40"]
+translated = true
+prompt = "Текст «Приезд бабушки». Какая пословица наиболее точно выражает основную мысль четвёртого абзаца?"
+status = "draft"
+missing = "Needs the text «Приезд бабушки»."
+
+["dim-2026-04-12-variant-a:q41"]
+translated = true
+prompt = """Текст «Приезд бабушки». В каком ряду словосочетания употреблены в прямом значении?
+1) поднести к бабушке
+2) забраться на дерево
+3) идти по саду
+4) старшая сестра
+5) лисий платок"""
+status = "draft"
+missing = "Needs the text «Приезд бабушки»: whether a phrase is literal depends on how the text uses it."
+
+["dim-2026-04-12-variant-a:q42"]
+translated = true
+prompt = """Текст «Приезд бабушки». Соотнесите действия с героями текста.
+1) Мина
+2) соседский мальчик
+a) разозлился на бабушку; b) поздоровался с бабушкой; c) любовался монетами; d) выстрелил из рогатки; e) держал монету в раскрытой ладони"""
+status = "draft"
+missing = "Needs the text «Приезд бабушки». Check the spelling of the name Мина."
+
+["dim-2026-04-12-variant-a:q43"]
+translated = true
+prompt = "Какое слово в тексте является синонимом слова «моментально»?"
+
+["dim-2026-04-12-variant-a:q44"]
+translated = true
+prompt = "Какое слово в тексте соответствует по значению фразеологизму «зарубить на носу»?"
+
+["dim-2026-04-12-variant-a:q45"]
+translated = true
+prompt = "Текст «Приезд бабушки». Используя слова из текста, заполните кластер, характеризующий Лёлю."
+status = "draft"
+missing = "Needs the text «Приезд бабушки». The marking guide is a draft: add the words from the text that count, and set how many marks it is worth."
+guide = """Задание по тексту «Приезд бабушки»: кластер, характеризующий Лёлю, заполняется словами из текста.
+Полный балл: в кластере не менее трёх верных характеристик Лёли (черты характера, поступки, отношение к другим героям), взятых из текста.
+Частичный балл: одна или две верные характеристики из текста.
+0 баллов: характеристики не из текста, не относятся к Лёле, или ответа нет.
+[Дополнить по тексту: какие слова из текста засчитываются.]"""
+
+["dim-2026-04-12-variant-a:q46"]
+translated = true
+prompt = "Текст «Приезд бабушки». Объясните значение выделенного в тексте слова и своими словами передайте смысл подчёркнутого выражения."
+status = "draft"
+missing = "Needs the text, and the highlighted word and underlined expression themselves. The marking guide is a draft: add their meanings, and set the marks."
+guide = """Полный балл: верно объяснено значение выделенного слова так, как оно употреблено в тексте, и своими словами верно передан смысл подчёркнутого выражения.
+Частичный балл: верно выполнена только одна из двух частей.
+0 баллов: обе части неверны, ответ списан из задания, или ответа нет.
+[Дополнить: само слово и выражение и их верные толкования.]"""
+
+["dim-2026-04-12-variant-a:q47"]
+translated = true
+prompt = "С какого предложения начинается основная часть текста?"
+options = ["№ 5", "№ 8", "№ 4", "№ 7", "№ 2"]
+status = "draft"
+missing = "Needs the Swarovski text with its numbered sentences."
+
+["dim-2026-04-12-variant-a:q48"]
+translated = true
+prompt = "Какое слово в тексте соответствует значению «обработка твёрдой поверхности трением, чтобы сделать её гладкой или придать ей определённую форму»?"
+options = ["иллюзия", "возможность", "аксессуар", "коллекция", "шлифовка"]
+check = "The definition and the options were in English in the sheet (\"grinding / polishing\"...) and were put back into Russian. Check they match the paper."
+
+["dim-2026-04-12-variant-a:q49"]
+translated = true
+prompt = """Выберите верные утверждения о Даниэле Сваровски по тексту.
+1) Он мечтал стать скрипачом.
+2) Он начал производить стразы в XVIII веке.
+3) Он учился в Париже.
+4) Он разработал технологию производства цветных металлов.
+5) Он не говорил покупателям, что камни были имитацией."""
+options = ["1, 3", "2, 3, 4", "3, 5", "2, 4, 5", "1, 2, 4"]
+status = "draft"
+missing = "Needs the Swarovski text. The statements were in English in the sheet; check the Russian against the paper."
+
+["dim-2026-04-12-variant-a:q50"]
+translated = true
+prompt = "Какое выражение употреблено в тексте в переносном значении?"
+options = ["хрустальная империя", "цветные кристаллы", "обрабатывать вручную", "небольшая мастерская", "искусственные бриллианты"]
+check = "The options were in English in the sheet (\"crystal empire\"...) and were put back into Russian. Check they match the paper."
+
+["dim-2026-04-12-variant-a:q51"]
+translated = true
+prompt = "Объясните значение подчёркнутого в тексте выражения."
+options = ["в выбранной области", "в интересной части", "на новом этапе", "в этой сфере деятельности", "на главном пути"]
+status = "draft"
+missing = "The underlined expression itself is not in the sheet (and the options were in English)."
+
+["dim-2026-04-12-variant-a:q52"]
+translated = true
+prompt = "Какое утверждение противоречит содержанию текста?"
+options = [
+  "На Всемирной выставке электричества Сваровски познакомился с машинами Эдисона.",
+  "Династия Сваровски принадлежит к одному из древних дворянских родов.",
+  "Первая фабрика Сваровски находилась в деревне Ваттенс.",
+  "Продукция компании привлекла внимание известных модельеров.",
+  "Кристаллами Сваровски стали украшать одежду и обувь.",
+]
+status = "draft"
+missing = "Needs the Swarovski text. The options were in English in the sheet."
+
+["dim-2026-04-12-variant-a:q53"]
+translated = true
+prompt = "Какой фразеологизм соответствует по значению слову «обмануть» в тексте?"
+check = "The sheet gives the word only in English (\"deceive\"). Check the exact Russian word on the paper."
+
+["dim-2026-04-12-variant-a:q54"]
+translated = true
+prompt = "Каким предложением лучше всего завершить текст?"
+options = [
+  "Производство страз оставалось тайной.",
+  "Сегодня Сваровски — синоним роскоши и стильного дизайна.",
+  "Инструменты, которые используются в Ваттенсе, компания изготавливает сама.",
+  "Даниэль Сваровски вёл своё дело с размахом.",
+  "В юности Сваровски занимался производством металлических украшений.",
+]
+status = "draft"
+missing = "Needs the Swarovski text. The options were in English in the sheet."
+
+["dim-2026-04-12-variant-a:q55"]
+translated = true
+prompt = "Используя слова и словосочетания из текста, заполните диаграмму Венна: сравните деятельность Жоржа Фредерика Страса и Даниэля Сваровски."
+status = "draft"
+missing = "Needs the Swarovski text. The marking guide is a draft: add the expected answers, and set the marks."
+guide = """Задание по тексту о Страсе и Сваровски: диаграмма Венна заполняется словами и словосочетаниями из текста.
+Полный балл: верные сведения из текста во всех трёх частях — только о Страсе, только о Сваровски и общее для обоих (например, оба создавали искусственные камни, похожие на драгоценные).
+Частичный балл: верно заполнены одна или две части.
+0 баллов: сведения не из текста, перепутаны между героями, или ответа нет.
+[Дополнить по тексту: ожидаемые ответы для каждой части.]"""
+
+["dim-2026-04-12-variant-a:q56"]
+translated = true
+prompt = "Прочитайте выражение, данное в задании. Объясните его значение своими словами и приведите пример из текста, который его подтверждает."
+status = "draft"
+missing = "The expression itself is not in the sheet, and the example needs the Swarovski text. The marking guide is a draft; set the marks."
+guide = """Полный балл: значение выражения верно объяснено своими словами и приведён подходящий пример из текста.
+Частичный балл: верно только объяснение или только пример.
+0 баллов: объяснение неверно и примера нет, или ответа нет.
+[Дополнить: само выражение и пример из текста.]"""
+
 # ---- Maths ----------------------------------------------------------------
 
 ["dim-2026-04-12-variant-a:q74"]
@@ -87,6 +327,244 @@ missing = "Needs the Bigfoot reading passage, which is not in the sheet."
 
 ["dim-2026-04-26-variant-d:q12"]
 missing = "Also needs the Bigfoot reading passage."
+
+# ---- Russian Language -----------------------------------------------------
+# The passage titles «Блоха и овчина» and «Суть разных профессий» are
+# translated back from the sheet's English titles; the paper's own wording
+# may differ. Questions answerable from the options alone drop the
+# "Passage ..." label the sheet added, since students do not see the text.
+
+["dim-2026-04-26-variant-d:q27"]
+translated = true
+prompt = "Укажите глаголы в повелительном наклонении."
+
+["dim-2026-04-26-variant-d:q28"]
+translated = true
+prompt = "В каком слове буква ё обозначает два звука?"
+
+["dim-2026-04-26-variant-d:q29"]
+translated = true
+prompt = "В каком ряду даны модальные частицы?"
+
+["dim-2026-04-26-variant-d:q30"]
+translated = true
+prompt = "Прилагательные «глиняный» и «оловянный» являются относительными, так как обозначают:"
+options = ["признак по материалу", "пространственный признак", "признак по действию", "временной признак", "назначение предмета"]
+check = "The options were in English in the sheet and were put back into Russian."
+
+["dim-2026-04-26-variant-d:q31"]
+translated = true
+prompt = """Укажите словосочетания со связью примыкание.
+1) беседа наедине
+2) осеннее солнышко
+3) налил кофе
+4) вырастил сад
+5) его друзья"""
+
+["dim-2026-04-26-variant-d:q32"]
+translated = true
+prompt = "Порядковые числительные изменяются:"
+options = ["по родам и лицам", "только по родам", "только по падежам", "по родам, числам и падежам", "только по числам"]
+
+["dim-2026-04-26-variant-d:q33"]
+translated = true
+prompt = """Какие предложения являются сложносочинёнными? Знаки препинания не расставлены.
+1) Кони остановились и телега рухнула в воду.
+2) Анна не только моя соседка но и близкая подруга.
+3) Дверь в переднюю отворилась и мы увидели гостя.
+4) Она села на скамью и о чём-то задумалась.
+5) Убеждать людей великое искусство."""
+
+["dim-2026-04-26-variant-d:q34"]
+translated = true
+prompt = "Укажите существительные среднего рода."
+
+["dim-2026-04-26-variant-d:q35"]
+translated = true
+prompt = "Укажите ошибку."
+
+["dim-2026-04-26-variant-d:q36"]
+translated = true
+prompt = "Какое наречие без не не употребляется?"
+
+["dim-2026-04-26-variant-d:q37"]
+translated = true
+prompt = """Текст «Блоха и овчина». Восстановите правильный порядок пунктов плана.
+1) Несбывшиеся ожидания.
+2) Давняя мечта.
+3) Интересная находка.
+4) Печальная участь."""
+status = "draft"
+missing = "Needs the text «Блоха и овчина» (title translated back from English; use the paper's own). The plan points were in English in the sheet."
+
+["dim-2026-04-26-variant-d:q38"]
+translated = true
+prompt = """В каком ряду слова употреблены в прямом значении?
+1) сладкий сон
+2) чистая шерсть
+3) обратный путь
+4) упустить случай
+5) целый день"""
+
+["dim-2026-04-26-variant-d:q39"]
+translated = true
+prompt = "Текст «Блоха и овчина». Какая пословица выражает основную мысль текста?"
+status = "draft"
+missing = "Needs the text «Блоха и овчина» (title translated back from English)."
+
+["dim-2026-04-26-variant-d:q40"]
+translated = true
+prompt = "Какое слово в тексте соответствует фразеологизму «как сквозь землю провалиться»?"
+
+["dim-2026-04-26-variant-d:q41"]
+translated = true
+prompt = "Текст «Блоха и овчина». Укажите тип речи во втором абзаце и его признак."
+options = [
+  "описание; наличие вывода",
+  "повествование; указание признаков предмета",
+  "рассуждение; наличие аргументов",
+  "повествование; перечисление признаков",
+  "рассуждение; развитие событий",
+]
+status = "draft"
+missing = "Needs the text «Блоха и овчина» (title translated back from English)."
+
+["dim-2026-04-26-variant-d:q42"]
+translated = true
+prompt = "Какое слово в тексте является синонимом слова «великолепный»?"
+
+["dim-2026-04-26-variant-d:q43"]
+translated = true
+prompt = """Текст «Блоха и овчина». Выберите верное продолжение.
+Блоха решила переселиться в овчину, чтобы …
+1) перестать прятаться от собаки
+2) вернуться к прежней жизни
+3) осуществить свою мечту
+4) позволить собаке легко её найти
+5) перестать бояться собачьих зубов"""
+status = "draft"
+missing = "Needs the text «Блоха и овчина». The five endings were in English in the sheet."
+
+["dim-2026-04-26-variant-d:q44"]
+translated = true
+prompt = """Текст «Блоха и овчина». Соотнесите характеристики с героями.
+1) блоха
+2) собака
+a) глупая; b) грязная; c) проворная; d) добродушная; e) разочарованная"""
+status = "draft"
+missing = "Needs the text «Блоха и овчина». The five characteristics were in English in the sheet."
+
+["dim-2026-04-26-variant-d:q45"]
+translated = true
+prompt = "Текст «Блоха и овчина». Используя слова из текста, заполните кластер: укажите отрицательные качества овчины."
+status = "draft"
+missing = "Needs the text «Блоха и овчина». The marking guide is a draft: add the words from the text that count, and set the marks."
+guide = """Задание по тексту «Блоха и овчина»: кластер заполняется словами из текста, называющими отрицательные качества овчины.
+Полный балл: не менее трёх верных отрицательных качеств овчины, взятых из текста.
+Частичный балл: одно или два верных качества.
+0 баллов: качества не из текста, положительные или относятся не к овчине, или ответа нет.
+[Дополнить по тексту: какие слова засчитываются.]"""
+
+["dim-2026-04-26-variant-d:q46"]
+translated = true
+prompt = "Текст «Блоха и овчина». Объясните значение слова «лакомый» в тексте и своими словами передайте смысл подчёркнутого выражения."
+status = "draft"
+missing = "Needs the text, and the underlined expression itself. The marking guide is a draft; set the marks."
+guide = """Полный балл: верно объяснено значение слова «лакомый» в тексте (вкусный, очень привлекательный, желанный) и своими словами верно передан смысл подчёркнутого выражения.
+Частичный балл: верно выполнена только одна из двух частей.
+0 баллов: обе части неверны или ответа нет.
+[Дополнить: подчёркнутое выражение и его толкование.]"""
+
+["dim-2026-04-26-variant-d:q47"]
+translated = true
+prompt = "Какое выражение употреблено в тексте в переносном значении?"
+
+["dim-2026-04-26-variant-d:q48"]
+translated = true
+prompt = "Текст «Суть разных профессий». Какое утверждение противоречит содержанию текста?"
+options = [
+  "Железная дорога с мчащимися поездами — явный признак работы машиниста.",
+  "Раньше профессии в книгах обозначались только особыми знаками.",
+  "Изобразить внешние признаки профессии довольно сложно.",
+  "Сталеваров обычно изображали сильными и улыбающимися.",
+  "Врач должен уметь рассказать пациенту о его болезни.",
+]
+status = "draft"
+missing = "Needs the text «Суть разных профессий» (title translated back from English; use the paper's own). The options were in English in the sheet."
+
+["dim-2026-04-26-variant-d:q49"]
+translated = true
+prompt = "Текст «Суть разных профессий». С какого предложения начинается основная часть текста?"
+options = ["№ 3", "№ 2", "№ 8", "№ 7", "№ 4"]
+status = "draft"
+missing = "Needs the text «Суть разных профессий» with its numbered sentences."
+
+["dim-2026-04-26-variant-d:q50"]
+translated = true
+prompt = "Объясните значение подчёркнутого в тексте выражения «терпеливое выхаживание»."
+options = [
+  "умение отдыхать от работы",
+  "внимательный и заботливый уход",
+  "способность сохранять спокойствие",
+  "успешное проведение операций",
+  "стремление к независимости",
+]
+check = "The options were in English in the sheet and were put back into Russian. Check they match the paper."
+
+["dim-2026-04-26-variant-d:q51"]
+translated = true
+prompt = "Текст «Суть разных профессий». Каким предложением лучше всего завершить текст?"
+options = [
+  "На самом деле библиотеки обычно занимаются каталогизацией книг.",
+  "И всё же суть любой профессии — в упорном труде, преданности ей и увлечённости ею.",
+  "От этого не защищают ни специальная мазь, ни повязки.",
+  "Некоторые профессии изображают так и сегодня.",
+  "Соблюдение строгих правил безопасности — важная часть работы учёного.",
+]
+status = "draft"
+missing = "Needs the text «Суть разных профессий». The options were in English in the sheet."
+
+["dim-2026-04-26-variant-d:q52"]
+translated = true
+prompt = "Какое слово в тексте соответствует значению «чувство признательности к кому-либо за оказанное добро»?"
+check = "The definition was in English in the sheet; check the Russian wording against the paper."
+
+["dim-2026-04-26-variant-d:q53"]
+translated = true
+prompt = "Какой фразеологизм в тексте соответствует по значению слову «много»?"
+
+["dim-2026-04-26-variant-d:q54"]
+translated = true
+prompt = """Текст «Суть разных профессий». Выберите верное продолжение.
+Трудности профессии врача заключаются в …
+1) бесконечных планах и отчётах
+2) большой физической и эмоциональной нагрузке
+3) любовании красивыми пейзажами
+4) работе по ночам
+5) длительной обработке сырья"""
+status = "draft"
+missing = "Needs the text «Суть разных профессий». The five endings were in English in the sheet."
+
+["dim-2026-04-26-variant-d:q55"]
+translated = true
+prompt = "Текст «Суть разных профессий». Используя слова и словосочетания из текста, заполните диаграмму Венна: сравните суть профессий геолога и учителя."
+status = "draft"
+missing = "Needs the text «Суть разных профессий». The marking guide is a draft: add the expected answers, and set the marks."
+guide = """Задание по тексту «Суть разных профессий»: диаграмма Венна заполняется словами и словосочетаниями из текста.
+Полный балл: верные сведения из текста во всех трёх частях — только о профессии геолога, только о профессии учителя и общее для обеих (например, упорный труд, преданность делу, увлечённость им).
+Частичный балл: верно заполнены одна или две части.
+0 баллов: сведения не из текста, перепутаны, или ответа нет.
+[Дополнить по тексту: ожидаемые ответы для каждой части.]"""
+
+["dim-2026-04-26-variant-d:q56"]
+translated = true
+prompt = "Текст «Суть разных профессий». Прочитайте выражение «Терпение и труд дивные всходы дают». Объясните его значение своими словами и приведите соответствующий пример из текста."
+status = "draft"
+missing = "The example has to come from the text «Суть разных профессий», which is not in the sheet. The marking guide is a draft; set the marks."
+guide = """Полный балл: своими словами верно объяснено значение выражения «Терпение и труд дивные всходы дают» (терпеливый, упорный труд обязательно приносит хорошие плоды) и приведён подходящий пример из текста.
+Частичный балл: верно только объяснение или только пример.
+0 баллов: объяснение неверно и примера нет, или ответа нет.
+[Дополнить: какие примеры из текста засчитываются.]"""
 
 # ---- Maths: Russian wording (machine translation) -------------------------
 
