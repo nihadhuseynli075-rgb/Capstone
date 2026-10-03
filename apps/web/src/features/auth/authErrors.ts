@@ -74,26 +74,68 @@ export function authErrorMessage(raw: string): string {
 }
 
 /**
+ * A failed account action, for a page that shows errors in the student's own
+ * language.
+ *
+ * `message` is the English sentence above, so anywhere that just prints it
+ * still reads sensibly. `code` is Supabase's own name for what went wrong
+ * ("email_exists", "same_password"), which does not change between releases
+ * the way its sentences do, and is what a translated page picks its text by.
+ * `status` is 0 when the server could not be reached at all.
+ */
+export class AuthActionError extends Error {
+  readonly code: string | null;
+  readonly status: number | null;
+
+  constructor(message: string, code: string | null = null, status: number | null = null) {
+    super(message);
+    this.name = "AuthActionError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
+export function authActionError(error: { message: string; code?: string; status?: number }): AuthActionError {
+  return new AuthActionError(authErrorMessage(error.message), error.code ?? null, error.status ?? null);
+}
+
+/**
  * Why a trip to Google, or a link from an email, came back without signing in.
  *
  * Supabase sends the reason back as a code and a sentence. The code is the
  * steadier thing to go on, since the sentences are reworded between releases.
  */
 export function redirectErrorMessage(error: AuthError | null, intent: "sign-in" | "link" | "email-link"): string {
-  const details = error && isAuthImplicitGrantRedirectError(error) ? error.details : null;
+  const code = redirectErrorCode(error);
 
-  if (details?.code === "otp_expired") {
+  if (code === "otp_expired") {
     return "That link has expired or has already been used. Sign in, or sign up again to be sent a new one.";
   }
 
-  if (details?.code === "identity_already_exists") return authErrorMessage("identity_already_exists");
+  if (code === "identity_already_exists") return authErrorMessage("identity_already_exists");
 
   // Pressing Cancel on Google's screen.
-  if (details?.error === "access_denied") {
+  if (code === "access_denied") {
     return intent === "link"
       ? "Connecting Google was cancelled, so nothing has changed."
       : "Signing in with Google was cancelled. Try again, or use your email and password.";
   }
 
   return error ? authErrorMessage(error.message) : "Signing in did not finish. Try again.";
+}
+
+/**
+ * Which of the failures above a redirect came back with, or null for any other.
+ *
+ * Kept beside the sentence so the profile page, which shows these in the
+ * student's own language, picks its text by the same thing the English
+ * one is picked by.
+ */
+export function redirectErrorCode(error: AuthError | null): "otp_expired" | "identity_already_exists" | "access_denied" | null {
+  const details = error && isAuthImplicitGrantRedirectError(error) ? error.details : null;
+
+  if (details?.code === "otp_expired") return "otp_expired";
+  if (details?.code === "identity_already_exists") return "identity_already_exists";
+  if (details?.error === "access_denied") return "access_denied";
+  return null;
 }

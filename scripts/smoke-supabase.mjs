@@ -7,7 +7,8 @@
  * pointed at it, runs the ordinary smoke test through it, then checks what only
  * exists in Supabase mode: account keys backed by tokens, who may move whose
  * history, two submissions of one paper at once, recovering from writes that
- * fail halfway, and the profile page's reads, renames, photos and deletion.
+ * fail halfway, and the profile page's reads, renames, usernames, email and
+ * password changes, photos and deletion.
  *
  * The stand-in imitates PostgREST and GoTrue closely enough to catch the API
  * sending the wrong request or mishandling an error. It is not a real project:
@@ -892,6 +893,219 @@ async function main() {
       JSON.stringify(afterGoogle.body)
     );
 
+    section("Usernames");
+    const patchProfile = (token, body) => call("/api/profile", { method: "PATCH", token, body });
+    const usernameAvailable = (token, name) =>
+      call(`/api/profile/username-available?username=${encodeURIComponent(name)}`, { token });
+    const usernameOf = async (token) => (await call("/api/profile", { token })).body.profile?.username;
+    const signUpAs = async (email, fullName) => (await control("users", { email, fullName })).body;
+
+    check(
+      "an account gets a username at sign-up, from its name",
+      carolProfile.body.profile?.username === "carol" && ginaProfile.body.profile?.username === "gina_google",
+      JSON.stringify([carolProfile.body.profile?.username, ginaProfile.body.profile?.username])
+    );
+    check(
+      "and so does a profile the API had to make itself",
+      malloryProfile.body.profile?.username === "mallory",
+      JSON.stringify(malloryProfile.body.profile)
+    );
+
+    const nihad = await signUpAs("nihad@standin.test", "Nihad");
+    const nihadToken = nihad.session.access_token;
+    const secondNihad = await signUpAs("nihad.two@standin.test", "Nihad");
+    check(
+      "the next student with the same name gets a number",
+      (await usernameOf(nihadToken)) === "nihad" && (await usernameOf(secondNihad.session.access_token)) === "nihad2"
+    );
+    check(
+      "a name with no Latin letters in it falls back to the start of the email",
+      (await usernameOf((await signUpAs("ivan.petrov@standin.test", "Иван Петров")).session.access_token)) === "ivan.petrov"
+    );
+    check(
+      "and a reserved name is never handed out",
+      (await usernameOf((await signUpAs("admin@standin.test", "Admin")).session.access_token)) === "admin2"
+    );
+
+    const refusals = [
+      ["", "empty"],
+      ["ab", "too-short"],
+      ["x".repeat(21), "too-long"],
+      ["has space", "bad-characters"],
+      ["Нихад", "bad-characters"],
+      ["1abc", "bad-start"],
+      ["_abc", "bad-start"]
+    ];
+    for (const [name, problem] of refusals) {
+      const refused = await patchProfile(carolToken, { username: name });
+      check(
+        `${JSON.stringify(name.length > 12 ? `${name.slice(0, 12)}...` : name)} is refused as ${problem}`,
+        refused.status === 400 && refused.body.code === "username-invalid" && refused.body.problem === problem,
+        `${refused.status} ${JSON.stringify(refused.body)}`
+      );
+    }
+    for (const name of ["admin", "Admin", "@ExamPeak", "ad.min", "exam_peak", "SUPPORT"]) {
+      const refused = await patchProfile(carolToken, { username: name });
+      check(
+        `${JSON.stringify(name)} is reserved`,
+        refused.status === 400 && refused.body.code === "username-reserved",
+        `${refused.status} ${JSON.stringify(refused.body)}`
+      );
+    }
+    const notText = await patchProfile(carolToken, { username: 5 });
+    check("a username that is not text is refused", notText.status === 400, `got ${notText.status}`);
+    const nothing = await patchProfile(carolToken, {});
+    check("and so is a request that changes nothing", nothing.status === 400, `got ${nothing.status}`);
+
+    // Names are stored lowercase, so "Nihad" and "nihad" are one name.
+    for (const name of ["nihad", "Nihad", "  @NIHAD ", "nihad2"]) {
+      const taken = await patchProfile(carolToken, { username: name });
+      check(
+        `${JSON.stringify(name)} is taken, whatever its case`,
+        taken.status === 409 && taken.body.code === "username-taken" && taken.body.message === "That username is taken.",
+        `${taken.status} ${JSON.stringify(taken.body)}`
+      );
+    }
+    const notHalfSaved = await patchProfile(carolToken, { fullName: "Should Not Stick", username: "Nihad" });
+    check(
+      "a refused username leaves the name it came with unsaved",
+      notHalfSaved.status === 409 && (await call("/api/profile", { token: carolToken })).body.profile?.fullName === "Carol Smith",
+      JSON.stringify(notHalfSaved.body)
+    );
+
+    const changedUsername = await patchProfile(carolToken, { username: "  @Carol_S " });
+    check(
+      "a free username is saved lowercase, without the @",
+      changedUsername.status === 200 && changedUsername.body.profile?.username === "carol_s",
+      JSON.stringify(changedUsername.body)
+    );
+    check("and is what the profile says from then on", (await usernameOf(carolToken)) === "carol_s");
+    const [usernameRow] = await rows("profiles", `?id=eq.${carolId}`);
+    check("in the profile row", usernameRow?.username === "carol_s", JSON.stringify(usernameRow));
+    check(
+      "keeping the name it has is no change, and no refusal",
+      (await patchProfile(carolToken, { username: "Carol_S" })).status === 200
+    );
+
+    const savedTogether = await patchProfile(carolToken, { fullName: "Carol Smith II", username: "carol.s2" });
+    check(
+      "a name and a username can be saved together",
+      savedTogether.status === 200 &&
+        savedTogether.body.profile?.fullName === "Carol Smith II" &&
+        savedTogether.body.profile?.username === "carol.s2",
+      JSON.stringify(savedTogether.body)
+    );
+    const justTheName = await patchProfile(carolToken, { fullName: "Carol Smith" });
+    check(
+      "and the name alone leaves the username",
+      justTheName.status === 200 && justTheName.body.profile?.username === "carol.s2",
+      JSON.stringify(justTheName.body)
+    );
+
+    check(
+      "the answer to \"is it free?\" needs a sign-in",
+      (await call("/api/profile/username-available?username=anything")).status === 401
+    );
+    const askTaken = await usernameAvailable(carolToken, "Nihad");
+    check(
+      "a taken name is reported, in its stored form",
+      askTaken.status === 200 && askTaken.body.available === false && askTaken.body.reason === "taken" && askTaken.body.username === "nihad",
+      JSON.stringify(askTaken.body)
+    );
+    const askFree = await usernameAvailable(carolToken, "totally.free");
+    check(
+      "a free one is reported free",
+      askFree.body.available === true && askFree.body.reason === null,
+      JSON.stringify(askFree.body)
+    );
+    const askOwn = await usernameAvailable(carolToken, "@Carol.S2");
+    check(
+      "the asker's own is theirs",
+      askOwn.body.available === true && askOwn.body.reason === "yours",
+      JSON.stringify(askOwn.body)
+    );
+    check(
+      "the name a student gave up is free again",
+      (await usernameAvailable(nihadToken, "carol")).body.available === true
+    );
+    const askShort = await usernameAvailable(carolToken, "ab");
+    check(
+      "a name that breaks a rule says which",
+      askShort.status === 200 && askShort.body.reason === "invalid" && askShort.body.problem === "too-short",
+      JSON.stringify(askShort.body)
+    );
+    check("a reserved one says so", (await usernameAvailable(carolToken, "Admin")).body.reason === "reserved");
+    check("asking about nothing is a bad request", (await call("/api/profile/username-available", { token: carolToken })).status === 400);
+
+    // Two students save the same free name at the same moment. Looking first
+    // and saving after would let both through; the unique index lets one.
+    const racerA = await signUpAs("racer.a@standin.test", "Racer A");
+    const racerB = await signUpAs("racer.b@standin.test", "Racer B");
+    await control("latency", { ms: 40 });
+    const [racerOne, racerTwo] = await Promise.all([
+      patchProfile(racerA.session.access_token, { username: "racer.name" }),
+      patchProfile(racerB.session.access_token, { username: "Racer.Name" })
+    ]);
+    await control("latency", { ms: 0 });
+    check(
+      "two students saving one name at once: one gets it and one is told it is taken",
+      [racerOne.status, racerTwo.status].sort().join() === "200,409",
+      JSON.stringify([racerOne.status, racerTwo.body, racerTwo.status])
+    );
+    check("and only one profile has it", (await rows("profiles", "?username=eq.racer.name")).length === 1);
+
+    // What the stand-in does in place of the database, checked directly so a
+    // passing run is not just the API agreeing with itself.
+    const duplicate = await request(standin.url, `/__standin/rows/profiles/${carolId}`, {
+      method: "PATCH",
+      body: { username: "nihad" }
+    });
+    check(
+      "the database's unique index refuses a duplicate",
+      duplicate.status === 409 && JSON.stringify(duplicate.body).includes("profiles_username_key"),
+      `${duplicate.status} ${JSON.stringify(duplicate.body)}`
+    );
+    const uppercase = await request(standin.url, `/__standin/rows/profiles/${carolId}`, {
+      method: "PATCH",
+      body: { username: "Carol" }
+    });
+    check(
+      "and its check refuses a name that is not lowercase",
+      uppercase.status >= 400 && JSON.stringify(uppercase.body).includes("profiles_username_format"),
+      `${uppercase.status} ${JSON.stringify(uppercase.body)}`
+    );
+
+    // findProfileByUsername is what the friends feature looks students up by.
+    // There is no route for it here, so run the real function against the stand-in.
+    const lookUp = (name) =>
+      new Promise((resolve, reject) => {
+        const script = `
+          import { findProfileByUsername } from "./apps/api/src/repositories/profileRepository.ts";
+          console.log(JSON.stringify(await findProfileByUsername(process.argv[1])));
+        `;
+        const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script, name], {
+          cwd: root,
+          env: { ...process.env, SUPABASE_URL: standin.url, SUPABASE_SERVICE_ROLE_KEY: "standin-service-role-key" },
+          stdio: ["ignore", "pipe", "pipe"]
+        });
+        let out = "";
+        let err = "";
+        child.stdout.on("data", (chunk) => (out += chunk));
+        child.stderr.on("data", (chunk) => (err += chunk));
+        child.on("exit", (code) =>
+          code === 0 ? resolve(JSON.parse(out.trim().split("\n").at(-1))) : reject(new Error(err.slice(0, 400)))
+        );
+      });
+
+    const found = await lookUp("  @NIHAD ");
+    check(
+      "findProfileByUsername finds a student by a name in any case, with or without the @",
+      found?.id === nihad.user.id && found?.username === "nihad" && found?.fullName === "Nihad",
+      JSON.stringify(found)
+    );
+    check("and finds nobody for a name nobody has", (await lookUp("nobody.has.this")) === null);
+    check("or for something that could not be a username", (await lookUp("has space")) === null);
+
     section("Profile photos");
     const PNG = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
@@ -904,9 +1118,13 @@ async function main() {
     const photoFiles = async (accountId) => (await control(`objects?prefix=avatars/${accountId}/`)).body.objects ?? [];
 
     const svg = await uploadPhoto(carolToken, Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>'));
-    check("a file that is not a photo is refused", svg.status === 400, `${svg.status} ${JSON.stringify(svg.body)}`);
+    check(
+      "a file that is not a photo is refused",
+      svg.status === 400 && svg.body.code === "photo-type",
+      `${svg.status} ${JSON.stringify(svg.body)}`
+    );
     const huge = await uploadPhoto(carolToken, Buffer.concat([JPEG, Buffer.alloc(2 * 1024 * 1024)]));
-    check("a photo over 2 MB is refused", huge.status === 413, `got ${huge.status}`);
+    check("a photo over 2 MB is refused", huge.status === 413 && huge.body.code === "photo-too-large", `got ${huge.status}`);
     check("and neither leaves a file behind", (await photoFiles(carolId)).length === 0, JSON.stringify(await photoFiles(carolId)));
 
     const firstPhoto = await uploadPhoto(carolToken, PNG);
@@ -998,6 +1216,166 @@ async function main() {
       `${retriedRemoval.status}, ${stuckPath} still in ${JSON.stringify(await photoFiles(carolId))}`
     );
 
+    // The browser changes the email and the password with Supabase directly,
+    // so none of this goes through the API. It is checked here against the
+    // stand-in's imitation of the auth server because of what the API does
+    // afterwards: the profile follows the account's email, and deleting an
+    // account reads the email it confirms against from the auth server.
+    section("Changing the email");
+    const dana = (await control("users", { email: "dana@standin.test", fullName: "Dana" })).body;
+    const danaId = dana.user.id;
+    const danaToken = dana.session.access_token;
+    const authUser = (token, body) => request(standin.url, "/auth/v1/user", { method: "PUT", token, body });
+    const signInWith = (email, password) =>
+      request(standin.url, "/auth/v1/token?grant_type=password", { method: "POST", body: { email, password } });
+
+    const notAnEmail = await authUser(danaToken, { email: "not-an-email" });
+    check(
+      "something that is not an email address is refused",
+      notAnEmail.status === 400 && notAnEmail.body.error_code === "email_address_invalid",
+      `${notAnEmail.status} ${JSON.stringify(notAnEmail.body)}`
+    );
+    const usedEmail = await authUser(danaToken, { email: "alice@standin.test" });
+    check(
+      "so is an address another account already uses",
+      usedEmail.status === 422 && usedEmail.body.error_code === "email_exists",
+      `${usedEmail.status} ${JSON.stringify(usedEmail.body)}`
+    );
+    const sameEmail = await authUser(danaToken, { email: "Dana@standin.test" });
+    check(
+      "the address the account has already is not a change",
+      sameEmail.status === 200 && sameEmail.body.new_email === undefined,
+      JSON.stringify(sameEmail.body)
+    );
+
+    const asked = await authUser(danaToken, { email: "dana.new@standin.test" });
+    check(
+      "a new address is held back until its link is opened",
+      asked.status === 200 && asked.body.email === "dana@standin.test" && asked.body.new_email === "dana.new@standin.test",
+      JSON.stringify(asked.body)
+    );
+    const sentMail = (await control("emails")).body.emails ?? [];
+    check(
+      "and the link is sent to the new address",
+      sentMail.some((mail) => mail.to === "dana.new@standin.test" && mail.userId === danaId),
+      JSON.stringify(sentMail)
+    );
+    check(
+      "the profile keeps the old address meanwhile",
+      (await call("/api/profile", { token: danaToken })).body.profile?.email === "dana@standin.test"
+    );
+    check("and the old address still signs in", (await signInWith("dana@standin.test", "password1")).status === 200);
+
+    await control("confirm-email-change", { userId: danaId });
+    check(
+      "opening the link moves the profile to the new address",
+      (await call("/api/profile", { token: danaToken })).body.profile?.email === "dana.new@standin.test"
+    );
+    check(
+      "and the username does not follow the email",
+      (await call("/api/profile", { token: danaToken })).body.profile?.username === "dana"
+    );
+    check("which now signs in", (await signInWith("dana.new@standin.test", "password1")).status === 200);
+    check("and the old one does not", (await signInWith("dana@standin.test", "password1")).status === 400);
+
+    // The token Dana still holds was issued before the change, so it still
+    // names the old address. Confirming deletion against that would turn her
+    // away for typing her own address.
+    const oldAddress = await call("/api/profile", {
+      method: "DELETE",
+      token: danaToken,
+      body: { confirmEmail: "dana@standin.test" }
+    });
+    check(
+      "deleting does not accept the address the account used to have",
+      oldAddress.status === 400 && oldAddress.body.code === "confirmation-mismatch",
+      `${oldAddress.status} ${JSON.stringify(oldAddress.body)}`
+    );
+    check(
+      "her username is taken while she has the account",
+      (await usernameAvailable(nihadToken, "dana")).body.reason === "taken"
+    );
+    const newAddress = await call("/api/profile", {
+      method: "DELETE",
+      token: danaToken,
+      body: { confirmEmail: "Dana.New@standin.test" }
+    });
+    check(
+      "but takes the new one even though the token still carries the old",
+      newAddress.status === 200 && newAddress.body.deleted === true,
+      `${newAddress.status} ${JSON.stringify(newAddress.body)}`
+    );
+    check(
+      "deleting the account makes its username free again",
+      (await usernameAvailable(nihadToken, "dana")).body.available === true &&
+        (await rows("profiles", "?username=eq.dana")).length === 0,
+      JSON.stringify((await usernameAvailable(nihadToken, "dana")).body)
+    );
+    check("so nobody is found by it", (await lookUp("dana")) === null);
+    const danaAgain = await patchProfile(secondNihad.session.access_token, { username: "dana" });
+    check(
+      "and another student can take it",
+      danaAgain.status === 200 && danaAgain.body.profile?.username === "dana",
+      JSON.stringify(danaAgain.body)
+    );
+
+    // Confirmation switched off in the project: the change applies at once.
+    await control("mail", { confirmEmailChange: false });
+    const quick = (await control("users", { email: "quentin@standin.test", fullName: "Quentin" })).body;
+    const applied = await authUser(quick.session.access_token, { email: "quentin.new@standin.test" });
+    check(
+      "a project that does not ask for confirmation applies the change at once",
+      applied.status === 200 && applied.body.email === "quentin.new@standin.test" && applied.body.new_email === undefined,
+      JSON.stringify(applied.body)
+    );
+    await control("mail", { confirmEmailChange: true });
+
+    section("Changing the password");
+    const erin = (await control("users", { email: "erin@standin.test", fullName: "Erin", password: "oldpass123" })).body;
+    const erinToken = erin.session.access_token;
+
+    const samePassword = await authUser(erinToken, { password: "oldpass123" });
+    check(
+      "the password it already has is refused",
+      samePassword.status === 422 && samePassword.body.error_code === "same_password",
+      `${samePassword.status} ${JSON.stringify(samePassword.body)}`
+    );
+    const weakPassword = await authUser(erinToken, { password: "abc12" });
+    check(
+      "so is one the project finds too short",
+      weakPassword.status === 422 && weakPassword.body.error_code === "weak_password",
+      `${weakPassword.status} ${JSON.stringify(weakPassword.body)}`
+    );
+    check("a refused password changes nothing", (await signInWith("erin@standin.test", "oldpass123")).status === 200);
+
+    const changed = await authUser(erinToken, { password: "newpass456" });
+    check("a new password is accepted", changed.status === 200, JSON.stringify(changed.body));
+    check("and signs in", (await signInWith("erin@standin.test", "newpass456")).status === 200);
+    check("where the old one no longer does", (await signInWith("erin@standin.test", "oldpass123")).status === 400);
+
+    // An account made with Google has no password to change, only one to set.
+    const gwen = (
+      await control("users", {
+        email: "gwen@standin.test",
+        provider: "google",
+        metadata: { full_name: "Gwen Google", name: "Gwen Google" }
+      })
+    ).body;
+    check("a Google account starts with no password", (await signInWith("gwen@standin.test", "gwenpass789")).status === 400);
+    check(
+      "and only Google as a way in",
+      gwen.user.identities.map((identity) => identity.provider).join() === "google",
+      JSON.stringify(gwen.user.identities)
+    );
+    const gwenSet = await authUser(gwen.session.access_token, { password: "gwenpass789" });
+    check("it can set one", gwenSet.status === 200, JSON.stringify(gwenSet.body));
+    check("and then signs in with its email address", (await signInWith("gwen@standin.test", "gwenpass789")).status === 200);
+    check(
+      "which the account now lists as a way in, next to Google",
+      gwenSet.body.identities?.map((identity) => identity.provider).sort().join() === "email,google",
+      JSON.stringify(gwenSet.body.identities)
+    );
+
     section("Deleting an account");
     const carolTest = (await generate(carolId, carolToken)).body.test;
     await submit(carolTest, carolId, rightAnswers(carolTest), carolToken);
@@ -1066,6 +1444,11 @@ async function main() {
     check("its token stops working", afterDelete.status === 401, `got ${afterDelete.status}`);
     check("the account is gone", (await control(`users/${carolId}`)).status === 404);
     check("so is its profile", (await rows("profiles", `?id=eq.${carolId}`)).length === 0);
+    check(
+      "and its username, which anyone can take now",
+      (await usernameAvailable(nihadToken, "carol.s2")).body.available === true &&
+        (await patchProfile(nihadToken, { username: "carol.s2" })).status === 200
+    );
     const leftByKey = await rows("test_attempts", `?student_key=eq.${carolId}`);
     const leftById = await rows("test_attempts", `?student_id=eq.${carolId}`);
     check(
@@ -1085,368 +1468,378 @@ async function main() {
       `${ginaAfter.status}, ${aliceRowsAfter.length} of Alice's attempts`
     );
 
-    // -----------------------------------------------------------------------
-    // Friends. Each part below uses accounts of its own, so a failure in one
-    // cannot leave another looking right by accident.
-    // -----------------------------------------------------------------------
-    const friendsOf = (token) => call("/api/friends", { token });
-    const ask = (token, who) => call("/api/friends/requests", { method: "POST", token, body: { emailOrUsername: who } });
-    const answer = (token, requestId, verb) => call(`/api/friends/requests/${requestId}/${verb}`, { method: "POST", token });
-    const withdraw = (token, requestId) => call(`/api/friends/requests/${requestId}`, { method: "DELETE", token });
-    const unfriend = (token, friendshipId) => call(`/api/friends/${friendshipId}`, { method: "DELETE", token });
-    const makeAccount = async (email, fullName) => {
-      const made = (await control("users", { email, fullName })).body;
-      return { id: made.user.id, token: made.session.access_token, email };
-    };
-    const friendRows = (query = "") => rows("friendships", query);
-    // Nobody is ever sent an email address that is not their own.
-    const leaksAnEmail = (body) => JSON.stringify(body).includes("@standin.test");
+    // The friends checks are in a block of their own, so their names cannot
+    // clash with the profile checks above.
+    {
+      // -----------------------------------------------------------------------
+      // Friends. Each part below uses accounts of its own, so a failure in one
+      // cannot leave another looking right by accident.
+      // -----------------------------------------------------------------------
+      const friendsOf = (token) => call("/api/friends", { token });
+      const ask = (token, who) => call("/api/friends/requests", { method: "POST", token, body: { emailOrUsername: who } });
+      const answer = (token, requestId, verb) => call(`/api/friends/requests/${requestId}/${verb}`, { method: "POST", token });
+      const withdraw = (token, requestId) => call(`/api/friends/requests/${requestId}`, { method: "DELETE", token });
+      const unfriend = (token, friendshipId) => call(`/api/friends/${friendshipId}`, { method: "DELETE", token });
+      // The username is whatever 0012's generator made of the account, so it
+      // is read back rather than guessed from the email or the name.
+      const makeAccount = async (email, fullName) => {
+        const made = (await control("users", { email, fullName })).body;
+        const token = made.session.access_token;
+        const username = (await call("/api/profile", { token })).body.profile.username;
+        return { id: made.user.id, token, email, username };
+      };
+      // "gabe" -> "GaBe": the same username, typed in mixed case.
+      const mixedCase = (name) => [...name].map((letter, index) => (index % 2 ? letter : letter.toUpperCase())).join("");
+      const friendRows = (query = "") => rows("friendships", query);
+      // Nobody is ever sent an email address that is not their own.
+      const leaksAnEmail = (body) => JSON.stringify(body).includes("@standin.test");
 
-    section("Friends need a signed-in account");
-    const friendsNoToken = await call("/api/friends");
-    check("the friends list is not readable without a token", friendsNoToken.status === 401, `got ${friendsNoToken.status}`);
-    const friendsJunkToken = await call("/api/friends", { token: "not-a-token" });
-    check("nor with something that is not a token", friendsJunkToken.status === 401, `got ${friendsJunkToken.status}`);
-    const askNoToken = await ask(undefined, "alice@standin.test");
-    check("a request cannot be sent without one", askNoToken.status === 401, `got ${askNoToken.status}`);
+      section("Friends need a signed-in account");
+      const friendsNoToken = await call("/api/friends");
+      check("the friends list is not readable without a token", friendsNoToken.status === 401, `got ${friendsNoToken.status}`);
+      const friendsJunkToken = await call("/api/friends", { token: "not-a-token" });
+      check("nor with something that is not a token", friendsJunkToken.status === 401, `got ${friendsJunkToken.status}`);
+      const askNoToken = await ask(undefined, "alice@standin.test");
+      check("a request cannot be sent without one", askNoToken.status === 401, `got ${askNoToken.status}`);
 
-    section("A new account has no friends, and a figure to compare with");
-    const fiona = await makeAccount("fiona.f@standin.test", "Fiona");
-    const gabe = await makeAccount("gabe.test@standin.test", "Gabe");
-    const iris = await makeAccount("iris@standin.test", "Iris");
-    const fionaFresh = await friendsOf(fiona.token);
-    check(
-      "the lists are empty and her own progress is zero tests",
-      fionaFresh.status === 200 &&
-        fionaFresh.body.friends.length === 0 &&
-        fionaFresh.body.incoming.length === 0 &&
-        fionaFresh.body.outgoing.length === 0 &&
-        fionaFresh.body.me.testsTaken === 0 &&
-        fionaFresh.body.me.best === null,
-      JSON.stringify(fionaFresh.body)
-    );
+      section("A new account has no friends, and a figure to compare with");
+      const fiona = await makeAccount("fiona.f@standin.test", "Fiona");
+      const gabe = await makeAccount("gabe.test@standin.test", "Gabe");
+      const iris = await makeAccount("iris@standin.test", "Iris");
+      const fionaFresh = await friendsOf(fiona.token);
+      check(
+        "the lists are empty and her own progress is zero tests",
+        fionaFresh.status === 200 &&
+          fionaFresh.body.friends.length === 0 &&
+          fionaFresh.body.incoming.length === 0 &&
+          fionaFresh.body.outgoing.length === 0 &&
+          fionaFresh.body.me.testsTaken === 0 &&
+          fionaFresh.body.me.best === null,
+        JSON.stringify(fionaFresh.body)
+      );
 
-    // Two papers for Fiona, both perfect; one for Gabe, all wrong. Different
-    // enough that mixing the two up would show.
-    for (let paper = 0; paper < 2; paper += 1) {
-      const test = (await generate(fiona.id, fiona.token)).body.test;
-      await submit(test, fiona.id, rightAnswers(test), fiona.token);
+      // Two papers for Fiona, both perfect; one for Gabe, all wrong. Different
+      // enough that mixing the two up would show.
+      for (let paper = 0; paper < 2; paper += 1) {
+        const test = (await generate(fiona.id, fiona.token)).body.test;
+        await submit(test, fiona.id, rightAnswers(test), fiona.token);
+      }
+      const gabeTest = (await generate(gabe.id, gabe.token)).body.test;
+      await submit(gabeTest, gabe.id, wrongAnswers(gabeTest), gabe.token);
+
+      section("Asking by email");
+      const firstAsk = await ask(fiona.token, "  GABE.TEST@Standin.Test ");
+      check(
+        "a request goes to the account, however the address is typed",
+        firstAsk.status === 201 &&
+          firstAsk.body.outcome === "requested" &&
+          firstAsk.body.person?.id === gabe.id &&
+          firstAsk.body.person?.fullName === "Gabe" &&
+          firstAsk.body.person?.username === gabe.username,
+        `${firstAsk.status} ${JSON.stringify(firstAsk.body)}`
+      );
+      check("and what comes back is a name, a username and a photo, not an address", !leaksAnEmail(firstAsk.body));
+
+      const gabeSees = await friendsOf(gabe.token);
+      check(
+        "Gabe sees it as incoming, from Fiona",
+        gabeSees.body.incoming.length === 1 &&
+          gabeSees.body.incoming[0].id === fiona.id &&
+          gabeSees.body.incoming[0].fullName === "Fiona" &&
+          gabeSees.body.incoming[0].username === fiona.username &&
+          typeof gabeSees.body.incoming[0].requestId === "string",
+        JSON.stringify(gabeSees.body.incoming)
+      );
+      check("and not yet as a friend", gabeSees.body.friends.length === 0 && gabeSees.body.outgoing.length === 0);
+
+      const fionaSees = await friendsOf(fiona.token);
+      check(
+        "Fiona sees it as outgoing, to Gabe",
+        fionaSees.body.outgoing.length === 1 && fionaSees.body.outgoing[0].id === gabe.id && fionaSees.body.incoming.length === 0,
+        JSON.stringify(fionaSees.body.outgoing)
+      );
+      check("and a pending request shows nothing of Gabe's progress", !("progress" in fionaSees.body.outgoing[0]));
+      check("nobody's email address is in either list", !leaksAnEmail(gabeSees.body) && !leaksAnEmail(fionaSees.body));
+
+      const requestId = gabeSees.body.incoming[0].requestId;
+      check("both sides are looking at the same row", fionaSees.body.outgoing[0].requestId === requestId);
+
+      section("Requests that cannot be sent");
+      const again = await ask(fiona.token, "gabe.test@standin.test");
+      check("asking twice is refused", again.status === 409 && again.body.code === "already-requested", `${again.status} ${JSON.stringify(again.body)}`);
+      check("and makes no second row", (await friendRows(`?user_id=eq.${fiona.id}`)).length === 1);
+
+      const selfEmail = await ask(fiona.token, "FIONA.F@standin.test");
+      check("your own email is refused", selfEmail.status === 400 && selfEmail.body.code === "yourself", `${selfEmail.status} ${JSON.stringify(selfEmail.body)}`);
+      const selfName = await ask(fiona.token, `@${mixedCase(fiona.username)}`);
+      check("so is your own username", selfName.status === 400 && selfName.body.code === "yourself", `${selfName.status} ${JSON.stringify(selfName.body)}`);
+
+      const unknownEmail = await ask(fiona.token, "nobody.at.all@standin.test");
+      check(
+        "an email nobody signed up with says so",
+        unknownEmail.status === 404 &&
+          unknownEmail.body.code === "no-account" &&
+          unknownEmail.body.message === "No ExamPeak account with that email or username.",
+        `${unknownEmail.status} ${JSON.stringify(unknownEmail.body)}`
+      );
+      const unknownName = await ask(fiona.token, "@nobody.at.all");
+      check("and so does a username nobody has", unknownName.status === 404 && unknownName.body.code === "no-account", `${unknownName.status} ${JSON.stringify(unknownName.body)}`);
+
+      for (const nonsense of ["", "   ", "@", "two words"]) {
+        const refused = await ask(fiona.token, nonsense);
+        check(`${JSON.stringify(nonsense)} is not something to look up`, refused.status === 400 && refused.body.code === "invalid-lookup", `${refused.status} ${JSON.stringify(refused.body)}`);
+      }
+      const lookupNotText = await call("/api/friends/requests", { method: "POST", token: fiona.token, body: { emailOrUsername: 42 } });
+      check("a request with no text in it is a 400, not a crash", lookupNotText.status === 400, `got ${lookupNotText.status}`);
+      check("none of those made a row", (await friendRows(`?user_id=eq.${fiona.id}`)).length === 1);
+
+      section("Only the right person can answer");
+      for (const [label, run] of [
+        ["the one who asked cannot accept their own request", () => answer(fiona.token, requestId, "accept")],
+        ["nor decline it", () => answer(fiona.token, requestId, "decline")],
+        ["a stranger cannot accept it", () => answer(iris.token, requestId, "accept")],
+        ["nor decline it", () => answer(iris.token, requestId, "decline")],
+        ["nor cancel it", () => withdraw(iris.token, requestId)],
+        ["the one who was asked cannot cancel it as if it were theirs", () => withdraw(gabe.token, requestId)],
+        ["a request that is not yet a friendship cannot be removed as one", () => unfriend(fiona.token, requestId)],
+        ["a stranger cannot remove it either", () => unfriend(iris.token, requestId)]
+      ]) {
+        const refused = await run();
+        check(label, refused.status === 404, `${refused.status} ${JSON.stringify(refused.body)}`);
+      }
+      for (const id of ["not-a-uuid", randomUUID()]) {
+        const refused = await answer(gabe.token, id, "accept");
+        check(`${id.length > 20 ? "an unknown" : "a malformed"} request id is a 404, not a database error`, refused.status === 404, `${refused.status} ${JSON.stringify(refused.body)}`);
+      }
+      const stillWaiting = await friendsOf(gabe.token);
+      check("and after all that, the request is still waiting", stillWaiting.body.incoming.length === 1);
+
+      section("Accepting, and comparing progress");
+      const accepted = await answer(gabe.token, requestId, "accept");
+      check(
+        "the one who was asked can accept",
+        accepted.status === 200 && accepted.body.outcome === "accepted" && accepted.body.person?.id === fiona.id,
+        `${accepted.status} ${JSON.stringify(accepted.body)}`
+      );
+      const acceptedAgain = await answer(gabe.token, requestId, "accept");
+      check("accepting twice is a 404, not a second friendship", acceptedAgain.status === 404, `got ${acceptedAgain.status}`);
+
+      const fionaFriends = await friendsOf(fiona.token);
+      const gabeFriends = await friendsOf(gabe.token);
+      check(
+        "each sees the other as a friend, and nothing is left waiting",
+        fionaFriends.body.friends.length === 1 &&
+          fionaFriends.body.friends[0].id === gabe.id &&
+          gabeFriends.body.friends.length === 1 &&
+          gabeFriends.body.friends[0].id === fiona.id &&
+          [fionaFriends, gabeFriends].every((side) => side.body.incoming.length === 0 && side.body.outgoing.length === 0),
+        JSON.stringify([fionaFriends.body, gabeFriends.body])
+      );
+      check(
+        "with the same friendship id on both sides, and the day it began",
+        fionaFriends.body.friends[0].friendshipId === gabeFriends.body.friends[0].friendshipId &&
+          !Number.isNaN(Date.parse(fionaFriends.body.friends[0].since)),
+        JSON.stringify(fionaFriends.body.friends[0])
+      );
+      check("and each sees the other's username", fionaFriends.body.friends[0].username === gabe.username && gabeFriends.body.friends[0].username === fiona.username);
+
+      const gabeAsSeenByFiona = fionaFriends.body.friends[0].progress;
+      check(
+        "Fiona sees Gabe's one test, all wrong",
+        gabeAsSeenByFiona.testsTaken === 1 &&
+          gabeAsSeenByFiona.best?.score === 0 &&
+          gabeAsSeenByFiona.best?.percentage === 0 &&
+          gabeAsSeenByFiona.averagePercentage === 0 &&
+          !Number.isNaN(Date.parse(gabeAsSeenByFiona.lastActiveAt)),
+        JSON.stringify(gabeAsSeenByFiona)
+      );
+      const fionaAsSeenByGabe = gabeFriends.body.friends[0].progress;
+      check(
+        "Gabe sees Fiona's two perfect ones",
+        fionaAsSeenByGabe.testsTaken === 2 &&
+          fionaAsSeenByGabe.best?.percentage === 100 &&
+          fionaAsSeenByGabe.best?.score === fionaAsSeenByGabe.best?.totalMarks &&
+          fionaAsSeenByGabe.averagePercentage === 100 &&
+          !Number.isNaN(Date.parse(fionaAsSeenByGabe.lastActiveAt)),
+        JSON.stringify(fionaAsSeenByGabe)
+      );
+      check(
+        "each also gets their own figures to set beside a friend's",
+        fionaFriends.body.me.testsTaken === 2 && gabeFriends.body.me.testsTaken === 1,
+        JSON.stringify([fionaFriends.body.me, gabeFriends.body.me])
+      );
+      check("and still no email address anywhere in it", !leaksAnEmail(fionaFriends.body) && !leaksAnEmail(gabeFriends.body));
+
+      const irisAlone = await friendsOf(iris.token);
+      check("a stranger sees none of it", irisAlone.body.friends.length === 0 && irisAlone.body.incoming.length === 0 && irisAlone.body.outgoing.length === 0);
+
+      section("Already friends");
+      const askFriend = await ask(fiona.token, "gabe.test@standin.test");
+      check("asking a friend is refused", askFriend.status === 409 && askFriend.body.code === "already-friends", `${askFriend.status} ${JSON.stringify(askFriend.body)}`);
+      const askFriendBack = await ask(gabe.token, `@${mixedCase(fiona.username)}`);
+      check("from either side", askFriendBack.status === 409 && askFriendBack.body.code === "already-friends", `${askFriendBack.status} ${JSON.stringify(askFriendBack.body)}`);
+      check("and it is still the one row", (await friendRows(`?or=(user_id.eq.${fiona.id},friend_id.eq.${fiona.id})`)).length === 1);
+
+      section("Removing a friend");
+      const friendshipId = fionaFriends.body.friends[0].friendshipId;
+      const strangerRemoves = await unfriend(iris.token, friendshipId);
+      check("somebody who is not in the friendship cannot end it", strangerRemoves.status === 404, `got ${strangerRemoves.status}`);
+      check("and it holds", (await friendsOf(fiona.token)).body.friends.length === 1);
+      const unfriended = await unfriend(fiona.token, friendshipId);
+      check("either of the two can", unfriended.status === 200, `${unfriended.status} ${JSON.stringify(unfriended.body)}`);
+      const afterRemove = [await friendsOf(fiona.token), await friendsOf(gabe.token)];
+      check("it ends for both", afterRemove.every((side) => side.body.friends.length === 0 && side.body.incoming.length === 0 && side.body.outgoing.length === 0));
+      check("and the row is gone", (await friendRows(`?id=eq.${friendshipId}`)).length === 0);
+      const removedAgain = await unfriend(gabe.token, friendshipId);
+      check("removing again is a 404", removedAgain.status === 404, `got ${removedAgain.status}`);
+      check("and their tests are untouched by it", (await friendsOf(fiona.token)).body.me.testsTaken === 2);
+
+      section("Asking by username");
+      // The way Nihad will most likely try it: mixed case, a leading @, and a
+      // dot in the middle, which must not be mistaken for the start of a domain.
+      const byUsername = await ask(fiona.token, `@${mixedCase(gabe.username)}`);
+      check(
+        "a username works in any case with a leading @",
+        byUsername.status === 201 && byUsername.body.outcome === "requested" && byUsername.body.person?.id === gabe.id,
+        `${byUsername.status} ${JSON.stringify(byUsername.body)}`
+      );
+      const declinedId = (await friendsOf(gabe.token)).body.incoming[0]?.requestId;
+      const declined = await answer(gabe.token, declinedId, "decline");
+      check("a request can be declined", declined.status === 200, `${declined.status} ${JSON.stringify(declined.body)}`);
+      const afterDecline = [await friendsOf(fiona.token), await friendsOf(gabe.token)];
+      check(
+        "which clears it for both",
+        afterDecline.every((side) => side.body.incoming.length === 0 && side.body.outgoing.length === 0 && side.body.friends.length === 0)
+      );
+      const askedAfterDecline = await ask(fiona.token, gabe.username);
+      check("and she may ask again, this time with a bare username", askedAfterDecline.status === 201, `${askedAfterDecline.status} ${JSON.stringify(askedAfterDecline.body)}`);
+
+      section("Taking a request back");
+      const outgoingId = (await friendsOf(fiona.token)).body.outgoing[0]?.requestId;
+      const strangerCancels = await withdraw(iris.token, outgoingId);
+      check("only the one who asked can cancel it", strangerCancels.status === 404, `got ${strangerCancels.status}`);
+      const cancelled = await withdraw(fiona.token, outgoingId);
+      check("and she can", cancelled.status === 200, `${cancelled.status} ${JSON.stringify(cancelled.body)}`);
+      const afterCancel = [await friendsOf(fiona.token), await friendsOf(gabe.token)];
+      check("it is gone from both lists", afterCancel.every((side) => side.body.incoming.length === 0 && side.body.outgoing.length === 0));
+      const cancelledAgain = await withdraw(fiona.token, outgoingId);
+      check("cancelling again is a 404", cancelledAgain.status === 404, `got ${cancelledAgain.status}`);
+      const acceptCancelled = await answer(gabe.token, outgoingId, "accept");
+      check("and a cancelled request cannot be accepted", acceptCancelled.status === 404, `got ${acceptCancelled.status}`);
+
+      section("Two students asking each other");
+      const hana = await makeAccount("hana@standin.test", "Hana");
+      const jack = await makeAccount("jack@standin.test", "Jack");
+      const hanaAsks = await ask(hana.token, "jack@standin.test");
+      check("Hana asks Jack", hanaAsks.status === 201, `${hanaAsks.status} ${JSON.stringify(hanaAsks.body)}`);
+      const jackAsks = await ask(jack.token, "hana");
+      check(
+        "Jack asking Hana back accepts hers, rather than making a second request",
+        jackAsks.status === 200 && jackAsks.body.outcome === "accepted" && jackAsks.body.person?.id === hana.id,
+        `${jackAsks.status} ${JSON.stringify(jackAsks.body)}`
+      );
+      const pairRows = await friendRows(`?or=(user_id.eq.${hana.id},friend_id.eq.${hana.id})`);
+      check("there is one row between them, and it is accepted", pairRows.length === 1 && pairRows[0].status === "accepted", JSON.stringify(pairRows));
+      check("with the time it was answered", typeof pairRows[0]?.responded_at === "string");
+      const crossed = [await friendsOf(hana.token), await friendsOf(jack.token)];
+      check(
+        "and they are friends both ways",
+        crossed[0].body.friends[0]?.id === jack.id && crossed[1].body.friends[0]?.id === hana.id && crossed[0].body.outgoing.length === 0 && crossed[1].body.incoming.length === 0
+      );
+
+      section("Two requests that crossed in the post");
+      // The table only forbids the same direction twice, so two students who ask
+      // at the same instant can leave one pending row each way. Written straight
+      // into the stand-in, as that race would.
+      const kim = await makeAccount("kim@standin.test", "Kim");
+      const lars = await makeAccount("lars@standin.test", "Lars");
+      for (const [from, to] of [[kim, lars], [lars, kim]]) {
+        const written = await request(standin.url, "/rest/v1/friendships", { method: "POST", body: { user_id: from.id, friend_id: to.id } });
+        check("a pending row can be written each way", written.status === 201, `${written.status} ${JSON.stringify(written.body)}`);
+      }
+      const kimView = await friendsOf(kim.token);
+      const larsView = await friendsOf(lars.token);
+      check(
+        "each sees one request to answer, not an incoming and an outgoing for the same person",
+        kimView.body.incoming.length === 1 && kimView.body.outgoing.length === 0 && larsView.body.incoming.length === 1 && larsView.body.outgoing.length === 0,
+        JSON.stringify([kimView.body, larsView.body])
+      );
+      const crossedAccept = await answer(kim.token, kimView.body.incoming[0].requestId, "accept");
+      check("accepting it works", crossedAccept.status === 200, `${crossedAccept.status} ${JSON.stringify(crossedAccept.body)}`);
+      const crossedRows = await friendRows(`?or=(user_id.eq.${kim.id},friend_id.eq.${kim.id})`);
+      check("and clears the other, leaving one accepted row", crossedRows.length === 1 && crossedRows[0].status === "accepted", JSON.stringify(crossedRows));
+      const larsAfter = await friendsOf(lars.token);
+      check("so Lars is a friend and has nothing left to answer", larsAfter.body.friends.length === 1 && larsAfter.body.incoming.length === 0, JSON.stringify(larsAfter.body));
+
+      section("A blocked row");
+      const mona = await makeAccount("mona@standin.test", "Mona");
+      const nils = await makeAccount("nils@standin.test", "Nils");
+      await ask(mona.token, "nils");
+      const [blockedRow] = await friendRows(`?user_id=eq.${mona.id}`);
+      await request(standin.url, `/__standin/rows/friendships/${blockedRow.id}`, { method: "PATCH", body: { status: "blocked" } });
+      const monaBlocked = await ask(mona.token, "nils");
+      const nilsBlocked = await ask(nils.token, "mona");
+      check(
+        "neither can ask the other over it",
+        monaBlocked.status === 403 && nilsBlocked.status === 403 && monaBlocked.body.code === "blocked",
+        `${monaBlocked.status} ${nilsBlocked.status}`
+      );
+      const blockedViews = [await friendsOf(mona.token), await friendsOf(nils.token)];
+      check(
+        "and it shows in nobody's lists",
+        blockedViews.every((side) => side.body.friends.length + side.body.incoming.length + side.body.outgoing.length === 0)
+      );
+      const acceptBlocked = await answer(nils.token, blockedRow.id, "accept");
+      check("a blocked request cannot be accepted", acceptBlocked.status === 404, `got ${acceptBlocked.status}`);
+
+      section("What the friendships table itself refuses");
+      const insertRow = (body) => request(standin.url, "/rest/v1/friendships", { method: "POST", body });
+      const toSelf = await insertRow({ user_id: mona.id, friend_id: mona.id });
+      check("nobody is their own friend", toSelf.status === 400 && toSelf.body.code === "23514", `${toSelf.status} ${JSON.stringify(toSelf.body)}`);
+      const duplicate = await insertRow({ user_id: mona.id, friend_id: nils.id });
+      check("the same direction twice", duplicate.status === 409 && duplicate.body.code === "23505", `${duplicate.status} ${JSON.stringify(duplicate.body)}`);
+      const reverse = await insertRow({ user_id: nils.id, friend_id: mona.id });
+      check("the other direction is allowed, which is why the app has to cope with it", reverse.status === 201, `${reverse.status} ${JSON.stringify(reverse.body)}`);
+      const badStatus = await insertRow({ user_id: iris.id, friend_id: nils.id, status: "declined" });
+      check("a status the migration does not list", badStatus.status === 400 && badStatus.body.code === "23514", `${badStatus.status} ${JSON.stringify(badStatus.body)}`);
+      const nobody = await insertRow({ user_id: iris.id, friend_id: randomUUID() });
+      check("a friend who has no profile", nobody.status === 409 && nobody.body.code === "23503", `${nobody.status} ${JSON.stringify(nobody.body)}`);
+      const sharedName = await request(standin.url, `/__standin/rows/profiles/${nils.id}`, { method: "PATCH", body: { username: "mona" } });
+      check("two profiles cannot share a username", sharedName.status === 409 && sharedName.body.code === "23505", `${sharedName.status} ${JSON.stringify(sharedName.body)}`);
+
+      section("Deleting an account takes its friendships with it");
+      const omar = await makeAccount("omar@standin.test", "Omar");
+      const nora = await makeAccount("nora@standin.test", "Nora");
+      await ask(omar.token, "nora@standin.test");
+      await answer(nora.token, (await friendsOf(nora.token)).body.incoming[0].requestId, "accept");
+      const pending = await makeAccount("pia@standin.test", "Pia");
+      await ask(pending.token, "omar");
+      check("Omar has a friend and a request waiting", (await friendsOf(omar.token)).body.friends.length === 1 && (await friendsOf(omar.token)).body.incoming.length === 1);
+      const omarDeleted = await call("/api/profile", { method: "DELETE", token: omar.token, body: { confirmEmail: "omar@standin.test" } });
+      check("Omar deletes his account", omarDeleted.status === 200, `${omarDeleted.status} ${JSON.stringify(omarDeleted.body)}`);
+      check(
+        "Nora and Pia are left with nothing pointing at him",
+        (await friendsOf(nora.token)).body.friends.length === 0 && (await friendsOf(pending.token)).body.outgoing.length === 0
+      );
+      check("and no row of his is left", (await friendRows(`?or=(user_id.eq.${omar.id},friend_id.eq.${omar.id})`)).length === 0);
+      const askDeleted = await ask(nora.token, "omar@standin.test");
+      check("his email no longer finds anyone", askDeleted.status === 404, `${askDeleted.status} ${JSON.stringify(askDeleted.body)}`);
+      const askDeletedName = await ask(nora.token, "omar");
+      check("nor does his username", askDeletedName.status === 404, `${askDeletedName.status} ${JSON.stringify(askDeletedName.body)}`);
+
+      section("Friends need the tables to exist");
+      const readingFriends = await friendsOf(fiona.token);
+      check("a normal read still works", readingFriends.status === 200);
+      await control("faults", { method: "GET", table: "friendships", times: 1, status: 500 });
+      const friendsDown = await friendsOf(fiona.token);
+      check(
+        "a failed read is reported, not shown as no friends",
+        friendsDown.status === 500 && /Failed to load your friends/.test(friendsDown.body.message ?? ""),
+        `${friendsDown.status} ${JSON.stringify(friendsDown.body)}`
+      );
+      const afterFault = await friendsOf(fiona.token);
+      check("and the next read is fine", afterFault.status === 200, `got ${afterFault.status}`);
     }
-    const gabeTest = (await generate(gabe.id, gabe.token)).body.test;
-    await submit(gabeTest, gabe.id, wrongAnswers(gabeTest), gabe.token);
-
-    section("Asking by email");
-    const firstAsk = await ask(fiona.token, "  GABE.TEST@Standin.Test ");
-    check(
-      "a request goes to the account, however the address is typed",
-      firstAsk.status === 201 &&
-        firstAsk.body.outcome === "requested" &&
-        firstAsk.body.person?.id === gabe.id &&
-        firstAsk.body.person?.fullName === "Gabe" &&
-        firstAsk.body.person?.username === "gabe.test",
-      `${firstAsk.status} ${JSON.stringify(firstAsk.body)}`
-    );
-    check("and what comes back is a name, a username and a photo, not an address", !leaksAnEmail(firstAsk.body));
-
-    const gabeSees = await friendsOf(gabe.token);
-    check(
-      "Gabe sees it as incoming, from Fiona",
-      gabeSees.body.incoming.length === 1 &&
-        gabeSees.body.incoming[0].id === fiona.id &&
-        gabeSees.body.incoming[0].fullName === "Fiona" &&
-        gabeSees.body.incoming[0].username === "fiona.f" &&
-        typeof gabeSees.body.incoming[0].requestId === "string",
-      JSON.stringify(gabeSees.body.incoming)
-    );
-    check("and not yet as a friend", gabeSees.body.friends.length === 0 && gabeSees.body.outgoing.length === 0);
-
-    const fionaSees = await friendsOf(fiona.token);
-    check(
-      "Fiona sees it as outgoing, to Gabe",
-      fionaSees.body.outgoing.length === 1 && fionaSees.body.outgoing[0].id === gabe.id && fionaSees.body.incoming.length === 0,
-      JSON.stringify(fionaSees.body.outgoing)
-    );
-    check("and a pending request shows nothing of Gabe's progress", !("progress" in fionaSees.body.outgoing[0]));
-    check("nobody's email address is in either list", !leaksAnEmail(gabeSees.body) && !leaksAnEmail(fionaSees.body));
-
-    const requestId = gabeSees.body.incoming[0].requestId;
-    check("both sides are looking at the same row", fionaSees.body.outgoing[0].requestId === requestId);
-
-    section("Requests that cannot be sent");
-    const again = await ask(fiona.token, "gabe.test@standin.test");
-    check("asking twice is refused", again.status === 409 && again.body.code === "already-requested", `${again.status} ${JSON.stringify(again.body)}`);
-    check("and makes no second row", (await friendRows(`?user_id=eq.${fiona.id}`)).length === 1);
-
-    const selfEmail = await ask(fiona.token, "FIONA.F@standin.test");
-    check("your own email is refused", selfEmail.status === 400 && selfEmail.body.code === "yourself", `${selfEmail.status} ${JSON.stringify(selfEmail.body)}`);
-    const selfName = await ask(fiona.token, "@Fiona.F");
-    check("so is your own username", selfName.status === 400 && selfName.body.code === "yourself", `${selfName.status} ${JSON.stringify(selfName.body)}`);
-
-    const unknownEmail = await ask(fiona.token, "nobody.at.all@standin.test");
-    check(
-      "an email nobody signed up with says so",
-      unknownEmail.status === 404 &&
-        unknownEmail.body.code === "no-account" &&
-        unknownEmail.body.message === "No ExamPeak account with that email or username.",
-      `${unknownEmail.status} ${JSON.stringify(unknownEmail.body)}`
-    );
-    const unknownName = await ask(fiona.token, "@nobody.at.all");
-    check("and so does a username nobody has", unknownName.status === 404 && unknownName.body.code === "no-account", `${unknownName.status} ${JSON.stringify(unknownName.body)}`);
-
-    for (const nonsense of ["", "   ", "@", "two words"]) {
-      const refused = await ask(fiona.token, nonsense);
-      check(`${JSON.stringify(nonsense)} is not something to look up`, refused.status === 400 && refused.body.code === "invalid-lookup", `${refused.status} ${JSON.stringify(refused.body)}`);
-    }
-    const notText = await call("/api/friends/requests", { method: "POST", token: fiona.token, body: { emailOrUsername: 42 } });
-    check("a request with no text in it is a 400, not a crash", notText.status === 400, `got ${notText.status}`);
-    check("none of those made a row", (await friendRows(`?user_id=eq.${fiona.id}`)).length === 1);
-
-    section("Only the right person can answer");
-    for (const [label, run] of [
-      ["the one who asked cannot accept their own request", () => answer(fiona.token, requestId, "accept")],
-      ["nor decline it", () => answer(fiona.token, requestId, "decline")],
-      ["a stranger cannot accept it", () => answer(iris.token, requestId, "accept")],
-      ["nor decline it", () => answer(iris.token, requestId, "decline")],
-      ["nor cancel it", () => withdraw(iris.token, requestId)],
-      ["the one who was asked cannot cancel it as if it were theirs", () => withdraw(gabe.token, requestId)],
-      ["a request that is not yet a friendship cannot be removed as one", () => unfriend(fiona.token, requestId)],
-      ["a stranger cannot remove it either", () => unfriend(iris.token, requestId)]
-    ]) {
-      const refused = await run();
-      check(label, refused.status === 404, `${refused.status} ${JSON.stringify(refused.body)}`);
-    }
-    for (const id of ["not-a-uuid", randomUUID()]) {
-      const refused = await answer(gabe.token, id, "accept");
-      check(`${id.length > 20 ? "an unknown" : "a malformed"} request id is a 404, not a database error`, refused.status === 404, `${refused.status} ${JSON.stringify(refused.body)}`);
-    }
-    const stillWaiting = await friendsOf(gabe.token);
-    check("and after all that, the request is still waiting", stillWaiting.body.incoming.length === 1);
-
-    section("Accepting, and comparing progress");
-    const accepted = await answer(gabe.token, requestId, "accept");
-    check(
-      "the one who was asked can accept",
-      accepted.status === 200 && accepted.body.outcome === "accepted" && accepted.body.person?.id === fiona.id,
-      `${accepted.status} ${JSON.stringify(accepted.body)}`
-    );
-    const acceptedAgain = await answer(gabe.token, requestId, "accept");
-    check("accepting twice is a 404, not a second friendship", acceptedAgain.status === 404, `got ${acceptedAgain.status}`);
-
-    const fionaFriends = await friendsOf(fiona.token);
-    const gabeFriends = await friendsOf(gabe.token);
-    check(
-      "each sees the other as a friend, and nothing is left waiting",
-      fionaFriends.body.friends.length === 1 &&
-        fionaFriends.body.friends[0].id === gabe.id &&
-        gabeFriends.body.friends.length === 1 &&
-        gabeFriends.body.friends[0].id === fiona.id &&
-        [fionaFriends, gabeFriends].every((side) => side.body.incoming.length === 0 && side.body.outgoing.length === 0),
-      JSON.stringify([fionaFriends.body, gabeFriends.body])
-    );
-    check(
-      "with the same friendship id on both sides, and the day it began",
-      fionaFriends.body.friends[0].friendshipId === gabeFriends.body.friends[0].friendshipId &&
-        !Number.isNaN(Date.parse(fionaFriends.body.friends[0].since)),
-      JSON.stringify(fionaFriends.body.friends[0])
-    );
-    check("and each sees the other's username", fionaFriends.body.friends[0].username === "gabe.test" && gabeFriends.body.friends[0].username === "fiona.f");
-
-    const gabeAsSeenByFiona = fionaFriends.body.friends[0].progress;
-    check(
-      "Fiona sees Gabe's one test, all wrong",
-      gabeAsSeenByFiona.testsTaken === 1 &&
-        gabeAsSeenByFiona.best?.score === 0 &&
-        gabeAsSeenByFiona.best?.percentage === 0 &&
-        gabeAsSeenByFiona.averagePercentage === 0 &&
-        !Number.isNaN(Date.parse(gabeAsSeenByFiona.lastActiveAt)),
-      JSON.stringify(gabeAsSeenByFiona)
-    );
-    const fionaAsSeenByGabe = gabeFriends.body.friends[0].progress;
-    check(
-      "Gabe sees Fiona's two perfect ones",
-      fionaAsSeenByGabe.testsTaken === 2 &&
-        fionaAsSeenByGabe.best?.percentage === 100 &&
-        fionaAsSeenByGabe.best?.score === fionaAsSeenByGabe.best?.totalMarks &&
-        fionaAsSeenByGabe.averagePercentage === 100 &&
-        !Number.isNaN(Date.parse(fionaAsSeenByGabe.lastActiveAt)),
-      JSON.stringify(fionaAsSeenByGabe)
-    );
-    check(
-      "each also gets their own figures to set beside a friend's",
-      fionaFriends.body.me.testsTaken === 2 && gabeFriends.body.me.testsTaken === 1,
-      JSON.stringify([fionaFriends.body.me, gabeFriends.body.me])
-    );
-    check("and still no email address anywhere in it", !leaksAnEmail(fionaFriends.body) && !leaksAnEmail(gabeFriends.body));
-
-    const irisAlone = await friendsOf(iris.token);
-    check("a stranger sees none of it", irisAlone.body.friends.length === 0 && irisAlone.body.incoming.length === 0 && irisAlone.body.outgoing.length === 0);
-
-    section("Already friends");
-    const askFriend = await ask(fiona.token, "gabe.test@standin.test");
-    check("asking a friend is refused", askFriend.status === 409 && askFriend.body.code === "already-friends", `${askFriend.status} ${JSON.stringify(askFriend.body)}`);
-    const askFriendBack = await ask(gabe.token, "@Fiona.F");
-    check("from either side", askFriendBack.status === 409 && askFriendBack.body.code === "already-friends", `${askFriendBack.status} ${JSON.stringify(askFriendBack.body)}`);
-    check("and it is still the one row", (await friendRows(`?or=(user_id.eq.${fiona.id},friend_id.eq.${fiona.id})`)).length === 1);
-
-    section("Removing a friend");
-    const friendshipId = fionaFriends.body.friends[0].friendshipId;
-    const strangerRemoves = await unfriend(iris.token, friendshipId);
-    check("somebody who is not in the friendship cannot end it", strangerRemoves.status === 404, `got ${strangerRemoves.status}`);
-    check("and it holds", (await friendsOf(fiona.token)).body.friends.length === 1);
-    const unfriended = await unfriend(fiona.token, friendshipId);
-    check("either of the two can", unfriended.status === 200, `${unfriended.status} ${JSON.stringify(unfriended.body)}`);
-    const afterRemove = [await friendsOf(fiona.token), await friendsOf(gabe.token)];
-    check("it ends for both", afterRemove.every((side) => side.body.friends.length === 0 && side.body.incoming.length === 0 && side.body.outgoing.length === 0));
-    check("and the row is gone", (await friendRows(`?id=eq.${friendshipId}`)).length === 0);
-    const removedAgain = await unfriend(gabe.token, friendshipId);
-    check("removing again is a 404", removedAgain.status === 404, `got ${removedAgain.status}`);
-    check("and their tests are untouched by it", (await friendsOf(fiona.token)).body.me.testsTaken === 2);
-
-    section("Asking by username");
-    // The way Nihad will most likely try it: mixed case, a leading @, and a
-    // dot in the middle, which must not be mistaken for the start of a domain.
-    const byUsername = await ask(fiona.token, "@GaBe.TeSt");
-    check(
-      "a username works in any case with a leading @",
-      byUsername.status === 201 && byUsername.body.outcome === "requested" && byUsername.body.person?.id === gabe.id,
-      `${byUsername.status} ${JSON.stringify(byUsername.body)}`
-    );
-    const declinedId = (await friendsOf(gabe.token)).body.incoming[0]?.requestId;
-    const declined = await answer(gabe.token, declinedId, "decline");
-    check("a request can be declined", declined.status === 200, `${declined.status} ${JSON.stringify(declined.body)}`);
-    const afterDecline = [await friendsOf(fiona.token), await friendsOf(gabe.token)];
-    check(
-      "which clears it for both",
-      afterDecline.every((side) => side.body.incoming.length === 0 && side.body.outgoing.length === 0 && side.body.friends.length === 0)
-    );
-    const askedAfterDecline = await ask(fiona.token, "gabe.test");
-    check("and she may ask again, this time with a bare username", askedAfterDecline.status === 201, `${askedAfterDecline.status} ${JSON.stringify(askedAfterDecline.body)}`);
-
-    section("Taking a request back");
-    const outgoingId = (await friendsOf(fiona.token)).body.outgoing[0]?.requestId;
-    const strangerCancels = await withdraw(iris.token, outgoingId);
-    check("only the one who asked can cancel it", strangerCancels.status === 404, `got ${strangerCancels.status}`);
-    const cancelled = await withdraw(fiona.token, outgoingId);
-    check("and she can", cancelled.status === 200, `${cancelled.status} ${JSON.stringify(cancelled.body)}`);
-    const afterCancel = [await friendsOf(fiona.token), await friendsOf(gabe.token)];
-    check("it is gone from both lists", afterCancel.every((side) => side.body.incoming.length === 0 && side.body.outgoing.length === 0));
-    const cancelledAgain = await withdraw(fiona.token, outgoingId);
-    check("cancelling again is a 404", cancelledAgain.status === 404, `got ${cancelledAgain.status}`);
-    const acceptCancelled = await answer(gabe.token, outgoingId, "accept");
-    check("and a cancelled request cannot be accepted", acceptCancelled.status === 404, `got ${acceptCancelled.status}`);
-
-    section("Two students asking each other");
-    const hana = await makeAccount("hana@standin.test", "Hana");
-    const jack = await makeAccount("jack@standin.test", "Jack");
-    const hanaAsks = await ask(hana.token, "jack@standin.test");
-    check("Hana asks Jack", hanaAsks.status === 201, `${hanaAsks.status} ${JSON.stringify(hanaAsks.body)}`);
-    const jackAsks = await ask(jack.token, "hana");
-    check(
-      "Jack asking Hana back accepts hers, rather than making a second request",
-      jackAsks.status === 200 && jackAsks.body.outcome === "accepted" && jackAsks.body.person?.id === hana.id,
-      `${jackAsks.status} ${JSON.stringify(jackAsks.body)}`
-    );
-    const pairRows = await friendRows(`?or=(user_id.eq.${hana.id},friend_id.eq.${hana.id})`);
-    check("there is one row between them, and it is accepted", pairRows.length === 1 && pairRows[0].status === "accepted", JSON.stringify(pairRows));
-    check("with the time it was answered", typeof pairRows[0]?.responded_at === "string");
-    const crossed = [await friendsOf(hana.token), await friendsOf(jack.token)];
-    check(
-      "and they are friends both ways",
-      crossed[0].body.friends[0]?.id === jack.id && crossed[1].body.friends[0]?.id === hana.id && crossed[0].body.outgoing.length === 0 && crossed[1].body.incoming.length === 0
-    );
-
-    section("Two requests that crossed in the post");
-    // The table only forbids the same direction twice, so two students who ask
-    // at the same instant can leave one pending row each way. Written straight
-    // into the stand-in, as that race would.
-    const kim = await makeAccount("kim@standin.test", "Kim");
-    const lars = await makeAccount("lars@standin.test", "Lars");
-    for (const [from, to] of [[kim, lars], [lars, kim]]) {
-      const written = await request(standin.url, "/rest/v1/friendships", { method: "POST", body: { user_id: from.id, friend_id: to.id } });
-      check("a pending row can be written each way", written.status === 201, `${written.status} ${JSON.stringify(written.body)}`);
-    }
-    const kimView = await friendsOf(kim.token);
-    const larsView = await friendsOf(lars.token);
-    check(
-      "each sees one request to answer, not an incoming and an outgoing for the same person",
-      kimView.body.incoming.length === 1 && kimView.body.outgoing.length === 0 && larsView.body.incoming.length === 1 && larsView.body.outgoing.length === 0,
-      JSON.stringify([kimView.body, larsView.body])
-    );
-    const crossedAccept = await answer(kim.token, kimView.body.incoming[0].requestId, "accept");
-    check("accepting it works", crossedAccept.status === 200, `${crossedAccept.status} ${JSON.stringify(crossedAccept.body)}`);
-    const crossedRows = await friendRows(`?or=(user_id.eq.${kim.id},friend_id.eq.${kim.id})`);
-    check("and clears the other, leaving one accepted row", crossedRows.length === 1 && crossedRows[0].status === "accepted", JSON.stringify(crossedRows));
-    const larsAfter = await friendsOf(lars.token);
-    check("so Lars is a friend and has nothing left to answer", larsAfter.body.friends.length === 1 && larsAfter.body.incoming.length === 0, JSON.stringify(larsAfter.body));
-
-    section("A blocked row");
-    const mona = await makeAccount("mona@standin.test", "Mona");
-    const nils = await makeAccount("nils@standin.test", "Nils");
-    await ask(mona.token, "nils");
-    const [blockedRow] = await friendRows(`?user_id=eq.${mona.id}`);
-    await request(standin.url, `/__standin/rows/friendships/${blockedRow.id}`, { method: "PATCH", body: { status: "blocked" } });
-    const monaBlocked = await ask(mona.token, "nils");
-    const nilsBlocked = await ask(nils.token, "mona");
-    check(
-      "neither can ask the other over it",
-      monaBlocked.status === 403 && nilsBlocked.status === 403 && monaBlocked.body.code === "blocked",
-      `${monaBlocked.status} ${nilsBlocked.status}`
-    );
-    const blockedViews = [await friendsOf(mona.token), await friendsOf(nils.token)];
-    check(
-      "and it shows in nobody's lists",
-      blockedViews.every((side) => side.body.friends.length + side.body.incoming.length + side.body.outgoing.length === 0)
-    );
-    const acceptBlocked = await answer(nils.token, blockedRow.id, "accept");
-    check("a blocked request cannot be accepted", acceptBlocked.status === 404, `got ${acceptBlocked.status}`);
-
-    section("What the friendships table itself refuses");
-    const insertRow = (body) => request(standin.url, "/rest/v1/friendships", { method: "POST", body });
-    const toSelf = await insertRow({ user_id: mona.id, friend_id: mona.id });
-    check("nobody is their own friend", toSelf.status === 400 && toSelf.body.code === "23514", `${toSelf.status} ${JSON.stringify(toSelf.body)}`);
-    const duplicate = await insertRow({ user_id: mona.id, friend_id: nils.id });
-    check("the same direction twice", duplicate.status === 409 && duplicate.body.code === "23505", `${duplicate.status} ${JSON.stringify(duplicate.body)}`);
-    const reverse = await insertRow({ user_id: nils.id, friend_id: mona.id });
-    check("the other direction is allowed, which is why the app has to cope with it", reverse.status === 201, `${reverse.status} ${JSON.stringify(reverse.body)}`);
-    const badStatus = await insertRow({ user_id: iris.id, friend_id: nils.id, status: "declined" });
-    check("a status the migration does not list", badStatus.status === 400 && badStatus.body.code === "23514", `${badStatus.status} ${JSON.stringify(badStatus.body)}`);
-    const nobody = await insertRow({ user_id: iris.id, friend_id: randomUUID() });
-    check("a friend who has no profile", nobody.status === 409 && nobody.body.code === "23503", `${nobody.status} ${JSON.stringify(nobody.body)}`);
-    const sharedName = await request(standin.url, `/__standin/rows/profiles/${nils.id}`, { method: "PATCH", body: { username: "mona" } });
-    check("two profiles cannot share a username", sharedName.status === 409 && sharedName.body.code === "23505", `${sharedName.status} ${JSON.stringify(sharedName.body)}`);
-
-    section("Deleting an account takes its friendships with it");
-    const omar = await makeAccount("omar@standin.test", "Omar");
-    const nora = await makeAccount("nora@standin.test", "Nora");
-    await ask(omar.token, "nora@standin.test");
-    await answer(nora.token, (await friendsOf(nora.token)).body.incoming[0].requestId, "accept");
-    const pending = await makeAccount("pia@standin.test", "Pia");
-    await ask(pending.token, "omar");
-    check("Omar has a friend and a request waiting", (await friendsOf(omar.token)).body.friends.length === 1 && (await friendsOf(omar.token)).body.incoming.length === 1);
-    const omarDeleted = await call("/api/profile", { method: "DELETE", token: omar.token, body: { confirmEmail: "omar@standin.test" } });
-    check("Omar deletes his account", omarDeleted.status === 200, `${omarDeleted.status} ${JSON.stringify(omarDeleted.body)}`);
-    check(
-      "Nora and Pia are left with nothing pointing at him",
-      (await friendsOf(nora.token)).body.friends.length === 0 && (await friendsOf(pending.token)).body.outgoing.length === 0
-    );
-    check("and no row of his is left", (await friendRows(`?or=(user_id.eq.${omar.id},friend_id.eq.${omar.id})`)).length === 0);
-    const askDeleted = await ask(nora.token, "omar@standin.test");
-    check("his email no longer finds anyone", askDeleted.status === 404, `${askDeleted.status} ${JSON.stringify(askDeleted.body)}`);
-    const askDeletedName = await ask(nora.token, "omar");
-    check("nor does his username", askDeletedName.status === 404, `${askDeletedName.status} ${JSON.stringify(askDeletedName.body)}`);
-
-    section("Friends need the tables to exist");
-    const readingFriends = await friendsOf(fiona.token);
-    check("a normal read still works", readingFriends.status === 200);
-    await control("faults", { method: "GET", table: "friendships", times: 1, status: 500 });
-    const friendsDown = await friendsOf(fiona.token);
-    check(
-      "a failed read is reported, not shown as no friends",
-      friendsDown.status === 500 && /Failed to load your friends/.test(friendsDown.body.message ?? ""),
-      `${friendsDown.status} ${JSON.stringify(friendsDown.body)}`
-    );
-    const afterFault = await friendsOf(fiona.token);
-    check("and the next read is fine", afterFault.status === 200, `got ${afterFault.status}`);
 
     section("A bank bigger than one page of rows");
     // Supabase stops a single read at 1,000 rows, and the catalog used to count

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { GoogleMark, useLeavingForGoogle } from "../auth/GoogleButton";
 import { useLanguage } from "../../lib/i18n";
+import { errorText, redirectErrorText } from "./profileText";
 
 /**
  * How this account can sign in, and connecting or disconnecting Google.
@@ -24,7 +25,7 @@ export function SignInMethodsPanel() {
 
     setNotice(
       redirectResult.error
-        ? { ok: false, text: redirectResult.error }
+        ? { ok: false, text: redirectErrorText(redirectResult, t) }
         : { ok: true, text: t("profile.googleConnected") }
     );
     clearRedirectResult();
@@ -44,7 +45,7 @@ export function SignInMethodsPanel() {
       await linkGoogle();
     } catch (cause) {
       setLeaving(false);
-      setNotice({ ok: false, text: (cause as Error).message });
+      setNotice({ ok: false, text: errorText(cause, t) });
     }
   }
 
@@ -58,7 +59,7 @@ export function SignInMethodsPanel() {
       await unlinkGoogle();
       setNotice({ ok: true, text: t("profile.googleDisconnected") });
     } catch (cause) {
-      setNotice({ ok: false, text: (cause as Error).message });
+      setNotice({ ok: false, text: errorText(cause, t) });
     } finally {
       setDisconnecting(false);
     }

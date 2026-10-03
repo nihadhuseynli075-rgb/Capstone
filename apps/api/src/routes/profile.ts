@@ -1,15 +1,17 @@
 import { Router } from "express";
 import { z } from "zod";
-import { profileLimits } from "@grade9/shared";
+import { normalizeUsername, profileLimits } from "@grade9/shared";
 import { accountOf, requireAccount, signInAgain } from "../modules/student/requireAccount";
-import { isLiveSession } from "../modules/student/studentAuth";
+import { liveAccount } from "../modules/student/studentAuth";
 import { deleteAttemptsFor } from "../repositories/attemptRepository";
 import {
   deleteAccount,
   ensureProfile,
   mirrorNameToAccount,
   setProfilePhoto,
-  updateProfileName
+  updateProfileDetails,
+  UsernameTakenError,
+  usernameOwnerId
 } from "../repositories/profileRepository";
 import {
   photoTypeOf,
@@ -18,10 +20,11 @@ import {
   storePhoto,
   storedPhotoPath
 } from "../services/profilePhotos";
+import { checkUsername, takenRefusal } from "../services/usernames";
 
 /**
- * The signed-in student's own profile: read it, rename it, change or remove
- * the photo, and delete the whole account.
+ * The signed-in student's own profile: read it, rename it, change its
+ * username, change or remove the photo, and delete the whole account.
  *
  * Every route acts on the account the access token belongs to and takes no id
  * from the request, so there is no way to name somebody else's profile here.
@@ -47,40 +50,119 @@ profileRouter.get("/", async (_request, response, next) => {
   }
 });
 
-const renameSchema = z.object({
-  fullName: z
-    .string()
-    // Runs of spaces, tabs or line breaks become one space, so a name pasted
-    // in from elsewhere cannot bring its layout onto the leaderboard.
-    .transform((value) => value.trim().replace(/\s+/g, " "))
-    .pipe(
-      z
-        .string()
-        .min(profileLimits.nameMin, "That name is too short.")
-        .max(profileLimits.nameMax, "That name is too long.")
-    )
-});
+const nameField = z
+  .string({ invalid_type_error: "That name is not valid." })
+  // Runs of spaces, tabs or line breaks become one space, so a name pasted
+  // in from elsewhere cannot bring its layout onto the leaderboard.
+  .transform((value) => value.trim().replace(/\s+/g, " "))
+  .pipe(
+    z
+      .string()
+      .min(profileLimits.nameMin, "That name is too short.")
+      .max(profileLimits.nameMax, "That name is too long.")
+  );
+
+/**
+ * Either or both may be sent. The username is checked below rather than here,
+ * because its refusals say which rule it broke, and the browser words each of
+ * those in the student's language.
+ */
+const updateSchema = z
+  .object({
+    fullName: nameField.optional(),
+    username: z.string({ invalid_type_error: "That username is not valid." }).optional()
+  })
+  .refine((value) => value.fullName !== undefined || value.username !== undefined, {
+    message: "Send a name or a username to change."
+  });
 
 profileRouter.patch("/", async (request, response, next) => {
-  const parsed = renameSchema.safeParse(request.body);
+  const parsed = updateSchema.safeParse(request.body);
 
   if (!parsed.success) {
+    const issue = parsed.error.issues[0];
     return response.status(400).json({
-      message: parsed.error.issues[0]?.message ?? "That name is not valid.",
+      code: issue?.path[0] === "fullName" ? "name-invalid" : "invalid-request",
+      message: issue?.message ?? "That is not valid.",
       issues: parsed.error.flatten()
     });
   }
 
+  let username: string | undefined;
+
+  if (parsed.data.username !== undefined) {
+    const checked = checkUsername(parsed.data.username);
+    if (!checked.ok) return response.status(checked.refusal.status).json(checked.refusal);
+    username = checked.username;
+  }
+
   try {
     const account = accountOf(response);
-    if (!(await ensureProfile(account))) return response.status(401).json(signInAgain);
+    const existing = await ensureProfile(account);
+    if (!existing) return response.status(401).json(signInAgain);
 
-    const profile = await updateProfileName(account.id, parsed.data.fullName);
+    // Asking for the username the student has already is not a change. It is
+    // left out of the write, which would otherwise be refused by their own row.
+    const changes = {
+      fullName: parsed.data.fullName,
+      username: username !== existing.username ? username : undefined
+    };
+
+    const profile =
+      changes.fullName === undefined && changes.username === undefined
+        ? existing
+        : await updateProfileDetails(account.id, changes);
     if (!profile) return response.status(401).json(signInAgain);
 
-    await mirrorNameToAccount(account.id, profile.fullName);
+    // Even when the name is the same as before: saving it again is how a name
+    // that a Google sign-in overwrote on the account gets put back.
+    if (changes.fullName !== undefined) await mirrorNameToAccount(account.id, profile.fullName);
 
     response.json({ profile });
+  } catch (error) {
+    if (error instanceof UsernameTakenError) return response.status(takenRefusal.status).json(takenRefusal);
+    next(error);
+  }
+});
+
+/**
+ * Whether a username could be saved: the form's hint while its owner types.
+ *
+ * It answers 200 for any text and says in the body what is wrong with it, so a
+ * name being typed does not fill the browser's console with failed requests.
+ * Only a hint, and meant to be: someone else can take the name a moment after
+ * this says it is free, and the save is what decides.
+ */
+profileRouter.get("/username-available", async (request, response, next) => {
+  const typed = request.query.username;
+
+  if (typeof typed !== "string") {
+    return response.status(400).json({
+      code: "invalid-request",
+      message: "Send the username to check as ?username=name."
+    });
+  }
+
+  const checked = checkUsername(typed);
+
+  if (!checked.ok) {
+    return response.json({
+      username: normalizeUsername(typed),
+      available: false,
+      reason: checked.refusal.code === "username-reserved" ? "reserved" : "invalid",
+      problem: checked.refusal.problem
+    });
+  }
+
+  try {
+    const owner = await usernameOwnerId(checked.username);
+    const yours = owner === accountOf(response).id;
+
+    response.json({
+      username: checked.username,
+      available: owner === null || yours,
+      reason: owner === null ? null : yours ? "yours" : "taken"
+    });
   } catch (error) {
     next(error);
   }
@@ -98,23 +180,23 @@ profileRouter.put("/photo", async (request, response, next) => {
   const parsed = z.object({ dataBase64: z.string().min(1) }).safeParse(request.body);
 
   if (!parsed.success) {
-    return response.status(400).json({ message: "Choose a photo to upload." });
+    return response.status(400).json({ code: "photo-missing", message: "Choose a photo to upload." });
   }
 
   const bytes = Buffer.from(parsed.data.dataBase64, "base64");
 
   if (bytes.byteLength === 0) {
-    return response.status(400).json({ message: "That photo was empty." });
+    return response.status(400).json({ code: "photo-empty", message: "That photo was empty." });
   }
 
   if (bytes.byteLength > profileLimits.photoMaxBytes) {
-    return response.status(413).json({ message: "Photos must be 2 MB or smaller." });
+    return response.status(413).json({ code: "photo-too-large", message: "Photos must be 2 MB or smaller." });
   }
 
   const type = photoTypeOf(bytes);
 
   if (!type) {
-    return response.status(400).json({ message: "Only JPG, PNG or WebP photos can be used." });
+    return response.status(400).json({ code: "photo-type", message: "Only JPG, PNG or WebP photos can be used." });
   }
 
   try {
@@ -201,32 +283,37 @@ profileRouter.delete("/", async (request, response, next) => {
     return response.status(400).json({ message: "Type your email address to confirm." });
   }
 
-  const account = accountOf(response);
   const typed = parsed.data.confirmEmail.trim().toLowerCase();
-
-  // An account with no email address cannot confirm this way, and deleting it
-  // on an empty string is the one thing that must not happen. Every account
-  // here is made with an email, so this is a guard, not a path anyone travels.
-  if (account.email.length === 0) {
-    return response.status(400).json({
-      code: "confirmation-mismatch",
-      message: "This account has no email address to confirm with, so it cannot be deleted here."
-    });
-  }
-
-  if (typed !== account.email.toLowerCase()) {
-    return response.status(400).json({
-      code: "confirmation-mismatch",
-      message: "That does not match your email address, so nothing was deleted."
-    });
-  }
 
   try {
     // Deleting is the one thing that cannot be undone, so the token is checked
     // against the auth server rather than on its signature alone: a token from
     // a session that has been signed out still verifies until it expires, and
     // whoever found it could read the email to confirm with out of it.
-    if (!(await isLiveSession(request))) return response.status(401).json(signInAgain);
+    //
+    // The email to confirm against is the server's too, not the token's. A
+    // student who has just changed their address sees the new one on the page
+    // while their token still says the old one, and would be told their own
+    // address does not match.
+    const account = await liveAccount(request);
+    if (!account) return response.status(401).json(signInAgain);
+
+    // An account with no email address cannot confirm this way, and deleting it
+    // on an empty string is the one thing that must not happen. Every account
+    // here is made with an email, so this is a guard, not a path anyone travels.
+    if (account.email.length === 0) {
+      return response.status(400).json({
+        code: "confirmation-mismatch",
+        message: "This account has no email address to confirm with, so it cannot be deleted here."
+      });
+    }
+
+    if (typed !== account.email.toLowerCase()) {
+      return response.status(400).json({
+        code: "confirmation-mismatch",
+        message: "That does not match your email address, so nothing was deleted."
+      });
+    }
 
     // Photos first, then test history, then the account itself. Each step is
     // safe to repeat, and the account goes last: if anything before it fails,

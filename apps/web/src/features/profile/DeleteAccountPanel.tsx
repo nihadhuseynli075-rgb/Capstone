@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { Field } from "../auth/AuthLayout";
 import { useLanguage } from "../../lib/i18n";
+import { errorText } from "./profileText";
 import { useProfile } from "./ProfileContext";
 
 /**
@@ -51,7 +52,7 @@ export function DeleteAccountPanel({
       await deleteAccount(typed);
       onDeleted();
     } catch (cause) {
-      setError((cause as Error).message);
+      setError(errorText(cause, t));
       setDeleting(false);
     }
   }

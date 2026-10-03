@@ -37,8 +37,9 @@ dashboard shows a banner, so this is never a silent surprise.
    anyone to read.
 5. In the Supabase dashboard open **SQL Editor → New query**, paste
    [`supabase/run-all.sql`](supabase/run-all.sql), and run it. The script applies
-   migrations `0001` through `0007` in order and is safe to rerun when an older
-   project already has some of them. If `0001`-`0006` are already in, running
+   every migration from `0001` on, in order, and is safe to rerun when an older
+   project already has some of them. (Usernames are `0012`, which makes a
+   username for every student who already has an account.) If `0001`-`0006` are already in, running
    [`0007_profiles_and_google.sql`](supabase/migrations/0007_profiles_and_google.sql)
    on its own is enough: it adds profile photos and the `avatars` storage bucket.
 6. Under **Authentication → Providers**, make sure Email is enabled. Google is
@@ -102,12 +103,14 @@ and the app sends the student on to their profile from there (see
 ## Profiles
 
 Signed-in students have a profile at `/#/profile`, and signing in with Google
-lands there. It shows their photo, name, email and when they joined, and lets
-them:
+lands there. It shows their photo, name, username, email and when they joined,
+and lets them:
 
 - upload, replace or remove a profile photo (cropped to a square and shrunk in
   the browser before it is sent, which also strips the camera's location data);
 - change their name;
+- change their username (see below);
+- change their email address (see below);
 - set or change their password;
 - connect or disconnect Google;
 - delete their account, which also deletes their photo and every test they
@@ -118,6 +121,75 @@ The copy on the Supabase account is not used, because every Google sign-in
 overwrites it with Google's name and photo. Changing the name, the photo and
 deleting the account all need the API connected to Supabase with the service
 role key; without it the profile page says so and leaves the rest working.
+The email, the password and Google go straight to Supabase from the browser.
+
+Every message on the page, errors included, is shown in the site language.
+
+### Usernames
+
+Every student has a username, shown as `@nihad`, which is how friends find
+them without knowing an email address. It is made at sign-up from their name
+(or, when that has no Latin letters in it, the start of their email), with a
+number added if somebody has it: `nihad`, `nihad2`. They can change it on the
+profile page, with a hint under the box that says whether the name is free as
+they type.
+
+- 3 to 20 characters from `a-z`, `0-9`, `_` and `.`, starting with a letter,
+  stored lowercase. `Nihad` and `nihad` are the same name, and typing a leading
+  `@` or accents (`Hüseyn`, `İlkin`) is forgiven.
+- A short list of names nobody can take (`admin`, `exampeak`, `support`...),
+  also with dots and underscores ignored, so `ad.min` is no way round it. The
+  list is `reservedUsernames` in `packages/shared/src/usernames.ts`, repeated
+  in `0012_usernames.sql`.
+- The rules live in one place, `packages/shared/src/usernames.ts`, which the
+  form and the API both use; the database repeats them as a check constraint.
+- "Is it free?" is only a hint. The save is what decides, by catching the
+  unique index's refusal, so two students saving the same name at once get one
+  winner and one clear "That username is taken."
+
+The API's `GET /api/profile/username-available?username=...` answers the form's
+hint, and `findProfileByUsername` in `apps/api/src/repositories/profileRepository.ts`
+is what the friends feature looks students up by. It returns the whole profile,
+email included, so whatever shows the result to another student has to cut it
+down to name, username and photo first.
+
+Run `supabase/migrations/0012_usernames.sql` (it is part of `run-all.sql`)
+before this version of the API: the profile page reports the missing column,
+and the file to run, until it has been.
+
+### Changing the email address
+
+Supabase does not swap an address the moment it is asked to. It emails a link
+to the new one, and the address only changes once that link is opened. The
+profile page says exactly that, keeps showing the old address as the one to
+sign in with, and notices the change when the student comes back to the tab.
+The profile's own copy of the email follows the account through the trigger in
+`0007_profiles_and_google.sql`.
+
+A few things in the Supabase dashboard decide how this behaves:
+
+- **Redirect URLs** (Authentication → URL Configuration): the link comes back
+  to the site's address, so it has to be listed there. The Google steps above
+  already cover it.
+- **Secure email change** (Authentication → Sign In / Providers → Email, on by
+  default): Supabase also sends a link to the *old* address and wants both
+  opened. Leave it on: it stops somebody on a borrowed, signed-in computer
+  from quietly moving the account to their own address. The page tells the
+  student a second link may arrive.
+- **Sending email at all**: Supabase's built-in sender is for trying things
+  out. It is heavily rate-limited and, unless a custom SMTP server is set up
+  (Authentication → Emails → SMTP Settings), it only delivers to people in
+  your Supabase organisation. Sign-up confirmation needs the same thing, so
+  set it up before real students use either.
+- **Minimum password length** (same Email panel): Supabase's default is 6,
+  while the form asks for 8 with a letter and a number. The form is the only
+  place that rule is enforced, so raise the setting to 8 to make Supabase agree.
+
+An account that only ever signed in with Google is not offered the change: its
+address is Google's, and an address with no password behind it would leave
+Supabase counting an email way in that nobody can use, which in turn lets
+Google be disconnected and locks the student out. Setting a password first
+turns the panel on.
 
 ## The two sides of the app
 
@@ -167,8 +239,9 @@ npm run smoke
 
 The Supabase code paths - accounts, moving guest history, two submissions of
 one paper at once, recovering from a write that fails halfway, profiles
-(photos, renaming, deleting an account and everything in it) and friends
-(requests both ways, the edge cases, comparing progress) - only run with
+(photos, renaming, usernames, changing the email and password, deleting an
+account and everything in it) and friends (requests both ways, the edge
+cases, comparing progress) - only run with
 Supabase connected. This starts a local stand-in for Supabase's REST, auth and
 storage APIs, points a fresh API at it, and checks them, with no project needed:
 

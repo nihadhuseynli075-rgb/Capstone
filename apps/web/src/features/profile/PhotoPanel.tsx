@@ -3,6 +3,7 @@ import type { ChangeEvent } from "react";
 import { useLanguage, type TranslationKey } from "../../lib/i18n";
 import { Avatar } from "./Avatar";
 import { preparePhoto, PhotoError, type PhotoProblem } from "./preparePhoto";
+import { errorText } from "./profileText";
 import { useProfile } from "./ProfileContext";
 
 const PROBLEM_TEXT: Record<PhotoProblem, TranslationKey> = {
@@ -14,8 +15,8 @@ const PROBLEM_TEXT: Record<PhotoProblem, TranslationKey> = {
 type Busy = "preparing" | "saving" | "removing" | null;
 
 /**
- * The top of the profile: the photo, the name and the email, with the photo's
- * buttons underneath.
+ * The top of the profile: the photo, the name, the username and the email,
+ * with the photo's buttons underneath.
  *
  * A chosen photo is shown in place first, cropped the way it will be stored,
  * and only uploaded once it is saved. Picking the wrong file, or one that
@@ -23,11 +24,13 @@ type Busy = "preparing" | "saving" | "removing" | null;
  */
 export function PhotoPanel({
   name,
+  username,
   email,
   memberSince,
   editable
 }: {
   name: string;
+  username: string | null;
   email: string;
   memberSince: string | null;
   editable: boolean;
@@ -87,7 +90,7 @@ export function PhotoPanel({
       setPreview(null);
       setNotice({ ok: true, text: t("profile.photoSaved") });
     } catch (cause) {
-      setNotice({ ok: false, text: (cause as Error).message });
+      setNotice({ ok: false, text: errorText(cause, t) });
     } finally {
       setBusy(null);
     }
@@ -101,7 +104,7 @@ export function PhotoPanel({
       await removePhoto();
       setNotice({ ok: true, text: t("profile.photoRemoved") });
     } catch (cause) {
-      setNotice({ ok: false, text: (cause as Error).message });
+      setNotice({ ok: false, text: errorText(cause, t) });
     } finally {
       setBusy(null);
     }
@@ -114,6 +117,7 @@ export function PhotoPanel({
 
         <div className="profile-identity-text">
           <h2>{name}</h2>
+          {username && <p className="profile-username">@{username}</p>}
           <p>{email}</p>
           {memberSince && (
             <p className="profile-since">

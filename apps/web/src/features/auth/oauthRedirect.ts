@@ -1,6 +1,6 @@
 import type { AuthError } from "@supabase/supabase-js";
 import { replaceRoute } from "../../app/router";
-import { redirectErrorMessage } from "./authErrors";
+import { redirectErrorCode, redirectErrorMessage } from "./authErrors";
 
 /**
  * Going to Google and coming back.
@@ -32,8 +32,10 @@ export type AuthRedirectIntent =
 
 export interface AuthRedirectResult {
   intent: AuthRedirectIntent;
-  /** Null when it worked; otherwise why not, worded for the student. */
+  /** Null when it worked; otherwise why not, worded for the student, in English. */
   error: string | null;
+  /** The same reason as a code, for a page that words it in the student's own language. */
+  errorCode: "otp_expired" | "identity_already_exists" | "access_denied" | null;
 }
 
 interface PendingRedirect {
@@ -153,7 +155,7 @@ export function finishAuthRedirect(outcome: {
     // Google starts there, and sending a signed-in student to the sign-in page
     // only bounces them off it again, taking the message with them.
     replaceRoute(outcome.signedIn ? "/profile" : "/login");
-    return { intent, error: redirectErrorMessage(outcome.error, intent) };
+    return { intent, error: redirectErrorMessage(outcome.error, intent), errorCode: redirectErrorCode(outcome.error) };
   }
 
   if (!pending) return null;
@@ -161,7 +163,7 @@ export function finishAuthRedirect(outcome: {
   // Either way the trip ends on the profile, where the Google name and photo
   // (or the newly connected Google account) now show.
   replaceRoute("/profile");
-  return { intent, error: null };
+  return { intent, error: null, errorCode: null };
 }
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;

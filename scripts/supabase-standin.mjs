@@ -35,13 +35,21 @@
  *     falls back to asking this stand-in about every one. A real project
  *     signing with asymmetric keys checks the signature on its own and cannot
  *     tell that a session has been signed out, which is why deleting an
- *     account asks the auth server outright (see isLiveSession).
+ *     account asks the auth server outright (see liveAccount).
  *   * The profiles table here is written by this file imitating the triggers in
  *     the migrations, not by the triggers themselves. Keep the two in step:
  *     what `createUser` does is meant to be what 0007's handle_new_user does.
+ *     The same goes for 0012's usernames: the column, its NOT NULL, the
+ *     lowercase format check and the unique index are enforced here, and a
+ *     profile inserted without a username is given one by generateUsername,
+ *     which imitates generate_username in that migration.
  *
  * Tests steer it through /__standin: create accounts, expire their sessions,
- * inject failures and latency, and read or edit rows directly.
+ * inject failures and latency, read or edit rows directly, and play the inbox:
+ * GET /emails lists the mail the project would have sent, POST
+ * /confirm-email-change { userId } opens the link in a pending email change,
+ * and POST /mail { confirmEmailChange: false } switches "Confirm email" off so
+ * an email change applies at once.
  */
 
 import http from "node:http";
@@ -73,33 +81,69 @@ function column(type, options = {}) {
 
 const oneOf = (values) => (value) => values.includes(value);
 
-/**
- * A username for a profile that arrives without one: the email's local part,
- * lowercased, anything outside [a-z0-9_.] turned into "_", made to start with
- * a letter and to run 3-20 characters, with a number on the end if it is taken.
- *
- * This is a stand-in for the username migration's own generation, kept as
- * small as will do: enough that every profile has a unique lowercase username,
- * as the friends search needs. It does not try to match that logic exactly.
- */
-function generateUsername(email, taken) {
-  const local = String(email ?? "").split("@")[0].toLowerCase().replace(/[^a-z0-9_.]/g, "_");
-  const base = (/^[a-z]/.test(local) ? local : `u${local}`).slice(0, 20).padEnd(3, "0");
+// ---------------------------------------------------------------------------
+// Usernames (migration 0012)
+// ---------------------------------------------------------------------------
 
-  let candidate = base;
-  for (let number = 2; taken.has(candidate); number += 1) {
-    candidate = base.slice(0, 20 - String(number).length) + number;
+/** The same list as `reserved` in generate_username, and in packages/shared/src/usernames.ts. */
+const RESERVED_USERNAMES = [
+  "abuse", "admin", "administrator", "anonymous", "api", "contact", "deleted", "dim", "exampeak",
+  "friends", "help", "helpdesk", "info", "login", "moderator", "mod", "noreply", "null", "official",
+  "owner", "postmaster", "profile", "register", "root", "security", "settings", "signin", "signup",
+  "staff", "support", "sysadmin", "system", "team", "undefined", "unknown", "webmaster", "www"
+];
+
+const USERNAME_FORMAT = /^[a-z][a-z0-9_.]{2,19}$/;
+
+/**
+ * generate_username from 0012, step for step: the name, else the start of the
+ * email; marks off the Azerbaijani letters; anything else not allowed becomes
+ * "_"; then the first of "name", "name2", "name3"... that is neither reserved
+ * (ignoring dots and underscores) nor in `taken`. The migration's test against
+ * a real Postgres runs the same names through both, so they stay in step.
+ */
+export function generateUsername(name, email, taken) {
+  const from = "əƏıİöÖüÜçÇşŞğĞ";
+  const to = "eEiIoOuUcCsSgG";
+  let base = null;
+
+  for (const source of [name, String(email ?? "").split("@")[0]]) {
+    let candidate = [...String(source ?? "")]
+      .map((letter) => (from.includes(letter) ? to[from.indexOf(letter)] : letter))
+      .join("")
+      .toLowerCase();
+
+    candidate = candidate
+      .replace(/[^a-z0-9_.]+/g, "_")
+      .replace(/^[^a-z]+/, "")
+      .replace(/_{2,}/g, "_")
+      .replace(/[_.]+$/, "");
+
+    if (candidate.length >= 3) {
+      base = candidate;
+      break;
+    }
   }
+
+  base = (base ?? "student").slice(0, 20);
+  let candidate = base;
+  let suffix = 1;
+
+  while (RESERVED_USERNAMES.includes(candidate.replace(/[._]/g, "")) || taken.has(candidate)) {
+    suffix += 1;
+    candidate = base.slice(0, 20 - String(suffix).length) + suffix;
+  }
+
   return candidate;
 }
 
 /**
- * The tables the API touches, as the migrations leave them after 0001-0010,
- * plus `friendships` from 0005 and the `username` column the username
- * migration adds to `profiles`.
+ * The tables the API touches, as the migrations leave them after 0001-0010 and
+ * 0012, `friendships` from 0005 included.
  *
- * `unique` lists UNIQUE constraints as [name, columns], named the way Postgres
- * names them. `beforeInsert` stands in for triggers that fill a row in.
+ * `unique` lists UNIQUE constraints and unique indexes as [name, columns],
+ * named the way Postgres names them. `beforeInsert` stands in for triggers
+ * that fill a row in.
  */
 const SCHEMA = {
   profiles: {
@@ -110,20 +154,19 @@ const SCHEMA = {
       grade_level: column("int", { notNull: true, default: () => 9 }),
       created_at: column("timestamptz", { notNull: true, default: nowIso }),
       avatar_url: column("text"),
-      // The username migration: text, unique, stored lowercase. Not null in the
-      // database, where the sign-up trigger always fills it, so the stand-in
-      // fills it here for both ways a profile gets made.
+      // 0012. NOT NULL, as it is once the migration has run; beforeInsert is
+      // the profiles_fill_username trigger that makes that safe.
       username: column("text", { notNull: true })
     },
-    checks: [],
+    checks: [["profiles_username_format", (row) => row.username === null || USERNAME_FORMAT.test(row.username)]],
+    // The unique index 0012 creates. Names are lowercase by the check above,
+    // so comparing them as they are is the case-insensitive comparison.
     unique: [["profiles_username_key", ["username"]]],
-    beforeInsert: (row, existing) => ({
-      ...row,
-      username:
-        row.username === null
-          ? generateUsername(row.email, new Set(existing.map((other) => other.username)))
-          : String(row.username).toLowerCase()
-    })
+    beforeInsert: (row, existing) => {
+      if (row.username !== null) return row;
+      const taken = new Set(existing.map((other) => other.username));
+      return { ...row, username: generateUsername(row.full_name, row.email, taken) };
+    }
   },
   questions: {
     columns: {
@@ -704,19 +747,16 @@ function createDatabase() {
   function insert(table, body, params) {
     requireTable(table);
     const inputs = Array.isArray(body) ? body : [body];
-    const rows = [];
-    for (const input of inputs) {
-      const row = buildRow(table, input, params.get("columns"));
-      // A BEFORE INSERT trigger sees the rows already in the table, and the
-      // ones earlier in this same statement.
-      const hook = SCHEMA[table].beforeInsert;
-      rows.push(hook ? hook(row, [...tables[table], ...rows]) : row);
-    }
+    const built = inputs.map((input) => buildRow(table, input, params.get("columns")));
 
     // One statement: every row is checked before any of them is kept, so a
     // bad row in a batch leaves nothing behind.
     const staged = [...tables[table]];
-    for (const row of rows) {
+    const rows = [];
+    for (const proposed of built) {
+      // BEFORE INSERT triggers run before the row is compared with what is there.
+      const row = SCHEMA[table].beforeInsert ? SCHEMA[table].beforeInsert(proposed, staged) : proposed;
+
       if (staged.some((existing) => existing.id === row.id)) {
         throw new PgError(
           409,
@@ -726,6 +766,7 @@ function createDatabase() {
         );
       }
       staged.push(row);
+      rows.push(row);
     }
     for (const row of rows) validate(table, row);
     rows.forEach((row, index) => checkUnique(table, row, [...tables[table], ...rows.slice(0, index)]));
@@ -808,6 +849,9 @@ function createAuth(db) {
       role: "authenticated",
       email: user.email,
       email_confirmed_at: user.createdAt,
+      // Set while an email change waits for its link to be opened. The
+      // account's own email stays as it was until then.
+      ...(user.newEmail ? { new_email: user.newEmail, email_change_sent_at: user.emailChangeSentAt } : {}),
       phone: "",
       confirmed_at: user.createdAt,
       last_sign_in_at: nowIso(),
@@ -873,6 +917,8 @@ function createAuth(db) {
       metadata: { ...metadata },
       provider,
       identities: [],
+      newEmail: null,
+      emailChangeSentAt: null,
       createdAt: nowIso(),
       updatedAt: nowIso()
     };
@@ -986,6 +1032,98 @@ function createAuth(db) {
     user.updatedAt = nowIso();
   }
 
+  // -------------------------------------------------------------------------
+  // Changing the password and the email, as PUT /auth/v1/user does them
+  // -------------------------------------------------------------------------
+
+  /**
+   * The project's "Minimum password length". Supabase's default is 6, which is
+   * below the 8 the app asks for: the form's rule is the app's, and this is
+   * all the auth server itself insists on.
+   */
+  const PASSWORD_MIN_LENGTH = 6;
+
+  /** The mail the project would have sent, and whether an email change needs its link opened. */
+  const mail = { confirmEmailChange: true, sent: [] };
+
+  function setPassword(user, password) {
+    // GoTrue checks "same as the old one" before it checks strength.
+    if (user.password !== null && user.password === password) {
+      throw new PgError(422, "same_password", "New password should be different from the old password.");
+    }
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      throw new PgError(422, "weak_password", `Password should be at least ${PASSWORD_MIN_LENGTH} characters.`);
+    }
+
+    user.password = password;
+
+    // Believed to be GoTrue's behaviour, though not checked against a real
+    // project: an account made through Google gains an email identity once it
+    // has a password, which is what lets the app list "Email and password" as
+    // a way in. If a real project turns out not to, the profile page keeps
+    // showing the Google-only wording, and nothing else breaks.
+    if (!user.identities.some((identity) => identity.provider === "email")) {
+      user.identities.push(newIdentity(user, "email", user.email));
+    }
+  }
+
+  /**
+   * Asking for a new email address. With confirmation on (the default) the
+   * account keeps its address and holds the new one as `new_email` until the
+   * link sent to it is opened; with it off the change applies at once.
+   *
+   * Real projects also send a link to the old address while "Secure email
+   * change" is on, and need both opened. The stand-in sends both and applies
+   * the change on a single confirm, which is the part of the picture the app
+   * does not depend on.
+   */
+  function requestEmailChange(user, requested) {
+    const email = String(requested ?? "").trim().toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new PgError(400, "email_address_invalid", `Email address "${email}" is invalid`);
+    }
+
+    // The same address is not a change, and GoTrue treats it as none.
+    if (email === user.email) return;
+
+    // A pending change does not hold an address: only a confirmed one is taken.
+    if ([...users.values()].some((other) => other.id !== user.id && other.email === email)) {
+      throw new PgError(422, "email_exists", "A user with this email address has already been registered");
+    }
+
+    if (!mail.confirmEmailChange) {
+      applyEmailChange(user, email);
+      return;
+    }
+
+    user.newEmail = email;
+    user.emailChangeSentAt = nowIso();
+    mail.sent.push({ to: email, kind: "email_change", userId: user.id });
+    mail.sent.push({ to: user.email, kind: "email_change_notice", userId: user.id });
+  }
+
+  function applyEmailChange(user, email) {
+    const previous = user.email;
+    user.email = email;
+    user.newEmail = null;
+    user.emailChangeSentAt = null;
+
+    const identity = user.identities.find((item) => item.provider === "email");
+    if (identity) identity.identity_data = { ...identity.identity_data, email };
+
+    userUpdated(user, previous);
+  }
+
+  /** Opening the link sent to the new address. */
+  function confirmEmailChange(userId) {
+    const user = users.get(userId);
+    if (!user || !user.newEmail) return null;
+
+    applyEmailChange(user, user.newEmail);
+    return user;
+  }
+
   /** The signed-in user a bearer token belongs to, or null if it is not live. */
   function userForToken(token) {
     const entry = accessTokens.get(token);
@@ -1006,6 +1144,10 @@ function createAuth(db) {
     userForToken,
     userUpdated,
     updateMetadata,
+    setPassword,
+    requestEmailChange,
+    confirmEmailChange,
+    mail,
     deleteUser,
     signInWithGoogle,
     linkGoogle,
@@ -1287,8 +1429,18 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
 
       if (request.method === "PUT") {
         const body = (await readBody(request)) ?? {};
+
+        try {
+          // The app asks for one of these at a time, so a refusal never
+          // leaves half a request behind.
+          if (typeof body.email === "string") auth.requestEmailChange(user, body.email);
+          if (typeof body.password === "string") auth.setPassword(user, body.password);
+        } catch (error) {
+          if (error instanceof PgError) return sendAuthError(response, error.status, error.code, error.message);
+          throw error;
+        }
+
         if (body.data && typeof body.data === "object") user.metadata = { ...user.metadata, ...body.data };
-        if (typeof body.password === "string") user.password = body.password;
         auth.userUpdated(user, user.email);
         return send(response, 200, auth.publicUser(user));
       }
@@ -1648,6 +1800,27 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
     if (area === "google" && request.method === "POST") {
       Object.assign(state.google, body);
       return send(response, 200, { google: state.google });
+    }
+
+    // Opening the link in the email sent to a new address: { userId }. The
+    // change applies and the profile's email follows, as the trigger does it.
+    if (area === "confirm-email-change" && request.method === "POST") {
+      const user = auth.confirmEmailChange(body.userId);
+      return user
+        ? send(response, 200, { user: auth.publicUser(user) })
+        : send(response, 404, { message: "no email change is waiting for that user" });
+    }
+
+    // The mail the project would have sent, oldest first.
+    if (area === "emails" && request.method === "GET") {
+      return send(response, 200, { emails: auth.mail.sent });
+    }
+
+    // How the project is set up: { confirmEmailChange } is the "Confirm email"
+    // switch, which when off lets an email change apply at once.
+    if (area === "mail" && request.method === "POST") {
+      Object.assign(auth.mail, { confirmEmailChange: body.confirmEmailChange ?? auth.mail.confirmEmailChange });
+      return send(response, 200, { confirmEmailChange: auth.mail.confirmEmailChange });
     }
 
     if (area === "expire-sessions" && request.method === "POST") {
