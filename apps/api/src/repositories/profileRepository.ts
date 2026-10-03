@@ -1,8 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { profileLimits, type StudentProfile } from "@grade9/shared";
+import { normalizeUsername, profileLimits, type StudentProfile } from "@grade9/shared";
 import { isUuid } from "../lib/ids";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import type { SignedInAccount } from "../modules/student/studentAuth";
+import { isUsernameConflict, USERNAME_TAKEN_MESSAGE } from "../services/usernames";
 
 /**
  * The account a student key belongs to, or null when it is a guest's key.
@@ -36,7 +37,7 @@ export async function accountIdFor(studentKey: string): Promise<string | null> {
 // there is no in-memory version of anything below. The profile routes refuse
 // before reaching here when Supabase is not configured.
 
-const PROFILE_COLUMNS = "id, full_name, email, avatar_url, created_at";
+const PROFILE_COLUMNS = "id, full_name, username, email, avatar_url, created_at";
 
 function client(): SupabaseClient {
   if (!supabaseAdmin) throw new Error("Profiles need the API connected to Supabase.");
@@ -46,15 +47,16 @@ function client(): SupabaseClient {
 /**
  * A profile query's failure, worded for whoever has to fix it.
  *
- * The one to expect is migration 0007 not having been run yet, which makes
- * Postgres refuse the `avatar_url` column. Naming the file that fixes it is
- * worth more than the raw message on its own.
+ * The one to expect is a migration not having been run yet, which makes
+ * Postgres refuse a column: `avatar_url` is 0007's and `username` is 0012's.
+ * Naming the file that fixes it is worth more than the raw message on its own.
  */
 function profileError(action: string, error: { code?: string; message: string }): Error {
   const missingColumn = error.code === "42703" || error.code === "PGRST204";
-  const hint = missingColumn
-    ? " Run supabase/migrations/0007_profiles_and_google.sql in the Supabase SQL editor."
-    : "";
+  const migration = /username/i.test(error.message)
+    ? "0012_usernames.sql"
+    : "0007_profiles_and_google.sql";
+  const hint = missingColumn ? ` Run supabase/migrations/${migration} in the Supabase SQL editor.` : "";
   return new Error(`Failed to ${action}: ${error.message}.${hint}`);
 }
 
@@ -65,6 +67,7 @@ function toProfile(row: Record<string, unknown>): StudentProfile {
   return {
     id: row.id as string,
     fullName: name.length > 0 ? name : email.split("@")[0],
+    username: typeof row.username === "string" ? row.username : "",
     email,
     avatarUrl: typeof row.avatar_url === "string" && row.avatar_url.length > 0 ? row.avatar_url : null,
     createdAt: row.created_at as string
@@ -126,11 +129,53 @@ export async function findProfile(id: string): Promise<StudentProfile | null> {
 }
 
 /**
+ * The profile that has a username, or null when nobody does.
+ *
+ * What the friends feature looks students up by. The name is brought to its
+ * stored form first, so "@Nihad" finds "nihad"; a name that could not be
+ * anybody's (too long, a space in it) simply finds nothing.
+ *
+ * This is the whole profile, email included. Anything that shows the result to
+ * another student has to cut it down to name, username and photo first.
+ */
+export async function findProfileByUsername(username: string): Promise<StudentProfile | null> {
+  const stored = normalizeUsername(username);
+  if (stored.length === 0) return null;
+
+  const { data, error } = await client()
+    .from("profiles")
+    .select(PROFILE_COLUMNS)
+    .eq("username", stored)
+    .maybeSingle();
+
+  if (error) throw profileError("look up that username", error);
+  return data ? toProfile(data) : null;
+}
+
+/**
+ * Who has a username, as an account id, or null when it is free.
+ *
+ * For the form's "is this free?" hint. Only a hint: the write that follows is
+ * what decides, since the answer can be out of date by then.
+ */
+export async function usernameOwnerId(username: string): Promise<string | null> {
+  const { data, error } = await client()
+    .from("profiles")
+    .select("id")
+    .eq("username", normalizeUsername(username))
+    .maybeSingle();
+
+  if (error) throw profileError("check that username", error);
+  return data ? (data.id as string) : null;
+}
+
+/**
  * The account's profile, made now if it has none.
  *
  * The sign-up trigger makes one for every account, so this only does anything
  * for an account that signed up before the trigger was in the project. Its
- * name and photo are worked out the way the trigger in 0007 would have.
+ * name and photo are worked out the way the trigger in 0007 would have, and
+ * the database gives it a username (see profiles_fill_username in 0012).
  *
  * Null when the account itself no longer exists: deleted while a token for it
  * was still live.
@@ -139,28 +184,42 @@ export async function ensureProfile(account: SignedInAccount): Promise<StudentPr
   const existing = await findProfile(account.id);
   if (existing) return existing;
 
-  const { data, error } = await client()
-    .from("profiles")
-    .insert({
-      id: account.id,
-      full_name: boundedName(
-        metadataText(account, "full_name") || metadataText(account, "name") || account.email.split("@")[0]
-      ),
-      email: account.email || null,
-      avatar_url: googlePhotoUrl(account)
-    })
-    .select(PROFILE_COLUMNS)
-    .single();
+  // The username the database picks can be taken by somebody else between it
+  // choosing and the row being saved. The next try picks again.
+  for (let attempt = 1; ; attempt += 1) {
+    const { data, error } = await client()
+      .from("profiles")
+      .insert({
+        id: account.id,
+        full_name: boundedName(
+          metadataText(account, "full_name") || metadataText(account, "name") || account.email.split("@")[0]
+        ),
+        email: account.email || null,
+        avatar_url: googlePhotoUrl(account)
+      })
+      .select(PROFILE_COLUMNS)
+      .single();
 
-  if (!error) return toProfile(data);
+    if (!error) return toProfile(data);
 
-  // Two requests found no profile at once, and the other one made it.
-  if (error.code === "23505") return findProfile(account.id);
+    if (isUsernameConflict(error) && attempt < 3) continue;
 
-  // The profile's id points at the account, so a deleted account cannot have one.
-  if (error.code === "23503") return null;
+    // Two requests found no profile at once, and the other one made it.
+    if (error.code === "23505") return findProfile(account.id);
 
-  throw profileError("create your profile", error);
+    // The profile's id points at the account, so a deleted account cannot have one.
+    if (error.code === "23503") return null;
+
+    throw profileError("create your profile", error);
+  }
+}
+
+/** The username someone asked for belongs to another student already. */
+export class UsernameTakenError extends Error {
+  constructor() {
+    super(USERNAME_TAKEN_MESSAGE);
+    this.name = "UsernameTakenError";
+  }
 }
 
 async function updateProfile(
@@ -175,12 +234,31 @@ async function updateProfile(
     .select(PROFILE_COLUMNS)
     .maybeSingle();
 
+  // The unique index is what decides who got a name first. Asking whether it
+  // was free a moment ago proves nothing once two students are typing the same
+  // one, so the answer comes from the write that failed.
+  if (error && isUsernameConflict(error)) throw new UsernameTakenError();
+
   if (error) throw profileError(action, error);
   return data ? toProfile(data) : null;
 }
 
-export function updateProfileName(id: string, fullName: string): Promise<StudentProfile | null> {
-  return updateProfile(id, { full_name: fullName }, "save your name");
+/**
+ * Saves a new name and/or username in one write, so a refused username does not
+ * leave the name changed behind it.
+ *
+ * The username must already be checked and normalised (see checkUsername).
+ * Throws UsernameTakenError when somebody else has it.
+ */
+export function updateProfileDetails(
+  id: string,
+  changes: { fullName?: string; username?: string }
+): Promise<StudentProfile | null> {
+  const columns: Record<string, string> = {};
+  if (changes.fullName !== undefined) columns.full_name = changes.fullName;
+  if (changes.username !== undefined) columns.username = changes.username;
+
+  return updateProfile(id, columns, "save your details");
 }
 
 /** Points the profile at a photo, or at none with null. */

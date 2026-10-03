@@ -1,6 +1,6 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
-import { profileLimits } from "@grade9/shared";
+import { normalizeUsername, profileLimits } from "@grade9/shared";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { liveAccount, signedInAccount, type SignedInAccount } from "../modules/student/studentAuth";
 import { deleteAttemptsFor } from "../repositories/attemptRepository";
@@ -9,7 +9,9 @@ import {
   ensureProfile,
   mirrorNameToAccount,
   setProfilePhoto,
-  updateProfileName
+  updateProfileDetails,
+  UsernameTakenError,
+  usernameOwnerId
 } from "../repositories/profileRepository";
 import {
   photoTypeOf,
@@ -18,10 +20,11 @@ import {
   storePhoto,
   storedPhotoPath
 } from "../services/profilePhotos";
+import { checkUsername, takenRefusal } from "../services/usernames";
 
 /**
- * The signed-in student's own profile: read it, rename it, change or remove
- * the photo, and delete the whole account.
+ * The signed-in student's own profile: read it, rename it, change its
+ * username, change or remove the photo, and delete the whole account.
  *
  * Every route acts on the account the access token belongs to and takes no id
  * from the request, so there is no way to name somebody else's profile here.
@@ -74,40 +77,119 @@ profileRouter.get("/", async (_request, response, next) => {
   }
 });
 
-const renameSchema = z.object({
-  fullName: z
-    .string()
-    // Runs of spaces, tabs or line breaks become one space, so a name pasted
-    // in from elsewhere cannot bring its layout onto the leaderboard.
-    .transform((value) => value.trim().replace(/\s+/g, " "))
-    .pipe(
-      z
-        .string()
-        .min(profileLimits.nameMin, "That name is too short.")
-        .max(profileLimits.nameMax, "That name is too long.")
-    )
-});
+const nameField = z
+  .string({ invalid_type_error: "That name is not valid." })
+  // Runs of spaces, tabs or line breaks become one space, so a name pasted
+  // in from elsewhere cannot bring its layout onto the leaderboard.
+  .transform((value) => value.trim().replace(/\s+/g, " "))
+  .pipe(
+    z
+      .string()
+      .min(profileLimits.nameMin, "That name is too short.")
+      .max(profileLimits.nameMax, "That name is too long.")
+  );
+
+/**
+ * Either or both may be sent. The username is checked below rather than here,
+ * because its refusals say which rule it broke, and the browser words each of
+ * those in the student's language.
+ */
+const updateSchema = z
+  .object({
+    fullName: nameField.optional(),
+    username: z.string({ invalid_type_error: "That username is not valid." }).optional()
+  })
+  .refine((value) => value.fullName !== undefined || value.username !== undefined, {
+    message: "Send a name or a username to change."
+  });
 
 profileRouter.patch("/", async (request, response, next) => {
-  const parsed = renameSchema.safeParse(request.body);
+  const parsed = updateSchema.safeParse(request.body);
 
   if (!parsed.success) {
+    const issue = parsed.error.issues[0];
     return response.status(400).json({
-      message: parsed.error.issues[0]?.message ?? "That name is not valid.",
+      code: issue?.path[0] === "fullName" ? "name-invalid" : "invalid-request",
+      message: issue?.message ?? "That is not valid.",
       issues: parsed.error.flatten()
     });
   }
 
+  let username: string | undefined;
+
+  if (parsed.data.username !== undefined) {
+    const checked = checkUsername(parsed.data.username);
+    if (!checked.ok) return response.status(checked.refusal.status).json(checked.refusal);
+    username = checked.username;
+  }
+
   try {
     const account = accountOf(response);
-    if (!(await ensureProfile(account))) return response.status(401).json(signInAgain);
+    const existing = await ensureProfile(account);
+    if (!existing) return response.status(401).json(signInAgain);
 
-    const profile = await updateProfileName(account.id, parsed.data.fullName);
+    // Asking for the username the student has already is not a change. It is
+    // left out of the write, which would otherwise be refused by their own row.
+    const changes = {
+      fullName: parsed.data.fullName,
+      username: username !== existing.username ? username : undefined
+    };
+
+    const profile =
+      changes.fullName === undefined && changes.username === undefined
+        ? existing
+        : await updateProfileDetails(account.id, changes);
     if (!profile) return response.status(401).json(signInAgain);
 
-    await mirrorNameToAccount(account.id, profile.fullName);
+    // Even when the name is the same as before: saving it again is how a name
+    // that a Google sign-in overwrote on the account gets put back.
+    if (changes.fullName !== undefined) await mirrorNameToAccount(account.id, profile.fullName);
 
     response.json({ profile });
+  } catch (error) {
+    if (error instanceof UsernameTakenError) return response.status(takenRefusal.status).json(takenRefusal);
+    next(error);
+  }
+});
+
+/**
+ * Whether a username could be saved: the form's hint while its owner types.
+ *
+ * It answers 200 for any text and says in the body what is wrong with it, so a
+ * name being typed does not fill the browser's console with failed requests.
+ * Only a hint, and meant to be: someone else can take the name a moment after
+ * this says it is free, and the save is what decides.
+ */
+profileRouter.get("/username-available", async (request, response, next) => {
+  const typed = request.query.username;
+
+  if (typeof typed !== "string") {
+    return response.status(400).json({
+      code: "invalid-request",
+      message: "Send the username to check as ?username=name."
+    });
+  }
+
+  const checked = checkUsername(typed);
+
+  if (!checked.ok) {
+    return response.json({
+      username: normalizeUsername(typed),
+      available: false,
+      reason: checked.refusal.code === "username-reserved" ? "reserved" : "invalid",
+      problem: checked.refusal.problem
+    });
+  }
+
+  try {
+    const owner = await usernameOwnerId(checked.username);
+    const yours = owner === accountOf(response).id;
+
+    response.json({
+      username: checked.username,
+      available: owner === null || yours,
+      reason: owner === null ? null : yours ? "yours" : "taken"
+    });
   } catch (error) {
     next(error);
   }

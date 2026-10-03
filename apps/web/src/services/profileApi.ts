@@ -23,13 +23,32 @@ export async function fetchProfile(): Promise<StudentProfile> {
   return profile;
 }
 
-export async function renameProfile(fullName: string): Promise<StudentProfile> {
+/**
+ * Saves a new name, a new username, or both in one go: the API writes them
+ * together, so a username that is refused leaves the name as it was.
+ */
+export async function updateProfile(changes: { fullName?: string; username?: string }): Promise<StudentProfile> {
   const { profile } = await apiRequest<{ profile: StudentProfile }>("/api/profile", {
     method: "PATCH",
-    body: { fullName },
+    body: changes,
     token: await accountToken()
   });
   return profile;
+}
+
+/** What the API says about a username while it is being typed. */
+export interface UsernameCheck {
+  /** The name as it would be saved. */
+  username: string;
+  available: boolean;
+  /** Why not; "yours" is a name the asking student already has, and counts as available. */
+  reason: "taken" | "reserved" | "invalid" | "yours" | null;
+}
+
+export async function checkUsername(username: string): Promise<UsernameCheck> {
+  return apiRequest<UsernameCheck>(`/api/profile/username-available?username=${encodeURIComponent(username)}`, {
+    token: await accountToken()
+  });
 }
 
 /** The bytes of a file as base64, which is how the API takes uploads. */

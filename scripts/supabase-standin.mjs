@@ -20,8 +20,8 @@
  *
  * It exists because the Supabase code paths otherwise only run against a real
  * project, and there is not always one to hand. So it imitates the Postgres
- * behaviour those paths depend on: uuid and integer column types, NOT NULL,
- * CHECK and foreign key constraints, cascades, one statement being all or
+ * behaviour those paths depend on: uuid and integer column types, NOT NULL, unique
+ * indexes, CHECK and foreign key constraints, cascades, one statement being all or
  * nothing, and Supabase refusing an UPDATE or DELETE with no filter.
  *
  * It is not Supabase. Passing against it means the API sends requests of the
@@ -35,10 +35,14 @@
  *     falls back to asking this stand-in about every one. A real project
  *     signing with asymmetric keys checks the signature on its own and cannot
  *     tell that a session has been signed out, which is why deleting an
- *     account asks the auth server outright (see isLiveSession).
+ *     account asks the auth server outright (see liveAccount).
  *   * The profiles table here is written by this file imitating the triggers in
  *     the migrations, not by the triggers themselves. Keep the two in step:
  *     what `createUser` does is meant to be what 0007's handle_new_user does.
+ *     The same goes for 0012's usernames: the column, its NOT NULL, the
+ *     lowercase format check and the unique index are enforced here, and a
+ *     profile inserted without a username is given one by generateUsername,
+ *     which imitates generate_username in that migration.
  *
  * Tests steer it through /__standin: create accounts, expire their sessions,
  * inject failures and latency, read or edit rows directly, and play the inbox:
@@ -77,7 +81,63 @@ function column(type, options = {}) {
 
 const oneOf = (values) => (value) => values.includes(value);
 
-/** The tables the API touches, as the migrations leave them after 0001-0009. */
+// ---------------------------------------------------------------------------
+// Usernames (migration 0012)
+// ---------------------------------------------------------------------------
+
+/** The same list as `reserved` in generate_username, and in packages/shared/src/usernames.ts. */
+const RESERVED_USERNAMES = [
+  "abuse", "admin", "administrator", "anonymous", "api", "contact", "deleted", "dim", "exampeak",
+  "friends", "help", "helpdesk", "info", "login", "moderator", "mod", "noreply", "null", "official",
+  "owner", "postmaster", "profile", "register", "root", "security", "settings", "signin", "signup",
+  "staff", "support", "sysadmin", "system", "team", "undefined", "unknown", "webmaster", "www"
+];
+
+const USERNAME_FORMAT = /^[a-z][a-z0-9_.]{2,19}$/;
+
+/**
+ * generate_username from 0012, step for step: the name, else the start of the
+ * email; marks off the Azerbaijani letters; anything else not allowed becomes
+ * "_"; then the first of "name", "name2", "name3"... that is neither reserved
+ * (ignoring dots and underscores) nor in `taken`. The migration's test against
+ * a real Postgres runs the same names through both, so they stay in step.
+ */
+export function generateUsername(name, email, taken) {
+  const from = "əƏıİöÖüÜçÇşŞğĞ";
+  const to = "eEiIoOuUcCsSgG";
+  let base = null;
+
+  for (const source of [name, String(email ?? "").split("@")[0]]) {
+    let candidate = [...String(source ?? "")]
+      .map((letter) => (from.includes(letter) ? to[from.indexOf(letter)] : letter))
+      .join("")
+      .toLowerCase();
+
+    candidate = candidate
+      .replace(/[^a-z0-9_.]+/g, "_")
+      .replace(/^[^a-z]+/, "")
+      .replace(/_{2,}/g, "_")
+      .replace(/[_.]+$/, "");
+
+    if (candidate.length >= 3) {
+      base = candidate;
+      break;
+    }
+  }
+
+  base = (base ?? "student").slice(0, 20);
+  let candidate = base;
+  let suffix = 1;
+
+  while (RESERVED_USERNAMES.includes(candidate.replace(/[._]/g, "")) || taken.has(candidate)) {
+    suffix += 1;
+    candidate = base.slice(0, 20 - String(suffix).length) + suffix;
+  }
+
+  return candidate;
+}
+
+/** The tables the API touches, as the migrations leave them after 0001-0009 and 0012. */
 const SCHEMA = {
   profiles: {
     columns: {
@@ -86,9 +146,20 @@ const SCHEMA = {
       email: column("text"),
       grade_level: column("int", { notNull: true, default: () => 9 }),
       created_at: column("timestamptz", { notNull: true, default: nowIso }),
-      avatar_url: column("text")
+      avatar_url: column("text"),
+      // 0012. NOT NULL, as it is once the migration has run; beforeInsert is
+      // the profiles_fill_username trigger that makes that safe.
+      username: column("text", { notNull: true })
     },
-    checks: []
+    checks: [["profiles_username_format", (row) => row.username === null || USERNAME_FORMAT.test(row.username)]],
+    // The unique index 0012 creates. Names are lowercase by the check above,
+    // so comparing them as they are is the case-insensitive comparison.
+    uniques: [["profiles_username_key", "username"]],
+    beforeInsert: (row, existing) => {
+      if (row.username !== null) return row;
+      const taken = new Set(existing.map((other) => other.username));
+      return { ...row, username: generateUsername(row.full_name, row.email, taken) };
+    }
   },
   questions: {
     columns: {
@@ -489,6 +560,28 @@ function createDatabase() {
     }
   }
 
+  /** Unique indexes: no two rows (among `candidates` and `existing`) may share a value. NULLs never clash. */
+  function checkUniques(table, candidates, existing) {
+    for (const [constraint, name] of SCHEMA[table].uniques ?? []) {
+      const seen = new Set(existing.map((row) => row[name]).filter((value) => value !== null));
+
+      for (const row of candidates) {
+        const value = row[name];
+        if (value === null) continue;
+
+        if (seen.has(value)) {
+          throw new PgError(
+            409,
+            "23505",
+            `duplicate key value violates unique constraint "${constraint}"`,
+            `Key (${name})=(${value}) already exists.`
+          );
+        }
+        seen.add(value);
+      }
+    }
+  }
+
   function buildRow(table, input, columnsParam) {
     if (input === null || typeof input !== "object" || Array.isArray(input)) {
       throw new PgError(400, "PGRST102", "All object keys must match");
@@ -582,12 +675,16 @@ function createDatabase() {
   function insert(table, body, params) {
     requireTable(table);
     const inputs = Array.isArray(body) ? body : [body];
-    const rows = inputs.map((input) => buildRow(table, input, params.get("columns")));
+    const built = inputs.map((input) => buildRow(table, input, params.get("columns")));
 
     // One statement: every row is checked before any of them is kept, so a
     // bad row in a batch leaves nothing behind.
     const staged = [...tables[table]];
-    for (const row of rows) {
+    const rows = [];
+    for (const proposed of built) {
+      // BEFORE INSERT triggers run before the row is compared with what is there.
+      const row = SCHEMA[table].beforeInsert ? SCHEMA[table].beforeInsert(proposed, staged) : proposed;
+
       if (staged.some((existing) => existing.id === row.id)) {
         throw new PgError(
           409,
@@ -597,8 +694,10 @@ function createDatabase() {
         );
       }
       staged.push(row);
+      rows.push(row);
     }
     for (const row of rows) validate(table, row);
+    checkUniques(table, rows, tables[table]);
 
     tables[table].push(...rows);
     return rows;
@@ -619,6 +718,7 @@ function createDatabase() {
     const hook = SCHEMA[table].beforeUpdate ?? ((row) => row);
     const next = matched.map((row) => hook({ ...row, ...patch }));
     for (const row of next) validate(table, row);
+    checkUniques(table, next, rows.filter((row) => !matched.includes(row)));
 
     matched.forEach((row, index) => Object.assign(row, next[index]));
     return matched;

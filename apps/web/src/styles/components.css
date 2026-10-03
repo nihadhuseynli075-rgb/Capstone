@@ -635,6 +635,49 @@
   font-size: 0.85rem;
 }
 
+/* "@nihad", under the name: what friends find this student by. */
+.profile-identity-text .profile-username {
+  color: var(--brand);
+  font-weight: 700;
+}
+
+/* The username box: an "@" sits inside its left edge, and the typing starts after it. */
+.username-input {
+  position: relative;
+  display: flex;
+}
+
+.username-input .username-at {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.auth-field .username-input input {
+  padding-left: 32px;
+}
+
+/* One line under the box saying whether the name will do. It keeps its height when empty so the page does not jump. */
+.username-status {
+  margin: 0;
+  min-height: 1.3em;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.username-status.ok {
+  color: var(--success);
+}
+
+.username-status.bad {
+  color: var(--danger);
+}
+
 .method-list {
   list-style: none;
   margin: 0;
@@ -716,6 +759,11 @@
   font-weight: 700;
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* A link that looks like a button ("Back to the home page", "Sign in") is not underlined like text. */
+.settings-actions a.primary-button {
+  text-decoration: none;
 }
 
 /* A banner with more than a sentence in it, such as an email change waiting for its link. */

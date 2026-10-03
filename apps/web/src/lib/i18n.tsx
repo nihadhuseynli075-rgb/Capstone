@@ -131,7 +131,6 @@ const en = {
   "profile.name": "Name",
   "profile.email": "Email",
   "profile.emailHint": "We email a link to the new address. Your email only changes once you open it.",
-  "profile.saveName": "Save name",
   "profile.nameSaved": "Name updated.",
 
   "profile.signInMethods": "Ways to sign in",
@@ -223,6 +222,25 @@ const en = {
   "profile.errPhotoEmpty": "That photo was empty.",
   "profile.errPhotoMissing": "Choose a photo to upload.",
   "profile.errGeneric": "Something went wrong. Try again in a moment.",
+
+  "profile.username": "Username",
+  "profile.usernameRules":
+    "3 to 20 characters: letters a-z, numbers, _ and a dot. It must start with a letter. Friends find you by this name.",
+  "profile.usernameEmpty": "Enter a username.",
+  "profile.usernameTooShort": "Use at least 3 characters.",
+  "profile.usernameTooLong": "Use at most 20 characters.",
+  "profile.usernameBadChars": "Only the letters a-z, numbers, _ and a dot are allowed.",
+  "profile.usernameBadStart": "It must start with a letter.",
+  "profile.usernameReserved": "That username is reserved. Choose another.",
+  "profile.usernameTaken": "That username is taken.",
+  "profile.usernameInvalid": "That username cannot be used. Use 3 to 20 letters, numbers, _ or a dot.",
+  "profile.usernameAvailable": "@{username} is available.",
+  "profile.usernameChecking": "Checking...",
+  "profile.usernameYours": "That is your current username.",
+  "profile.usernameCheckFailed": "Could not check whether it is free. You can still save it.",
+  "profile.usernameSaved": "Username updated.",
+  "profile.detailsSaved": "Details updated.",
+  "profile.saveDetails": "Save changes",
 
   "common.saving": "Saving...",
   "common.back": "Back"
@@ -339,7 +357,6 @@ const ru: Dictionary = {
   "profile.name": "Имя",
   "profile.email": "Электронная почта",
   "profile.emailHint": "Мы отправим ссылку на новый адрес. Адрес изменится только после того, как вы её откроете.",
-  "profile.saveName": "Сохранить имя",
   "profile.nameSaved": "Имя обновлено.",
 
   "profile.signInMethods": "Способы входа",
@@ -431,6 +448,25 @@ const ru: Dictionary = {
   "profile.errPhotoEmpty": "Это фото пустое.",
   "profile.errPhotoMissing": "Выберите фото для загрузки.",
   "profile.errGeneric": "Что-то пошло не так. Попробуйте ещё раз чуть позже.",
+
+  "profile.username": "Имя пользователя",
+  "profile.usernameRules":
+    "От 3 до 20 символов: латинские буквы a-z, цифры, _ и точка. Должно начинаться с буквы. По этому имени вас находят друзья.",
+  "profile.usernameEmpty": "Введите имя пользователя.",
+  "profile.usernameTooShort": "Используйте не меньше 3 символов.",
+  "profile.usernameTooLong": "Используйте не больше 20 символов.",
+  "profile.usernameBadChars": "Можно использовать только латинские буквы a-z, цифры, _ и точку.",
+  "profile.usernameBadStart": "Имя должно начинаться с буквы.",
+  "profile.usernameReserved": "Это имя зарезервировано. Выберите другое.",
+  "profile.usernameTaken": "Это имя пользователя занято.",
+  "profile.usernameInvalid": "Это имя пользователя нельзя использовать. Нужны 3–20 символов: буквы, цифры, _ или точка.",
+  "profile.usernameAvailable": "@{username} свободно.",
+  "profile.usernameChecking": "Проверяем...",
+  "profile.usernameYours": "Это ваше текущее имя пользователя.",
+  "profile.usernameCheckFailed": "Не удалось проверить, свободно ли оно. Вы всё равно можете его сохранить.",
+  "profile.usernameSaved": "Имя пользователя обновлено.",
+  "profile.detailsSaved": "Данные обновлены.",
+  "profile.saveDetails": "Сохранить изменения",
 
   "common.saving": "Сохранение...",
   "common.back": "Назад"
@@ -543,7 +579,6 @@ const az: Dictionary = {
   "profile.name": "Ad",
   "profile.email": "E-poçt",
   "profile.emailHint": "Yeni ünvana link göndəririk. E-poçtunuz yalnız onu açdıqdan sonra dəyişir.",
-  "profile.saveName": "Adı yadda saxla",
   "profile.nameSaved": "Ad yeniləndi.",
 
   "profile.signInMethods": "Giriş üsulları",
@@ -635,6 +670,25 @@ const az: Dictionary = {
   "profile.errPhotoEmpty": "Bu şəkil boşdur.",
   "profile.errPhotoMissing": "Yükləmək üçün şəkil seçin.",
   "profile.errGeneric": "Nəsə alınmadı. Bir azdan yenidən cəhd edin.",
+
+  "profile.username": "İstifadəçi adı",
+  "profile.usernameRules":
+    "3-dən 20-yə qədər simvol: a-z hərfləri, rəqəmlər, _ və nöqtə. Hərflə başlamalıdır. Dostlarınız sizi bu adla tapır.",
+  "profile.usernameEmpty": "İstifadəçi adı daxil edin.",
+  "profile.usernameTooShort": "Ən azı 3 simvol işlədin.",
+  "profile.usernameTooLong": "Ən çoxu 20 simvol işlədin.",
+  "profile.usernameBadChars": "Yalnız a-z hərfləri, rəqəmlər, _ və nöqtə işlətmək olar.",
+  "profile.usernameBadStart": "Ad hərflə başlamalıdır.",
+  "profile.usernameReserved": "Bu ad qorunur. Başqasını seçin.",
+  "profile.usernameTaken": "Bu istifadəçi adı artıq tutulub.",
+  "profile.usernameInvalid": "Bu istifadəçi adından istifadə etmək olmaz. 3–20 simvol: hərflər, rəqəmlər, _ və ya nöqtə.",
+  "profile.usernameAvailable": "@{username} boşdur.",
+  "profile.usernameChecking": "Yoxlanılır...",
+  "profile.usernameYours": "Bu, sizin hazırkı istifadəçi adınızdır.",
+  "profile.usernameCheckFailed": "Adın boş olub-olmadığını yoxlamaq mümkün olmadı. Yenə də yadda saxlaya bilərsiniz.",
+  "profile.usernameSaved": "İstifadəçi adı yeniləndi.",
+  "profile.detailsSaved": "Məlumatlar yeniləndi.",
+  "profile.saveDetails": "Dəyişiklikləri yadda saxla",
 
   "common.saving": "Yadda saxlanılır...",
   "common.back": "Geri"

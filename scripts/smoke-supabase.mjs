@@ -7,7 +7,8 @@
  * pointed at it, runs the ordinary smoke test through it, then checks what only
  * exists in Supabase mode: account keys backed by tokens, who may move whose
  * history, two submissions of one paper at once, recovering from writes that
- * fail halfway, and the profile page's reads, renames, photos and deletion.
+ * fail halfway, and the profile page's reads, renames, usernames, email and
+ * password changes, photos and deletion.
  *
  * The stand-in imitates PostgREST and GoTrue closely enough to catch the API
  * sending the wrong request or mishandling an error. It is not a real project:
@@ -790,6 +791,219 @@ async function main() {
       JSON.stringify(afterGoogle.body)
     );
 
+    section("Usernames");
+    const patchProfile = (token, body) => call("/api/profile", { method: "PATCH", token, body });
+    const usernameAvailable = (token, name) =>
+      call(`/api/profile/username-available?username=${encodeURIComponent(name)}`, { token });
+    const usernameOf = async (token) => (await call("/api/profile", { token })).body.profile?.username;
+    const signUpAs = async (email, fullName) => (await control("users", { email, fullName })).body;
+
+    check(
+      "an account gets a username at sign-up, from its name",
+      carolProfile.body.profile?.username === "carol" && ginaProfile.body.profile?.username === "gina_google",
+      JSON.stringify([carolProfile.body.profile?.username, ginaProfile.body.profile?.username])
+    );
+    check(
+      "and so does a profile the API had to make itself",
+      malloryProfile.body.profile?.username === "mallory",
+      JSON.stringify(malloryProfile.body.profile)
+    );
+
+    const nihad = await signUpAs("nihad@standin.test", "Nihad");
+    const nihadToken = nihad.session.access_token;
+    const secondNihad = await signUpAs("nihad.two@standin.test", "Nihad");
+    check(
+      "the next student with the same name gets a number",
+      (await usernameOf(nihadToken)) === "nihad" && (await usernameOf(secondNihad.session.access_token)) === "nihad2"
+    );
+    check(
+      "a name with no Latin letters in it falls back to the start of the email",
+      (await usernameOf((await signUpAs("ivan.petrov@standin.test", "Иван Петров")).session.access_token)) === "ivan.petrov"
+    );
+    check(
+      "and a reserved name is never handed out",
+      (await usernameOf((await signUpAs("admin@standin.test", "Admin")).session.access_token)) === "admin2"
+    );
+
+    const refusals = [
+      ["", "empty"],
+      ["ab", "too-short"],
+      ["x".repeat(21), "too-long"],
+      ["has space", "bad-characters"],
+      ["Нихад", "bad-characters"],
+      ["1abc", "bad-start"],
+      ["_abc", "bad-start"]
+    ];
+    for (const [name, problem] of refusals) {
+      const refused = await patchProfile(carolToken, { username: name });
+      check(
+        `${JSON.stringify(name.length > 12 ? `${name.slice(0, 12)}...` : name)} is refused as ${problem}`,
+        refused.status === 400 && refused.body.code === "username-invalid" && refused.body.problem === problem,
+        `${refused.status} ${JSON.stringify(refused.body)}`
+      );
+    }
+    for (const name of ["admin", "Admin", "@ExamPeak", "ad.min", "exam_peak", "SUPPORT"]) {
+      const refused = await patchProfile(carolToken, { username: name });
+      check(
+        `${JSON.stringify(name)} is reserved`,
+        refused.status === 400 && refused.body.code === "username-reserved",
+        `${refused.status} ${JSON.stringify(refused.body)}`
+      );
+    }
+    const notText = await patchProfile(carolToken, { username: 5 });
+    check("a username that is not text is refused", notText.status === 400, `got ${notText.status}`);
+    const nothing = await patchProfile(carolToken, {});
+    check("and so is a request that changes nothing", nothing.status === 400, `got ${nothing.status}`);
+
+    // Names are stored lowercase, so "Nihad" and "nihad" are one name.
+    for (const name of ["nihad", "Nihad", "  @NIHAD ", "nihad2"]) {
+      const taken = await patchProfile(carolToken, { username: name });
+      check(
+        `${JSON.stringify(name)} is taken, whatever its case`,
+        taken.status === 409 && taken.body.code === "username-taken" && taken.body.message === "That username is taken.",
+        `${taken.status} ${JSON.stringify(taken.body)}`
+      );
+    }
+    const notHalfSaved = await patchProfile(carolToken, { fullName: "Should Not Stick", username: "Nihad" });
+    check(
+      "a refused username leaves the name it came with unsaved",
+      notHalfSaved.status === 409 && (await call("/api/profile", { token: carolToken })).body.profile?.fullName === "Carol Smith",
+      JSON.stringify(notHalfSaved.body)
+    );
+
+    const changedUsername = await patchProfile(carolToken, { username: "  @Carol_S " });
+    check(
+      "a free username is saved lowercase, without the @",
+      changedUsername.status === 200 && changedUsername.body.profile?.username === "carol_s",
+      JSON.stringify(changedUsername.body)
+    );
+    check("and is what the profile says from then on", (await usernameOf(carolToken)) === "carol_s");
+    const [usernameRow] = await rows("profiles", `?id=eq.${carolId}`);
+    check("in the profile row", usernameRow?.username === "carol_s", JSON.stringify(usernameRow));
+    check(
+      "keeping the name it has is no change, and no refusal",
+      (await patchProfile(carolToken, { username: "Carol_S" })).status === 200
+    );
+
+    const savedTogether = await patchProfile(carolToken, { fullName: "Carol Smith II", username: "carol.s2" });
+    check(
+      "a name and a username can be saved together",
+      savedTogether.status === 200 &&
+        savedTogether.body.profile?.fullName === "Carol Smith II" &&
+        savedTogether.body.profile?.username === "carol.s2",
+      JSON.stringify(savedTogether.body)
+    );
+    const justTheName = await patchProfile(carolToken, { fullName: "Carol Smith" });
+    check(
+      "and the name alone leaves the username",
+      justTheName.status === 200 && justTheName.body.profile?.username === "carol.s2",
+      JSON.stringify(justTheName.body)
+    );
+
+    check(
+      "the answer to \"is it free?\" needs a sign-in",
+      (await call("/api/profile/username-available?username=anything")).status === 401
+    );
+    const askTaken = await usernameAvailable(carolToken, "Nihad");
+    check(
+      "a taken name is reported, in its stored form",
+      askTaken.status === 200 && askTaken.body.available === false && askTaken.body.reason === "taken" && askTaken.body.username === "nihad",
+      JSON.stringify(askTaken.body)
+    );
+    const askFree = await usernameAvailable(carolToken, "totally.free");
+    check(
+      "a free one is reported free",
+      askFree.body.available === true && askFree.body.reason === null,
+      JSON.stringify(askFree.body)
+    );
+    const askOwn = await usernameAvailable(carolToken, "@Carol.S2");
+    check(
+      "the asker's own is theirs",
+      askOwn.body.available === true && askOwn.body.reason === "yours",
+      JSON.stringify(askOwn.body)
+    );
+    check(
+      "the name a student gave up is free again",
+      (await usernameAvailable(nihadToken, "carol")).body.available === true
+    );
+    const askShort = await usernameAvailable(carolToken, "ab");
+    check(
+      "a name that breaks a rule says which",
+      askShort.status === 200 && askShort.body.reason === "invalid" && askShort.body.problem === "too-short",
+      JSON.stringify(askShort.body)
+    );
+    check("a reserved one says so", (await usernameAvailable(carolToken, "Admin")).body.reason === "reserved");
+    check("asking about nothing is a bad request", (await call("/api/profile/username-available", { token: carolToken })).status === 400);
+
+    // Two students save the same free name at the same moment. Looking first
+    // and saving after would let both through; the unique index lets one.
+    const racerA = await signUpAs("racer.a@standin.test", "Racer A");
+    const racerB = await signUpAs("racer.b@standin.test", "Racer B");
+    await control("latency", { ms: 40 });
+    const [racerOne, racerTwo] = await Promise.all([
+      patchProfile(racerA.session.access_token, { username: "racer.name" }),
+      patchProfile(racerB.session.access_token, { username: "Racer.Name" })
+    ]);
+    await control("latency", { ms: 0 });
+    check(
+      "two students saving one name at once: one gets it and one is told it is taken",
+      [racerOne.status, racerTwo.status].sort().join() === "200,409",
+      JSON.stringify([racerOne.status, racerTwo.body, racerTwo.status])
+    );
+    check("and only one profile has it", (await rows("profiles", "?username=eq.racer.name")).length === 1);
+
+    // What the stand-in does in place of the database, checked directly so a
+    // passing run is not just the API agreeing with itself.
+    const duplicate = await request(standin.url, `/__standin/rows/profiles/${carolId}`, {
+      method: "PATCH",
+      body: { username: "nihad" }
+    });
+    check(
+      "the database's unique index refuses a duplicate",
+      duplicate.status === 409 && JSON.stringify(duplicate.body).includes("profiles_username_key"),
+      `${duplicate.status} ${JSON.stringify(duplicate.body)}`
+    );
+    const uppercase = await request(standin.url, `/__standin/rows/profiles/${carolId}`, {
+      method: "PATCH",
+      body: { username: "Carol" }
+    });
+    check(
+      "and its check refuses a name that is not lowercase",
+      uppercase.status >= 400 && JSON.stringify(uppercase.body).includes("profiles_username_format"),
+      `${uppercase.status} ${JSON.stringify(uppercase.body)}`
+    );
+
+    // findProfileByUsername is what the friends feature looks students up by.
+    // There is no route for it here, so run the real function against the stand-in.
+    const lookUp = (name) =>
+      new Promise((resolve, reject) => {
+        const script = `
+          import { findProfileByUsername } from "./apps/api/src/repositories/profileRepository.ts";
+          console.log(JSON.stringify(await findProfileByUsername(process.argv[1])));
+        `;
+        const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script, name], {
+          cwd: root,
+          env: { ...process.env, SUPABASE_URL: standin.url, SUPABASE_SERVICE_ROLE_KEY: "standin-service-role-key" },
+          stdio: ["ignore", "pipe", "pipe"]
+        });
+        let out = "";
+        let err = "";
+        child.stdout.on("data", (chunk) => (out += chunk));
+        child.stderr.on("data", (chunk) => (err += chunk));
+        child.on("exit", (code) =>
+          code === 0 ? resolve(JSON.parse(out.trim().split("\n").at(-1))) : reject(new Error(err.slice(0, 400)))
+        );
+      });
+
+    const found = await lookUp("  @NIHAD ");
+    check(
+      "findProfileByUsername finds a student by a name in any case, with or without the @",
+      found?.id === nihad.user.id && found?.username === "nihad" && found?.fullName === "Nihad",
+      JSON.stringify(found)
+    );
+    check("and finds nobody for a name nobody has", (await lookUp("nobody.has.this")) === null);
+    check("or for something that could not be a username", (await lookUp("has space")) === null);
+
     section("Profile photos");
     const PNG = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
@@ -955,6 +1169,10 @@ async function main() {
       "opening the link moves the profile to the new address",
       (await call("/api/profile", { token: danaToken })).body.profile?.email === "dana.new@standin.test"
     );
+    check(
+      "and the username does not follow the email",
+      (await call("/api/profile", { token: danaToken })).body.profile?.username === "dana"
+    );
     check("which now signs in", (await signInWith("dana.new@standin.test", "password1")).status === 200);
     check("and the old one does not", (await signInWith("dana@standin.test", "password1")).status === 400);
 
@@ -971,6 +1189,10 @@ async function main() {
       oldAddress.status === 400 && oldAddress.body.code === "confirmation-mismatch",
       `${oldAddress.status} ${JSON.stringify(oldAddress.body)}`
     );
+    check(
+      "her username is taken while she has the account",
+      (await usernameAvailable(nihadToken, "dana")).body.reason === "taken"
+    );
     const newAddress = await call("/api/profile", {
       method: "DELETE",
       token: danaToken,
@@ -980,6 +1202,19 @@ async function main() {
       "but takes the new one even though the token still carries the old",
       newAddress.status === 200 && newAddress.body.deleted === true,
       `${newAddress.status} ${JSON.stringify(newAddress.body)}`
+    );
+    check(
+      "deleting the account makes its username free again",
+      (await usernameAvailable(nihadToken, "dana")).body.available === true &&
+        (await rows("profiles", "?username=eq.dana")).length === 0,
+      JSON.stringify((await usernameAvailable(nihadToken, "dana")).body)
+    );
+    check("so nobody is found by it", (await lookUp("dana")) === null);
+    const danaAgain = await patchProfile(secondNihad.session.access_token, { username: "dana" });
+    check(
+      "and another student can take it",
+      danaAgain.status === 200 && danaAgain.body.profile?.username === "dana",
+      JSON.stringify(danaAgain.body)
     );
 
     // Confirmation switched off in the project: the change applies at once.
@@ -1107,6 +1342,11 @@ async function main() {
     check("its token stops working", afterDelete.status === 401, `got ${afterDelete.status}`);
     check("the account is gone", (await control(`users/${carolId}`)).status === 404);
     check("so is its profile", (await rows("profiles", `?id=eq.${carolId}`)).length === 0);
+    check(
+      "and its username, which anyone can take now",
+      (await usernameAvailable(nihadToken, "carol.s2")).body.available === true &&
+        (await patchProfile(nihadToken, { username: "carol.s2" })).status === 200
+    );
     const leftByKey = await rows("test_attempts", `?student_key=eq.${carolId}`);
     const leftById = await rows("test_attempts", `?student_id=eq.${carolId}`);
     check(

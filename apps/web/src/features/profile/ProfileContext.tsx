@@ -28,7 +28,8 @@ interface ProfileContextValue {
   /** Why loading failed, when the status is "error". */
   error: string | null;
   reload: () => void;
-  rename: (fullName: string) => Promise<void>;
+  /** Saves a new name, username, or both. Throws the API's reason when it is refused. */
+  updateDetails: (changes: { fullName?: string; username?: string }) => Promise<void>;
   uploadPhoto: (photo: Blob) => Promise<void>;
   removePhoto: () => Promise<void>;
   /** Deletes the account for good, then signs this browser out of it. */
@@ -133,8 +134,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     setStatus("ready");
   }, []);
 
-  const rename = useCallback(
-    async (fullName: string) => accept(await profileApi.renameProfile(fullName)),
+  const updateDetails = useCallback(
+    async (changes: { fullName?: string; username?: string }) => accept(await profileApi.updateProfile(changes)),
     [accept]
   );
 
@@ -166,8 +167,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<ProfileContextValue>(
-    () => ({ profile, status, error, reload, rename, uploadPhoto, removePhoto, deleteAccount }),
-    [profile, status, error, reload, rename, uploadPhoto, removePhoto, deleteAccount]
+    () => ({ profile, status, error, reload, updateDetails, uploadPhoto, removePhoto, deleteAccount }),
+    [profile, status, error, reload, updateDetails, uploadPhoto, removePhoto, deleteAccount]
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;

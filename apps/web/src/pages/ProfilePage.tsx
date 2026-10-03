@@ -1,31 +1,28 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useAuth } from "../features/auth/AuthContext";
-import { Field, PasswordField } from "../features/auth/AuthLayout";
-import { nameProblem, passwordProblem } from "../features/auth/authValidation";
+import { PasswordField } from "../features/auth/AuthLayout";
+import { passwordProblem } from "../features/auth/authValidation";
 import { DeleteAccountPanel } from "../features/profile/DeleteAccountPanel";
+import { DetailsPanel } from "../features/profile/DetailsPanel";
 import { EmailPanel } from "../features/profile/EmailPanel";
 import { PhotoPanel } from "../features/profile/PhotoPanel";
 import { useProfile } from "../features/profile/ProfileContext";
 import { SignInMethodsPanel } from "../features/profile/SignInMethodsPanel";
-import {
-  errorText,
-  nameProblemText,
-  passwordProblemText,
-  redirectErrorText
-} from "../features/profile/profileText";
+import { errorText, passwordProblemText, redirectErrorText } from "../features/profile/profileText";
 import { formatDay, useLanguage } from "../lib/i18n";
 
 /**
  * Everything about the student's account, in one place.
  *
- * Read: the photo, name, email and when the account was made. Update: the
- * name, the photo, the email, the password, and whether Google is connected.
+ * Read: the photo, name, username, email and when the account was made.
+ * Update: the name, the username, the photo, the email, the password, and
+ * whether Google is connected.
  * Delete: the photo, or the whole account. Signing in with Google lands here,
  * so a new student sees straight away the name and photo Google gave them, and
  * where to change them.
  *
- * The name, the photo and deleting the account go through the API. The email,
+ * The name, the username, the photo and deleting the account go through the API. The email,
  * the password and Google connect straight to Supabase, so those still work
  * while the API is running without it.
  */
@@ -132,85 +129,20 @@ export function ProfilePage() {
       )}
 
       <div className="settings-grid">
-        <PhotoPanel name={name} email={email} memberSince={memberSince} editable={editable} />
-        <NamePanel currentName={name} editable={editable} />
+        <PhotoPanel
+          name={name}
+          username={profile?.username ?? null}
+          email={email}
+          memberSince={memberSince}
+          editable={editable}
+        />
+        <DetailsPanel currentName={name} currentUsername={profile?.username ?? ""} editable={editable} />
         <EmailPanel email={email} googleOnly={googleOnly} />
         <SignInMethodsPanel />
         <PasswordPanel googleOnly={googleOnly} onSave={updatePassword} />
         <DeleteAccountPanel email={email} editable={editable} onDeleted={() => setDeleted(true)} />
       </div>
     </div>
-  );
-}
-
-function NamePanel({ currentName, editable }: { currentName: string; editable: boolean }) {
-  const { t } = useLanguage();
-  const { rename } = useProfile();
-  const [name, setName] = useState(currentName);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  // The name can change in another tab, or arrive after the page opens.
-  useEffect(() => {
-    setName(currentName);
-  }, [currentName]);
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-
-    const problem = nameProblem(name);
-    setError(problem ? nameProblemText(problem, t) : null);
-    setSaved(false);
-    if (problem) return;
-
-    setSaving(true);
-    try {
-      await rename(name);
-      setSaved(true);
-    } catch (cause) {
-      setError(errorText(cause, t));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <section className="panel settings-panel">
-      <h2>{t("profile.details")}</h2>
-
-      <form className="settings-form" onSubmit={handleSubmit} noValidate>
-        {saved && (
-          <p className="success-banner" role="status">
-            {t("profile.nameSaved")}
-          </p>
-        )}
-
-        <Field
-          id="profile-name"
-          label={t("profile.name")}
-          type="text"
-          autoComplete="name"
-          value={name}
-          error={error}
-          disabled={saving || !editable}
-          onChange={(event) => {
-            setName(event.target.value);
-            setSaved(false);
-          }}
-        />
-
-        <div className="settings-actions">
-          <button
-            type="submit"
-            className="primary-button"
-            disabled={saving || !editable || name.trim().replace(/\s+/g, " ") === currentName}
-          >
-            {saving ? t("common.saving") : t("profile.saveName")}
-          </button>
-        </div>
-      </form>
-    </section>
   );
 }
 

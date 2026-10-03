@@ -68,6 +68,17 @@ which are Supabase's to decide; it never writes a profile row. Photos are
 uploaded through the API as well, which checks that the bytes really are a
 JPG, PNG or WebP before anything reaches the public bucket.
 
+**A username is decided by the database, not by looking first.** The form
+asks the API whether a name is free as the student types, but that is only a
+hint: two students can both be told yes. The unique index on
+`profiles.username` is what picks the winner, and the API turns its refusal
+into "That username is taken." The rules (3-20 characters of `a-z 0-9 _ .`,
+starting with a letter, stored lowercase, a short reserved list) are written
+once in `packages/shared/src/usernames.ts` for the form and the API, and again
+as a check constraint in migration 0012. The email, unlike the name, belongs to
+Supabase Auth: the browser asks for a change, Supabase mails a link, and the
+profile's copy follows through the trigger once the address has really changed.
+
 **Deleting an account takes everything with it, in a safe order.** Photos
 first, then test history, then the account itself, which cascades through the
 profile to everything linked to it. Each step can be repeated, and the account

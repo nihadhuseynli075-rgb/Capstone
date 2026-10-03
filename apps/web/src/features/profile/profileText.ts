@@ -1,3 +1,4 @@
+import type { UsernameProblem } from "@grade9/shared";
 import type { TranslationKey } from "../../lib/i18n";
 import { ApiError } from "../../services/apiClient";
 import { AuthActionError } from "../auth/authErrors";
@@ -54,7 +55,10 @@ const API_CODES: Record<string, TranslationKey> = {
   "photo-missing": "profile.errPhotoMissing",
   "photo-empty": "profile.errPhotoEmpty",
   "photo-too-large": "profile.errPhotoSize",
-  "photo-type": "profile.errPhotoType"
+  "photo-type": "profile.errPhotoType",
+  "username-taken": "profile.usernameTaken",
+  "username-reserved": "profile.usernameReserved",
+  "username-invalid": "profile.usernameInvalid"
 };
 
 /**
@@ -107,6 +111,19 @@ export function nameProblemText(problem: NameProblem, t: Translate): string {
 
 export function emailProblemText(problem: EmailProblem, t: Translate): string {
   return t(problem === "empty" ? "profile.emailEmpty" : "profile.emailInvalid");
+}
+
+const USERNAME_PROBLEMS: Record<UsernameProblem, TranslationKey> = {
+  empty: "profile.usernameEmpty",
+  "too-short": "profile.usernameTooShort",
+  "too-long": "profile.usernameTooLong",
+  "bad-characters": "profile.usernameBadChars",
+  "bad-start": "profile.usernameBadStart",
+  reserved: "profile.usernameReserved"
+};
+
+export function usernameProblemText(problem: UsernameProblem, t: Translate): string {
+  return t(USERNAME_PROBLEMS[problem]);
 }
 
 export function passwordProblemText(problem: PasswordProblem, t: Translate): string {

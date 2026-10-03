@@ -132,6 +132,8 @@ export const profileLimits = {
   photoMaxBytes: 2 * 1024 * 1024
 } as const;
 
+export * from "./usernames";
+
 /**
  * A student's profile: how they appear in the app.
  *
@@ -143,6 +145,11 @@ export const profileLimits = {
 export interface StudentProfile {
   id: string;
   fullName: string;
+  /**
+   * What friends find this student by, always lowercase and always present:
+   * the database makes one at sign-up. The rules are in usernames.ts.
+   */
+  username: string;
   email: string;
   /** Null when there is no photo, and the app shows initials instead. */
   avatarUrl: string | null;
