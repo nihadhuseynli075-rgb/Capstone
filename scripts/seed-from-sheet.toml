@@ -625,8 +625,12 @@ ru_prompt = "Средний балл учеников, находившихся 
 ru_prompt = "A — множество составных чисел, меньших 10. Найдите число элементов множества A ∪ B, если B={1;2;4;10}."
 
 ["dim-2026-04-26-variant-d:q78"]
-ru_prompt = "Из точки A по двум разным окружностям одновременно начинают движение две точки. Через какое время они впервые одновременно пройдут через точку A, если одна проходит через A каждые 36 секунд, а другая — каждые 63 секунды?"
-check = "The answer is stored as \"252 s\" (Russian site: \"252 с\"). Marking is an exact match, so a student who types just 252 is marked wrong."
+# The sheet's answer is "252 s", but marking is an exact match, so a student
+# typing 252 would be marked wrong. Asking for seconds keeps the answer a number.
+prompt = "From point A, two points start moving simultaneously along two different circles. Determine after how much time they will both pass through point A simultaneously for the first time if one passes through A every 36 seconds and the other every 63 seconds. Give the answer in seconds."
+answer = "252"
+ru_prompt = "Из точки A по двум разным окружностям одновременно начинают движение две точки. Через какое время они впервые одновременно пройдут через точку A, если одна проходит через A каждые 36 секунд, а другая — каждые 63 секунды? Ответ дайте в секундах."
+ru_answer = "252"
 
 ["dim-2026-04-26-variant-d:q80"]
 ru_prompt = "Найдите наибольшее расстояние между двумя точками, одна из которых лежит на окружности (x+3)²+(y+2)²=16, а другая — на окружности (x−5)²+(y−4)²=9."

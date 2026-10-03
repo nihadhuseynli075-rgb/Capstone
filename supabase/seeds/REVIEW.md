@@ -175,7 +175,7 @@ hidden from students until the thing in the "What's missing" column is fixed.
 | 26 Apr (D) | 74 | Maths | short-answer | ready |  | yes: Russian version (shown on the Russian site) translated by machine |
 | 26 Apr (D) | 75 | Maths | short-answer | ready |  | yes: Russian version (shown on the Russian site) translated by machine |
 | 26 Apr (D) | 76 | Maths | short-answer | ready |  | yes: Russian version (shown on the Russian site) translated by machine |
-| 26 Apr (D) | 78 | Maths | short-answer | ready | The answer is stored as "252 s" (Russian site: "252 с"). Marking is an exact match, so a student who types just 252 is marked wrong. | yes: Russian version (shown on the Russian site) translated by machine |
+| 26 Apr (D) | 78 | Maths | short-answer | ready |  | yes: Russian version (shown on the Russian site) translated by machine |
 | 26 Apr (D) | 80 | Maths | short-answer | ready |  | yes: Russian version (shown on the Russian site) translated by machine |
 | 26 Apr (D) | 81 | Maths | short-answer | draft | The answer 5/24 does not fit the question as typed: denominators 8 to 30 are 23 fractions, and 5 of them (8, 10, 16, 20, 25) terminate, so 5/23. Check the wording on the paper ("greater than 6"? "up to 31"?) or the answer. | yes: Russian version (shown on the Russian site) translated by machine |
 

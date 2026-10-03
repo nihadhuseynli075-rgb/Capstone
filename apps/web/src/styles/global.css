@@ -766,6 +766,9 @@ button:focus-visible {
 .question-prompt {
   font-size: 1.2rem;
   margin: 0 0 18px;
+  /* Past-paper questions list their statements on separate lines
+     ("1) ... 2) ..."), and a reading text keeps its paragraphs. */
+  white-space: pre-line;
 }
 
 .question-image {
@@ -1036,6 +1039,8 @@ button:focus-visible {
 .review-prompt {
   margin: 0 0 10px;
   font-weight: 600;
+  /* Same line breaks as on the exam page. */
+  white-space: pre-line;
 }
 
 .review-answers {
