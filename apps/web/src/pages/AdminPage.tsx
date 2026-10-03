@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { BankQuestion, QuestionDraft, QuestionStatus } from "@grade9/shared";
-import { markLimits, subjectName, topicName } from "@grade9/shared";
+import { followsSiteLanguage, markLimits, siteLanguages, subjectName, topicName } from "@grade9/shared";
 import { QuestionForm } from "../components/QuestionForm";
+import { useLanguage } from "../lib/i18n";
 import { ApiError } from "../services/apiClient";
 import {
   adminLogin,
@@ -19,6 +20,13 @@ const CSV_TEMPLATE =
   "subject,topic,difficulty,type,question,option_a,option_b,option_c,option_d,correct_answer,marks,explanation,paper_year,source";
 
 type Tab = "add" | "list" | "import";
+
+/**
+ * The most a dropped sheet may be. A question sheet is a few hundred kilobytes
+ * at the very most, so a file this size is the wrong file, and reading it into
+ * the box would freeze the page for nothing.
+ */
+const MAX_SHEET_BYTES = 2 * 1024 * 1024;
 
 /** Why a question is not in tests yet. Saving it complete through the form makes it ready. */
 const statusLabel: Record<Exclude<QuestionStatus, "ready">, string> = {
@@ -77,6 +85,7 @@ function LoginScreen({ onSignedIn }: { onSignedIn: (storageMode: string, isDefau
 }
 
 export function AdminPage() {
+  const { t } = useLanguage();
   const [token, setToken] = useState<string | null>(() => getAdminToken());
   const [tab, setTab] = useState<Tab>("add");
 
@@ -99,6 +108,9 @@ export function AdminPage() {
   const [csv, setCsv] = useState("");
   const [importResult, setImportResult] = useState<ImportResponse | null>(null);
   const [importing, setImporting] = useState(false);
+  // The drop zone: whether a file is being dragged over it, and how the last one went.
+  const [dragging, setDragging] = useState(false);
+  const [sheetNote, setSheetNote] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   /** Moving to another tab clears the last banner; it no longer applies there. */
   function switchTab(next: Tab) {
@@ -209,6 +221,52 @@ export function AdminPage() {
       handleFailure(cause);
     } finally {
       setImporting(false);
+    }
+  }
+
+  /**
+   * Puts a dropped or chosen sheet into the box, where the paste would have
+   * gone. It is not imported from here: the person sees what was loaded and
+   * presses the same button, so a file and a paste go through one path.
+   */
+  async function loadSheet(files: FileList | null) {
+    const file = files?.[0];
+    if (!file) return;
+
+    const fileCount = files?.length ?? 0;
+    setImportResult(null);
+
+    // Judged by name: a CSV saved on Windows often has no type at all.
+    if (!/\.(csv|tsv)$/i.test(file.name)) {
+      setSheetNote({ kind: "error", text: t("import.notSheet") });
+      return;
+    }
+
+    if (file.size === 0) {
+      setSheetNote({ kind: "error", text: t("import.empty") });
+      return;
+    }
+
+    if (file.size > MAX_SHEET_BYTES) {
+      setSheetNote({ kind: "error", text: t("import.tooBig") });
+      return;
+    }
+
+    try {
+      const text = await file.text();
+
+      if (text.trim().length === 0) {
+        setSheetNote({ kind: "error", text: t("import.empty") });
+        return;
+      }
+
+      setCsv(text);
+      setSheetNote({
+        kind: "success",
+        text: `${t("import.loaded")} ${file.name}. ${t("import.loadedHint")}${fileCount > 1 ? ` ${t("import.firstOnly")}` : ""}`
+      });
+    } catch {
+      setSheetNote({ kind: "error", text: t("import.unreadable") });
     }
   }
 
@@ -339,6 +397,19 @@ export function AdminPage() {
                       {question.subtopic ? ` - ${question.subtopic}` : ""}
                     </p>
                     <p className="question-row-answer">Answer: {question.correctAnswer || "not entered yet"}</p>
+                    {followsSiteLanguage(question.subjectId) && (
+                      <p className="question-row-translations">
+                        {t("translations.listLabel")}:{" "}
+                        {siteLanguages.filter((language) => question.translations?.[language]).map((language) => (
+                          <span key={language} className="translation-chip">
+                            {language.toUpperCase()}
+                          </span>
+                        ))}
+                        {!siteLanguages.some((language) => question.translations?.[language]) && (
+                          <span className="translation-none">{t("translations.listNone")}</span>
+                        )}
+                      </p>
+                    )}
                   </div>
 
                   <div className="question-row-actions">
@@ -390,6 +461,44 @@ export function AdminPage() {
             marks is what the paper says the question is worth, between {markLimits.min} and{" "}
             {markLimits.max}. Leave it blank and the question counts for one.
           </p>
+
+          <p className="panel-hint">{t("import.translationHint")}</p>
+
+          {/* A file dropped here fills the box below; nothing is imported until the button is pressed. */}
+          <div
+            className={`drop-zone${dragging ? " dragging" : ""}`}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={(event) => {
+              // Moving over the zone's own children fires this too.
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragging(false);
+              void loadSheet(event.dataTransfer.files);
+            }}
+          >
+            <strong>{dragging ? t("import.dropActive") : t("import.dropTitle")}</strong>
+            <label className="drop-zone-pick">
+              {t("import.dropOr")} {t("import.choose")}
+              <input
+                type="file"
+                accept=".csv,.tsv,text/csv,text/tab-separated-values"
+                onChange={(event) => {
+                  void loadSheet(event.target.files);
+                  // So choosing the same file again, after editing it, loads it again.
+                  event.target.value = "";
+                }}
+              />
+            </label>
+          </div>
+
+          {sheetNote && (
+            <p className={sheetNote.kind === "success" ? "success-banner" : "error-banner"}>{sheetNote.text}</p>
+          )}
 
           <label>
             CSV rows

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import type { QuestionDraft } from "@grade9/shared";
-import { markLimits, paperYearLimits } from "@grade9/shared";
+import { markLimits, paperYearLimits, siteLanguages } from "@grade9/shared";
 import { bearerToken } from "../lib/bearerToken";
 import { env, storageMode, writtenMarkingEnabled } from "../lib/env";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
@@ -14,8 +14,25 @@ import {
   updateQuestion
 } from "../repositories/questionRepository";
 import { importQuestionsFromCsv } from "../services/questionImport";
+import { translationProblems } from "../services/questionTranslations";
 
 export const adminRouter = Router();
+
+/**
+ * One language's version of a question. Whether it fits the question it sits on
+ * (same number of options, a subject that follows the site language) depends on
+ * the rest of the question, so that is checked below with the question in hand.
+ *
+ * Strict, so a misspelt field is refused instead of being saved and never read.
+ */
+const translationSchema = z
+  .object({
+    prompt: z.string().trim().min(1, "A translation needs the question text"),
+    options: z.array(z.string().trim().min(1, "A translated option cannot be empty")).optional(),
+    explanation: z.string().optional(),
+    correctAnswer: z.string().trim().min(1).optional()
+  })
+  .strict();
 
 const questionSchema = z
   .object({
@@ -44,7 +61,10 @@ const questionSchema = z
       .max(paperYearLimits.max)
       .nullable()
       .default(null),
-    source: z.string().nullable().default(null)
+    source: z.string().nullable().default(null),
+    // Keyed by site language. Defaults to none so a form or sheet that knows
+    // nothing about translations still works.
+    translations: z.record(z.enum(siteLanguages), translationSchema).default({})
   })
   .superRefine((value, context) => {
     if (value.type === "multiple-choice") {
@@ -62,9 +82,33 @@ const questionSchema = z
           path: ["correctAnswer"],
           message: "The correct answer must be one of the options."
         });
+        return;
       }
     }
+
+    // Last, because they are measured against the options and answer above.
+    for (const problem of translationProblems(value)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: problem.path, message: problem.message });
+    }
   });
+
+/**
+ * The refusal for a question that does not pass the schema.
+ *
+ * The browser shows the message and not the issues, so a problem with the
+ * translations, which cannot be seen from the form alone, is put in the message
+ * itself.
+ */
+function invalidQuestion(error: z.ZodError) {
+  const translationIssue = error.issues.find((issue) => issue.path[0] === "translations");
+
+  return {
+    message: translationIssue
+      ? `That question is not valid yet. ${translationIssue.message}`
+      : "That question is not valid yet.",
+    issues: error.flatten()
+  };
+}
 
 adminRouter.post("/login", (request, response) => {
   const parsed = z.object({ password: z.string() }).safeParse(request.body);
@@ -122,10 +166,7 @@ adminRouter.post("/questions", requireAdmin, async (request, response, next) => 
   const parsed = questionSchema.safeParse(request.body);
 
   if (!parsed.success) {
-    return response.status(400).json({
-      message: "That question is not valid yet.",
-      issues: parsed.error.flatten()
-    });
+    return response.status(400).json(invalidQuestion(parsed.error));
   }
 
   try {
@@ -140,10 +181,7 @@ adminRouter.put("/questions/:id", requireAdmin, async (request, response, next) 
   const parsed = questionSchema.safeParse(request.body);
 
   if (!parsed.success) {
-    return response.status(400).json({
-      message: "That question is not valid yet.",
-      issues: parsed.error.flatten()
-    });
+    return response.status(400).json(invalidQuestion(parsed.error));
   }
 
   try {

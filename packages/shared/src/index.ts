@@ -7,6 +7,32 @@
 
 export type SubjectId = "math" | "english" | "russian";
 
+/** The languages the site is offered in, which is also the languages a question can be translated into. */
+export const siteLanguages = ["en", "ru", "az"] as const;
+
+export type SiteLanguage = (typeof siteLanguages)[number];
+
+export function isSiteLanguage(value: unknown): value is SiteLanguage {
+  return typeof value === "string" && (siteLanguages as readonly string[]).includes(value);
+}
+
+/**
+ * The subjects whose questions follow the language the student chose for the site.
+ *
+ * English questions are always in English and Russian ones always in Russian,
+ * because reading the language is the thing being tested. Maths is the only
+ * subject where the language is just the wrapper around the problem.
+ *
+ * This is the one place that says so. Serving, the admin form and the importer
+ * all ask here, so a translation added to an English or Russian question by
+ * mistake (or by a seed script) is never served in place of the real text.
+ */
+export const translatableSubjects: readonly SubjectId[] = ["math"];
+
+export function followsSiteLanguage(subjectId: string): boolean {
+  return (translatableSubjects as readonly string[]).includes(subjectId);
+}
+
 /** Difficulty of an individual question in the bank. */
 export type Difficulty = "easy" | "medium" | "hard";
 
@@ -183,11 +209,36 @@ export function resolveSettings(
 }
 
 /**
+ * One language's version of a question's text.
+ *
+ * `options` is in the same order as the question's own options, which is what
+ * lets the right one be found by position rather than by comparing text across
+ * languages. Leave it out and the question's own options are used as they are.
+ * `correctAnswer` is only for a short answer whose wording differs by language
+ * ("26 cm" and "26 см"); a multiple choice answer is the option in the same
+ * position as the original.
+ */
+export interface QuestionTranslation {
+  prompt: string;
+  options?: string[];
+  explanation?: string;
+  correctAnswer?: string;
+}
+
+/** Keyed by site language. A language with no entry is shown in the question's own text. */
+export type QuestionTranslations = Partial<Record<SiteLanguage, QuestionTranslation>>;
+
+/**
  * A question as stored in the bank, entered through the admin dashboard.
  *
  * `correctAnswer` always holds the answer text, never the letter. Imports that
  * supply a letter are resolved to the matching option on the way in, which
  * keeps marking and review rendering to a single simple comparison.
+ *
+ * The prompt, options, explanation and answer are the question as first
+ * written, in whatever language that was; `translations` holds the others. The
+ * text here is what is shown when there is no translation to use, and what the
+ * rest of the app treats as the question itself.
  */
 export interface BankQuestion {
   id: string;
@@ -213,6 +264,8 @@ export interface BankQuestion {
   status: QuestionStatus;
   /** The paper's own subtopic label, set when a paper is loaded from its sheet. */
   subtopic: string | null;
+  /** Only used for subjects that follow the site language; see `followsSiteLanguage`. */
+  translations: QuestionTranslations;
   createdAt: string;
   updatedAt: string;
 }

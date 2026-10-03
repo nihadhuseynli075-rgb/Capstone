@@ -788,6 +788,109 @@
   background: var(--warning-soft);
 }
 
+/* ---------------------------------------------------------- translations */
+
+/* The optional translations on the question form: shut until wanted. */
+.translations-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.translations-section > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.translations-section[open] > summary {
+  margin-bottom: 12px;
+}
+
+.translation-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.translation-block > legend {
+  padding: 0 6px;
+  font-weight: 700;
+}
+
+/*
+ * A translated option beside the option it translates: the letter and the
+ * input on one line, and what it is a translation of under the input.
+ */
+.translation-option-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.translation-option-base {
+  grid-column: 2;
+}
+
+.translation-correct {
+  color: var(--success);
+}
+
+/* On the admin list: which languages a maths question has. */
+.question-row-translations {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.translation-chip {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------ sheet drop */
+
+/* Where a CSV or TSV can be dropped on the bulk import. */
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 18px 14px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.drop-zone.dragging {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+
+.drop-zone-pick {
+  align-items: center;
+  font-weight: 400;
+}
+
+.drop-zone-pick input[type="file"] {
+  max-width: 100%;
+}
+
 /* ------------------------------------------------------- written answers */
 
 /* The answer box for an open-ended question, with its word count under it. */

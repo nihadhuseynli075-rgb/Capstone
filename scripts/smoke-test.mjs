@@ -659,6 +659,219 @@ async function main() {
     check("and is never put in a test", writtenTest.status === 409, `got ${writtenTest.status}`);
   }
 
+  section("Maths in the student's language");
+  // Its own topic, so the papers below hold only these questions. English is
+  // the question's own text and Russian its translation, the way the maths
+  // bank is stored.
+  const languageTopic = `language-${Date.now()}`;
+  const circle = mcq({
+    topicId: languageTopic,
+    prompt: "Find the radius of a circle whose circumference is 32π cm.",
+    options: ["8 cm", "16 cm", "32 cm", "64 cm"],
+    correctAnswer: "16 cm",
+    explanation: "The circumference is 2πr, so r = 16.",
+    translations: {
+      ru: {
+        prompt: "Найдите радиус окружности, длина которой равна 32π см.",
+        options: ["8 см", "16 см", "32 см", "64 см"],
+        explanation: "Длина окружности равна 2πr, поэтому r = 16."
+      }
+    }
+  });
+
+  const wrongLength = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ topicId: languageTopic, translations: { ru: { prompt: "Вопрос", options: ["а", "б"] } } })
+  });
+  check(
+    "translated options have to match the question's, one for one",
+    wrongLength.status === 400 && /Russian translation has 2 options but the question has 4/.test(wrongLength.body.message),
+    JSON.stringify(wrongLength.body)
+  );
+
+  const unknownLanguage = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ topicId: languageTopic, translations: { de: { prompt: "Frage" } } })
+  });
+  check("a language the site does not have is refused", unknownLanguage.status === 400, `got ${unknownLanguage.status}`);
+
+  const translatedEnglish = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ subjectId: "english", topicId: languageTopic, translations: { ru: { prompt: "Вопрос" } } })
+  });
+  check(
+    "an English question cannot be given a translation",
+    translatedEnglish.status === 400,
+    `got ${translatedEnglish.status}: ${JSON.stringify(translatedEnglish.body)}`
+  );
+
+  const circleSaved = await call("/api/admin/questions", { method: "POST", token, body: circle });
+  check("a maths question with a Russian translation saves", circleSaved.status === 201, JSON.stringify(circleSaved.body));
+  check(
+    "and its translations come back",
+    circleSaved.body.question?.translations?.ru?.options?.[1] === "16 см",
+    JSON.stringify(circleSaved.body.question?.translations)
+  );
+  const circleId = circleSaved.body.question?.id;
+
+  const perimeterSaved = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({
+      topicId: languageTopic,
+      type: "short-answer",
+      prompt: "A square has sides of 6.5 cm. What is its perimeter?",
+      options: [],
+      correctAnswer: "26 cm",
+      translations: { ru: { prompt: "Сторона квадрата равна 6,5 см. Найдите его периметр.", correctAnswer: "26 см" } }
+    })
+  });
+  check("a short answer with a translated answer saves", perimeterSaved.status === 201, JSON.stringify(perimeterSaved.body));
+  const perimeterId = perimeterSaved.body.question?.id;
+
+  const englishSaved = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ subjectId: "english", topicId: languageTopic, prompt: "Choose the correct form: She ___ to school.", options: ["go", "goes"], correctAnswer: "goes" })
+  });
+  check("an English question saves without translations", englishSaved.status === 201, JSON.stringify(englishSaved.body));
+
+  const generateIn = (subjectId, language) =>
+    call("/api/tests/generate", {
+      method: "POST",
+      body: {
+        studentKey,
+        subjectId,
+        topicIds: [languageTopic],
+        difficultyMode: "custom",
+        questionCount: 5,
+        timeLimitMinutes: null,
+        ...(language ? { language } : {})
+      }
+    });
+  const servedQuestion = (response, id) => response.body.test?.questions?.find((question) => question.id === id);
+
+  const inRussian = await generateIn("math", "ru");
+  const inEnglish = await generateIn("math", "en");
+  const inAzerbaijani = await generateIn("math", "az");
+  const inNothing = await generateIn("math");
+  check("tests generate in each language", [inRussian, inEnglish, inAzerbaijani, inNothing].every((r) => r.status === 200));
+
+  const ruCircle = servedQuestion(inRussian, circleId);
+  check(
+    "Russian students are served the Russian text and options",
+    ruCircle?.prompt.startsWith("Найдите радиус") && ruCircle.options[1] === "16 см",
+    JSON.stringify(ruCircle)
+  );
+  check(
+    "English students are served the English text and options",
+    servedQuestion(inEnglish, circleId)?.prompt.startsWith("Find the radius") &&
+      servedQuestion(inEnglish, circleId)?.options[1] === "16 cm"
+  );
+  check(
+    "Azerbaijani has no translations yet, so it falls back to the question's own text",
+    servedQuestion(inAzerbaijani, circleId)?.prompt.startsWith("Find the radius")
+  );
+  check("so does a test with no language", servedQuestion(inNothing, circleId)?.prompt.startsWith("Find the radius"));
+  check(
+    "the answer and the translated explanation are never sent to the student",
+    inRussian.body.test.questions.every((question) => question.correctAnswer === undefined && question.explanation === undefined && question.translations === undefined)
+  );
+
+  // The same choice, one language each: the second option, "16 cm" and "16 см".
+  const submit = (paper, answers) =>
+    call(`/api/tests/${paper.body.test.id}/submit`, {
+      method: "POST",
+      body: { studentKey, answers, timeTakenSeconds: 5 }
+    });
+
+  const russianResult = await submit(inRussian, [
+    { questionId: circleId, answer: "16 см" },
+    { questionId: perimeterId, answer: "26 см" }
+  ]);
+  const englishResult = await submit(inEnglish, [
+    { questionId: circleId, answer: "16 cm" },
+    { questionId: perimeterId, answer: "26 cm" }
+  ]);
+  check(
+    "the right choice and the right short answer mark correct in Russian",
+    russianResult.body.score === 2,
+    `score ${russianResult.body.score}: ${JSON.stringify(russianResult.body.reviews)}`
+  );
+  check(
+    "and in English",
+    englishResult.body.score === 2,
+    `score ${englishResult.body.score}: ${JSON.stringify(englishResult.body.reviews)}`
+  );
+  const ruReview = russianResult.body.reviews?.find((review) => review.questionId === circleId);
+  check(
+    "the Russian result reviews the question as it was served",
+    ruReview?.prompt.startsWith("Найдите радиус") &&
+      ruReview.correctAnswer === "16 см" &&
+      ruReview.explanation.startsWith("Длина окружности"),
+    JSON.stringify(ruReview)
+  );
+
+  const inRussianAgain = await generateIn("math", "ru");
+  const crossed = await submit(inRussianAgain, [
+    { questionId: circleId, answer: "16 cm" },
+    { questionId: perimeterId, answer: "26 cm" }
+  ]);
+  check(
+    "English wording is not right on a Russian paper, which never offered it",
+    crossed.body.score === 0,
+    `score ${crossed.body.score}`
+  );
+
+  // The paper the student sat is a copy: editing the translation afterwards
+  // must not change what they are shown when they look back at it.
+  await call(`/api/admin/questions/${circleId}`, {
+    method: "PUT",
+    token,
+    body: { ...circle, translations: { ru: { prompt: "Изменено.", options: ["а", "б", "в", "г"] } } }
+  });
+  const reopened = await call(`/api/tests/attempts/${inRussian.body.test.id}?studentKey=${encodeURIComponent(studentKey)}`);
+  const reopenedCircle = reopened.body.reviews?.find((review) => review.questionId === circleId);
+  check(
+    "reopening a past paper shows it as it was served, even after the translation is edited",
+    reopenedCircle?.prompt.startsWith("Найдите радиус") && reopenedCircle.options[1] === "16 см" && reopenedCircle.correctAnswer === "16 см",
+    JSON.stringify(reopenedCircle)
+  );
+
+  const englishInRussian = await generateIn("english", "ru");
+  const englishInEnglish = await generateIn("english", "en");
+  const sameQuestion = (paper) => JSON.stringify(servedQuestion(paper, englishSaved.body.question?.id));
+  check(
+    "an English question is the same whichever language the site is in",
+    englishInRussian.status === 200 && sameQuestion(englishInRussian) === sameQuestion(englishInEnglish) && sameQuestion(englishInRussian).includes("She ___ to school"),
+    sameQuestion(englishInRussian)
+  );
+
+  const badLanguage = await call("/api/tests/generate", {
+    method: "POST",
+    body: { studentKey, subjectId: "math", topicIds: [languageTopic], difficultyMode: "easy", language: "de" }
+  });
+  check("a language the site does not have is refused when creating a test", badLanguage.status === 400, `got ${badLanguage.status}`);
+
+  const importedTranslations = await call("/api/admin/questions/import", {
+    method: "POST",
+    token,
+    body: {
+      csv: [
+        "subject,topic,question,option_a,option_b,correct_answer,question_ru,option_a_ru,option_b_ru",
+        `math,${languageTopic}-import,Which is bigger?,3,5,B,Что больше?,3,5`
+      ].join("\n")
+    }
+  });
+  check(
+    "a sheet with Russian columns imports them as translations",
+    importedTranslations.body.questions?.[0]?.translations?.ru?.prompt === "Что больше?",
+    JSON.stringify(importedTranslations.body)
+  );
+
   section("Sign out");
   const loggedOut = await call("/api/admin/logout", { method: "POST", token });
   check("logout responds 200", loggedOut.status === 200);

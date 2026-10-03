@@ -330,6 +330,108 @@ async function main() {
     const rightAnswers = (test) => answersFor(test, (question) => answerKey.get(question.id) ?? "");
     const wrongAnswers = (test) => answersFor(test, () => "definitely wrong");
 
+    section("Translations written straight into the table");
+    // Questions are loaded from the SQL editor, so what is in the column is
+    // whatever was typed there. Here a question is made through the admin API
+    // and its translations are then written the way a seed script would.
+    const translatedTopic = `${topicId}-translated`;
+    const translatedStudent = randomUUID();
+    const makeTranslatable = async (subjectId, prompt, translations) => {
+      const created = await call("/api/admin/questions", {
+        method: "POST",
+        token: adminToken,
+        body: {
+          subjectId,
+          topicId: translatedTopic,
+          difficulty: "easy",
+          type: "multiple-choice",
+          prompt,
+          options: ["cm", "m", "km"],
+          correctAnswer: "m",
+          explanation: "Base explanation."
+        }
+      });
+      const id = created.body.question?.id;
+      const patched = await request(standin.url, `/__standin/rows/questions/${id}`, {
+        method: "PATCH",
+        body: { translations }
+      });
+      return { id, patched };
+    };
+    const servedIn = (subjectId, language) =>
+      generate(translatedStudent, undefined, { subjectId, topicIds: [translatedTopic], language });
+
+    const seeded = await makeTranslatable("math", "How is a road measured?", {
+      ru: { prompt: "Как измеряют дорогу?", options: ["см", "м", "км"], explanation: "Объяснение." }
+    });
+    check("translations can be written into the column", seeded.patched.status === 200, JSON.stringify(seeded.patched.body));
+
+    const inRussian = await servedIn("math", "ru");
+    const seededRussian = inRussian.body.test?.questions?.find((question) => question.id === seeded.id);
+    check(
+      "a seeded Russian translation is served to a Russian student",
+      seededRussian?.prompt === "Как измеряют дорогу?" && seededRussian.options[1] === "м",
+      JSON.stringify(inRussian.body)
+    );
+    const seededResult = await submit(inRussian.body.test, translatedStudent, [
+      { questionId: seeded.id, position: 0, answer: "м" }
+    ]);
+    check("and marks the translated option correct", seededResult.body.score === 1, JSON.stringify(seededResult.body));
+    const seededAttempt = (await rows("attempt_questions", `?attempt_id=eq.${inRussian.body.test.id}`))[0];
+    check(
+      "the attempt keeps the translated options and the matching answer",
+      seededAttempt?.options?.[1] === "м" && seededAttempt.correct_answer === "м" && seededAttempt.explanation === "Объяснение.",
+      JSON.stringify(seededAttempt)
+    );
+
+    const notAnObject = await request(standin.url, `/__standin/rows/questions/${seeded.id}`, {
+      method: "PATCH",
+      body: { translations: [] }
+    });
+    check("the column only holds a JSON object", notAnObject.status === 400, `got ${notAnObject.status}`);
+
+    // The English question here is the one that must never change language,
+    // however much is written onto it.
+    const englishQuestion = await makeTranslatable("english", "Which unit is longest?", {
+      ru: { prompt: "Какая единица длиннее?", options: ["см", "м", "км"] }
+    });
+    const englishInRussian = await servedIn("english", "ru");
+    const servedEnglish = englishInRussian.body.test?.questions?.find((question) => question.id === englishQuestion.id);
+    check(
+      "translations seeded onto an English question are never served",
+      servedEnglish?.prompt === "Which unit is longest?" && servedEnglish.options[1] === "m",
+      JSON.stringify(englishInRussian.body)
+    );
+
+    // Anything in the column that does not fit is skipped rather than failing
+    // the test, because a student cannot fix a seed script.
+    const malformed = await makeTranslatable("math", "Which unit is shortest?", {
+      ru: { prompt: "Какая единица короче?", options: ["см", "м"] },
+      az: { prompt: "Hansı vahid ən qısadır?", options: [1, 2, 3] },
+      en: "not an object"
+    });
+    for (const language of ["ru", "az", "en"]) {
+      const paper = await servedIn("math", language);
+      const served = paper.body.test?.questions?.find((question) => question.id === malformed.id);
+      check(
+        `a translation that does not fit falls back to the question's own text (${language})`,
+        paper.status === 200 && served?.prompt === "Which unit is shortest?" && served.options.length === 3,
+        JSON.stringify(paper.body)
+      );
+    }
+
+    // A translation that is only the question text, as a seed may well be.
+    const promptOnly = await makeTranslatable("math", "Which unit is the base?", {
+      ru: { prompt: "Какая единица основная?" }
+    });
+    const promptOnlyPaper = await servedIn("math", "ru");
+    const promptOnlyServed = promptOnlyPaper.body.test?.questions?.find((question) => question.id === promptOnly.id);
+    check(
+      "a translation with no options keeps the question's own options",
+      promptOnlyServed?.prompt === "Какая единица основная?" && promptOnlyServed.options.join() === "cm,m,km",
+      JSON.stringify(promptOnlyServed)
+    );
+
     section("Written answers, marked by the AI marker");
     const writtenTopic = `${topicId}-written`;
     const writtenCreated = await call("/api/admin/questions", {
