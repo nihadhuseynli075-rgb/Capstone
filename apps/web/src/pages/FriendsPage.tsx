@@ -1,41 +1,123 @@
+import { useState } from "react";
+import { useAuth } from "../features/auth/AuthContext";
+import { AddFriendPanel } from "../features/friends/AddFriendPanel";
+import { FriendsList } from "../features/friends/FriendsList";
+import { RequestsPanel } from "../features/friends/RequestsPanel";
+import { useFriends } from "../features/friends/useFriends";
+import { useLanguage } from "../lib/i18n";
+import "../styles/friends.css";
+
+/**
+ * Friends: ask somebody by email or username, answer the requests that come
+ * in, and see how your tests compare with each friend's.
+ *
+ * Friends are accounts, so this needs a signed-in student and an API that is
+ * connected to Supabase. A guest is pointed at signing in, and an API without
+ * Supabase is explained, in the same way the profile page does it.
+ */
 export function FriendsPage() {
+  const { t } = useLanguage();
+  const { user, configured } = useAuth();
+  const friends = useFriends();
+
+  // The request or friendship being acted on, which holds every button until
+  // the answer is back so nothing is pressed twice.
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function act(id: string, run: () => Promise<unknown>): Promise<void> {
+    setBusyId(id);
+    setActionError(null);
+
+    try {
+      await run();
+    } catch (cause) {
+      setActionError(friends.explain(cause));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const heading = (
+    <section>
+      <h1>{t("friends.title")}</h1>
+      <p className="lede">{t("friends.subtitle")}</p>
+    </section>
+  );
+
+  if (!user) {
+    return (
+      <div className="stack">
+        {heading}
+
+        <section className="panel friends-panel">
+          <p className="panel-hint">{configured ? t("friends.signedOut") : t("settings.notConfigured")}</p>
+          {configured && (
+            <div className="settings-actions">
+              <a className="primary-button" href="#/login">
+                {t("nav.signIn")}
+              </a>
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  }
+
+  const { overview, status, error } = friends;
+
   return (
     <div className="stack">
-      <section>
-        <p className="eyebrow">ExamPeak</p>
-        <h1>Friends</h1>
-        <p className="lede">
-          Add friends and compare your test progress.
+      {heading}
+
+      {status === "loading" && !overview && (
+        <p className="panel-hint" role="status">
+          {t("friends.loading")}
         </p>
-      </section>
+      )}
 
-      <section className="card">
-        <h2>Add Friend</h2>
+      {status === "unavailable" && (
+        <p className="warning-banner" role="status">
+          {t("friends.unavailable")}
+        </p>
+      )}
 
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-          }}
-        >
-          <label>
-            Friend email
-            <input
-              type="email"
-              placeholder="Enter friend's email"
-            />
-          </label>
-
-          <button type="submit" className="primary-button">
-            Add Friend
+      {(status === "error" || (status === "ready" && error)) && (
+        <p className="error-banner" role="alert">
+          {error}{" "}
+          <button type="button" className="link-button" onClick={() => void friends.reload()}>
+            {t("friends.retry")}
           </button>
-        </form>
-      </section>
+        </p>
+      )}
 
-      <section className="card">
-        <h2>Friend List</h2>
+      {actionError && (
+        <p className="error-banner" role="alert">
+          {actionError}
+        </p>
+      )}
 
-        <p>No friends added yet.</p>
-      </section>
+      {overview && (
+        <>
+          <AddFriendPanel onSend={friends.send} explain={friends.explain} />
+
+          <RequestsPanel
+            incoming={overview.incoming}
+            outgoing={overview.outgoing}
+            busyId={busyId}
+            onAccept={(id) => void act(id, () => friends.accept(id))}
+            onDecline={(id) => void act(id, () => friends.decline(id))}
+            onCancel={(id) => void act(id, () => friends.cancel(id))}
+          />
+
+          <FriendsList
+            friends={overview.friends}
+            me={overview.me}
+            busyId={busyId}
+            onRemove={(id) => act(id, () => friends.remove(id))}
+          />
+        </>
+      )}
     </div>
   );
 }

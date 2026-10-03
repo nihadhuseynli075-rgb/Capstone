@@ -62,8 +62,9 @@ put a couple of real questions into it.
 
 ## Agreed for later
 
-- **Friends**: friend list, adding friends, comparing progress. In Nihad's page
-  plan, not built yet.
+- **Friends**: built (add by email or username, accept or decline, compare
+  progress). Waiting on Nihad to try it by hand with two accounts, using
+  [testing-friends.md](testing-friends.md).
 - **Community questions**: users posting their own questions, possibly unlocked
   as a reward for scoring full marks. Agreed as an extension once the core app is
   tested.

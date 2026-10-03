@@ -385,6 +385,77 @@ export function attemptScoreValue(attempt: {
 }
 
 /**
+ * What one student can see of another: a name, a username and a photo, and
+ * nothing else.
+ *
+ * Deliberately no email. Adding a friend can start from an email address, but
+ * nothing here ever hands one back out, so the friends list cannot be used to
+ * collect the addresses of everybody who has an account. The username is the
+ * part of an account that is meant to be shared.
+ */
+export interface FriendPerson {
+  id: string;
+  fullName: string;
+  /** Lowercase, without the "@" the app prints before it. */
+  username: string;
+  /** Null when there is no photo, and the app shows initials instead. */
+  avatarUrl: string | null;
+}
+
+/**
+ * How a student has done on their mock tests, for comparing with a friend.
+ *
+ * Built from submitted tests only, the same ones the history page lists. It is
+ * a handful of headline figures on purpose: it is not a ranking, and says
+ * nothing about which topics anyone is weak at.
+ */
+export interface FriendProgress {
+  testsTaken: number;
+  /** The best test by the history page's own measure, or null before the first. */
+  best: { score: number; totalMarks: number; percentage: number } | null;
+  /** The mean percentage over every test, to one decimal place. */
+  averagePercentage: number | null;
+  /** When the latest test was handed in. */
+  lastActiveAt: string | null;
+}
+
+export interface Friend extends FriendPerson {
+  /** The friendship's own id, which is what removing it is asked by. */
+  friendshipId: string;
+  /** When the request was accepted. */
+  since: string;
+  progress: FriendProgress;
+}
+
+/** A pending request, from either side: the person is the one at the other end. */
+export interface FriendRequest extends FriendPerson {
+  requestId: string;
+  sentAt: string;
+}
+
+/** Everything the friends page shows, in one read. */
+export interface FriendsOverview {
+  /** The signed-in student's own figures, so each friend can be set beside them. */
+  me: FriendProgress;
+  friends: Friend[];
+  /** Asked of me, waiting for my answer. */
+  incoming: FriendRequest[];
+  /** Asked by me, waiting for theirs. */
+  outgoing: FriendRequest[];
+}
+
+/**
+ * What sending a request came to.
+ *
+ * "accepted" is when the other student had already asked: their request is
+ * accepted instead of a second one being made, so the two end up friends.
+ */
+export interface SentFriendRequest {
+  outcome: "requested" | "accepted";
+  person: FriendPerson;
+}
+
+/**
  * Starter subjects and topics.
  *
  * Topics are still being confirmed against the real past papers, so the API

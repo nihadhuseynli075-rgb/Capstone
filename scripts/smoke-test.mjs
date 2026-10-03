@@ -570,6 +570,14 @@ async function main() {
       profile.status === 503 && profile.body.code === "profiles-unavailable",
       `${profile.status} ${JSON.stringify(profile.body)}`
     );
+
+    // Friends are accounts too, so the page says so instead of failing.
+    const friends = await call("/api/friends");
+    check(
+      "the friends page is told friends need Supabase, rather than failing",
+      friends.status === 503 && friends.body.code === "friends-unavailable",
+      `${friends.status} ${JSON.stringify(friends.body)}`
+    );
   }
 
   section("Spreadsheet import edge cases");

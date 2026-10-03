@@ -3,8 +3,8 @@
  *
  *   node scripts/supabase-standin.mjs            (listens on 54399)
  *
- * It answers the PostgREST calls the API makes (/rest/v1) against the four
- * tables in supabase/migrations that the API reads and writes, the GoTrue
+ * It answers the PostgREST calls the API makes (/rest/v1) against the tables
+ * in supabase/migrations that the API reads and writes, the GoTrue
  * calls both the API and the browser make (/auth/v1) for accounts, including
  * the admin calls the API makes with the service role key, and the storage
  * calls (/storage/v1) for profile photos. It holds everything in memory and
@@ -21,7 +21,7 @@
  * It exists because the Supabase code paths otherwise only run against a real
  * project, and there is not always one to hand. So it imitates the Postgres
  * behaviour those paths depend on: uuid and integer column types, NOT NULL,
- * CHECK and foreign key constraints, cascades, one statement being all or
+ * CHECK, UNIQUE and foreign key constraints, cascades, one statement being all or
  * nothing, and Supabase refusing an UPDATE or DELETE with no filter.
  *
  * It is not Supabase. Passing against it means the API sends requests of the
@@ -73,7 +73,34 @@ function column(type, options = {}) {
 
 const oneOf = (values) => (value) => values.includes(value);
 
-/** The tables the API touches, as the migrations leave them after 0001-0009. */
+/**
+ * A username for a profile that arrives without one: the email's local part,
+ * lowercased, anything outside [a-z0-9_.] turned into "_", made to start with
+ * a letter and to run 3-20 characters, with a number on the end if it is taken.
+ *
+ * This is a stand-in for the username migration's own generation, kept as
+ * small as will do: enough that every profile has a unique lowercase username,
+ * as the friends search needs. It does not try to match that logic exactly.
+ */
+function generateUsername(email, taken) {
+  const local = String(email ?? "").split("@")[0].toLowerCase().replace(/[^a-z0-9_.]/g, "_");
+  const base = (/^[a-z]/.test(local) ? local : `u${local}`).slice(0, 20).padEnd(3, "0");
+
+  let candidate = base;
+  for (let number = 2; taken.has(candidate); number += 1) {
+    candidate = base.slice(0, 20 - String(number).length) + number;
+  }
+  return candidate;
+}
+
+/**
+ * The tables the API touches, as the migrations leave them after 0001-0009,
+ * plus `friendships` from 0005 and the `username` column the username
+ * migration adds to `profiles`.
+ *
+ * `unique` lists UNIQUE constraints as [name, columns], named the way Postgres
+ * names them. `beforeInsert` stands in for triggers that fill a row in.
+ */
 const SCHEMA = {
   profiles: {
     columns: {
@@ -82,9 +109,21 @@ const SCHEMA = {
       email: column("text"),
       grade_level: column("int", { notNull: true, default: () => 9 }),
       created_at: column("timestamptz", { notNull: true, default: nowIso }),
-      avatar_url: column("text")
+      avatar_url: column("text"),
+      // The username migration: text, unique, stored lowercase. Not null in the
+      // database, where the sign-up trigger always fills it, so the stand-in
+      // fills it here for both ways a profile gets made.
+      username: column("text", { notNull: true })
     },
-    checks: []
+    checks: [],
+    unique: [["profiles_username_key", ["username"]]],
+    beforeInsert: (row, existing) => ({
+      ...row,
+      username:
+        row.username === null
+          ? generateUsername(row.email, new Set(existing.map((other) => other.username)))
+          : String(row.username).toLowerCase()
+    })
   },
   questions: {
     columns: {
@@ -180,13 +219,31 @@ const SCHEMA = {
         (row) => row.score === null || (row.score >= 0 && row.score <= row.marks)
       ]
     ]
+  },
+  // 0005. Postgres names the unnamed table-level check "friendships_check".
+  friendships: {
+    columns: {
+      id: column("uuid", { notNull: true, default: () => randomUUID() }),
+      user_id: column("uuid", { notNull: true }),
+      friend_id: column("uuid", { notNull: true }),
+      status: column("text", { notNull: true, default: () => "pending" }),
+      created_at: column("timestamptz", { notNull: true, default: nowIso }),
+      responded_at: column("timestamptz")
+    },
+    checks: [
+      ["friendships_status_check", (row) => oneOf(["pending", "accepted", "blocked"])(row.status)],
+      ["friendships_check", (row) => row.user_id !== row.friend_id]
+    ],
+    unique: [["friendships_user_id_friend_id_key", ["user_id", "friend_id"]]]
   }
 };
 
 const FOREIGN_KEYS = [
   { table: "test_attempts", column: "student_id", references: "profiles", onDelete: "cascade" },
   { table: "attempt_questions", column: "attempt_id", references: "test_attempts", onDelete: "cascade" },
-  { table: "attempt_questions", column: "question_id", references: "questions", onDelete: "set null" }
+  { table: "attempt_questions", column: "question_id", references: "questions", onDelete: "set null" },
+  { table: "friendships", column: "user_id", references: "profiles", onDelete: "cascade" },
+  { table: "friendships", column: "friend_id", references: "profiles", onDelete: "cascade" }
 ];
 
 // ---------------------------------------------------------------------------
@@ -380,10 +437,34 @@ function buildFilter(table, name, expression) {
   return operator === "is" ? (row) => !test(row) : (row) => row[name] !== null && !test(row);
 }
 
+/**
+ * `or=(user_id.eq.X,friend_id.eq.Y)`: any one of the listed filters. PostgREST
+ * also nests `and(...)` and `or(...)` inside it, which nothing here uses.
+ */
+function buildOr(table, expression) {
+  if (!expression.startsWith("(") || !expression.endsWith(")")) {
+    throw new PgError(400, "PGRST100", `failed to parse logic tree (${expression})`);
+  }
+
+  const tests = splitTopLevel(expression.slice(1, -1)).map((term) => {
+    const dot = term.indexOf(".");
+    if (dot === -1 || /^(and|or)\(/.test(term)) {
+      throw new PgError(400, "PGRST100", `the stand-in does not support this inside or=() (${term})`);
+    }
+    return buildFilter(table, term.slice(0, dot), term.slice(dot + 1));
+  });
+
+  return (row) => tests.some((test) => test(row));
+}
+
 function parseFilters(table, params) {
   const filters = [];
   for (const [key, value] of params) {
     if (RESERVED_PARAMS.has(key)) continue;
+    if (key === "or") {
+      filters.push(buildOr(table, value));
+      continue;
+    }
     if (key.includes(".")) {
       throw new PgError(400, "PGRST100", `the stand-in does not support filters on embedded resources (${key})`);
     }
@@ -485,6 +566,24 @@ function createDatabase() {
     }
   }
 
+  /**
+   * A UNIQUE constraint broken by `row`, against the rows it would sit beside.
+   * A constraint with a null in any of its columns never matches, as in Postgres.
+   */
+  function checkUnique(table, row, others) {
+    for (const [constraint, columns] of SCHEMA[table].unique ?? []) {
+      if (columns.some((name) => row[name] === null)) continue;
+      if (others.some((other) => columns.every((name) => other[name] === row[name]))) {
+        throw new PgError(
+          409,
+          "23505",
+          `duplicate key value violates unique constraint "${constraint}"`,
+          `Key (${columns.join(", ")})=(${columns.map((name) => row[name]).join(", ")}) already exists.`
+        );
+      }
+    }
+  }
+
   function buildRow(table, input, columnsParam) {
     if (input === null || typeof input !== "object" || Array.isArray(input)) {
       throw new PgError(400, "PGRST102", "All object keys must match");
@@ -520,15 +619,35 @@ function createDatabase() {
     }
   }
 
+  /** PostgREST refuses to guess between two foreign keys joining the same pair of tables. */
+  function onlyRelationship(candidates, table, name) {
+    if (candidates.length > 1) {
+      throw new PgError(
+        300,
+        "PGRST201",
+        `Could not embed because more than one relationship was found for '${table}' and '${name}'`
+      );
+    }
+    return candidates[0];
+  }
+
   function embed(table, row, item) {
-    const child = FOREIGN_KEYS.find((key) => key.table === item.name && key.references === table);
+    const child = onlyRelationship(
+      FOREIGN_KEYS.filter((key) => key.table === item.name && key.references === table),
+      table,
+      item.name
+    );
     if (child) {
       return tables[child.table]
         .filter((candidate) => candidate[child.column] === row.id)
         .map((candidate) => project(child.table, candidate, item.shape));
     }
 
-    const parent = FOREIGN_KEYS.find((key) => key.table === table && key.references === item.name);
+    const parent = onlyRelationship(
+      FOREIGN_KEYS.filter((key) => key.table === table && key.references === item.name),
+      table,
+      item.name
+    );
     if (parent) {
       const found = tables[parent.references].find((candidate) => candidate.id === row[parent.column]);
       return found ? project(parent.references, found, item.shape) : null;
@@ -578,7 +697,14 @@ function createDatabase() {
   function insert(table, body, params) {
     requireTable(table);
     const inputs = Array.isArray(body) ? body : [body];
-    const rows = inputs.map((input) => buildRow(table, input, params.get("columns")));
+    const rows = [];
+    for (const input of inputs) {
+      const row = buildRow(table, input, params.get("columns"));
+      // A BEFORE INSERT trigger sees the rows already in the table, and the
+      // ones earlier in this same statement.
+      const hook = SCHEMA[table].beforeInsert;
+      rows.push(hook ? hook(row, [...tables[table], ...rows]) : row);
+    }
 
     // One statement: every row is checked before any of them is kept, so a
     // bad row in a batch leaves nothing behind.
@@ -595,6 +721,7 @@ function createDatabase() {
       staged.push(row);
     }
     for (const row of rows) validate(table, row);
+    rows.forEach((row, index) => checkUnique(table, row, [...tables[table], ...rows.slice(0, index)]));
 
     tables[table].push(...rows);
     return rows;
@@ -615,6 +742,8 @@ function createDatabase() {
     const hook = SCHEMA[table].beforeUpdate ?? ((row) => row);
     const next = matched.map((row) => hook({ ...row, ...patch }));
     for (const row of next) validate(table, row);
+    const untouched = rows.filter((row) => !matched.includes(row));
+    next.forEach((row, index) => checkUnique(table, row, [...untouched, ...next.slice(0, index)]));
 
     matched.forEach((row, index) => Object.assign(row, next[index]));
     return matched;
