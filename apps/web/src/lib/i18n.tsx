@@ -65,6 +65,12 @@ const en = {
   "subject.english": "English",
   "subject.russian": "Russian",
 
+  // Header and dashboard
+  // The theme button's label says what a tap does, so it names the other theme.
+  "nav.themeToDark": "Switch to dark mode",
+  "nav.themeToLight": "Switch to light mode",
+  "main.profileBody": "Your name, your photo and the ways you sign in.",
+
   "landing.logIn": "Log In",
   "landing.signUp": "Sign Up",
   "landing.label": "GRADE 9 EXAM PREPARATION",
@@ -220,6 +226,11 @@ const ru: Dictionary = {
   "subject.english": "Английский язык",
   "subject.russian": "Русский язык",
 
+  // Header and dashboard
+  "nav.themeToDark": "Включить тёмную тему",
+  "nav.themeToLight": "Включить светлую тему",
+  "main.profileBody": "Ваше имя, фото и способы входа.",
+
   "landing.logIn": "Войти",
   "landing.signUp": "Регистрация",
   "landing.label": "ПОДГОТОВКА К ЭКЗАМЕНАМ 9 КЛАССА",
@@ -370,6 +381,11 @@ const az: Dictionary = {
   "subject.math": "Riyaziyyat",
   "subject.english": "İngilis dili",
   "subject.russian": "Rus dili",
+
+  // Header and dashboard
+  "nav.themeToDark": "Qaranlıq rejimə keç",
+  "nav.themeToLight": "İşıqlı rejimə keç",
+  "main.profileBody": "Adınız, şəkliniz və giriş üsulları.",
 
   "landing.logIn": "Daxil ol",
   "landing.signUp": "Qeydiyyat",

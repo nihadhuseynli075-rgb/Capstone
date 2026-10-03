@@ -91,14 +91,66 @@ body {
   flex: none;
 }
 
+/*
+ * The buttons at the end of the header bar: light/dark mode, and the menu
+ * button on a phone. Their markup comes before the nav so the menu button
+ * precedes the menu it opens; `order` puts them after the links here.
+ */
+.header-actions {
+  order: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-header .app-nav {
+  order: 1;
+  /* Takes the spare width, so the links and the buttons sit together on the right. */
+  margin-left: auto;
+}
+
+/* Quiet like the links beside it; a phone gives it the menu button's outline. */
+.theme-toggle {
+  display: inline-flex;
+  border-color: transparent;
+  background: transparent;
+}
+
+.theme-toggle:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--brand-soft);
+}
+
+/*
+ * Phone and small tablet: the mark alone. The name is the widest thing in the
+ * bar, and the space is better spent on a button that is one tap away than on a
+ * word the logo already says. It goes at 760px rather than at the phone
+ * breakpoint because from 641px the links are back in the bar, and beside them
+ * the name and the theme button no longer fit one row. The mark keeps the link's
+ * accessible name (its alt text).
+ */
+@media (max-width: 760px) {
+  .app-header .wordmark-text {
+    display: none;
+  }
+}
+
 @media (max-width: 640px) {
-  .app-header .nav-toggle {
+  /* The menu folds back under the bar instead of sitting beside the buttons. */
+  .app-header .app-nav {
+    order: 3;
+    margin-left: 0;
+  }
+
+  .app-header .nav-toggle,
+  .app-header .theme-toggle {
     border-color: color-mix(in srgb, var(--border) 80%, transparent);
     background: var(--surface);
     color: var(--text);
   }
 
-  .app-header .nav-toggle:hover:not(:disabled) {
+  .app-header .nav-toggle:hover:not(:disabled),
+  .app-header .theme-toggle:hover:not(:disabled) {
     border-color: var(--brand);
     color: var(--brand);
   }
@@ -135,6 +187,8 @@ body {
 .app-footer {
   width: min(1120px, calc(100% - 32px));
   margin: 0 auto;
+  /* The admin link is 44px tall on a phone; without this the tagline sat at the top of that. */
+  align-items: center;
   padding: 22px 0 30px;
   border-top-color: color-mix(in srgb, var(--border) 70%, transparent);
 }
@@ -175,6 +229,17 @@ body {
 
 .primary-button {
   box-shadow: 0 4px 0 var(--brand-edge), 0 8px 18px rgba(12, 130, 200, 0.14);
+}
+
+/* A link dressed as a button (Settings, Profile) keeps the button's look: no
+   link underline, and the label centred in the 44px height. */
+a.primary-button,
+a.ghost-button,
+a.danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 input[type="text"],

@@ -1,0 +1,326 @@
+/*
+ * The signed-in dashboard (MainPage): icon tiles, built phone first.
+ *
+ * Imported by MainPage, so it loads after education-ui.css and wins ties with
+ * the card styles there. The tile rules below describe a phone (two columns,
+ * icon and name); the 641px block adds what a wider screen has room for (the
+ * description under each name, and the big "start" tile beside the others).
+ * 640px is the app's phone breakpoint, the same one the header menu uses.
+ *
+ * Colours come from the tokens in global.css, so both themes work without a
+ * second set of rules. The few hard-coded blues are the greeting banner's own.
+ */
+
+.dashboard {
+  /* The numbers most likely to be tuned, in one place. */
+  --tile-gap: 12px;
+  /* An icon and a one- or two-line name, and well clear of the 44px tap minimum. */
+  --tile-min-height: 120px;
+  /* The coloured disc an icon sits on, and the icon drawn inside it. */
+  --tile-disc: 52px;
+  --tile-glyph: 26px;
+  /* The greeting banner's blue (see .main-greeting), so the start tile pairs with it. */
+  --tile-blue: linear-gradient(135deg, #0b74b5, #0a5f95);
+}
+
+[data-theme="dark"] .dashboard {
+  --tile-blue: linear-gradient(135deg, #0c82c8, #0a3a58);
+}
+
+/* ----------------------------------------------------------------- tiles */
+
+.dash-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--tile-gap);
+}
+
+.dash-tile {
+  /* Each page's tone sets these two (below); brand blue is the default. */
+  --tile-accent: var(--brand);
+  --tile-accent-soft: var(--brand-soft);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  /* From the top, so the icons in a row line up whatever length the text is. */
+  justify-content: flex-start;
+  gap: 12px;
+  min-height: var(--tile-min-height);
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: var(--ui-radius);
+  background: var(--surface);
+  box-shadow: var(--ui-shadow-card);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+/* Lift on hover only where there is a hover: on a touch screen it would stick after a tap. */
+@media (hover: hover) {
+  .dash-tile:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--tile-accent) 45%, var(--border));
+  }
+}
+
+/* The press, which a thumb can feel. */
+.dash-tile:active {
+  transform: scale(0.98);
+}
+
+[data-theme="dark"] .dash-tile:not(.is-primary) {
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+}
+
+/* Which page is which, by colour as well as by picture. These are the
+   semantic tokens borrowed for decoration; swap in a proper palette freely. */
+.dash-tile.is-history {
+  --tile-accent: var(--warning);
+  --tile-accent-soft: var(--warning-soft);
+}
+
+.dash-tile.is-friends {
+  --tile-accent: var(--success);
+  --tile-accent-soft: var(--success-soft);
+}
+
+.dash-tile.is-settings {
+  --tile-accent: var(--muted);
+  --tile-accent-soft: var(--surface-alt);
+}
+
+.dash-tile-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--tile-disc);
+  height: var(--tile-disc);
+  border-radius: 50%;
+  background: var(--tile-accent-soft);
+  color: var(--tile-accent);
+}
+
+.dash-tile-icon svg {
+  width: var(--tile-glyph);
+  height: var(--tile-glyph);
+}
+
+.dash-tile-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* Lets a long name wrap inside the tile instead of pushing it wider. */
+  min-width: 0;
+}
+
+.dash-tile-title {
+  font-size: 1.02rem;
+  font-weight: 750;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+/* The name is enough on a phone; the description comes back at 641px. */
+.dash-tile-body {
+  display: none;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.dash-tile-go {
+  display: none;
+}
+
+/* ---------------------------------------------------------- start a test */
+
+/* The whole top row on a phone: icon, name, and an arrow to say it opens something. */
+.dash-tile.is-primary {
+  /* A see-through white, so the disc and arrow tint whichever blue is behind. */
+  --tile-glass: rgba(255, 255, 255, 0.18);
+
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  min-height: 0;
+  /* The dark edge below hangs 4px outside the tile; this keeps the row beneath clear of it. */
+  margin-bottom: 4px;
+  padding: 18px;
+  border-color: transparent;
+  background: var(--tile-blue);
+  color: #ffffff;
+  /* The dark edge the primary buttons stand on, so it reads as the thing to press. */
+  box-shadow: 0 4px 0 var(--brand-edge), 0 14px 28px rgba(12, 130, 200, 0.18);
+}
+
+@media (hover: hover) {
+  .dash-tile.is-primary:hover {
+    border-color: transparent;
+  }
+}
+
+.dash-tile.is-primary:active {
+  transform: translateY(2px) scale(0.99);
+  box-shadow: 0 2px 0 var(--brand-edge), 0 8px 18px rgba(12, 130, 200, 0.18);
+}
+
+.dash-tile.is-primary .dash-tile-icon,
+.dash-tile.is-primary .dash-tile-go {
+  background: var(--tile-glass);
+  color: #ffffff;
+}
+
+.dash-tile.is-primary .dash-tile-title {
+  font-size: 1.2rem;
+}
+
+.dash-tile.is-primary .dash-tile-body {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.dash-tile.is-primary .dash-tile-go {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  margin-left: auto;
+  border-radius: 50%;
+}
+
+.dash-tile-go svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* -------------------------------------------------------------- subjects */
+
+/* Three across, even on a phone: each is a glyph, a name and a count, and all
+   three fit one row, which leaves the first screen for the tiles above. */
+.dash-subjects .subject-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--tile-gap);
+}
+
+.dash-subjects .subject-card {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "glyph"
+    "name"
+    "count";
+  justify-items: center;
+  min-height: 0;
+  padding: 14px 8px;
+  gap: 8px;
+  text-align: center;
+}
+
+.dash-subjects .subject-glyph {
+  width: var(--tile-disc);
+  height: var(--tile-disc);
+  font-size: 1.2rem;
+}
+
+/* Sized to the tile so no word is broken in the middle: Russian "Математика" is
+   the longest word and needs about 6 times the font size in width, and a tile
+   is a third of the screen. 100vw / 18 - 6px is that, worked out for phone
+   widths (about 14px at 360, the full 1rem from 393), with a floor to stay readable. */
+.dash-subjects .subject-name {
+  font-size: clamp(0.75rem, calc(100vw / 18 - 6px), 1rem);
+  overflow-wrap: anywhere;
+}
+
+.dash-subjects .subject-count {
+  justify-self: center;
+  font-size: 0.75rem;
+}
+
+/* ----------------------------------------------------------------- phone */
+
+@media (max-width: 640px) {
+  .stack.dashboard {
+    gap: 18px;
+  }
+
+  /* Shorter, so the start tile is on the first screen with the others under it. */
+  .dashboard .main-greeting {
+    min-height: 0;
+    padding: 20px 22px;
+  }
+
+  .dashboard .main-greeting h1 {
+    font-size: 1.6rem;
+  }
+
+  /* The tiles say the same thing in pictures. */
+  .dashboard .main-lede {
+    display: none;
+  }
+
+  .dashboard .stat {
+    min-height: 0;
+    padding: 14px 16px;
+  }
+}
+
+/* The narrowest phones (320px): Azerbaijani "Tənzimləmələr" would otherwise be
+   cut in two. */
+@media (max-width: 340px) {
+  .dash-tile-title {
+    font-size: 0.92rem;
+  }
+}
+
+/* ----------------------------------------------------- tablet and desktop */
+
+@media (min-width: 641px) {
+  .dash-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dash-tile {
+    gap: 14px;
+    padding: 20px;
+  }
+
+  .dash-tile-body {
+    display: block;
+  }
+
+  /* The big tile on the left, two rows tall; the other four in a 2x2 beside it. */
+  .dash-tile.is-primary {
+    --tile-disc: 72px;
+    --tile-glyph: 36px;
+
+    grid-column: span 2;
+    grid-row: span 2;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    /* Nothing sits under it here to need the room. */
+    margin-bottom: 0;
+    padding: 26px;
+  }
+
+  .dash-tile.is-primary .dash-tile-title {
+    font-size: 1.6rem;
+  }
+
+  .dash-tile.is-primary .dash-tile-body {
+    font-size: 1rem;
+    max-width: 34ch;
+  }
+
+  .dash-tile.is-primary .dash-tile-go {
+    position: absolute;
+    top: 22px;
+    right: 22px;
+    margin: 0;
+  }
+}

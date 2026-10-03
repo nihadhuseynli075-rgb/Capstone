@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { IconMoon, IconSun } from "../components/icons";
 import { Wordmark } from "../lib/brand";
 import { applyTheme, useTheme } from "../lib/theme";
 import { useLanguage, type TranslationKey } from "../lib/i18n";
@@ -39,6 +40,44 @@ function HamburgerIcon({ open }: { open: boolean }) {
         <path d="M4 7h16M4 12h16M4 17h16" />
       )}
     </svg>
+  );
+}
+
+
+/**
+ * Light and dark mode in one tap, from the header bar rather than from inside
+ * the collapsible menu or the Settings page (which keeps its own control).
+ *
+ * The icon is the theme the page is in now, a sun while it is light and a moon
+ * while it is dark. The label says what a tap does, so it names the other
+ * theme. If the icon should show where a tap leads instead, swap the two icons
+ * below; the label is already right for that.
+ */
+function ThemeToggle() {
+  const { t } = useLanguage();
+
+  const [theme, setTheme] = useTheme();
+
+  const next =
+    theme === "light"
+      ? "dark"
+      : "light";
+
+  const label =
+    next === "dark"
+      ? t("nav.themeToDark")
+      : t("nav.themeToLight");
+
+  return (
+    <button
+      type="button"
+      className="ghost-button icon-button theme-toggle"
+      aria-label={label}
+      title={label}
+      onClick={() => setTheme(next)}
+    >
+      {theme === "light" ? <IconSun /> : <IconMoon />}
+    </button>
   );
 }
 
@@ -412,8 +451,17 @@ function Shell() {
         </a>
 
 
-        {!isExam && (
-          <>
+        {/*
+          * The icon buttons sit outside the nav so they stay one tap away on a
+          * phone, where the nav folds into the menu. They come before the nav in
+          * the markup so the menu button precedes the menu it opens; the
+          * stylesheet puts them after the links on a wide screen. The theme
+          * button stays during an exam too: it changes nothing about the paper.
+          */}
+        <div className="header-actions">
+          <ThemeToggle />
+
+          {!isExam && (
             <button
               type="button"
               className="ghost-button icon-button nav-toggle"
@@ -429,41 +477,42 @@ function Shell() {
             >
               <HamburgerIcon open={navOpen} />
             </button>
+          )}
+        </div>
 
 
-            <nav
-              id="app-nav"
-              className={
-                `app-nav ${
-                  navOpen
-                    ? "open"
-                    : ""
-                }`
-              }
-            >
-              {/*
-               * The wordmark goes home too, but nobody reads a logo as a
-               * button: from Settings or Profile there was no visible way back.
-               * Signed in, home is the dashboard; signed out, the landing page.
-               */}
-              {navItems.map((item) => (
-                <button
-                  key={item.path}
-                  type="button"
-                  className="ghost-button"
-                  aria-current={item.active ? "page" : undefined}
-                  onClick={() =>
-                    navigate(item.path)
-                  }
-                >
-                  {t(item.label)}
-                </button>
-              ))}
+        {!isExam && (
+          <nav
+            id="app-nav"
+            className={
+              `app-nav ${
+                navOpen
+                  ? "open"
+                  : ""
+              }`
+            }
+          >
+            {/*
+             * The wordmark goes home too, but nobody reads a logo as a
+             * button: from Settings or Profile there was no visible way back.
+             * Signed in, home is the dashboard; signed out, the landing page.
+             */}
+            {navItems.map((item) => (
+              <button
+                key={item.path}
+                type="button"
+                className="ghost-button"
+                aria-current={item.active ? "page" : undefined}
+                onClick={() =>
+                  navigate(item.path)
+                }
+              >
+                {t(item.label)}
+              </button>
+            ))}
 
-              {/* Light and dark mode live in Settings, under the account menu. */}
-              <AccountMenu />
-            </nav>
-          </>
+            <AccountMenu />
+          </nav>
         )}
       </header>
 
