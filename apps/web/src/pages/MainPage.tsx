@@ -1,18 +1,48 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { attemptScoreValue } from "@grade9/shared";
 import type { AttemptSummary } from "@grade9/shared";
 import { navigate } from "../app/router";
+import {
+  IconChevron,
+  IconFriends,
+  IconHistory,
+  IconProfile,
+  IconSettings,
+  IconTest
+} from "../components/icons";
 import { SubjectShortcuts } from "../components/SubjectShortcuts";
 import { useAuth } from "../features/auth/AuthContext";
 import { useProfile } from "../features/profile/ProfileContext";
-import { useLanguage } from "../lib/i18n";
+import { useLanguage, type TranslationKey } from "../lib/i18n";
 import { fetchHistory } from "../services/testsApi";
+import "../styles/dashboard.css";
+
+/**
+ * The pages the dashboard opens besides the test builder, one tile each.
+ *
+ * `tone` only picks the tile's accent colour in dashboard.css. A tile should
+ * read as its icon first and its name second: a student can tell which page it
+ * is before reading anything.
+ */
+const destinations: Array<{
+  path: string;
+  tone: string;
+  icon: ReactNode;
+  title: TranslationKey;
+  body: TranslationKey;
+}> = [
+  { path: "/history", tone: "history", icon: <IconHistory />, title: "main.history", body: "main.historyBody" },
+  { path: "/friends", tone: "friends", icon: <IconFriends />, title: "main.friends", body: "main.friendsBody" },
+  { path: "/settings", tone: "settings", icon: <IconSettings />, title: "main.settings", body: "main.settingsBody" },
+  { path: "/profile", tone: "profile", icon: <IconProfile />, title: "nav.profile", body: "main.profileBody" }
+];
 
 /**
  * The signed-in landing page. A guest gets the landing page instead (see App).
  *
- * Four main destinations:
- * Create Test, History, Settings and Friends.
+ * Icon tiles for the main jobs: Create Test (the big one, a single tap away),
+ * History, Friends, Settings and Profile. Then a shortcut per subject and the
+ * student's figures. On a phone the tiles are the first screen.
  */
 export function MainPage() {
   const { t } = useLanguage();
@@ -55,7 +85,7 @@ export function MainPage() {
   if (!user) return null;
 
   return (
-    <div className="stack">
+    <div className="stack dashboard">
       <section className="main-greeting">
         <div>
           <p className="eyebrow">{t("main.eyebrow")}</p>
@@ -64,7 +94,61 @@ export function MainPage() {
         </div>
       </section>
 
-      <p className="lede">{t("main.lede")}</p>
+      {/* The tiles say the same thing in pictures, so a phone drops this. */}
+      <p className="lede main-lede">{t("main.lede")}</p>
+
+      {/* Starting a test is the main job, so its tile is the biggest and the
+          first one in reach: one tap to the builder, from any width. */}
+      <section className="dash-tiles">
+        <button
+          type="button"
+          className="dash-tile is-primary"
+          onClick={() => navigate("/build")}
+        >
+          <span className="dash-tile-icon">
+            <IconTest />
+          </span>
+
+          <span className="dash-tile-text">
+            <span className="dash-tile-title">
+              {t("main.createTest")}
+            </span>
+
+            <span className="dash-tile-body">
+              {t("main.createTestBody")}
+            </span>
+          </span>
+
+          <span className="dash-tile-go">
+            <IconChevron />
+          </span>
+        </button>
+
+        {destinations.map((destination) => (
+          <button
+            key={destination.path}
+            type="button"
+            className={`dash-tile is-${destination.tone}`}
+            onClick={() => navigate(destination.path)}
+          >
+            <span className="dash-tile-icon">
+              {destination.icon}
+            </span>
+
+            <span className="dash-tile-text">
+              <span className="dash-tile-title">
+                {t(destination.title)}
+              </span>
+
+              <span className="dash-tile-body">
+                {t(destination.body)}
+              </span>
+            </span>
+          </button>
+        ))}
+      </section>
+
+      <SubjectShortcuts className="dash-subjects" />
 
       {/* Placeholders while loading so the page does not jump when the figures
           arrive, and nothing once it is known there is nothing to show: two
@@ -97,66 +181,6 @@ export function MainPage() {
           </div>
         </section>
       )}
-
-      <SubjectShortcuts />
-
-      <section className="card-grid">
-        <button
-          type="button"
-          className="action-card primary"
-          onClick={() => navigate("/build")}
-        >
-          <span className="action-card-title">
-            {t("main.createTest")}
-          </span>
-
-          <span className="action-card-body">
-            {t("main.createTestBody")}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          className="action-card"
-          onClick={() => navigate("/history")}
-        >
-          <span className="action-card-title">
-            {t("main.history")}
-          </span>
-
-          <span className="action-card-body">
-            {t("main.historyBody")}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          className="action-card"
-          onClick={() => navigate("/settings")}
-        >
-          <span className="action-card-title">
-            {t("main.settings")}
-          </span>
-
-          <span className="action-card-body">
-            {t("main.settingsBody")}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          className="action-card"
-          onClick={() => navigate("/friends")}
-        >
-          <span className="action-card-title">
-            {t("main.friends")}
-          </span>
-
-          <span className="action-card-body">
-            {t("main.friendsBody")}
-          </span>
-        </button>
-      </section>
     </div>
   );
 }
