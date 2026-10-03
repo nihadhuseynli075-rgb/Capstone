@@ -102,23 +102,41 @@ export function Field({
   );
 }
 
+/** The words on a password field's show/hide button, for a page that is not in English. */
+export interface PasswordToggleLabels {
+  show: string;
+  hide: string;
+  showAria: string;
+  hideAria: string;
+}
+
+const ENGLISH_TOGGLE: PasswordToggleLabels = {
+  show: "Show",
+  hide: "Hide",
+  showAria: "Show password",
+  hideAria: "Hide password"
+};
+
 /**
  * Password input with a show/hide toggle.
  *
  * Typing a password blind on a phone keyboard is where most sign-in attempts go
- * wrong, so revealing it is one tap away.
+ * wrong, so revealing it is one tap away. The sign-in and sign-up pages are in
+ * English and take the default words; the profile page passes its own.
  */
 export function PasswordField({
   id,
   label,
   error,
   hint,
+  toggleLabels = ENGLISH_TOGGLE,
   ...inputProps
 }: {
   id: string;
   label: string;
   error?: string | null;
   hint?: string;
+  toggleLabels?: PasswordToggleLabels;
 } & React.InputHTMLAttributes<HTMLInputElement>) {
   const [visible, setVisible] = useState(false);
   const describedBy = [error ? `${id}-error` : null, hint ? `${id}-hint` : null]
@@ -141,10 +159,10 @@ export function PasswordField({
           type="button"
           className="auth-password-toggle"
           onClick={() => setVisible((current) => !current)}
-          aria-label={visible ? "Hide password" : "Show password"}
+          aria-label={visible ? toggleLabels.hideAria : toggleLabels.showAria}
           aria-pressed={visible}
         >
-          {visible ? "Hide" : "Show"}
+          {visible ? toggleLabels.hide : toggleLabels.show}
         </button>
       </div>
       {hint && !error && (

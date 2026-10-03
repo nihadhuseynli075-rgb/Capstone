@@ -130,7 +130,7 @@ const en = {
   "profile.details": "Your details",
   "profile.name": "Name",
   "profile.email": "Email",
-  "profile.emailHint": "Your email address cannot be changed here yet.",
+  "profile.emailHint": "We email a link to the new address. Your email only changes once you open it.",
   "profile.saveName": "Save name",
   "profile.nameSaved": "Name updated.",
 
@@ -170,6 +170,59 @@ const en = {
   "profile.deletedBody":
     "Your profile, your photo and your test history are gone. You can still take tests as a guest whenever you like.",
   "profile.backHome": "Back to the home page",
+
+  // Profile and username
+  "profile.nameEmpty": "Enter your name.",
+  "profile.nameTooShort": "That name is too short.",
+  "profile.nameTooLong": "That name is too long.",
+
+  "profile.emailTitle": "Email address",
+  "profile.newEmail": "New email address",
+  "profile.changeEmail": "Change email",
+  "profile.sendingEmail": "Sending...",
+  "profile.emailEmpty": "Enter your email address.",
+  "profile.emailInvalid": "That does not look like an email address.",
+  "profile.emailSame": "That is already your email address.",
+  "profile.emailPending":
+    "We sent a confirmation link to {email}. Open that email and press the link. Your address only changes after you do, so until then keep signing in with {current}.",
+  "profile.emailPendingNote":
+    "You may also get a link at your current address as a safety check. Open that one too.",
+  "profile.emailPendingFix": "Typed it wrong? Enter the right address below and send it again.",
+  "profile.emailResend": "Send the link again",
+  "profile.emailResent": "We sent the link again to {email}.",
+  "profile.emailChanged": "Your email address is now {email}.",
+  "profile.emailGoogleOnly":
+    "Your email address comes from your Google account. Set a password below first, and then you can change it here.",
+
+  "profile.passwordEmpty": "Enter a password.",
+  "profile.passwordTooShort": "Use at least 8 characters.",
+  "profile.passwordNeedsMix": "Include at least one letter and one number.",
+  "profile.showPassword": "Show",
+  "profile.hidePassword": "Hide",
+  "profile.showPasswordAria": "Show password",
+  "profile.hidePasswordAria": "Hide password",
+
+  "profile.errEmailTaken": "Another account already uses that email address.",
+  "profile.errEmailInvalid": "That does not look like a valid email address.",
+  "profile.errEmailNotAllowed": "We cannot send email to that address yet. Try another one.",
+  "profile.errSamePassword": "That is already your password. Pick a different one.",
+  "profile.errWeakPassword": "That password is too weak. Use at least 8 characters, with a letter and a number.",
+  "profile.errReauth": "For your safety, sign out and sign in again, then try once more.",
+  "profile.errRateLimit": "Too many attempts. Wait a minute and try again.",
+  "profile.errSignInAgain": "Your sign-in has ended. Sign in again to continue.",
+  "profile.errNetwork": "Could not reach the server. Check your internet connection and try again.",
+  "profile.errGoogleTaken": "That Google account is already connected to a different Exampeak account.",
+  "profile.errLinkingOff": "Connecting Google to an account that already exists is not switched on yet.",
+  "profile.errOnlyWay": "Google is the only way into this account, so it cannot be disconnected.",
+  "profile.errGoogleOff": "Signing in with Google is not switched on yet.",
+  "profile.errLinkCancelled": "Connecting Google was cancelled, so nothing has changed.",
+  "profile.errLinkExpired": "That link has expired or has already been used.",
+  "profile.errNotConfigured": "Accounts are not switched on yet because Supabase is not connected.",
+  "profile.errPhotoSize": "That photo is too big. It must be 2 MB or smaller.",
+  "profile.errPhotoType": "Only JPG, PNG or WebP photos can be used.",
+  "profile.errPhotoEmpty": "That photo was empty.",
+  "profile.errPhotoMissing": "Choose a photo to upload.",
+  "profile.errGeneric": "Something went wrong. Try again in a moment.",
 
   "common.saving": "Saving...",
   "common.back": "Back"
@@ -285,7 +338,7 @@ const ru: Dictionary = {
   "profile.details": "Ваши данные",
   "profile.name": "Имя",
   "profile.email": "Электронная почта",
-  "profile.emailHint": "Адрес электронной почты пока нельзя изменить здесь.",
+  "profile.emailHint": "Мы отправим ссылку на новый адрес. Адрес изменится только после того, как вы её откроете.",
   "profile.saveName": "Сохранить имя",
   "profile.nameSaved": "Имя обновлено.",
 
@@ -325,6 +378,59 @@ const ru: Dictionary = {
   "profile.deletedBody":
     "Ваш профиль, фото и история тестов удалены. Вы по-прежнему можете проходить тесты как гость.",
   "profile.backHome": "На главную",
+
+  // Profile and username
+  "profile.nameEmpty": "Введите имя.",
+  "profile.nameTooShort": "Слишком короткое имя.",
+  "profile.nameTooLong": "Слишком длинное имя.",
+
+  "profile.emailTitle": "Адрес электронной почты",
+  "profile.newEmail": "Новый адрес электронной почты",
+  "profile.changeEmail": "Сменить адрес",
+  "profile.sendingEmail": "Отправка...",
+  "profile.emailEmpty": "Введите адрес электронной почты.",
+  "profile.emailInvalid": "Это не похоже на адрес электронной почты.",
+  "profile.emailSame": "Это уже ваш адрес электронной почты.",
+  "profile.emailPending":
+    "Мы отправили ссылку для подтверждения на {email}. Откройте письмо и нажмите на ссылку. Адрес изменится только после этого, а до тех пор входите с адресом {current}.",
+  "profile.emailPendingNote":
+    "Для безопасности ещё одна ссылка может прийти на ваш текущий адрес. Откройте и её.",
+  "profile.emailPendingFix": "Ошиблись? Введите правильный адрес ниже и отправьте снова.",
+  "profile.emailResend": "Отправить ссылку ещё раз",
+  "profile.emailResent": "Мы ещё раз отправили ссылку на {email}.",
+  "profile.emailChanged": "Теперь ваш адрес электронной почты: {email}.",
+  "profile.emailGoogleOnly":
+    "Ваш адрес электронной почты взят из аккаунта Google. Сначала задайте пароль ниже, и тогда сможете изменить адрес здесь.",
+
+  "profile.passwordEmpty": "Введите пароль.",
+  "profile.passwordTooShort": "Используйте не меньше 8 символов.",
+  "profile.passwordNeedsMix": "Добавьте хотя бы одну букву и одну цифру.",
+  "profile.showPassword": "Показать",
+  "profile.hidePassword": "Скрыть",
+  "profile.showPasswordAria": "Показать пароль",
+  "profile.hidePasswordAria": "Скрыть пароль",
+
+  "profile.errEmailTaken": "Этот адрес электронной почты уже используется другим аккаунтом.",
+  "profile.errEmailInvalid": "Это не похоже на настоящий адрес электронной почты.",
+  "profile.errEmailNotAllowed": "На этот адрес пока нельзя отправлять письма. Попробуйте другой.",
+  "profile.errSamePassword": "Это уже ваш пароль. Выберите другой.",
+  "profile.errWeakPassword": "Слишком слабый пароль. Используйте не меньше 8 символов, с буквой и цифрой.",
+  "profile.errReauth": "В целях безопасности выйдите и войдите снова, а затем повторите.",
+  "profile.errRateLimit": "Слишком много попыток. Подождите минуту и попробуйте снова.",
+  "profile.errSignInAgain": "Ваш вход завершился. Войдите снова, чтобы продолжить.",
+  "profile.errNetwork": "Не удалось связаться с сервером. Проверьте подключение к интернету и попробуйте снова.",
+  "profile.errGoogleTaken": "Этот аккаунт Google уже подключён к другому аккаунту Exampeak.",
+  "profile.errLinkingOff": "Подключение Google к уже существующему аккаунту пока не включено.",
+  "profile.errOnlyWay": "Google — единственный способ входа в этот аккаунт, поэтому его нельзя отключить.",
+  "profile.errGoogleOff": "Вход через Google пока не включён.",
+  "profile.errLinkCancelled": "Подключение Google отменено, ничего не изменилось.",
+  "profile.errLinkExpired": "Срок действия ссылки истёк, или она уже использована.",
+  "profile.errNotConfigured": "Аккаунты пока не включены: Supabase не подключён.",
+  "profile.errPhotoSize": "Это фото слишком большое. Размер должен быть не больше 2 МБ.",
+  "profile.errPhotoType": "Подойдут только фото в формате JPG, PNG или WebP.",
+  "profile.errPhotoEmpty": "Это фото пустое.",
+  "profile.errPhotoMissing": "Выберите фото для загрузки.",
+  "profile.errGeneric": "Что-то пошло не так. Попробуйте ещё раз чуть позже.",
 
   "common.saving": "Сохранение...",
   "common.back": "Назад"
@@ -436,7 +542,7 @@ const az: Dictionary = {
   "profile.details": "Məlumatlarınız",
   "profile.name": "Ad",
   "profile.email": "E-poçt",
-  "profile.emailHint": "E-poçt ünvanını hələlik buradan dəyişmək olmur.",
+  "profile.emailHint": "Yeni ünvana link göndəririk. E-poçtunuz yalnız onu açdıqdan sonra dəyişir.",
   "profile.saveName": "Adı yadda saxla",
   "profile.nameSaved": "Ad yeniləndi.",
 
@@ -476,6 +582,59 @@ const az: Dictionary = {
   "profile.deletedBody":
     "Profiliniz, şəkliniz və test tarixçəniz silindi. İstədiyiniz vaxt qonaq kimi test həll etməyə davam edə bilərsiniz.",
   "profile.backHome": "Ana səhifəyə qayıt",
+
+  // Profile and username
+  "profile.nameEmpty": "Adınızı daxil edin.",
+  "profile.nameTooShort": "Bu ad çox qısadır.",
+  "profile.nameTooLong": "Bu ad çox uzundur.",
+
+  "profile.emailTitle": "E-poçt ünvanı",
+  "profile.newEmail": "Yeni e-poçt ünvanı",
+  "profile.changeEmail": "E-poçtu dəyiş",
+  "profile.sendingEmail": "Göndərilir...",
+  "profile.emailEmpty": "E-poçt ünvanınızı daxil edin.",
+  "profile.emailInvalid": "Bu, e-poçt ünvanına oxşamır.",
+  "profile.emailSame": "Bu, artıq sizin e-poçt ünvanınızdır.",
+  "profile.emailPending":
+    "{email} ünvanına təsdiq linki göndərdik. Məktubu açıb linkə basın. Ünvanınız yalnız bundan sonra dəyişəcək, ona görə o vaxta qədər {current} ünvanı ilə daxil olmağa davam edin.",
+  "profile.emailPendingNote":
+    "Təhlükəsizlik üçün cari ünvanınıza da link gələ bilər. Onu da açın.",
+  "profile.emailPendingFix": "Səhv yazmısınız? Düzgün ünvanı aşağıda yazıb yenidən göndərin.",
+  "profile.emailResend": "Linki yenidən göndər",
+  "profile.emailResent": "Linki {email} ünvanına yenidən göndərdik.",
+  "profile.emailChanged": "Yeni e-poçt ünvanınız: {email}.",
+  "profile.emailGoogleOnly":
+    "E-poçt ünvanınız Google hesabınızdan gəlir. Əvvəlcə aşağıda şifrə təyin edin, sonra ünvanı buradan dəyişə bilərsiniz.",
+
+  "profile.passwordEmpty": "Şifrə daxil edin.",
+  "profile.passwordTooShort": "Ən azı 8 simvol istifadə edin.",
+  "profile.passwordNeedsMix": "Ən azı bir hərf və bir rəqəm daxil edin.",
+  "profile.showPassword": "Göstər",
+  "profile.hidePassword": "Gizlət",
+  "profile.showPasswordAria": "Şifrəni göstər",
+  "profile.hidePasswordAria": "Şifrəni gizlət",
+
+  "profile.errEmailTaken": "Bu e-poçt ünvanı artıq başqa hesabda istifadə olunur.",
+  "profile.errEmailInvalid": "Bu, düzgün e-poçt ünvanına oxşamır.",
+  "profile.errEmailNotAllowed": "Bu ünvana hələlik məktub göndərmək olmur. Başqa ünvan sınayın.",
+  "profile.errSamePassword": "Bu, artıq sizin şifrənizdir. Başqasını seçin.",
+  "profile.errWeakPassword": "Bu şifrə çox zəifdir. Ən azı 8 simvol, bir hərf və bir rəqəm istifadə edin.",
+  "profile.errReauth": "Təhlükəsizlik üçün hesabdan çıxıb yenidən daxil olun, sonra bir daha cəhd edin.",
+  "profile.errRateLimit": "Çox cəhd edildi. Bir dəqiqə gözləyib yenidən cəhd edin.",
+  "profile.errSignInAgain": "Girişiniz başa çatıb. Davam etmək üçün yenidən daxil olun.",
+  "profile.errNetwork": "Serverə qoşulmaq mümkün olmadı. İnternet bağlantınızı yoxlayıb yenidən cəhd edin.",
+  "profile.errGoogleTaken": "Bu Google hesabı artıq başqa Exampeak hesabına qoşulub.",
+  "profile.errLinkingOff": "Google-u mövcud hesaba qoşmaq hələ aktiv deyil.",
+  "profile.errOnlyWay": "Google bu hesaba girişin yeganə yoludur, ona görə ayırmaq olmaz.",
+  "profile.errGoogleOff": "Google ilə giriş hələ aktiv deyil.",
+  "profile.errLinkCancelled": "Google-un qoşulması ləğv edildi, heç nə dəyişmədi.",
+  "profile.errLinkExpired": "Linkin müddəti bitib və ya o artıq istifadə olunub.",
+  "profile.errNotConfigured": "Supabase qoşulmadığı üçün hesablar hələ aktiv deyil.",
+  "profile.errPhotoSize": "Bu şəkil çox böyükdür. O, 2 MB-dan böyük olmamalıdır.",
+  "profile.errPhotoType": "Yalnız JPG, PNG və ya WebP şəkillərindən istifadə etmək olar.",
+  "profile.errPhotoEmpty": "Bu şəkil boşdur.",
+  "profile.errPhotoMissing": "Yükləmək üçün şəkil seçin.",
+  "profile.errGeneric": "Nəsə alınmadı. Bir azdan yenidən cəhd edin.",
 
   "common.saving": "Yadda saxlanılır...",
   "common.back": "Geri"

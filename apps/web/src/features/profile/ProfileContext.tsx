@@ -68,6 +68,9 @@ function cacheProfile(profile: StudentProfile | null): void {
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const { ready, user, signOut } = useAuth();
   const userId = user?.id ?? null;
+  // The profile keeps its own copy of the account's email address, so a change
+  // of address (confirmed here, or in another browser) is a reason to load it again.
+  const userEmail = user?.email ?? null;
 
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [status, setStatus] = useState<ProfileStatus>("signed-out");
@@ -118,7 +121,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [ready, userId, loads]);
+  }, [ready, userId, userEmail, loads]);
 
   const reload = useCallback(() => setLoads((count) => count + 1), []);
 

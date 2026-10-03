@@ -718,6 +718,15 @@
   cursor: pointer;
 }
 
+/* A banner with more than a sentence in it, such as an email change waiting for its link. */
+.notice-block p {
+  margin: 0 0 8px;
+}
+
+.notice-block .link-button {
+  min-height: 32px;
+}
+
 /* ---------------------------------------------------------- small screens */
 
 @media (max-width: 640px) {
@@ -747,6 +756,18 @@
   .segmented button {
     flex: 1;
     min-height: 44px;
+  }
+
+  /*
+   * A sign-in method's button drops under its text when the row is too narrow
+   * for both, rather than squeezing a sentence into a few letters' width.
+   */
+  .method {
+    flex-wrap: wrap;
+  }
+
+  .method-text {
+    flex: 1 1 120px;
   }
 }
 

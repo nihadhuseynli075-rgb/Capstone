@@ -3,6 +3,7 @@ import type { ChangeEvent } from "react";
 import { useLanguage, type TranslationKey } from "../../lib/i18n";
 import { Avatar } from "./Avatar";
 import { preparePhoto, PhotoError, type PhotoProblem } from "./preparePhoto";
+import { errorText } from "./profileText";
 import { useProfile } from "./ProfileContext";
 
 const PROBLEM_TEXT: Record<PhotoProblem, TranslationKey> = {
@@ -87,7 +88,7 @@ export function PhotoPanel({
       setPreview(null);
       setNotice({ ok: true, text: t("profile.photoSaved") });
     } catch (cause) {
-      setNotice({ ok: false, text: (cause as Error).message });
+      setNotice({ ok: false, text: errorText(cause, t) });
     } finally {
       setBusy(null);
     }
@@ -101,7 +102,7 @@ export function PhotoPanel({
       await removePhoto();
       setNotice({ ok: true, text: t("profile.photoRemoved") });
     } catch (cause) {
-      setNotice({ ok: false, text: (cause as Error).message });
+      setNotice({ ok: false, text: errorText(cause, t) });
     } finally {
       setBusy(null);
     }

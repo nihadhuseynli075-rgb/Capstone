@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase } from "../../lib/supabaseClient";
 import { setSignedInUserId } from "../../lib/studentKey";
-import { authErrorMessage } from "./authErrors";
+import { AuthActionError, authActionError, authErrorMessage } from "./authErrors";
 import {
   authRedirectUrl,
   finishAuthRedirect,
@@ -25,6 +25,13 @@ export interface AuthUser {
   providers: string[];
   /** The address of the Google account connected to this one, if there is one. */
   googleEmail: string | null;
+  /**
+   * A new email address waiting for its link to be opened, or null.
+   *
+   * Until it is opened the account keeps its old address, which is still the
+   * one to sign in with.
+   */
+  pendingEmail: string | null;
 }
 
 interface AuthContextValue {
@@ -45,6 +52,14 @@ interface AuthContextValue {
   unlinkGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
+  /**
+   * Asks for a new email address. Supabase emails a link to it, and the
+   * address only changes once that link is opened, so `applied` is false
+   * unless the project has confirmation switched off.
+   */
+  updateEmail: (email: string) => Promise<{ applied: boolean }>;
+  /** Re-reads the account from Supabase, to notice an email change confirmed elsewhere. */
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -66,7 +81,8 @@ function toAuthUser(user: User): AuthUser {
     email: user.email ?? "",
     fullName: fullName.trim().length > 0 ? fullName.trim() : (user.email ?? "").split("@")[0],
     providers: [...new Set(providers)],
-    googleEmail: typeof google?.identity_data?.email === "string" ? google.identity_data.email : null
+    googleEmail: typeof google?.identity_data?.email === "string" ? google.identity_data.email : null,
+    pendingEmail: typeof user.new_email === "string" && user.new_email.length > 0 ? user.new_email : null
   };
 }
 
@@ -77,10 +93,10 @@ async function requireGoogle(): Promise<void> {
   try {
     enabled = await isGoogleSignInEnabled();
   } catch (cause) {
-    throw new Error(authErrorMessage((cause as Error).message));
+    throw new AuthActionError(authErrorMessage((cause as Error).message), null, 0);
   }
 
-  if (!enabled) throw new Error(authErrorMessage("google-not-enabled"));
+  if (!enabled) throw new AuthActionError(authErrorMessage("google-not-enabled"), "google-not-enabled");
 }
 
 /**
@@ -187,7 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const linkGoogle = useCallback(async () => {
-    if (!supabase) throw new Error(authErrorMessage("not-configured"));
+    if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
     await requireGoogle();
 
     rememberAuthRedirect("link");
@@ -195,21 +211,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       forgetAuthRedirect();
-      throw new Error(authErrorMessage(error.message));
+      throw authActionError(error);
     }
   }, []);
 
   const unlinkGoogle = useCallback(async () => {
-    if (!supabase) throw new Error(authErrorMessage("not-configured"));
+    if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
 
     const { data, error } = await supabase.auth.getUserIdentities();
-    if (error) throw new Error(authErrorMessage(error.message));
+    if (error) throw authActionError(error);
 
     const google = data.identities.find((identity) => identity.provider === "google");
     if (!google) return;
 
     const { error: unlinkError } = await supabase.auth.unlinkIdentity(google);
-    if (unlinkError) throw new Error(authErrorMessage(unlinkError.message));
+    if (unlinkError) throw authActionError(unlinkError);
 
     // The session still lists Google until it is refreshed, and the refresh
     // is what tells the rest of the app.
@@ -230,10 +246,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updatePassword = useCallback(async (password: string) => {
-    if (!supabase) throw new Error(authErrorMessage("not-configured"));
+    if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
 
     const { error } = await supabase.auth.updateUser({ password });
-    if (error) throw new Error(authErrorMessage(error.message));
+    if (error) throw authActionError(error);
+  }, []);
+
+  const updateEmail = useCallback<AuthContextValue["updateEmail"]>(async (email) => {
+    if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
+
+    // The link in the email comes back to the site's bare address, like every
+    // other trip away from the app (see oauthRedirect), so that address has to
+    // be one of the project's Redirect URLs.
+    const { data, error } = await supabase.auth.updateUser({ email }, { emailRedirectTo: authRedirectUrl() });
+    if (error) throw authActionError(error);
+
+    // Nothing left waiting means the project applied the change at once.
+    return { applied: !data.user?.new_email };
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    if (!supabase) return;
+
+    // The session holds a copy of the account from the last time it was
+    // refreshed. Opening the link in another browser or tab does not touch
+    // this one, so ask again: a refresh brings back the account as it is now
+    // and tells the rest of the app through onAuthStateChange.
+    const { error } = await supabase.auth.refreshSession();
+    if (error) throw authActionError(error);
   }, []);
 
   const value = useMemo<AuthContextValue>(
@@ -249,7 +289,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       linkGoogle,
       unlinkGoogle,
       signOut,
-      updatePassword
+      updatePassword,
+      updateEmail,
+      refreshUser
     }),
     [
       ready,
@@ -262,7 +304,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       linkGoogle,
       unlinkGoogle,
       signOut,
-      updatePassword
+      updatePassword,
+      updateEmail,
+      refreshUser
     ]
   );
 

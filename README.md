@@ -108,6 +108,7 @@ them:
 - upload, replace or remove a profile photo (cropped to a square and shrunk in
   the browser before it is sent, which also strips the camera's location data);
 - change their name;
+- change their email address (see below);
 - set or change their password;
 - connect or disconnect Google;
 - delete their account, which also deletes their photo and every test they
@@ -118,6 +119,43 @@ The copy on the Supabase account is not used, because every Google sign-in
 overwrites it with Google's name and photo. Changing the name, the photo and
 deleting the account all need the API connected to Supabase with the service
 role key; without it the profile page says so and leaves the rest working.
+The email, the password and Google go straight to Supabase from the browser.
+
+Every message on the page, errors included, is shown in the site language.
+
+### Changing the email address
+
+Supabase does not swap an address the moment it is asked to. It emails a link
+to the new one, and the address only changes once that link is opened. The
+profile page says exactly that, keeps showing the old address as the one to
+sign in with, and notices the change when the student comes back to the tab.
+The profile's own copy of the email follows the account through the trigger in
+`0007_profiles_and_google.sql`.
+
+A few things in the Supabase dashboard decide how this behaves:
+
+- **Redirect URLs** (Authentication → URL Configuration): the link comes back
+  to the site's address, so it has to be listed there. The Google steps above
+  already cover it.
+- **Secure email change** (Authentication → Sign In / Providers → Email, on by
+  default): Supabase also sends a link to the *old* address and wants both
+  opened. Leave it on: it stops somebody on a borrowed, signed-in computer
+  from quietly moving the account to their own address. The page tells the
+  student a second link may arrive.
+- **Sending email at all**: Supabase's built-in sender is for trying things
+  out. It is heavily rate-limited and, unless a custom SMTP server is set up
+  (Authentication → Emails → SMTP Settings), it only delivers to people in
+  your Supabase organisation. Sign-up confirmation needs the same thing, so
+  set it up before real students use either.
+- **Minimum password length** (same Email panel): Supabase's default is 6,
+  while the form asks for 8 with a letter and a number. The form is the only
+  place that rule is enforced, so raise the setting to 8 to make Supabase agree.
+
+An account that only ever signed in with Google is not offered the change: its
+address is Google's, and an address with no password behind it would leave
+Supabase counting an email way in that nobody can use, which in turn lets
+Google be disconnected and locks the student out. Setting a password first
+turns the panel on.
 
 ## The two sides of the app
 

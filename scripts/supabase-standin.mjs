@@ -41,7 +41,11 @@
  *     what `createUser` does is meant to be what 0007's handle_new_user does.
  *
  * Tests steer it through /__standin: create accounts, expire their sessions,
- * inject failures and latency, and read or edit rows directly.
+ * inject failures and latency, read or edit rows directly, and play the inbox:
+ * GET /emails lists the mail the project would have sent, POST
+ * /confirm-email-change { userId } opens the link in a pending email change,
+ * and POST /mail { confirmEmailChange: false } switches "Confirm email" off so
+ * an email change applies at once.
  */
 
 import http from "node:http";
@@ -672,6 +676,9 @@ function createAuth(db) {
       role: "authenticated",
       email: user.email,
       email_confirmed_at: user.createdAt,
+      // Set while an email change waits for its link to be opened. The
+      // account's own email stays as it was until then.
+      ...(user.newEmail ? { new_email: user.newEmail, email_change_sent_at: user.emailChangeSentAt } : {}),
       phone: "",
       confirmed_at: user.createdAt,
       last_sign_in_at: nowIso(),
@@ -737,6 +744,8 @@ function createAuth(db) {
       metadata: { ...metadata },
       provider,
       identities: [],
+      newEmail: null,
+      emailChangeSentAt: null,
       createdAt: nowIso(),
       updatedAt: nowIso()
     };
@@ -850,6 +859,98 @@ function createAuth(db) {
     user.updatedAt = nowIso();
   }
 
+  // -------------------------------------------------------------------------
+  // Changing the password and the email, as PUT /auth/v1/user does them
+  // -------------------------------------------------------------------------
+
+  /**
+   * The project's "Minimum password length". Supabase's default is 6, which is
+   * below the 8 the app asks for: the form's rule is the app's, and this is
+   * all the auth server itself insists on.
+   */
+  const PASSWORD_MIN_LENGTH = 6;
+
+  /** The mail the project would have sent, and whether an email change needs its link opened. */
+  const mail = { confirmEmailChange: true, sent: [] };
+
+  function setPassword(user, password) {
+    // GoTrue checks "same as the old one" before it checks strength.
+    if (user.password !== null && user.password === password) {
+      throw new PgError(422, "same_password", "New password should be different from the old password.");
+    }
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      throw new PgError(422, "weak_password", `Password should be at least ${PASSWORD_MIN_LENGTH} characters.`);
+    }
+
+    user.password = password;
+
+    // Believed to be GoTrue's behaviour, though not checked against a real
+    // project: an account made through Google gains an email identity once it
+    // has a password, which is what lets the app list "Email and password" as
+    // a way in. If a real project turns out not to, the profile page keeps
+    // showing the Google-only wording, and nothing else breaks.
+    if (!user.identities.some((identity) => identity.provider === "email")) {
+      user.identities.push(newIdentity(user, "email", user.email));
+    }
+  }
+
+  /**
+   * Asking for a new email address. With confirmation on (the default) the
+   * account keeps its address and holds the new one as `new_email` until the
+   * link sent to it is opened; with it off the change applies at once.
+   *
+   * Real projects also send a link to the old address while "Secure email
+   * change" is on, and need both opened. The stand-in sends both and applies
+   * the change on a single confirm, which is the part of the picture the app
+   * does not depend on.
+   */
+  function requestEmailChange(user, requested) {
+    const email = String(requested ?? "").trim().toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new PgError(400, "email_address_invalid", `Email address "${email}" is invalid`);
+    }
+
+    // The same address is not a change, and GoTrue treats it as none.
+    if (email === user.email) return;
+
+    // A pending change does not hold an address: only a confirmed one is taken.
+    if ([...users.values()].some((other) => other.id !== user.id && other.email === email)) {
+      throw new PgError(422, "email_exists", "A user with this email address has already been registered");
+    }
+
+    if (!mail.confirmEmailChange) {
+      applyEmailChange(user, email);
+      return;
+    }
+
+    user.newEmail = email;
+    user.emailChangeSentAt = nowIso();
+    mail.sent.push({ to: email, kind: "email_change", userId: user.id });
+    mail.sent.push({ to: user.email, kind: "email_change_notice", userId: user.id });
+  }
+
+  function applyEmailChange(user, email) {
+    const previous = user.email;
+    user.email = email;
+    user.newEmail = null;
+    user.emailChangeSentAt = null;
+
+    const identity = user.identities.find((item) => item.provider === "email");
+    if (identity) identity.identity_data = { ...identity.identity_data, email };
+
+    userUpdated(user, previous);
+  }
+
+  /** Opening the link sent to the new address. */
+  function confirmEmailChange(userId) {
+    const user = users.get(userId);
+    if (!user || !user.newEmail) return null;
+
+    applyEmailChange(user, user.newEmail);
+    return user;
+  }
+
   /** The signed-in user a bearer token belongs to, or null if it is not live. */
   function userForToken(token) {
     const entry = accessTokens.get(token);
@@ -870,6 +971,10 @@ function createAuth(db) {
     userForToken,
     userUpdated,
     updateMetadata,
+    setPassword,
+    requestEmailChange,
+    confirmEmailChange,
+    mail,
     deleteUser,
     signInWithGoogle,
     linkGoogle,
@@ -1151,8 +1256,18 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
 
       if (request.method === "PUT") {
         const body = (await readBody(request)) ?? {};
+
+        try {
+          // The app asks for one of these at a time, so a refusal never
+          // leaves half a request behind.
+          if (typeof body.email === "string") auth.requestEmailChange(user, body.email);
+          if (typeof body.password === "string") auth.setPassword(user, body.password);
+        } catch (error) {
+          if (error instanceof PgError) return sendAuthError(response, error.status, error.code, error.message);
+          throw error;
+        }
+
         if (body.data && typeof body.data === "object") user.metadata = { ...user.metadata, ...body.data };
-        if (typeof body.password === "string") user.password = body.password;
         auth.userUpdated(user, user.email);
         return send(response, 200, auth.publicUser(user));
       }
@@ -1512,6 +1627,27 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
     if (area === "google" && request.method === "POST") {
       Object.assign(state.google, body);
       return send(response, 200, { google: state.google });
+    }
+
+    // Opening the link in the email sent to a new address: { userId }. The
+    // change applies and the profile's email follows, as the trigger does it.
+    if (area === "confirm-email-change" && request.method === "POST") {
+      const user = auth.confirmEmailChange(body.userId);
+      return user
+        ? send(response, 200, { user: auth.publicUser(user) })
+        : send(response, 404, { message: "no email change is waiting for that user" });
+    }
+
+    // The mail the project would have sent, oldest first.
+    if (area === "emails" && request.method === "GET") {
+      return send(response, 200, { emails: auth.mail.sent });
+    }
+
+    // How the project is set up: { confirmEmailChange } is the "Confirm email"
+    // switch, which when off lets an email change apply at once.
+    if (area === "mail" && request.method === "POST") {
+      Object.assign(auth.mail, { confirmEmailChange: body.confirmEmailChange ?? auth.mail.confirmEmailChange });
+      return send(response, 200, { confirmEmailChange: auth.mail.confirmEmailChange });
     }
 
     if (area === "expire-sessions" && request.method === "POST") {

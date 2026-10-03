@@ -2,24 +2,31 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { Field, PasswordField } from "../features/auth/AuthLayout";
-import { validateName, validatePassword } from "../features/auth/authValidation";
+import { nameProblem, passwordProblem } from "../features/auth/authValidation";
 import { DeleteAccountPanel } from "../features/profile/DeleteAccountPanel";
+import { EmailPanel } from "../features/profile/EmailPanel";
 import { PhotoPanel } from "../features/profile/PhotoPanel";
 import { useProfile } from "../features/profile/ProfileContext";
 import { SignInMethodsPanel } from "../features/profile/SignInMethodsPanel";
+import {
+  errorText,
+  nameProblemText,
+  passwordProblemText,
+  redirectErrorText
+} from "../features/profile/profileText";
 import { formatDay, useLanguage } from "../lib/i18n";
 
 /**
  * Everything about the student's account, in one place.
  *
  * Read: the photo, name, email and when the account was made. Update: the
- * name, the photo, the password, and whether Google is connected. Delete: the
- * photo, or the whole account. Signing in with Google lands here, so a new
- * student sees straight away the name and photo Google gave them, and where
- * to change them.
+ * name, the photo, the email, the password, and whether Google is connected.
+ * Delete: the photo, or the whole account. Signing in with Google lands here,
+ * so a new student sees straight away the name and photo Google gave them, and
+ * where to change them.
  *
- * The name, the photo and deleting the account go through the API. The
- * password and Google connect straight to Supabase, so those two still work
+ * The name, the photo and deleting the account go through the API. The email,
+ * the password and Google connect straight to Supabase, so those still work
  * while the API is running without it.
  */
 export function ProfilePage() {
@@ -38,10 +45,10 @@ export function ProfilePage() {
 
   useEffect(() => {
     if (redirectResult?.error && redirectResult.intent !== "link") {
-      setRedirectError(redirectResult.error);
+      setRedirectError(redirectErrorText(redirectResult, t));
       clearRedirectResult();
     }
-  }, [redirectResult, clearRedirectResult]);
+  }, [redirectResult, clearRedirectResult, t]);
 
   if (deleted) {
     return (
@@ -87,6 +94,8 @@ export function ProfilePage() {
   const editable = status === "ready";
 
   const memberSince = profile ? formatDay(profile.createdAt, language) : null;
+  // Signed up with Google and never set a password: Google is the only way in.
+  const googleOnly = !user.providers.includes("email");
 
   return (
     <div className="stack">
@@ -124,16 +133,17 @@ export function ProfilePage() {
 
       <div className="settings-grid">
         <PhotoPanel name={name} email={email} memberSince={memberSince} editable={editable} />
-        <NamePanel currentName={name} email={email} editable={editable} />
+        <NamePanel currentName={name} editable={editable} />
+        <EmailPanel email={email} googleOnly={googleOnly} />
         <SignInMethodsPanel />
-        <PasswordPanel googleOnly={!user.providers.includes("email")} onSave={updatePassword} />
+        <PasswordPanel googleOnly={googleOnly} onSave={updatePassword} />
         <DeleteAccountPanel email={email} editable={editable} onDeleted={() => setDeleted(true)} />
       </div>
     </div>
   );
 }
 
-function NamePanel({ currentName, email, editable }: { currentName: string; email: string; editable: boolean }) {
+function NamePanel({ currentName, editable }: { currentName: string; editable: boolean }) {
   const { t } = useLanguage();
   const { rename } = useProfile();
   const [name, setName] = useState(currentName);
@@ -149,8 +159,8 @@ function NamePanel({ currentName, email, editable }: { currentName: string; emai
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
-    const problem = validateName(name);
-    setError(problem);
+    const problem = nameProblem(name);
+    setError(problem ? nameProblemText(problem, t) : null);
     setSaved(false);
     if (problem) return;
 
@@ -159,7 +169,7 @@ function NamePanel({ currentName, email, editable }: { currentName: string; emai
       await rename(name);
       setSaved(true);
     } catch (cause) {
-      setError((cause as Error).message);
+      setError(errorText(cause, t));
     } finally {
       setSaving(false);
     }
@@ -190,22 +200,11 @@ function NamePanel({ currentName, email, editable }: { currentName: string; emai
           }}
         />
 
-        <Field
-          id="profile-email"
-          label={t("profile.email")}
-          type="email"
-          value={email}
-          hint={t("profile.emailHint")}
-          disabled
-          readOnly
-          onChange={() => undefined}
-        />
-
         <div className="settings-actions">
           <button
             type="submit"
             className="primary-button"
-            disabled={saving || !editable || name.trim() === currentName}
+            disabled={saving || !editable || name.trim().replace(/\s+/g, " ") === currentName}
           >
             {saving ? t("common.saving") : t("profile.saveName")}
           </button>
@@ -233,10 +232,11 @@ function PasswordPanel({
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
-    const passwordError = validatePassword(password);
+    const problem = passwordProblem(password);
+    const passwordError = problem ? passwordProblemText(problem, t) : undefined;
     const confirmError = password !== confirm ? t("profile.passwordMismatch") : undefined;
 
-    setErrors({ password: passwordError ?? undefined, confirm: confirmError });
+    setErrors({ password: passwordError, confirm: confirmError });
     setFormError(null);
     setSaved(false);
     if (passwordError || confirmError) return;
@@ -248,11 +248,18 @@ function PasswordPanel({
       setPassword("");
       setConfirm("");
     } catch (cause) {
-      setFormError((cause as Error).message);
+      setFormError(errorText(cause, t));
     } finally {
       setSaving(false);
     }
   }
+
+  const toggleLabels = {
+    show: t("profile.showPassword"),
+    hide: t("profile.hidePassword"),
+    showAria: t("profile.showPasswordAria"),
+    hideAria: t("profile.hidePasswordAria")
+  };
 
   return (
     <section className="panel settings-panel">
@@ -280,6 +287,7 @@ function PasswordPanel({
           value={password}
           error={errors.password}
           hint={t("profile.passwordHint")}
+          toggleLabels={toggleLabels}
           disabled={saving}
           onChange={(event) => setPassword(event.target.value)}
         />
@@ -290,6 +298,7 @@ function PasswordPanel({
           autoComplete="new-password"
           value={confirm}
           error={errors.confirm}
+          toggleLabels={toggleLabels}
           disabled={saving}
           onChange={(event) => setConfirm(event.target.value)}
         />

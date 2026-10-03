@@ -2,7 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import { z } from "zod";
 import { profileLimits } from "@grade9/shared";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
-import { isLiveSession, signedInAccount, type SignedInAccount } from "../modules/student/studentAuth";
+import { liveAccount, signedInAccount, type SignedInAccount } from "../modules/student/studentAuth";
 import { deleteAttemptsFor } from "../repositories/attemptRepository";
 import {
   deleteAccount,
@@ -125,23 +125,23 @@ profileRouter.put("/photo", async (request, response, next) => {
   const parsed = z.object({ dataBase64: z.string().min(1) }).safeParse(request.body);
 
   if (!parsed.success) {
-    return response.status(400).json({ message: "Choose a photo to upload." });
+    return response.status(400).json({ code: "photo-missing", message: "Choose a photo to upload." });
   }
 
   const bytes = Buffer.from(parsed.data.dataBase64, "base64");
 
   if (bytes.byteLength === 0) {
-    return response.status(400).json({ message: "That photo was empty." });
+    return response.status(400).json({ code: "photo-empty", message: "That photo was empty." });
   }
 
   if (bytes.byteLength > profileLimits.photoMaxBytes) {
-    return response.status(413).json({ message: "Photos must be 2 MB or smaller." });
+    return response.status(413).json({ code: "photo-too-large", message: "Photos must be 2 MB or smaller." });
   }
 
   const type = photoTypeOf(bytes);
 
   if (!type) {
-    return response.status(400).json({ message: "Only JPG, PNG or WebP photos can be used." });
+    return response.status(400).json({ code: "photo-type", message: "Only JPG, PNG or WebP photos can be used." });
   }
 
   try {
@@ -228,32 +228,37 @@ profileRouter.delete("/", async (request, response, next) => {
     return response.status(400).json({ message: "Type your email address to confirm." });
   }
 
-  const account = accountOf(response);
   const typed = parsed.data.confirmEmail.trim().toLowerCase();
-
-  // An account with no email address cannot confirm this way, and deleting it
-  // on an empty string is the one thing that must not happen. Every account
-  // here is made with an email, so this is a guard, not a path anyone travels.
-  if (account.email.length === 0) {
-    return response.status(400).json({
-      code: "confirmation-mismatch",
-      message: "This account has no email address to confirm with, so it cannot be deleted here."
-    });
-  }
-
-  if (typed !== account.email.toLowerCase()) {
-    return response.status(400).json({
-      code: "confirmation-mismatch",
-      message: "That does not match your email address, so nothing was deleted."
-    });
-  }
 
   try {
     // Deleting is the one thing that cannot be undone, so the token is checked
     // against the auth server rather than on its signature alone: a token from
     // a session that has been signed out still verifies until it expires, and
     // whoever found it could read the email to confirm with out of it.
-    if (!(await isLiveSession(request))) return response.status(401).json(signInAgain);
+    //
+    // The email to confirm against is the server's too, not the token's. A
+    // student who has just changed their address sees the new one on the page
+    // while their token still says the old one, and would be told their own
+    // address does not match.
+    const account = await liveAccount(request);
+    if (!account) return response.status(401).json(signInAgain);
+
+    // An account with no email address cannot confirm this way, and deleting it
+    // on an empty string is the one thing that must not happen. Every account
+    // here is made with an email, so this is a guard, not a path anyone travels.
+    if (account.email.length === 0) {
+      return response.status(400).json({
+        code: "confirmation-mismatch",
+        message: "This account has no email address to confirm with, so it cannot be deleted here."
+      });
+    }
+
+    if (typed !== account.email.toLowerCase()) {
+      return response.status(400).json({
+        code: "confirmation-mismatch",
+        message: "That does not match your email address, so nothing was deleted."
+      });
+    }
 
     // Photos first, then test history, then the account itself. Each step is
     // safe to repeat, and the account goes last: if anything before it fails,

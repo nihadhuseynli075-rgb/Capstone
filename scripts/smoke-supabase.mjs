@@ -802,9 +802,13 @@ async function main() {
     const photoFiles = async (accountId) => (await control(`objects?prefix=avatars/${accountId}/`)).body.objects ?? [];
 
     const svg = await uploadPhoto(carolToken, Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>'));
-    check("a file that is not a photo is refused", svg.status === 400, `${svg.status} ${JSON.stringify(svg.body)}`);
+    check(
+      "a file that is not a photo is refused",
+      svg.status === 400 && svg.body.code === "photo-type",
+      `${svg.status} ${JSON.stringify(svg.body)}`
+    );
     const huge = await uploadPhoto(carolToken, Buffer.concat([JPEG, Buffer.alloc(2 * 1024 * 1024)]));
-    check("a photo over 2 MB is refused", huge.status === 413, `got ${huge.status}`);
+    check("a photo over 2 MB is refused", huge.status === 413 && huge.body.code === "photo-too-large", `got ${huge.status}`);
     check("and neither leaves a file behind", (await photoFiles(carolId)).length === 0, JSON.stringify(await photoFiles(carolId)));
 
     const firstPhoto = await uploadPhoto(carolToken, PNG);
@@ -894,6 +898,145 @@ async function main() {
       "and removing it again finishes the job",
       retriedRemoval.status === 200 && !(await photoFiles(carolId)).includes(stuckPath),
       `${retriedRemoval.status}, ${stuckPath} still in ${JSON.stringify(await photoFiles(carolId))}`
+    );
+
+    // The browser changes the email and the password with Supabase directly,
+    // so none of this goes through the API. It is checked here against the
+    // stand-in's imitation of the auth server because of what the API does
+    // afterwards: the profile follows the account's email, and deleting an
+    // account reads the email it confirms against from the auth server.
+    section("Changing the email");
+    const dana = (await control("users", { email: "dana@standin.test", fullName: "Dana" })).body;
+    const danaId = dana.user.id;
+    const danaToken = dana.session.access_token;
+    const authUser = (token, body) => request(standin.url, "/auth/v1/user", { method: "PUT", token, body });
+    const signInWith = (email, password) =>
+      request(standin.url, "/auth/v1/token?grant_type=password", { method: "POST", body: { email, password } });
+
+    const notAnEmail = await authUser(danaToken, { email: "not-an-email" });
+    check(
+      "something that is not an email address is refused",
+      notAnEmail.status === 400 && notAnEmail.body.error_code === "email_address_invalid",
+      `${notAnEmail.status} ${JSON.stringify(notAnEmail.body)}`
+    );
+    const usedEmail = await authUser(danaToken, { email: "alice@standin.test" });
+    check(
+      "so is an address another account already uses",
+      usedEmail.status === 422 && usedEmail.body.error_code === "email_exists",
+      `${usedEmail.status} ${JSON.stringify(usedEmail.body)}`
+    );
+    const sameEmail = await authUser(danaToken, { email: "Dana@standin.test" });
+    check(
+      "the address the account has already is not a change",
+      sameEmail.status === 200 && sameEmail.body.new_email === undefined,
+      JSON.stringify(sameEmail.body)
+    );
+
+    const asked = await authUser(danaToken, { email: "dana.new@standin.test" });
+    check(
+      "a new address is held back until its link is opened",
+      asked.status === 200 && asked.body.email === "dana@standin.test" && asked.body.new_email === "dana.new@standin.test",
+      JSON.stringify(asked.body)
+    );
+    const sentMail = (await control("emails")).body.emails ?? [];
+    check(
+      "and the link is sent to the new address",
+      sentMail.some((mail) => mail.to === "dana.new@standin.test" && mail.userId === danaId),
+      JSON.stringify(sentMail)
+    );
+    check(
+      "the profile keeps the old address meanwhile",
+      (await call("/api/profile", { token: danaToken })).body.profile?.email === "dana@standin.test"
+    );
+    check("and the old address still signs in", (await signInWith("dana@standin.test", "password1")).status === 200);
+
+    await control("confirm-email-change", { userId: danaId });
+    check(
+      "opening the link moves the profile to the new address",
+      (await call("/api/profile", { token: danaToken })).body.profile?.email === "dana.new@standin.test"
+    );
+    check("which now signs in", (await signInWith("dana.new@standin.test", "password1")).status === 200);
+    check("and the old one does not", (await signInWith("dana@standin.test", "password1")).status === 400);
+
+    // The token Dana still holds was issued before the change, so it still
+    // names the old address. Confirming deletion against that would turn her
+    // away for typing her own address.
+    const oldAddress = await call("/api/profile", {
+      method: "DELETE",
+      token: danaToken,
+      body: { confirmEmail: "dana@standin.test" }
+    });
+    check(
+      "deleting does not accept the address the account used to have",
+      oldAddress.status === 400 && oldAddress.body.code === "confirmation-mismatch",
+      `${oldAddress.status} ${JSON.stringify(oldAddress.body)}`
+    );
+    const newAddress = await call("/api/profile", {
+      method: "DELETE",
+      token: danaToken,
+      body: { confirmEmail: "Dana.New@standin.test" }
+    });
+    check(
+      "but takes the new one even though the token still carries the old",
+      newAddress.status === 200 && newAddress.body.deleted === true,
+      `${newAddress.status} ${JSON.stringify(newAddress.body)}`
+    );
+
+    // Confirmation switched off in the project: the change applies at once.
+    await control("mail", { confirmEmailChange: false });
+    const quick = (await control("users", { email: "quentin@standin.test", fullName: "Quentin" })).body;
+    const applied = await authUser(quick.session.access_token, { email: "quentin.new@standin.test" });
+    check(
+      "a project that does not ask for confirmation applies the change at once",
+      applied.status === 200 && applied.body.email === "quentin.new@standin.test" && applied.body.new_email === undefined,
+      JSON.stringify(applied.body)
+    );
+    await control("mail", { confirmEmailChange: true });
+
+    section("Changing the password");
+    const erin = (await control("users", { email: "erin@standin.test", fullName: "Erin", password: "oldpass123" })).body;
+    const erinToken = erin.session.access_token;
+
+    const samePassword = await authUser(erinToken, { password: "oldpass123" });
+    check(
+      "the password it already has is refused",
+      samePassword.status === 422 && samePassword.body.error_code === "same_password",
+      `${samePassword.status} ${JSON.stringify(samePassword.body)}`
+    );
+    const weakPassword = await authUser(erinToken, { password: "abc12" });
+    check(
+      "so is one the project finds too short",
+      weakPassword.status === 422 && weakPassword.body.error_code === "weak_password",
+      `${weakPassword.status} ${JSON.stringify(weakPassword.body)}`
+    );
+    check("a refused password changes nothing", (await signInWith("erin@standin.test", "oldpass123")).status === 200);
+
+    const changed = await authUser(erinToken, { password: "newpass456" });
+    check("a new password is accepted", changed.status === 200, JSON.stringify(changed.body));
+    check("and signs in", (await signInWith("erin@standin.test", "newpass456")).status === 200);
+    check("where the old one no longer does", (await signInWith("erin@standin.test", "oldpass123")).status === 400);
+
+    // An account made with Google has no password to change, only one to set.
+    const gwen = (
+      await control("users", {
+        email: "gwen@standin.test",
+        provider: "google",
+        metadata: { full_name: "Gwen Google", name: "Gwen Google" }
+      })
+    ).body;
+    check("a Google account starts with no password", (await signInWith("gwen@standin.test", "gwenpass789")).status === 400);
+    check(
+      "and only Google as a way in",
+      gwen.user.identities.map((identity) => identity.provider).join() === "google",
+      JSON.stringify(gwen.user.identities)
+    );
+    const gwenSet = await authUser(gwen.session.access_token, { password: "gwenpass789" });
+    check("it can set one", gwenSet.status === 200, JSON.stringify(gwenSet.body));
+    check("and then signs in with its email address", (await signInWith("gwen@standin.test", "gwenpass789")).status === 200);
+    check(
+      "which the account now lists as a way in, next to Google",
+      gwenSet.body.identities?.map((identity) => identity.provider).sort().join() === "email,google",
+      JSON.stringify(gwenSet.body.identities)
     );
 
     section("Deleting an account");

@@ -63,19 +63,24 @@ export async function signedInAccount(request: Request): Promise<SignedInAccount
 }
 
 /**
- * Whether the request's token belongs to a session that has not ended.
+ * The account behind the request's token, as the auth server sees it right
+ * now. Null when the session has ended.
  *
  * `signedInAccount` checks the token's signature, which a project signing with
  * asymmetric keys does without asking anyone: a token from a session that has
  * since been signed out still passes, until it expires about an hour later.
  * This asks the auth server, which knows. It costs a round trip, so it is for
  * the few things that cannot be undone rather than for every request.
+ *
+ * Asking the server also gives the account's current email. The one inside a
+ * token is only as new as the token, so after a student changes their address
+ * it keeps naming the old one for up to an hour.
  */
-export async function isLiveSession(request: Request): Promise<boolean> {
-  if (!supabaseAdmin) return false;
+export async function liveAccount(request: Request): Promise<SignedInAccount | null> {
+  if (!supabaseAdmin) return null;
 
   const token = bearerToken(request);
-  if (!token) return false;
+  if (!token) return null;
 
   const { data, error } = await supabaseAdmin.auth.getUser(token);
 
@@ -84,10 +89,18 @@ export async function isLiveSession(request: Request): Promise<boolean> {
     if (isAuthRetryableFetchError(error)) {
       throw new Error(`Could not check your sign-in just now. Try again in a moment. (${error.message})`);
     }
-    return false;
+    return null;
   }
 
-  return data.user !== null;
+  const user = data.user;
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    email: user.email ?? "",
+    provider: typeof user.app_metadata?.provider === "string" ? user.app_metadata.provider : null,
+    metadata: user.user_metadata ?? {}
+  };
 }
 
 /** Whether a key is a guest's: one no account owns. */
