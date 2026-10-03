@@ -73,7 +73,7 @@ function column(type, options = {}) {
 
 const oneOf = (values) => (value) => values.includes(value);
 
-/** The tables the API touches, as the migrations leave them after 0001-0009. */
+/** The tables the API touches, as the migrations leave them after 0001-0010. */
 const SCHEMA = {
   profiles: {
     columns: {
@@ -107,13 +107,20 @@ const SCHEMA = {
       // the stand-in does not enforce that.
       status: column("text", { notNull: true, default: () => "ready" }),
       external_ref: column("text"),
-      subtopic: column("text")
+      subtopic: column("text"),
+      // 0010. Other-language versions of a question, keyed by language code.
+      translations: column("jsonb", { notNull: true, default: () => ({}) })
     },
     checks: [
       ["questions_difficulty_check", (row) => oneOf(["easy", "medium", "hard"])(row.difficulty)],
       ["questions_type_check", (row) => oneOf(["multiple-choice", "short-answer", "open-ended"])(row.type)],
       ["questions_marks_positive", (row) => row.marks > 0],
       ["questions_status_check", (row) => oneOf(["draft", "image-pending", "ready"])(row.status)],
+      // 0010: only that it is a JSON object, as the migration checks.
+      [
+        "questions_translations_is_object",
+        (row) => typeof row.translations === "object" && row.translations !== null && !Array.isArray(row.translations)
+      ],
       [
         "questions_ready_is_complete",
         (row) =>

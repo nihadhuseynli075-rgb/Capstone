@@ -43,6 +43,51 @@ A value that is not a whole number from 1 to 100 is reported as a bad row rather
 than rounded to something plausible, because a cell that landed in the wrong
 column would otherwise weight one question above the rest of the paper.
 
+## Translations (maths)
+
+Maths is shown in the language the student chose for the site, so a maths
+question can carry its text in more than one language. English and Russian
+questions never do: they are always in their own language, and translation
+columns on those rows are reported as a bad row rather than saved and ignored.
+
+The columns above are the question as first written (for maths, English). A
+translation is a second set of columns with the same names and `_ru` or `_en` on
+the end. All of them are optional, and a row that leaves them blank simply has
+no translation.
+
+| Column                                         | Notes                                                                 |
+| ---------------------------------------------- | --------------------------------------------------------------------- |
+| `question_ru` / `question_en`                  | The question text in that language. Required if any other column for that language is filled in. |
+| `option_a_ru` ... `option_d_ru` (and `_en`)    | The options in that language, **in the same order as `option_a` ... `option_d`**. |
+| `explanation_ru` / `explanation_en`            | The explanation in that language.                                     |
+| `correct_answer_ru` / `correct_answer_en`      | Short answers only, and only when the answer reads differently (`26 cm` and `26 см`). Ignored on multiple choice. |
+
+The headers are matched as loosely as the others: `question_ru`,
+`question_russian` and `Question (Russian)` are the same column, and so are
+`option_a_ru` and `Option A (Russian)`.
+
+How a translation is used:
+
+- A student gets a maths question in the translation for their language if it
+  has one, and in the question's own text otherwise. Azerbaijani has no
+  translations yet, so those students get the question's own text.
+- A multiple-choice answer is the option **in the same position**, so
+  `option_b_ru` is the translation of `option_b` and the `correct_answer` letter
+  covers every language. Give a language either all of its options or none; a
+  row whose translated options are not one for one with the originals is
+  reported and skipped.
+- Leave a language's options out and its question text is translated while the
+  options stay as they are.
+
+```csv
+subject,topic,question,option_a,option_b,option_c,option_d,correct_answer,question_ru,option_a_ru,option_b_ru,option_c_ru,option_d_ru
+math,geometry,Find the radius of a circle whose circumference is 32π cm.,8 cm,16 cm,32 cm,64 cm,B,"Найдите радиус окружности, длина которой равна 32π см.",8 см,16 см,32 см,64 см
+```
+
+If the sheet has no plain `question` column but does have `question_en` (for
+example `Question (English)` next to `Question (Russian)`), the English columns
+are taken as the question itself and only the Russian ones become a translation.
+
 ## Rows that are skipped
 
 A row is reported and skipped, with the rest of the paste still importing, when
@@ -51,7 +96,9 @@ multiple-choice row has fewer than two options, when `correct_answer` matches
 none of them, or when `difficulty` or `marks` is filled in with something
 unusable. Subject and topic are checked per row, not just as columns: the
 builder filters on both, so a question missing either could never appear in a
-test.
+test. A translation that does not fit its question (the wrong number of
+options, translated options with no question text, or a subject that does not
+follow the site language) skips the row too.
 
 ## Example
 
@@ -67,11 +114,13 @@ answer itself in `correct_answer`.
 
 ## Importing
 
-1. In Google Sheets: **File → Download → Comma-separated values**.
-2. Open the downloaded file in a text editor and copy everything, header row
-   included.
-3. In the app go to **Admin dashboard → Bulk import**, paste, and press
-   **Import questions**.
+1. In Google Sheets: **File → Download → Comma-separated values**
+   (or **Tab-separated values**, which imports just the same).
+2. In the app go to **Admin dashboard → Bulk import** and drag the downloaded
+   `.csv` or `.tsv` file onto the drop zone, or use **choose a file**. It fills
+   the box below, so you can check it. (Opening the file in a text editor,
+   copying everything, header row included, and pasting works as well.)
+3. Press **Import questions**.
 
 Rows that do not validate are reported back with their spreadsheet row number and
 skipped. The rest still import, so one bad cell does not block the other forty.

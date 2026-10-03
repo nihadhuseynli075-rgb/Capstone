@@ -75,7 +75,8 @@ describe("importQuestionsFromCsv", () => {
         explanation: "",
         imageUrl: null,
         paperYear: null,
-        source: null
+        source: null,
+        translations: {}
       }
     ]);
   });
@@ -169,5 +170,175 @@ describe("importQuestionsFromCsv", () => {
     );
     assert.match(errors[0].message, /^Marks "2.5"/);
     assert.match(errors[4].message, /^Paper year "2024.5"/);
+  });
+});
+
+describe("a tab-separated sheet", () => {
+  test("is read the same way, with tabs where the commas would be", () => {
+    const rows = parseCsv("subject\ttopic\tquestion\nmath\talgebra\tSolve 2x, then check\n");
+    assert.deepEqual(rows, [
+      ["subject", "topic", "question"],
+      ["math", "algebra", "Solve 2x, then check"]
+    ]);
+  });
+
+  test("imports like the comma version of the same sheet", () => {
+    const tabs = ["subject", "topic", "question", "option_a", "option_b", "correct_answer"].join("\t");
+    const { drafts, errors } = importQuestionsFromCsv(`${tabs}\nmath\talgebra\tWhat is 1, 2 or 3?\t1\t2\tB`);
+
+    assert.deepEqual(errors, []);
+    assert.equal(drafts[0].prompt, "What is 1, 2 or 3?");
+    assert.equal(drafts[0].correctAnswer, "2");
+  });
+
+  test("a comma-separated header stays comma-separated even if a cell has a tab", () => {
+    const { drafts } = importQuestionsFromCsv("subject,topic,question,answer\nmath,algebra,A\tB,1");
+    assert.equal(drafts[0].prompt, "A\tB");
+  });
+});
+
+describe("translation columns", () => {
+  const translatedHeader = [
+    "subject",
+    "topic",
+    "question",
+    "option_a",
+    "option_b",
+    "option_c",
+    "option_d",
+    "correct_answer",
+    "explanation",
+    "question_ru",
+    "option_a_ru",
+    "option_b_ru",
+    "option_c_ru",
+    "option_d_ru",
+    "explanation_ru"
+  ].join(",");
+
+  test("a Russian version of a maths question is stored beside the English one", () => {
+    const row = "math,geometry,Find the radius.,8 cm,16 cm,32 cm,64 cm,B,r = 16,Найдите радиус.,8 см,16 см,32 см,64 см,r = 16";
+    const { drafts, errors } = importQuestionsFromCsv(`${translatedHeader}\n${row}`);
+
+    assert.deepEqual(errors, []);
+    assert.equal(drafts[0].prompt, "Find the radius.");
+    assert.deepEqual(drafts[0].options, ["8 cm", "16 cm", "32 cm", "64 cm"]);
+    assert.equal(drafts[0].correctAnswer, "16 cm");
+    assert.deepEqual(drafts[0].translations, {
+      ru: {
+        prompt: "Найдите радиус.",
+        options: ["8 см", "16 см", "32 см", "64 см"],
+        explanation: "r = 16"
+      }
+    });
+  });
+
+  test("a row with nothing in the translation columns has no translations", () => {
+    const row = "math,geometry,Find the radius.,8 cm,16 cm,,,B,,,,,,,";
+    const { drafts, errors } = importQuestionsFromCsv(`${translatedHeader}\n${row}`);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(drafts[0].translations, {});
+  });
+
+  test("a translation may leave the options out and use the question's own", () => {
+    const row = "math,geometry,Find the radius.,8 cm,16 cm,,,B,,Найдите радиус.,,,,,";
+    const { drafts, errors } = importQuestionsFromCsv(`${translatedHeader}\n${row}`);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(drafts[0].translations, { ru: { prompt: "Найдите радиус." } });
+  });
+
+  test("a short answer takes its translated wording from correct_answer_ru", () => {
+    const csv = [
+      "subject,topic,question,correct_answer,question_ru,correct_answer_ru",
+      "math,geometry,Perimeter?,26 cm,Периметр?,26 см"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(drafts[0].translations, { ru: { prompt: "Периметр?", correctAnswer: "26 см" } });
+  });
+
+  test("a translated answer column on a multiple choice row is ignored, not an error", () => {
+    // Sheets often repeat the letter in the Russian copy of the answer column.
+    const csv = [
+      "subject,topic,question,option_a,option_b,correct_answer,question_ru,option_a_ru,option_b_ru,correct_answer_ru",
+      "math,algebra,Pick,1,2,B,Выберите,1,2,B"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(drafts[0].translations, { ru: { prompt: "Выберите", options: ["1", "2"] } });
+  });
+
+  test("options that do not line up with the question's are reported against their row", () => {
+    const row = "math,geometry,Find the radius.,8 cm,16 cm,32 cm,64 cm,B,,Найдите радиус.,8 см,16 см,,";
+    const { drafts, errors } = importQuestionsFromCsv(`${translatedHeader}\n${row}`);
+
+    assert.deepEqual(drafts, []);
+    assert.equal(errors[0].row, 2);
+    assert.match(errors[0].message, /Russian translation has 2 options but the question has 4/);
+  });
+
+  test("a translation with options but no question text is reported", () => {
+    const row = "math,geometry,Find the radius.,8 cm,16 cm,,,B,,,8 см,16 см,,,";
+    const { drafts, errors } = importQuestionsFromCsv(`${translatedHeader}\n${row}`);
+
+    assert.deepEqual(drafts, []);
+    assert.match(errors[0].message, /Russian translation has no question text/);
+  });
+
+  test("an English or Russian question cannot be given a translation", () => {
+    const row = "english,grammar,Pick one,a,b,,,A,,Выберите,,,,,";
+    const { drafts, errors } = importQuestionsFromCsv(`${translatedHeader}\n${row}`);
+
+    assert.deepEqual(drafts, []);
+    assert.match(errors[0].message, /English questions are always shown in one language/);
+  });
+
+  test("a bad translation skips its row and the rest still import", () => {
+    const csv = [
+      translatedHeader,
+      "math,geometry,Bad,8 cm,16 cm,,,B,,Плохо,только один,,,,",
+      "math,geometry,Good,8 cm,16 cm,,,B,,Хорошо,8 см,16 см,,,"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.equal(drafts.length, 1);
+    assert.equal(drafts[0].prompt, "Good");
+    assert.equal(errors.length, 1);
+  });
+
+  test("English can be given as a translation too, under any of the usual header spellings", () => {
+    const csv = [
+      "subject,topic,question,answer,Question (English),explanation_english,Question (Russian)",
+      "math,algebra,Реши 1 + 1,2,Solve 1 + 1,Add them,Реши 1 + 1"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(drafts[0].translations, {
+      en: { prompt: "Solve 1 + 1", explanation: "Add them" },
+      ru: { prompt: "Реши 1 + 1" }
+    });
+  });
+
+  test("a sheet with only Question (English) and Question (Russian) uses the English as the question", () => {
+    // The shape of the maths sheet: no plain question column at all.
+    const csv = [
+      "Subject,Topic,Question (English),Question (Russian),Option A (English),Option B (English),Option A (Russian),Option B (Russian),Correct",
+      "math,algebra,Pick one,Выберите,Yes,No,Да,Нет,A"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(errors, []);
+    assert.equal(drafts[0].prompt, "Pick one");
+    assert.deepEqual(drafts[0].options, ["Yes", "No"]);
+    assert.equal(drafts[0].correctAnswer, "Yes");
+    // English is the question itself, so it is not stored a second time.
+    assert.deepEqual(drafts[0].translations, {
+      ru: { prompt: "Выберите", options: ["Да", "Нет"] }
+    });
   });
 });

@@ -1,12 +1,75 @@
 import { useEffect, useState } from "react";
-import type { BankQuestion, Difficulty, QuestionDraft, QuestionType } from "@grade9/shared";
-import { markLimits, subjects } from "@grade9/shared";
+import type {
+  BankQuestion,
+  Difficulty,
+  QuestionDraft,
+  QuestionTranslation,
+  QuestionTranslations,
+  QuestionType
+} from "@grade9/shared";
+import { followsSiteLanguage, markLimits, subjects } from "@grade9/shared";
+import { languages, useLanguage } from "../lib/i18n";
 import { uploadQuestionImage } from "../services/adminApi";
 
 const OPTION_SLOTS = 4;
 
 function emptyOptions(): string[] {
   return Array.from({ length: OPTION_SLOTS }, () => "");
+}
+
+/**
+ * The languages the form offers a translation in. Azerbaijani has none yet, so
+ * a student reading the site in it gets the question as first written; any that
+ * a question already has are kept when it is saved.
+ */
+const translationLanguages = ["en", "ru"] as const;
+
+type TranslationLanguage = (typeof translationLanguages)[number];
+
+/**
+ * One language's translation as it is typed. The options sit in the same four
+ * slots as the question's own, so slot B here is the translation of option B.
+ */
+interface TranslationInput {
+  prompt: string;
+  options: string[];
+  explanation: string;
+  correctAnswer: string;
+}
+
+type TranslationInputs = Record<TranslationLanguage, TranslationInput>;
+
+function emptyTranslation(): TranslationInput {
+  return { prompt: "", options: emptyOptions(), explanation: "", correctAnswer: "" };
+}
+
+function emptyTranslations(): TranslationInputs {
+  return { en: emptyTranslation(), ru: emptyTranslation() };
+}
+
+function translationInputs(saved: QuestionTranslations): TranslationInputs {
+  const inputs = emptyTranslations();
+
+  for (const language of translationLanguages) {
+    const translation = saved[language];
+    if (!translation) continue;
+
+    const options = [...(translation.options ?? [])];
+    while (options.length < OPTION_SLOTS) options.push("");
+
+    inputs[language] = {
+      prompt: translation.prompt,
+      options,
+      explanation: translation.explanation ?? "",
+      correctAnswer: translation.correctAnswer ?? ""
+    };
+  }
+
+  return inputs;
+}
+
+function languageLabel(language: TranslationLanguage): string {
+  return languages.find((item) => item.id === language)?.label ?? language;
 }
 
 /**
@@ -43,6 +106,7 @@ export function QuestionForm({
   const [marks, setMarks] = useState("1");
   const [paperYear, setPaperYear] = useState("");
   const [source, setSource] = useState("");
+  const [translations, setTranslations] = useState<TranslationInputs>(emptyTranslations);
 
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -63,6 +127,7 @@ export function QuestionForm({
       setMarks("1");
       setPaperYear("");
       setSource("");
+      setTranslations(emptyTranslations());
       return;
     }
 
@@ -85,12 +150,63 @@ export function QuestionForm({
     setMarks(String(initial.marks));
     setPaperYear(initial.paperYear === null ? "" : String(initial.paperYear));
     setSource(initial.source ?? "");
+    setTranslations(translationInputs(initial.translations ?? {}));
   }, [initial]);
+
+  const { t } = useLanguage();
 
   const knownTopics = subjects.find((subject) => subject.id === subjectId)?.topics ?? [];
 
   function setOption(index: number, value: string) {
     setOptions((current) => current.map((option, position) => (position === index ? value : option)));
+  }
+
+  function changeTranslation(language: TranslationLanguage, changes: Partial<TranslationInput>) {
+    setTranslations((current) => ({ ...current, [language]: { ...current[language], ...changes } }));
+  }
+
+  /**
+   * The translations to save, or the sentence that says what is wrong with them.
+   *
+   * A translated option is kept only where the question's own option in that
+   * slot is filled in. Clearing option B above takes its translation with it,
+   * rather than leaving every option after it paired with the wrong one.
+   */
+  function buildTranslations(): QuestionTranslations | string {
+    // A question that does not follow the site language has none to save, and
+    // one that used to and no longer does has nothing left to keep.
+    if (!followsSiteLanguage(subjectId)) return {};
+
+    // Languages the form has no fields for are passed through as they were.
+    const built: QuestionTranslations = { ...(initial?.translations ?? {}) };
+    for (const language of translationLanguages) delete built[language];
+
+    const filledSlots = options.flatMap((option, slot) => (option.trim().length > 0 ? [slot] : []));
+
+    for (const language of translationLanguages) {
+      const typed = translations[language];
+      const prompt = typed.prompt.trim();
+      const explanation = typed.explanation.trim();
+      const correctAnswer = type === "short-answer" ? typed.correctAnswer.trim() : "";
+      const translatedOptions =
+        type === "multiple-choice" ? filledSlots.map((slot) => typed.options[slot].trim()) : [];
+      const hasOptions = translatedOptions.some((option) => option.length > 0);
+
+      if (prompt.length === 0 && explanation.length === 0 && correctAnswer.length === 0 && !hasOptions) continue;
+
+      if (prompt.length === 0) return `${languageLabel(language)}: ${t("translations.errorNoPrompt")}`;
+      if (hasOptions && translatedOptions.some((option) => option.length === 0)) {
+        return `${languageLabel(language)}: ${t("translations.errorOptions")}`;
+      }
+
+      const translation: QuestionTranslation = { prompt };
+      if (hasOptions) translation.options = translatedOptions;
+      if (explanation.length > 0) translation.explanation = explanation;
+      if (correctAnswer.length > 0) translation.correctAnswer = correctAnswer;
+      built[language] = translation;
+    }
+
+    return built;
   }
 
   async function handleImageChange(file: File | undefined) {
@@ -151,6 +267,13 @@ export function QuestionForm({
 
     const year = Number.parseInt(paperYear, 10);
 
+    const builtTranslations = buildTranslations();
+
+    if (typeof builtTranslations === "string") {
+      setFormError(builtTranslations);
+      return;
+    }
+
     onSubmit({
       subjectId,
       topicId: topicId.trim().toLowerCase().replace(/\s+/g, "-"),
@@ -164,7 +287,8 @@ export function QuestionForm({
       imageUrl,
       marks: markValue,
       paperYear: Number.isFinite(year) ? year : null,
-      source: source.trim() || null
+      source: source.trim() || null,
+      translations: builtTranslations
     });
   }
 
@@ -294,6 +418,34 @@ export function QuestionForm({
         />
       </label>
 
+      {followsSiteLanguage(subjectId) && (
+        // Open when the question already has some, so they are not hidden from
+        // the person who put them there. Keyed so another question starts shut.
+        <details
+          key={initial?.id ?? "new"}
+          className="translations-section"
+          open={Object.keys(initial?.translations ?? {}).length > 0}
+        >
+          <summary>
+            {t("translations.title")} <span className="field-hint">({t("translations.optional")})</span>
+          </summary>
+
+          <p className="panel-hint">{t("translations.intro")}</p>
+
+          {translationLanguages.map((language) => (
+            <TranslationBlock
+              key={language}
+              language={language}
+              type={type}
+              baseOptions={options}
+              correctIndex={correctIndex}
+              value={translations[language]}
+              onChange={(changes) => changeTranslation(language, changes)}
+            />
+          ))}
+        </details>
+      )}
+
       <div className="form-row">
         <label>
           Marks
@@ -367,5 +519,96 @@ export function QuestionForm({
         )}
       </div>
     </form>
+  );
+}
+
+/**
+ * One language's fields for a question's translation.
+ *
+ * Each translated option sits beside the option it translates, with that
+ * option's letter and text next to it. The order is what pairs them, so it is
+ * shown rather than left to be assumed.
+ */
+function TranslationBlock({
+  language,
+  type,
+  baseOptions,
+  correctIndex,
+  value,
+  onChange
+}: {
+  language: TranslationLanguage;
+  type: QuestionType;
+  baseOptions: string[];
+  correctIndex: number;
+  value: TranslationInput;
+  onChange: (changes: Partial<TranslationInput>) => void;
+}) {
+  const { t } = useLanguage();
+  const label = languageLabel(language);
+  const filledSlots = baseOptions.flatMap((option, slot) => (option.trim().length > 0 ? [slot] : []));
+
+  return (
+    <fieldset className="translation-block">
+      <legend>{label}</legend>
+
+      <label>
+        {t("translations.prompt")}
+        <textarea rows={2} value={value.prompt} onChange={(event) => onChange({ prompt: event.target.value })} />
+      </label>
+
+      {type === "multiple-choice" && (
+        <fieldset className="options-fieldset">
+          <legend>{t("translations.options")}</legend>
+
+          {filledSlots.length === 0 && <p className="field-hint">{t("translations.addOptionsFirst")}</p>}
+
+          {filledSlots.map((slot) => (
+            <div key={slot} className="translation-option-row">
+              <span className="option-letter">{String.fromCharCode(65 + slot)}</span>
+              <input
+                type="text"
+                value={value.options[slot]}
+                aria-label={`${label}, ${t("translations.optionFor")} ${String.fromCharCode(65 + slot)}`}
+                onChange={(event) =>
+                  onChange({
+                    options: value.options.map((option, position) =>
+                      position === slot ? event.target.value : option
+                    )
+                  })
+                }
+              />
+              <span className="field-hint translation-option-base">
+                {t("translations.optionFor")} {baseOptions[slot].trim()}
+                {slot === correctIndex && (
+                  <strong className="translation-correct"> - {t("translations.correctOption")}</strong>
+                )}
+              </span>
+            </div>
+          ))}
+        </fieldset>
+      )}
+
+      {type === "short-answer" && (
+        <label>
+          {t("translations.answer")}
+          <input
+            type="text"
+            value={value.correctAnswer}
+            onChange={(event) => onChange({ correctAnswer: event.target.value })}
+          />
+          <span className="field-hint">{t("translations.answerHint")}</span>
+        </label>
+      )}
+
+      <label>
+        {t("translations.explanation")}
+        <textarea
+          rows={2}
+          value={value.explanation}
+          onChange={(event) => onChange({ explanation: event.target.value })}
+        />
+      </label>
+    </fieldset>
   );
 }

@@ -4,6 +4,7 @@ import { customLimits, difficultyPresets } from "@grade9/shared";
 import { navigate, useRouteParam } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
 import { saveActiveTest } from "../lib/examSession";
+import { useLanguage } from "../lib/i18n";
 import {
   fetchCatalog,
   fetchHistory,
@@ -27,6 +28,7 @@ function scoreBand(percent: number): "weak" | "ok" | "strong" {
 
 export function TestBuilderPage() {
   const { ready, user } = useAuth();
+  const { language } = useLanguage();
   const [catalog, setCatalog] = useState<CatalogSubject[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [history, setHistory] = useState<AttemptSummary[] | null>(null);
@@ -155,7 +157,8 @@ export function TestBuilderPage() {
         topicIds,
         difficultyMode,
         questionCount: difficultyMode === "custom" ? customCount : undefined,
-        timeLimitMinutes: difficultyMode === "custom" ? (untimed ? null : customMinutes) : undefined
+        timeLimitMinutes: difficultyMode === "custom" ? (untimed ? null : customMinutes) : undefined,
+        language
       });
 
       saveActiveTest({

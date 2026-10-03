@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { BankQuestion, Difficulty, QuestionDraft, QuestionStatus, QuestionType } from "@grade9/shared";
 import { isUuid } from "../lib/ids";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
+import { readTranslations } from "../services/questionTranslations";
 
 export interface QuestionFilter {
   subjectId?: string;
@@ -34,6 +35,7 @@ interface QuestionRow {
   source: string | null;
   status: string | null;
   subtopic: string | null;
+  translations: unknown;
   created_at: string;
   updated_at: string;
 }
@@ -58,6 +60,8 @@ function toQuestion(row: QuestionRow): BankQuestion {
     // was being served, so it all reads as ready.
     status: (row.status ?? "ready") as QuestionStatus,
     subtopic: row.subtopic ?? null,
+    // A database from before 0010 has no such column, and no translations.
+    translations: readTranslations(row.translations),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -77,6 +81,7 @@ function toRow(draft: QuestionDraft) {
     image_url: draft.imageUrl,
     paper_year: draft.paperYear,
     source: draft.source,
+    translations: draft.translations,
     // Only ever written from the admin form or an import, both of which check
     // the question is complete first. Saving an unfinished one there is what
     // finishes it.

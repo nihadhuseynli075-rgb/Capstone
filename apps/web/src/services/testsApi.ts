@@ -4,6 +4,7 @@ import type {
   DifficultyMode,
   MockTest,
   QuestionReview,
+  SiteLanguage,
   SubmittedAnswer,
   TestResult,
   TestSettings
@@ -101,6 +102,12 @@ export interface GenerateRequest {
   difficultyMode: DifficultyMode;
   questionCount?: number;
   timeLimitMinutes?: number | null;
+  /**
+   * The site language right now. Maths questions come back in it where they
+   * have a translation, and stay in it for the whole paper whatever the site is
+   * switched to afterwards.
+   */
+  language: SiteLanguage;
 }
 
 export interface GenerateResponse {

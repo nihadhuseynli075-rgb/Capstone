@@ -1,7 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
 import type { MockTest, QuestionType, TestResult, TestSettings } from "@grade9/shared";
-import { customLimits, resolveSettings, studentKeyLimits, writtenAnswerMaxLength } from "@grade9/shared";
+import {
+  customLimits,
+  resolveSettings,
+  siteLanguages,
+  studentKeyLimits,
+  writtenAnswerMaxLength
+} from "@grade9/shared";
 import {
   claimAttempts,
   completeAttempt,
@@ -10,7 +16,7 @@ import {
   listAttempts
 } from "../repositories/attemptRepository";
 import { compareToPrevious, markAttempt, resolveAnswers } from "../services/marking";
-import { generateMockTest, toExamQuestion } from "../services/mockTestGenerator";
+import { generateMockTest, toAttemptQuestion, toExamQuestion } from "../services/mockTestGenerator";
 import { markWrittenAnswers } from "../services/writtenMarking";
 import {
   canClaimFrom,
@@ -44,6 +50,12 @@ const generateSchema = z
     subjectId: z.string().min(1),
     topicIds: z.array(z.string().min(1)).min(1, "Choose at least one topic."),
     difficultyMode: z.enum(["easy", "medium", "hard", "custom"]),
+    // The language the student has the site in. It is fixed for the paper: the
+    // questions are copied onto the attempt in it, so changing the site language
+    // halfway through does not change a question under their hands. Optional so
+    // a tab from before this existed still gets a test, in the questions' own
+    // text.
+    language: z.enum(siteLanguages).optional(),
     questionCount: z
       .number()
       .int()
@@ -93,7 +105,7 @@ testsRouter.post("/generate", async (request, response, next) => {
       return response.status(401).json({ message: "Sign in again to continue." });
     }
 
-    const generated = await generateMockTest(settings);
+    const generated = await generateMockTest(settings, parsed.data.language);
 
     if (generated.questions.length === 0) {
       return response.status(409).json({
@@ -108,24 +120,7 @@ testsRouter.post("/generate", async (request, response, next) => {
       // Record the size actually served, so a short test still marks out of the
       // right total.
       settings: { ...settings, questionCount: generated.questions.length },
-      questions: generated.questions.map((question, index) => ({
-        questionId: question.id,
-        position: index,
-        subjectId: question.subjectId,
-        topicId: question.topicId,
-        difficulty: question.difficulty,
-        type: question.type,
-        prompt: question.prompt,
-        options: question.options,
-        correctAnswer: question.correctAnswer,
-        marks: question.marks,
-        explanation: question.explanation,
-        imageUrl: question.imageUrl,
-        studentAnswer: null,
-        isCorrect: null,
-        score: null,
-        feedback: null
-      }))
+      questions: generated.questions.map(toAttemptQuestion)
     });
 
     const test: MockTest = {

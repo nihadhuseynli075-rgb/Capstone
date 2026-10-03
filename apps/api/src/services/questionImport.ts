@@ -1,5 +1,6 @@
-import type { Difficulty, QuestionDraft, QuestionType } from "@grade9/shared";
+import type { Difficulty, QuestionDraft, QuestionTranslation, QuestionTranslations, QuestionType } from "@grade9/shared";
 import { markLimits, paperYearLimits } from "@grade9/shared";
+import { languageNames, translationProblems } from "./questionTranslations";
 
 /**
  * Imports questions pasted straight out of a spreadsheet.
@@ -20,11 +21,27 @@ export interface ImportResult {
 }
 
 /**
+ * Which character separates the columns, read from the header row.
+ *
+ * Google Sheets offers a tab-separated download next to the CSV one, and copying
+ * cells out of a sheet gives tabs too. The header row never contains a comma of
+ * its own, so more tabs than commas in it means a tab-separated sheet. Anything
+ * else is the comma-separated format this has always read.
+ */
+function detectDelimiter(text: string): "," | "\t" {
+  const headerLine = text.split("\n", 1)[0];
+  const tabs = headerLine.split("\t").length - 1;
+  const commas = headerLine.split(",").length - 1;
+  return tabs > 0 && tabs >= commas ? "\t" : ",";
+}
+
+/**
  * Minimal RFC 4180 CSV reader.
  *
  * Handles quoted fields, escaped quotes, commas and newlines inside quotes, and
  * both LF and CRLF line endings. Written out rather than pulled from a package
- * so the whole import path stays readable in one file.
+ * so the whole import path stays readable in one file. A tab-separated sheet is
+ * read the same way, with tabs where the commas would be.
  */
 export function parseCsv(input: string): string[][] {
   const rows: string[][] = [];
@@ -35,6 +52,7 @@ export function parseCsv(input: string): string[][] {
 
   // A leading byte order mark survives most spreadsheet exports.
   const text = input.charCodeAt(0) === 0xfeff ? input.slice(1) : input;
+  const delimiter = detectDelimiter(text);
 
   while (index < text.length) {
     const char = text[index];
@@ -61,7 +79,7 @@ export function parseCsv(input: string): string[][] {
       continue;
     }
 
-    if (char === ",") {
+    if (char === delimiter) {
       row.push(field);
       field = "";
       index += 1;
@@ -113,6 +131,43 @@ const headerAliases: Record<string, string[]> = {
   source: ["source", "paper", "origin", "school"]
 };
 
+/**
+ * The columns that can be given again in another language, and the languages a
+ * sheet can give them in. Each is the column's usual name with the language on
+ * the end: `question_ru`, `option_a_en`, `explanation_ru`.
+ */
+const translatedFields = [
+  "prompt",
+  "optionA",
+  "optionB",
+  "optionC",
+  "optionD",
+  "correctAnswer",
+  "explanation"
+] as const;
+
+const importLanguages = [
+  { id: "en", name: "english" },
+  { id: "ru", name: "russian" }
+] as const;
+
+/** The key a translated column is kept under: "prompt:ru". */
+const translatedField = (field: string, language: string) => `${field}:${language}`;
+
+// A translated column answers to each of the column's names with the language
+// added, in the three ways a sheet is likely to write it: `question_ru`,
+// `question_russian` and `Question (Russian)`.
+for (const field of translatedFields) {
+  for (const language of importLanguages) {
+    headerAliases[translatedField(field, language.id)] = headerAliases[field].flatMap((alias) => [
+      `${alias}_${language.id}`,
+      `${alias}_${language.name}`,
+      `${alias}_(${language.name})`,
+      `${alias}_(${language.id})`
+    ]);
+  }
+}
+
 function normalizeHeader(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, "_");
 }
@@ -129,6 +184,23 @@ function mapHeaders(headerRow: string[]): Record<string, number> {
       }
     }
   });
+
+  // A sheet that only has "Question (English)" and "Question (Russian)" has no
+  // plain question column. The bank's own text is English, so the English
+  // columns are the question and the Russian ones its translation. Without this
+  // the whole sheet would be refused for a column it has under another name.
+  //
+  // Decided by the question column alone, so a sheet that does have a plain one
+  // is never half English-based because it also has an `explanation_en`.
+  if (mapping.prompt === undefined && mapping[translatedField("prompt", "en")] !== undefined) {
+    for (const field of translatedFields) {
+      const english = mapping[translatedField(field, "en")];
+      if (mapping[field] === undefined && english !== undefined) {
+        mapping[field] = english;
+        delete mapping[translatedField(field, "en")];
+      }
+    }
+  }
 
   return mapping;
 }
@@ -329,19 +401,71 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       return;
     }
 
+    const draftOptions = type === "multiple-choice" ? options : [];
+
+    // The other languages, each only if the sheet gave it something. A language
+    // with the question text left blank but options or an explanation filled in
+    // is a mistake worth naming, not a translation to guess the text of.
+    const translations: QuestionTranslations = {};
+    let translationError: string | null = null;
+
+    for (const language of importLanguages) {
+      const translatedPrompt = cell(row, translatedField("prompt", language.id));
+      const translatedOptions = (["optionA", "optionB", "optionC", "optionD"] as const)
+        .map((field) => cell(row, translatedField(field, language.id)))
+        .filter((option) => option.length > 0);
+      const translatedExplanation = cell(row, translatedField("explanation", language.id));
+      // Only a short answer has an answer that reads differently by language.
+      // For multiple choice the column usually repeats the letter, which the
+      // position of the options already says.
+      const translatedAnswer =
+        type === "short-answer" ? cell(row, translatedField("correctAnswer", language.id)) : "";
+
+      if (
+        translatedPrompt.length === 0 &&
+        translatedOptions.length === 0 &&
+        translatedExplanation.length === 0 &&
+        translatedAnswer.length === 0
+      ) {
+        continue;
+      }
+
+      if (translatedPrompt.length === 0) {
+        translationError = `The ${languageNames[language.id]} translation has no question text.`;
+        break;
+      }
+
+      const translation: QuestionTranslation = { prompt: translatedPrompt };
+      if (translatedOptions.length > 0) translation.options = translatedOptions;
+      if (translatedExplanation.length > 0) translation.explanation = translatedExplanation;
+      if (translatedAnswer.length > 0) translation.correctAnswer = translatedAnswer;
+      translations[language.id] = translation;
+    }
+
+    // The same rules the admin form is held to: options in step with the
+    // question's own, and only for a subject that follows the site language.
+    translationError ??=
+      translationProblems({ subjectId, type, options: draftOptions, correctAnswer, translations })[0]?.message ?? null;
+
+    if (translationError) {
+      errors.push({ row: rowNumber, message: translationError });
+      return;
+    }
+
     drafts.push({
       subjectId,
       topicId,
       difficulty: difficulty ?? "medium",
       type,
       prompt,
-      options: type === "multiple-choice" ? options : [],
+      options: draftOptions,
       correctAnswer,
       marks,
       explanation: cell(row, "explanation"),
       imageUrl: cell(row, "imageUrl") || null,
       paperYear,
-      source: cell(row, "source") || null
+      source: cell(row, "source") || null,
+      translations
     });
   });
 
