@@ -1,0 +1,159 @@
+# Hand-written content for scripts/seed-from-sheet.py.
+#
+# The workbook is the source for everything it has. This file holds what it
+# does not: Russian Language questions put into Russian, the Russian wording of
+# the 26 April maths, marking guides, small fixes, and why a question is held
+# back. One table per question, named by its external_ref.
+#
+# Keys (all optional):
+#   prompt     replaces the question text (Russian Language: the Russian text)
+#   options    replaces the options, same order A-E as the sheet
+#   translated true when prompt/options were translated by machine (REVIEW.md
+#              then asks Nihad to check it)
+#   guide      marking guide for an open-ended question (goes in correct_answer)
+#   ru_prompt / ru_options / ru_answer
+#              maths only: the Russian version, stored in translations.ru.
+#              ru_options and ru_answer are worked out from the English (4.5 ->
+#              4,5, cm -> см, (4, 1) -> (4; 1)) unless given here.
+#   status     "draft" to hold a question back; needs `missing`
+#   missing    why it is a draft: what Nihad has to supply
+#   check      something to look over even though the question is ready
+#
+# Quoted Russian words, sentences and options from the paper are kept exactly
+# as Nihad typed them.
+
+# ===========================================================================
+# 12 April 2026, Variant A
+# ===========================================================================
+
+# ---- English --------------------------------------------------------------
+
+["dim-2026-04-12-variant-a:q6"]
+# The sheet dropped the final full stop of "p.m." from two options.
+options = [
+  "Customers are asked to finish shopping by 5 p.m.",
+  "the manager announces a discount for tomorrow",
+  "the shop will be closed all day tomorrow",
+  "construction will continue until tomorrow evening",
+  "customers can start shopping after 5 p.m.",
+]
+
+["dim-2026-04-12-variant-a:q8"]
+status = "draft"
+missing = "Needs the Komodo dragon reading passage, which is not in the sheet."
+
+["dim-2026-04-12-variant-a:q9"]
+status = "draft"
+missing = "Needs the Komodo dragon reading passage, which is not in the sheet."
+
+["dim-2026-04-12-variant-a:q10"]
+status = "draft"
+missing = "Needs the Komodo dragon reading passage, which is not in the sheet."
+
+["dim-2026-04-12-variant-a:q11"]
+status = "draft"
+missing = "Needs the Komodo dragon reading passage, which is not in the sheet."
+
+["dim-2026-04-12-variant-a:q12"]
+missing = "Also needs the Komodo dragon reading passage."
+
+# ---- Maths ----------------------------------------------------------------
+
+["dim-2026-04-12-variant-a:q74"]
+# "y- coordinate" in the sheet.
+prompt = "A point lies on the graph of 2x + y = 5 and has x-coordinate −4. Find its y-coordinate."
+
+# ===========================================================================
+# 26 April 2026, Variant D
+# ===========================================================================
+
+# ---- English --------------------------------------------------------------
+
+["dim-2026-04-26-variant-d:q8"]
+status = "draft"
+missing = "Needs the Bigfoot reading passage, which is not in the sheet."
+
+["dim-2026-04-26-variant-d:q9"]
+status = "draft"
+missing = "Needs the Bigfoot reading passage, which is not in the sheet."
+
+["dim-2026-04-26-variant-d:q10"]
+status = "draft"
+missing = "Needs the Bigfoot reading passage, which is not in the sheet."
+
+["dim-2026-04-26-variant-d:q11"]
+status = "draft"
+missing = "Needs the Bigfoot reading passage, which is not in the sheet."
+
+["dim-2026-04-26-variant-d:q12"]
+missing = "Also needs the Bigfoot reading passage."
+
+# ---- Maths: Russian wording (machine translation) -------------------------
+
+["dim-2026-04-26-variant-d:q58"]
+ru_prompt = """Решите систему уравнений:
+x−2y=−3
+4x+3y=−12"""
+
+["dim-2026-04-26-variant-d:q59"]
+ru_prompt = "Укажите смешанное число."
+
+["dim-2026-04-26-variant-d:q60"]
+ru_prompt = "Сколько чисел среди первых 100 натуральных чисел не делятся ни на 2, ни на 5?"
+
+["dim-2026-04-26-variant-d:q61"]
+ru_prompt = "При каком значении k верно равенство 9a+kb=9(a+b)?"
+
+["dim-2026-04-26-variant-d:q62"]
+ru_prompt = "Тупой угол параллелограмма в два раза больше его острого угла. Найдите углы параллелограмма."
+
+["dim-2026-04-26-variant-d:q63"]
+ru_prompt = "Решите уравнение 0,6(x+4)=0,8(12−x)."
+
+["dim-2026-04-26-variant-d:q64"]
+ru_prompt = "Решите уравнение (3y−2)/4 − (3−y)/5 + 3 = 0."
+
+["dim-2026-04-26-variant-d:q65"]
+ru_prompt = "Найдите третий угол треугольника, если сумма двух других его внутренних углов равна 149°."
+
+["dim-2026-04-26-variant-d:q66"]
+ru_prompt = "Упростите выражение (18x³y)/(5z⁴) · (25z)/(9x²y)."
+
+["dim-2026-04-26-variant-d:q67"]
+ru_prompt = "Найдите высоту ромба, диагонали которого относятся как 3 : 4, а площадь равна 96 см²."
+
+["dim-2026-04-26-variant-d:q68"]
+ru_prompt = "Рабочий изготовил 1242 детали, после чего ему осталось изготовить 54% месячного плана. Каков месячный план рабочего?"
+
+["dim-2026-04-26-variant-d:q69"]
+ru_prompt = "Найдите x из пропорции 5/4 = 3/(2x)."
+
+["dim-2026-04-26-variant-d:q70"]
+ru_prompt = "Найдите наибольшее целое решение неравенства 5−4x<−7−5x."
+
+["dim-2026-04-26-variant-d:q71"]
+ru_prompt = "Во сколько раз увеличится объём куба, если все его рёбра увеличить в 7 раз?"
+
+["dim-2026-04-26-variant-d:q72"]
+ru_prompt = "Найдите значение выражения √(12+4√5) · √(12−4√5)."
+
+["dim-2026-04-26-variant-d:q74"]
+ru_prompt = "Найдите значение выражения a²+2ab+b²−7a−7b, если a=4 5/13 и b=2 8/13."
+
+["dim-2026-04-26-variant-d:q75"]
+ru_prompt = "Средний балл учеников, находившихся в комнате, за экзамен был равен 74. Балл ученика, который вошёл в комнату позже, равен 94. В результате средний балл всех учеников в комнате вырос до 79. Сколько учеников было в комнате первоначально?"
+
+["dim-2026-04-26-variant-d:q76"]
+ru_prompt = "A — множество составных чисел, меньших 10. Найдите число элементов множества A ∪ B, если B={1;2;4;10}."
+
+["dim-2026-04-26-variant-d:q78"]
+ru_prompt = "Из точки A по двум разным окружностям одновременно начинают движение две точки. Через какое время они впервые одновременно пройдут через точку A, если одна проходит через A каждые 36 секунд, а другая — каждые 63 секунды?"
+check = "The answer is stored as \"252 s\" (Russian site: \"252 с\"). Marking is an exact match, so a student who types just 252 is marked wrong."
+
+["dim-2026-04-26-variant-d:q80"]
+ru_prompt = "Найдите наибольшее расстояние между двумя точками, одна из которых лежит на окружности (x+3)²+(y+2)²=16, а другая — на окружности (x−5)²+(y−4)²=9."
+
+["dim-2026-04-26-variant-d:q81"]
+ru_prompt = "Рассматриваются обыкновенные дроби с числителем 1, знаменатели которых — натуральные числа больше 7, но меньше 31. Найдите вероятность того, что случайно выбранную дробь можно записать в виде конечной десятичной дроби."
+status = "draft"
+missing = "The answer 5/24 does not fit the question as typed: denominators 8 to 30 are 23 fractions, and 5 of them (8, 10, 16, 20, 25) terminate, so 5/23. Check the wording on the paper (\"greater than 6\"? \"up to 31\"?) or the answer."
