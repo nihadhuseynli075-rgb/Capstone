@@ -166,8 +166,9 @@ npm run smoke
 ```
 
 The Supabase code paths - accounts, moving guest history, two submissions of
-one paper at once, recovering from a write that fails halfway, and profiles
-(photos, renaming, deleting an account and everything in it) - only run with
+one paper at once, recovering from a write that fails halfway, profiles
+(photos, renaming, deleting an account and everything in it) and friends
+(requests both ways, the edge cases, comparing progress) - only run with
 Supabase connected. This starts a local stand-in for Supabase's REST, auth and
 storage APIs, points a fresh API at it, and checks them, with no project needed:
 
@@ -221,12 +222,15 @@ Built and working:
 - A profile page: photo, name, password, connecting Google, and deleting the
   account with everything in it
 - Guest history is moved onto the account the first time someone signs in
+- Friends: ask by email or username, accept or decline, and see each friend's
+  test figures beside your own. Checklist for trying it by hand:
+  [docs/testing-friends.md](docs/testing-friends.md)
 - Site language in English, Russian and Azerbaijani
 - Light and dark mode
 
 Not built yet:
 
-- Friends and the community question board.
+- The community question board.
 - AI-generated questions. Everything comes from the question bank for now.
 
 See [docs/todo.md](docs/todo.md) for what is next and who is doing it.

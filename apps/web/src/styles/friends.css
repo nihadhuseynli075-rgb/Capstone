@@ -1,0 +1,291 @@
+/*
+ * The friends page.
+ *
+ * Its own file, loaded by FriendsPage after the shared sheets, so the page can
+ * change without touching them. Every colour is one of the tokens defined in
+ * global.css, which is what lets one set of rules read correctly in both the
+ * light and the dark theme: nothing here names a colour, so there is nothing
+ * to forget to override.
+ */
+
+.friends-panel {
+  /*
+   * --muted is the right grey for a caption on the page, but a little light for
+   * the small print inside a panel in the light theme. Mixed from the two
+   * tokens, so it follows whichever theme is on.
+   */
+  --friends-quiet: color-mix(in srgb, var(--muted) 62%, var(--text));
+}
+
+.friends-panel h2 {
+  margin: 0;
+}
+
+/*
+ * Browsers draw a placeholder in their own grey, whatever the theme. On the
+ * dark input that is too faint to read, so it takes the theme's muted colour.
+ */
+.friends-add-form input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+/*
+ * The shared success banner is the success green on its pale tint, which in the
+ * light theme is a little under the contrast small text needs. The words take
+ * a darker mix of the same green; the border keeps the green itself.
+ */
+.friends-panel .success-banner {
+  border-color: var(--success);
+  color: color-mix(in srgb, var(--success) 65%, var(--text));
+}
+
+/* ----------------------------------------------------------------- a person */
+
+/* Photo, then the name with the @username under it. */
+.friends-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.friends-person-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Names are typed by their owners and can be long, with no gaps to break at. */
+.friends-person-name,
+.friends-person-handle {
+  overflow-wrap: anywhere;
+}
+
+.friends-person-name {
+  line-height: 1.25;
+}
+
+.friends-person-handle {
+  color: var(--friends-quiet);
+  font-size: 0.88rem;
+}
+
+/*
+ * The shared avatar is white on the brand blue, which is fine in the light
+ * theme and washed out in the dark one, where the blue is the light one. Here
+ * the disc is the strong brand colour with the surface colour on top, so the
+ * initials contrast in both.
+ */
+.friends-person .avatar {
+  background: var(--brand-strong);
+  color: var(--surface);
+}
+
+/* ------------------------------------------------------------------ adding */
+
+.friends-add-form {
+  display: grid;
+  gap: 14px;
+  max-width: 460px;
+}
+
+.friends-add-form .primary-button {
+  justify-self: start;
+}
+
+/* The sign-in link is a button to look at, and an underlined one is not. */
+.friends-panel a.primary-button {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+/* ---------------------------------------------------------------- requests */
+
+.friends-request-list,
+.friends-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.friends-request {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-alt);
+}
+
+.friends-request .friends-person {
+  flex: 1 1 180px;
+}
+
+.friends-request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ----------------------------------------------------------------- a friend */
+
+.friend-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.friend-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+
+.friend-since {
+  margin: 0;
+  color: var(--friends-quiet);
+  font-size: 0.85rem;
+}
+
+/*
+ * The two students' figures side by side: the label, "You", then the friend.
+ * Fixed columns keep both students' figures lined up from one card to the
+ * next, and let a long name be cut short in the header instead of pushing the
+ * table wider than a phone.
+ */
+.friend-compare {
+  width: 100%;
+  /* On a wide screen the friend's column would otherwise sit far from the labels. */
+  max-width: 560px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.92rem;
+}
+
+/* The caption is for screen readers; the card already names the friend. */
+.friend-compare caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.friend-compare th,
+.friend-compare td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.friend-compare thead td,
+.friend-compare tbody th {
+  width: 34%;
+}
+
+.friend-compare thead th {
+  overflow: hidden;
+  background: var(--surface-alt);
+  color: var(--friends-quiet);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The student's own column is the one the friend is measured against, so its
+ * heading is underlined in the brand colour. The text stays the page colour:
+ * the brand blue on this tint is too faint in the light theme.
+ */
+.friend-compare thead th:nth-child(2) {
+  color: var(--text);
+  box-shadow: inset 0 -3px 0 var(--brand);
+}
+
+.friend-compare tbody th {
+  color: var(--friends-quiet);
+  font-weight: 600;
+}
+
+.friend-compare tbody td {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.friend-compare tbody tr:last-child th,
+.friend-compare tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.friend-card-foot {
+  display: flex;
+}
+
+.friend-confirm {
+  display: grid;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--danger);
+  border-radius: 12px;
+  background: var(--danger-soft);
+}
+
+.friend-confirm p {
+  margin: 0;
+}
+
+.friend-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ------------------------------------------------------------- small screens */
+
+@media (max-width: 480px) {
+  /* A full-width button is the easier thing to hit with a thumb. */
+  .friends-add-form,
+  .friends-add-form .primary-button {
+    width: 100%;
+  }
+
+  .friends-request-actions {
+    flex: 1 1 100%;
+  }
+
+  /* On its own line for every card, not only the ones with a long name. */
+  .friend-since {
+    flex-basis: 100%;
+  }
+
+  .friends-request-actions button,
+  .friend-confirm-actions button {
+    flex: 1 1 0;
+  }
+
+  .friend-compare th,
+  .friend-compare td {
+    padding: 8px 6px;
+    font-size: 0.88rem;
+  }
+
+  .friend-compare thead th {
+    font-size: 0.78rem;
+  }
+}

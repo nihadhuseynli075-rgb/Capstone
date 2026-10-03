@@ -1,6 +1,6 @@
 import type { StudentProfile } from "@grade9/shared";
-import { supabase } from "../lib/supabaseClient";
-import { ApiError, apiRequest } from "./apiClient";
+import { apiRequest } from "./apiClient";
+import { accountToken } from "./accountToken";
 
 /**
  * The signed-in student's own profile.
@@ -9,12 +9,6 @@ import { ApiError, apiRequest } from "./apiClient";
  * belongs to an account, so every call carries the account's access token and
  * the API works out whose profile it is from that alone.
  */
-
-async function accountToken(): Promise<string> {
-  const session = supabase ? (await supabase.auth.getSession()).data.session : null;
-  if (!session) throw new ApiError("Sign in again to continue.", 401);
-  return session.access_token;
-}
 
 export async function fetchProfile(): Promise<StudentProfile> {
   const { profile } = await apiRequest<{ profile: StudentProfile }>("/api/profile", {

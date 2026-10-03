@@ -3,6 +3,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { env, storageMode } from "./lib/env";
 import { adminRouter } from "./routes/admin";
 import { catalogRouter } from "./routes/catalog";
+import { friendsRouter } from "./routes/friends";
 import { profileRouter } from "./routes/profile";
 import { testsRouter } from "./routes/tests";
 
@@ -50,6 +51,7 @@ app.get("/health", (_request, response) => {
 app.use("/api/catalog", catalogRouter);
 app.use("/api/tests", testsRouter);
 app.use("/api/profile", profileRouter);
+app.use("/api/friends", friendsRouter);
 app.use("/api/admin", adminRouter);
 
 app.use((_request, response) => {

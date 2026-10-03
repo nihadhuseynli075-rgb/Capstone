@@ -51,7 +51,7 @@ const en = {
   "main.history": "Test history",
   "main.historyBody": "Every test you have taken, your best result so far, and what you got wrong.",
   "main.friends": "Friends",
-  "main.friendsBody": "Add friends and compare progress. Coming after the core app is finished.",
+  "main.friendsBody": "Add friends by email or username and compare your results.",
   "main.settings": "Settings",
   "main.settingsBody": "The site language, and light or dark mode.",
   "main.soon": "Coming soon",
@@ -212,6 +212,54 @@ const en = {
   "import.translationHint":
     "A translation goes in a column with the same name ending in _ru or _en: question_ru, option_a_ru, explanation_ru. See docs/question-format.md.",
 
+  // Friends
+  "friends.title": "Friends",
+  "friends.subtitle": "Add friends by email or username, and see how your test results compare.",
+  "friends.signedOut": "Sign in to add friends and compare your progress.",
+  "friends.unavailable":
+    "Friends need real accounts, and the server is not connected to the database yet.",
+  "friends.loading": "Loading your friends...",
+  "friends.retry": "Try again",
+
+  "friends.addTitle": "Add a friend",
+  "friends.addLabel": "Email or username",
+  "friends.addPlaceholder": "Their email or @username",
+  "friends.addHint":
+    "They need an ExamPeak account already. They will see your request and can accept or decline it.",
+  "friends.send": "Send request",
+  "friends.sending": "Sending...",
+  "friends.sent": "Request sent to {name}. You will be friends once they accept.",
+  "friends.nowFriends": "You and {name} are now friends. They had already sent you a request.",
+
+  "friends.error.invalidLookup": "Enter an email address or a username, without spaces.",
+  "friends.error.yourself": "That is your own account. Add a friend instead.",
+  "friends.error.noAccount": "No ExamPeak account with that email or username.",
+  "friends.error.alreadyFriends": "You are already friends.",
+  "friends.error.alreadyRequested": "You have already sent them a request. They have not answered yet.",
+  "friends.error.blocked": "A request cannot be sent to that account.",
+  "friends.error.gone": "That request is no longer there. The list has been refreshed.",
+
+  "friends.incomingTitle": "Requests for you",
+  "friends.outgoingTitle": "Waiting for an answer",
+  "friends.accept": "Accept",
+  "friends.decline": "Decline",
+  "friends.cancel": "Cancel request",
+
+  "friends.listTitle": "Your friends",
+  "friends.empty": "No friends yet. Add someone above with their email or username.",
+  "friends.since": "Friends since",
+  "friends.remove": "Remove",
+  "friends.removeConfirm": "Remove {name} from your friends? You will stop seeing each other's progress.",
+  "friends.removeYes": "Yes, remove",
+  "friends.removeNo": "Keep",
+
+  "friends.compareCaption": "Your progress compared with {name}",
+  "friends.you": "You",
+  "friends.testsTaken": "Tests taken",
+  "friends.bestScore": "Best score",
+  "friends.average": "Average",
+  "friends.lastActive": "Last test",
+
   "common.saving": "Saving...",
   "common.back": "Back"
 } as const;
@@ -247,7 +295,7 @@ const ru: Dictionary = {
   "main.history": "История тестов",
   "main.historyBody": "Все пройденные тесты, ваш лучший результат и допущенные ошибки.",
   "main.friends": "Друзья",
-  "main.friendsBody": "Добавляйте друзей и сравнивайте прогресс. Появится позже.",
+  "main.friendsBody": "Добавляйте друзей по почте или имени пользователя и сравнивайте результаты.",
   "main.settings": "Настройки",
   "main.settingsBody": "Язык сайта и светлая или тёмная тема.",
   "main.soon": "Скоро",
@@ -407,6 +455,55 @@ const ru: Dictionary = {
   "import.translationHint":
     "Перевод добавляется в столбец с тем же названием и окончанием _ru или _en: question_ru, option_a_ru, explanation_ru. Подробности в docs/question-format.md.",
 
+  // Friends
+  "friends.title": "Друзья",
+  "friends.subtitle":
+    "Добавляйте друзей по электронной почте или имени пользователя и сравнивайте результаты тестов.",
+  "friends.signedOut": "Войдите, чтобы добавлять друзей и сравнивать прогресс.",
+  "friends.unavailable":
+    "Для друзей нужны настоящие аккаунты, а сервер пока не подключён к базе данных.",
+  "friends.loading": "Загружаем друзей...",
+  "friends.retry": "Попробовать снова",
+
+  "friends.addTitle": "Добавить друга",
+  "friends.addLabel": "Почта или имя пользователя",
+  "friends.addPlaceholder": "Почта или @имя_пользователя",
+  "friends.addHint":
+    "У этого человека уже должен быть аккаунт ExamPeak. Он увидит ваш запрос и сможет принять или отклонить его.",
+  "friends.send": "Отправить запрос",
+  "friends.sending": "Отправляем...",
+  "friends.sent": "Запрос отправлен: {name}. Вы станете друзьями, когда его примут.",
+  "friends.nowFriends": "Вы и {name} теперь друзья: этот человек уже присылал вам запрос.",
+
+  "friends.error.invalidLookup": "Введите адрес электронной почты или имя пользователя без пробелов.",
+  "friends.error.yourself": "Это ваш собственный аккаунт. Добавьте кого-нибудь другого.",
+  "friends.error.noAccount": "Нет аккаунта ExamPeak с такой почтой или таким именем пользователя.",
+  "friends.error.alreadyFriends": "Вы уже друзья.",
+  "friends.error.alreadyRequested": "Вы уже отправили запрос. Ответа пока нет.",
+  "friends.error.blocked": "Этому аккаунту нельзя отправить запрос.",
+  "friends.error.gone": "Этого запроса больше нет. Список обновлён.",
+
+  "friends.incomingTitle": "Запросы к вам",
+  "friends.outgoingTitle": "Ждут ответа",
+  "friends.accept": "Принять",
+  "friends.decline": "Отклонить",
+  "friends.cancel": "Отменить запрос",
+
+  "friends.listTitle": "Ваши друзья",
+  "friends.empty": "Друзей пока нет. Добавьте кого-нибудь выше по почте или имени пользователя.",
+  "friends.since": "Друзья с",
+  "friends.remove": "Удалить",
+  "friends.removeConfirm": "Удалить {name} из друзей? Вы перестанете видеть прогресс друг друга.",
+  "friends.removeYes": "Да, удалить",
+  "friends.removeNo": "Оставить",
+
+  "friends.compareCaption": "Ваш прогресс в сравнении с {name}",
+  "friends.you": "Вы",
+  "friends.testsTaken": "Пройдено тестов",
+  "friends.bestScore": "Лучший результат",
+  "friends.average": "Средний результат",
+  "friends.lastActive": "Последний тест",
+
   "common.saving": "Сохранение...",
   "common.back": "Назад"
 };
@@ -438,7 +535,7 @@ const az: Dictionary = {
   "main.history": "Test tarixçəsi",
   "main.historyBody": "İştirak etdiyiniz bütün testlər, ən yaxşı nəticəniz və səhvləriniz.",
   "main.friends": "Dostlar",
-  "main.friendsBody": "Dost əlavə edin və nəticələri müqayisə edin. Daha sonra əlavə olunacaq.",
+  "main.friendsBody": "E-poçt və ya istifadəçi adı ilə dost əlavə edin və nəticələri müqayisə edin.",
   "main.settings": "Tənzimləmələr",
   "main.settingsBody": "Saytın dili və işıqlı ya qaranlıq rejim.",
   "main.soon": "Tezliklə",
@@ -597,6 +694,55 @@ const az: Dictionary = {
   "import.firstOnly": "Eyni anda yalnız bir fayl yüklənir, ona görə yalnız birincisi istifadə olundu.",
   "import.translationHint":
     "Tərcümə eyni adlı, lakin sonu _ru və ya _en olan sütunda yazılır: question_ru, option_a_ru, explanation_ru. Ətraflı: docs/question-format.md.",
+
+  // Friends
+  "friends.title": "Dostlar",
+  "friends.subtitle":
+    "Dostları e-poçt və ya istifadəçi adı ilə əlavə edin və test nəticələrinizi müqayisə edin.",
+  "friends.signedOut": "Dost əlavə etmək və inkişafınızı müqayisə etmək üçün daxil olun.",
+  "friends.unavailable":
+    "Dostlar üçün real hesablar lazımdır, server isə hələ verilənlər bazasına qoşulmayıb.",
+  "friends.loading": "Dostlarınız yüklənir...",
+  "friends.retry": "Yenidən cəhd edin",
+
+  "friends.addTitle": "Dost əlavə et",
+  "friends.addLabel": "E-poçt və ya istifadəçi adı",
+  "friends.addPlaceholder": "E-poçt və ya @istifadəçi_adı",
+  "friends.addHint":
+    "Onun artıq ExamPeak hesabı olmalıdır. O, sorğunuzu görəcək və qəbul edə və ya rədd edə biləcək.",
+  "friends.send": "Sorğu göndər",
+  "friends.sending": "Göndərilir...",
+  "friends.sent": "Sorğu göndərildi: {name}. Qəbul ediləndə dost olacaqsınız.",
+  "friends.nowFriends": "Siz və {name} artıq dostsunuz: o, əvvəlcədən sizə sorğu göndərmişdi.",
+
+  "friends.error.invalidLookup": "Boşluqsuz e-poçt ünvanı və ya istifadəçi adı daxil edin.",
+  "friends.error.yourself": "Bu sizin öz hesabınızdır. Başqasını əlavə edin.",
+  "friends.error.noAccount": "Bu e-poçt və ya istifadəçi adı ilə ExamPeak hesabı yoxdur.",
+  "friends.error.alreadyFriends": "Siz artıq dostsunuz.",
+  "friends.error.alreadyRequested": "Siz artıq sorğu göndərmisiniz. Hələ cavab verilməyib.",
+  "friends.error.blocked": "Bu hesaba sorğu göndərmək mümkün deyil.",
+  "friends.error.gone": "Bu sorğu artıq yoxdur. Siyahı yeniləndi.",
+
+  "friends.incomingTitle": "Sizə gələn sorğular",
+  "friends.outgoingTitle": "Cavab gözləyənlər",
+  "friends.accept": "Qəbul et",
+  "friends.decline": "Rədd et",
+  "friends.cancel": "Sorğunu ləğv et",
+
+  "friends.listTitle": "Dostlarınız",
+  "friends.empty": "Hələ dostunuz yoxdur. Yuxarıda e-poçt və ya istifadəçi adı ilə kimisə əlavə edin.",
+  "friends.since": "Dostluğun başlanğıcı:",
+  "friends.remove": "Sil",
+  "friends.removeConfirm": "{name} dostlarınızdan silinsin? Bir-birinizin nəticələrini görməyəcəksiniz.",
+  "friends.removeYes": "Bəli, sil",
+  "friends.removeNo": "Saxla",
+
+  "friends.compareCaption": "Nəticələrinizin {name} ilə müqayisəsi",
+  "friends.you": "Siz",
+  "friends.testsTaken": "Həll edilmiş testlər",
+  "friends.bestScore": "Ən yaxşı nəticə",
+  "friends.average": "Orta nəticə",
+  "friends.lastActive": "Son test",
 
   "common.saving": "Yadda saxlanılır...",
   "common.back": "Geri"

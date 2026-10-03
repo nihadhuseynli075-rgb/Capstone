@@ -1,8 +1,8 @@
-import { Router, type NextFunction, type Request, type Response } from "express";
+import { Router } from "express";
 import { z } from "zod";
 import { profileLimits } from "@grade9/shared";
-import { supabaseAdmin } from "../lib/supabaseAdmin";
-import { isLiveSession, signedInAccount, type SignedInAccount } from "../modules/student/studentAuth";
+import { accountOf, requireAccount, signInAgain } from "../modules/student/requireAccount";
+import { isLiveSession } from "../modules/student/studentAuth";
 import { deleteAttemptsFor } from "../repositories/attemptRepository";
 import {
   deleteAccount,
@@ -28,40 +28,13 @@ import {
  */
 export const profileRouter = Router();
 
-const signInAgain = { message: "Sign in again to continue." } as const;
-
-async function requireAccount(request: Request, response: Response, next: NextFunction): Promise<void> {
-  // Without Supabase there are no accounts to have profiles. The page shows
-  // this rather than failing on every button.
-  if (!supabaseAdmin) {
-    response.status(503).json({
-      code: "profiles-unavailable",
-      message:
-        "Profiles need the API connected to Supabase. Set SUPABASE_SERVICE_ROLE_KEY in .env and restart the API."
-    });
-    return;
-  }
-
-  try {
-    const account = await signedInAccount(request);
-
-    if (!account) {
-      response.status(401).json(signInAgain);
-      return;
-    }
-
-    response.locals.account = account;
-    next();
-  } catch (error) {
-    next(error);
-  }
-}
-
-profileRouter.use(requireAccount);
-
-function accountOf(response: Response): SignedInAccount {
-  return response.locals.account as SignedInAccount;
-}
+profileRouter.use(
+  requireAccount({
+    code: "profiles-unavailable",
+    message:
+      "Profiles need the API connected to Supabase. Set SUPABASE_SERVICE_ROLE_KEY in .env and restart the API."
+  })
+);
 
 profileRouter.get("/", async (_request, response, next) => {
   try {

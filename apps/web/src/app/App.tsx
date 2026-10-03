@@ -218,6 +218,19 @@ function AccountMenu() {
             {t("nav.profile")}
           </button>
 
+          {/* Here rather than in the bar: the bar is already full at tablet width. */}
+          <button
+            type="button"
+            className="account-item"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              navigate("/friends");
+            }}
+          >
+            {t("main.friends")}
+          </button>
+
           <button
             type="button"
             className="account-item"
