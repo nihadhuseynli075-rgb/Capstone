@@ -384,10 +384,16 @@ button:focus-visible {
   min-height: auto;
 }
 
+/*
+ * Each field keeps its own height. Stretched to the tallest in the row (Marks,
+ * with a hint under it), the labels beside it shared out the extra space and
+ * their inputs grew 13px taller and sat 13px lower than the one with the hint.
+ */
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
+  align-items: start;
 }
 
 .filter-row {
