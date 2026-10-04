@@ -756,6 +756,51 @@ async function main() {
   const yearless = edges.body.questions?.find((question) => question.prompt === "A year nobody wrote down");
   check("a blank year is stored as unknown", yearless !== undefined && yearless.paperYear === null, JSON.stringify(yearless));
 
+  section("Question diagrams");
+  // A 1x1 PNG, the smallest real picture there is.
+  const tinyPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+  const upload = (body) => call("/api/admin/questions/image", { method: "POST", token, body });
+
+  const realPicture = await upload({ fileName: "diagram.png", contentType: "image/png", dataBase64: tinyPng });
+  check(
+    "a real picture is stored",
+    realPicture.status === 200 && typeof realPicture.body.imageUrl === "string",
+    JSON.stringify(realPicture.body).slice(0, 200)
+  );
+  const fakePicture = await upload({
+    fileName: "fake.png",
+    contentType: "image/png",
+    dataBase64: Buffer.from("this is text, not a picture").toString("base64")
+  });
+  check(
+    "a text file named .png is refused for what it really is",
+    fakePicture.status === 400 && /not a PNG, JPG or WebP/.test(fakePicture.body.message ?? ""),
+    JSON.stringify(fakePicture.body)
+  );
+  const notAnImage = await upload({ fileName: "notes.txt", contentType: "text/plain", dataBase64: tinyPng });
+  check(
+    "a non-image upload says why, not just \"not valid\"",
+    notAnImage.status === 400 && notAnImage.body.message === "Only image files are supported.",
+    JSON.stringify(notAnImage.body)
+  );
+  // Over the 5 MB body limit, as a 4.5 MB picture is once base64 encoded.
+  const hugePicture = await upload({ fileName: "huge.png", contentType: "image/png", dataBase64: "A".repeat(6 * 1024 * 1024) });
+  check(
+    "a picture over the body limit is a 413 that says the size, not a 500",
+    hugePicture.status === 413 && hugePicture.body.message === "Images must be 2 MB or smaller.",
+    `${hugePicture.status} ${JSON.stringify(hugePicture.body).slice(0, 200)}`
+  );
+  const hugePaste = await call("/api/admin/questions/import", {
+    method: "POST",
+    token,
+    body: { csv: `subject,topic,question,correct_answer\n${"x".repeat(6 * 1024 * 1024)}` }
+  });
+  check(
+    "so is a paste over the limit",
+    hugePaste.status === 413 && hugePaste.body.code === "too-large",
+    `${hugePaste.status} ${JSON.stringify(hugePaste.body).slice(0, 200)}`
+  );
+
   section("Written answers");
   // Its own topic, so the checks below see only this question.
   const writtenTopic = `written-${Date.now()}`;

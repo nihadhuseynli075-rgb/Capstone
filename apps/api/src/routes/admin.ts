@@ -13,6 +13,7 @@ import {
   listQuestions,
   updateQuestion
 } from "../repositories/questionRepository";
+import { photoTypeOf } from "../services/profilePhotos";
 import { importQuestionsFromCsv } from "../services/questionImport";
 import { translationProblems } from "../services/questionTranslations";
 
@@ -266,8 +267,10 @@ adminRouter.post("/questions/image", requireAdmin, async (request, response, nex
     .safeParse(request.body);
 
   if (!parsed.success) {
+    // The first problem, in words: "That upload is not valid." told the person
+    // nothing, when the schema already says "Only image files are supported."
     return response.status(400).json({
-      message: "That upload is not valid.",
+      message: parsed.error.issues[0]?.message ?? "That upload is not valid.",
       issues: parsed.error.flatten()
     });
   }
@@ -282,20 +285,31 @@ adminRouter.post("/questions/image", requireAdmin, async (request, response, nex
     return response.status(413).json({ message: "Images must be 2 MB or smaller." });
   }
 
+  // What the file really is, from its first bytes. The name and the type are
+  // whatever the browser said: a text file renamed .png was stored and kept,
+  // and showed as a broken picture. Only real PNG, JPG and WebP files are
+  // taken, and stored as what they are (see photoTypeOf).
+  const type = photoTypeOf(buffer);
+
+  if (!type) {
+    return response.status(400).json({
+      message: "That file is not a PNG, JPG or WebP picture, whatever its name says. Choose an image file."
+    });
+  }
+
   if (!supabaseAdmin) {
     return response.json({
-      imageUrl: `data:${parsed.data.contentType};base64,${parsed.data.dataBase64}`,
+      imageUrl: `data:${type.contentType};base64,${parsed.data.dataBase64}`,
       storageMode
     });
   }
 
   try {
-    const extension = parsed.data.fileName.split(".").pop() ?? "png";
-    const path = `${randomUUID()}.${extension}`;
+    const path = `${randomUUID()}.${type.extension}`;
 
     const { error } = await supabaseAdmin.storage
       .from(env.questionImageBucket)
-      .upload(path, buffer, { contentType: parsed.data.contentType, upsert: false });
+      .upload(path, buffer, { contentType: type.contentType, upsert: false });
 
     if (error) throw new Error(error.message);
 

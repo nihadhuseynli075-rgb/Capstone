@@ -29,6 +29,9 @@ function emptyOptions(): string[] {
   return paddedOptions([]);
 }
 
+/** The largest diagram the API stores, so a bigger one is turned away before it is sent. */
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+
 /**
  * The languages the form offers a translation in. Azerbaijani has none yet, so
  * a student reading the site in it gets the question as first written; any that
@@ -219,8 +222,23 @@ export function QuestionForm({
   async function handleImageChange(file: File | undefined) {
     if (!file) return;
 
-    setUploading(true);
     setUploadError(null);
+
+    // Checked here, before anything is sent: a file over the limit used to
+    // come back as a bare "request entity too large", and one that is not a
+    // picture as "That upload is not valid.". The API checks both again,
+    // and what the file really is.
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Only image files are supported. Choose a PNG, JPG or WebP picture.");
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_BYTES) {
+      setUploadError("Images must be 2 MB or smaller.");
+      return;
+    }
+
+    setUploading(true);
 
     try {
       setImageUrl(await uploadQuestionImage(file));
