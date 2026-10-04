@@ -576,6 +576,11 @@
     align-items: flex-start;
   }
 
+  /* The 34px mark is centred within the first row's 44px tap-target height. */
+  .landing-header .wordmark {
+    margin-top: 5px;
+  }
+
   /* Hidden from view but still read out: the mark beside it is decoration
      (an empty alt), so this is what names the brand on a phone. */
   .landing-header .wordmark-text {
