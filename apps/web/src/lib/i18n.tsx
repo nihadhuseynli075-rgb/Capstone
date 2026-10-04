@@ -1071,6 +1071,19 @@ export function formatDay(iso: string, language: Language): string {
   return date.toLocaleDateString(language, { day: "numeric", month: "long", year: "numeric" });
 }
 
+/**
+ * A percentage, given out of 100, in the site language: "26.7%", "26,7 %",
+ * "26,7%". It was "26.7%" in every language.
+ *
+ * Chrome has no Azerbaijani number data either and gives the English form,
+ * so that one is built here: a decimal comma, with the sign straight after
+ * the number.
+ */
+export function formatPercent(value: number, language: Language): string {
+  if (language === "az") return `${new Intl.NumberFormat("ru", { maximumFractionDigits: 1 }).format(value)}%`;
+  return new Intl.NumberFormat(language, { style: "percent", maximumFractionDigits: 1 }).format(value / 100);
+}
+
 export function getStoredLanguage(): Language {
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored === "en" || stored === "ru" || stored === "az") return stored;
