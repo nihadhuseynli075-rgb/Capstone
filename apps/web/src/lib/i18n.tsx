@@ -61,7 +61,9 @@ const en = {
   "main.bestScore": "Best score",
   "main.noTests": "No tests yet",
 
-  "subject.math": "Maths",
+  // The same words the builder, the results and the history use (subjects in
+  // packages/shared), so a subject has one name wherever it is read.
+  "subject.math": "Mathematics",
   "subject.english": "English",
   "subject.russian": "Russian",
 
@@ -71,15 +73,18 @@ const en = {
   "nav.themeToLight": "Switch to light mode",
   "main.profileBody": "Your name, your photo and the ways you sign in.",
 
-  "landing.logIn": "Log In",
-  "landing.signUp": "Sign Up",
+  // The names every other screen gives these two actions. Daily quizzes are
+  // left out of the intro until they exist: their card already says "Coming
+  // soon". "Practise" is the verb and "practice" the noun, as elsewhere.
+  "landing.logIn": "Sign in",
+  "landing.signUp": "Create account",
   "landing.label": "GRADE 9 EXAM PREPARATION",
   "landing.titleLead": "REACH YOUR",
   "landing.titlePeak": "PEAK.",
   "landing.intro":
-    "Exampeak helps Grade 9 students prepare for final exams through mock tests, daily quizzes and detailed results.",
+    "Exampeak helps Grade 9 students prepare for final exams through mock tests and detailed results.",
   "landing.introMore":
-    "Practice by subject and difficulty, identify weak topics and track your progress as you improve.",
+    "Practise by subject and difficulty, identify weak topics and track your progress as you improve.",
   "landing.mockTests": "Mock Tests",
   "landing.mockTestsBody":
     "Create practice tests based on subject, topic and difficulty using Grade 9 exam-style questions.",
@@ -386,12 +391,12 @@ const ru: Dictionary = {
   "main.profileBody": "Ваше имя, фото и способы входа.",
 
   "landing.logIn": "Войти",
-  "landing.signUp": "Регистрация",
+  "landing.signUp": "Создать аккаунт",
   "landing.label": "ПОДГОТОВКА К ЭКЗАМЕНАМ 9 КЛАССА",
   "landing.titleLead": "ДОСТИГНИТЕ СВОЕЙ",
   "landing.titlePeak": "ВЕРШИНЫ.",
   "landing.intro":
-    "Exampeak помогает девятиклассникам готовиться к выпускным экзаменам: пробные тесты, ежедневные викторины и подробные результаты.",
+    "Exampeak помогает девятиклассникам готовиться к выпускным экзаменам: пробные тесты и подробные результаты.",
   "landing.introMore":
     "Тренируйтесь по предметам и уровням сложности, находите слабые темы и следите за своим прогрессом.",
   "landing.mockTests": "Пробные тесты",
@@ -697,12 +702,12 @@ const az: Dictionary = {
   "main.profileBody": "Adınız, şəkliniz və giriş üsulları.",
 
   "landing.logIn": "Daxil ol",
-  "landing.signUp": "Qeydiyyat",
+  "landing.signUp": "Hesab yarat",
   "landing.label": "9-CU SİNİF İMTAHANLARINA HAZIRLIQ",
   "landing.titleLead": "ZİRVƏNİZƏ",
   "landing.titlePeak": "ÇATIN.",
   "landing.intro":
-    "Exampeak 9-cu sinif şagirdlərinə sınaq testləri, gündəlik viktorinalar və ətraflı nəticələrlə buraxılış imtahanlarına hazırlaşmağa kömək edir.",
+    "Exampeak 9-cu sinif şagirdlərinə sınaq testləri və ətraflı nəticələrlə buraxılış imtahanlarına hazırlaşmağa kömək edir.",
   "landing.introMore":
     "Fənn və çətinlik səviyyəsinə görə məşq edin, zəif mövzuları tapın və inkişafınızı izləyin.",
   "landing.mockTests": "Sınaq testləri",
