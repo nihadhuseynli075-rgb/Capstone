@@ -384,6 +384,23 @@ button:focus-visible {
   outline: none;
 }
 
+/*
+ * Words for screen readers only, such as the question's number read out
+ * before its text. Clipped rather than display: none, which would hide them
+ * from screen readers too.
+ */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;

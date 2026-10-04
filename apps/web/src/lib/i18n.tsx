@@ -471,6 +471,7 @@ const en = {
   "exam.palette": "Jump to question",
   "exam.dotAnswered": "Question {n}, answered",
   "exam.dotUnanswered": "Question {n}, not answered",
+  "exam.questionNumber": "Question {n} of {total}.",
   "exam.diagram": "Question diagram",
   "exam.yourAnswer": "Your answer",
   "exam.writtenPlaceholder": "Write your answer here. A teacher-style marker will read it when you submit.",
@@ -995,6 +996,7 @@ const ru: Dictionary = {
   "exam.palette": "Перейти к вопросу",
   "exam.dotAnswered": "Вопрос {n}, есть ответ",
   "exam.dotUnanswered": "Вопрос {n}, нет ответа",
+  "exam.questionNumber": "Вопрос {n} из {total}.",
   "exam.diagram": "Рисунок к вопросу",
   "exam.yourAnswer": "Ваш ответ",
   "exam.writtenPlaceholder":
@@ -1515,6 +1517,7 @@ const az: Dictionary = {
   "exam.palette": "Suala keç",
   "exam.dotAnswered": "Sual {n}, cavablanıb",
   "exam.dotUnanswered": "Sual {n}, cavabsız",
+  "exam.questionNumber": "Sual {n} / {total}.",
   "exam.diagram": "Sualın şəkli",
   "exam.yourAnswer": "Cavabınız",
   "exam.writtenPlaceholder":
