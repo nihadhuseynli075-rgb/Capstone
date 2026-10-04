@@ -761,11 +761,11 @@ const ru: Dictionary = {
   "friends.empty": "Друзей пока нет. Добавьте кого-нибудь выше по почте или имени пользователя.",
   "friends.since": "Друзья с",
   "friends.remove": "Удалить",
-  "friends.removeConfirm": "Удалить {name} из друзей? Вы перестанете видеть прогресс друг друга.",
+  "friends.removeConfirm": "Удалить из друзей: {name}? Вы перестанете видеть прогресс друг друга.",
   "friends.removeYes": "Да, удалить",
   "friends.removeNo": "Оставить",
 
-  "friends.compareCaption": "Ваш прогресс в сравнении с {name}",
+  "friends.compareCaption": "Сравнение прогресса: вы и {name}",
   "friends.you": "Вы",
   "friends.testsTaken": "Пройдено тестов",
   "friends.bestScore": "Лучший результат",
