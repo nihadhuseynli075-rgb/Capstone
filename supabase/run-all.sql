@@ -1,7 +1,7 @@
 -- Exampeak: the whole schema, in one run.
 --
 -- Paste this into the Supabase SQL editor (Dashboard -> SQL Editor -> New
--- query) and run it. It is migrations 0001 to 0014 concatenated in order, with
+-- query) and run it. It is migrations 0001 to 0013 concatenated in order, with
 -- nothing else added, so it stays the same thing the numbered files say.
 --
 -- ---------------------------------------------------------------------------
@@ -1645,12 +1645,27 @@ alter table profiles
   alter column username set not null;
 
 -- ---------------------------------------------------------------------------
--- 0013_friendships_api_only.sql
+-- 0013_friends_privacy.sql
 -- ---------------------------------------------------------------------------
 
--- Exampeak: only the API writes friendships.
+-- Exampeak: friends and usernames give nothing away.
 --
--- Run this in the Supabase SQL editor after 0005_daily_quiz_and_friends.sql.
+-- Run this in the Supabase SQL editor after 0012_usernames.sql. It needs 0005
+-- (the friendships table) and 0012 (usernames) to be in already.
+--
+-- Two fixes from the friends bug hunt, in one file:
+--
+--   Part 1. Only the API writes friendships. No signed-in student can make
+--           themselves anyone's friend, or block anyone, straight through
+--           PostgREST.
+--   Part 2. A username is never made out of the email address, and the ones
+--           the old generator copied from an address are replaced.
+--
+-- Every statement here is safe to run twice.
+
+-- ===========================================================================
+-- Part 1. Only the API writes friendships
+-- ===========================================================================
 --
 -- ---------------------------------------------------------------------------
 -- Why
@@ -1677,8 +1692,6 @@ alter table profiles
 -- With RLS on and no policy for a command, Postgres refuses that command for
 -- the anon and authenticated roles. Reading your own rows stays allowed.
 --
--- Every statement here is safe to run twice.
-
 drop policy if exists "own friendships insertable" on friendships;
 drop policy if exists "incoming friendships answerable" on friendships;
 drop policy if exists "own friendships deletable" on friendships;
@@ -1687,13 +1700,9 @@ drop policy if exists "own friendships deletable" on friendships;
 -- to write with. The service role, which the API uses, keeps its own.
 revoke insert, update, delete on friendships from anon, authenticated;
 
--- ---------------------------------------------------------------------------
--- 0014_usernames_without_email.sql
--- ---------------------------------------------------------------------------
-
--- Exampeak: a username is never made out of the email address.
---
--- Run this in the Supabase SQL editor after 0012_usernames.sql.
+-- ===========================================================================
+-- Part 2. A username is never made out of the email address
+-- ===========================================================================
 --
 -- ---------------------------------------------------------------------------
 -- Why
@@ -1727,8 +1736,6 @@ revoke insert, update, delete on friendships from anon, authenticated;
 -- one. (Rerunning 0012 on its own would bring the old one back; run-all.sql
 -- runs this straight after it, which puts it right again.)
 --
--- Every statement here is safe to run twice.
-
 -- ---------------------------------------------------------------------------
 -- 1. Russian letters in Latin ones
 -- ---------------------------------------------------------------------------

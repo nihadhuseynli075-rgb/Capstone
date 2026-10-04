@@ -1053,7 +1053,7 @@ async function main() {
       (await usernameOf(nihadToken)) === "nihad" && (await usernameOf(secondNihad.session.access_token)) === "nihad2"
     );
     // A username is shown to everyone a student asks and every friend, so it
-    // must never give away the email address (migration 0014).
+    // must never give away the email address (migration 0013).
     check(
       "a Russian name is written out in Latin letters, not taken from the email",
       (await usernameOf((await signUpAs("igor.secret@standin.test", "Игорь Петров")).session.access_token)) === "igor_petrov"
@@ -1748,7 +1748,7 @@ async function main() {
       const answer = (token, requestId, verb) => call(`/api/friends/requests/${requestId}/${verb}`, { method: "POST", token });
       const withdraw = (token, requestId) => call(`/api/friends/requests/${requestId}`, { method: "DELETE", token });
       const unfriend = (token, friendshipId) => call(`/api/friends/${friendshipId}`, { method: "DELETE", token });
-      // The username is whatever 0014's generator made of the account, so it
+      // The username is whatever 0013's generator made of the account, so it
       // is read back rather than guessed from the email or the name.
       const makeAccount = async (email, fullName) => {
         const made = (await control("users", { email, fullName })).body;

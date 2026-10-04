@@ -42,7 +42,7 @@
  *     The same goes for 0012's usernames: the column, its NOT NULL, the
  *     lowercase format check and the unique index are enforced here, and a
  *     profile inserted without a username is given one by generateUsername,
- *     which imitates generate_username as 0014 leaves it.
+ *     which imitates generate_username as 0013 leaves it.
  *
  * Tests steer it through /__standin: create accounts, expire their sessions,
  * inject failures and latency, read or edit rows directly, and play the inbox:
@@ -85,7 +85,7 @@ function column(type, options = {}) {
 const oneOf = (values) => (value) => values.includes(value);
 
 // ---------------------------------------------------------------------------
-// Usernames (migrations 0012 and 0014)
+// Usernames (migrations 0012 and 0013)
 // ---------------------------------------------------------------------------
 
 /** The same list as `reserved` in generate_username, and in packages/shared/src/usernames.ts. */
@@ -98,7 +98,7 @@ const RESERVED_USERNAMES = [
 
 const USERNAME_FORMAT = /^[a-z][a-z0-9_.]{2,19}$/;
 
-/** Russian Cyrillic in Latin letters, as transliterate_username_source in 0014 writes it. */
+/** Russian Cyrillic in Latin letters, as transliterate_username_source in 0013 writes it. */
 const CYRILLIC = {
   а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "yo", ж: "zh", з: "z", и: "i", й: "y", к: "k",
   л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "kh", ц: "ts",
@@ -106,7 +106,7 @@ const CYRILLIC = {
 };
 
 /**
- * generate_username as 0014 leaves it, step for step: the name with Russian
+ * generate_username as 0013 leaves it, step for step: the name with Russian
  * letters written out in Latin ones, then the Azerbaijani letters marked off;
  * anything else not allowed becomes "_"; "student" when fewer than three
  * letters are left; then the first of "name", "name2", "name3"... that is

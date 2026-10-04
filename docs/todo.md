@@ -21,7 +21,7 @@ Next session: **Saturday 3 October, 4:30pm Nihad's time (Baku)**, 30 minutes.
 
 ### Nihad
 
-- [ ] **Run `supabase/run-all.sql`** in the Supabase SQL editor (now 0001-0014),
+- [ ] **Run `supabase/run-all.sql`** in the Supabase SQL editor (now 0001-0013),
       then **`supabase/seeds/all-questions.sql`**. Both are safe to run again.
       Don't run the old `maths-questions.sql` again: it would undo the new load.
 - [ ] **Check the questions** using
