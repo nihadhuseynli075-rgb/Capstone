@@ -8,7 +8,7 @@ import type {
   QuestionType
 } from "@grade9/shared";
 import { followsSiteLanguage, markLimits, repeatedOption, subjects, topicIdFor } from "@grade9/shared";
-import { languages, useLanguage } from "../lib/i18n";
+import { adminLanguageNames, adminText } from "./adminText";
 import { uploadQuestionImage } from "../services/adminApi";
 
 /**
@@ -81,7 +81,7 @@ function translationInputs(saved: QuestionTranslations): TranslationInputs {
 }
 
 function languageLabel(language: TranslationLanguage): string {
-  return languages.find((item) => item.id === language)?.label ?? language;
+  return adminLanguageNames[language];
 }
 
 /**
@@ -161,7 +161,6 @@ export function QuestionForm({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const { t } = useLanguage();
 
   const knownTopics = subjects.find((subject) => subject.id === subjectId)?.topics ?? [];
 
@@ -204,9 +203,9 @@ export function QuestionForm({
 
       if (prompt.length === 0 && explanation.length === 0 && correctAnswer.length === 0 && !hasOptions) continue;
 
-      if (prompt.length === 0) return `${languageLabel(language)}: ${t("translations.errorNoPrompt")}`;
+      if (prompt.length === 0) return `${languageLabel(language)}: ${adminText.translationErrorNoPrompt}`;
       if (hasOptions && translatedOptions.some((option) => option.length === 0)) {
-        return `${languageLabel(language)}: ${t("translations.errorOptions")}`;
+        return `${languageLabel(language)}: ${adminText.translationErrorOptions}`;
       }
 
       const translation: QuestionTranslation = { prompt };
@@ -464,10 +463,10 @@ export function QuestionForm({
           open={Object.keys(initial?.translations ?? {}).length > 0}
         >
           <summary>
-            {t("translations.title")} <span className="field-hint">({t("translations.optional")})</span>
+            {adminText.translationsTitle} <span className="field-hint">({adminText.translationsOptional})</span>
           </summary>
 
-          <p className="panel-hint">{t("translations.intro")}</p>
+          <p className="panel-hint">{adminText.translationsIntro}</p>
 
           {translationLanguages.map((language) => (
             <TranslationBlock
@@ -581,7 +580,6 @@ function TranslationBlock({
   value: TranslationInput;
   onChange: (changes: Partial<TranslationInput>) => void;
 }) {
-  const { t } = useLanguage();
   const label = languageLabel(language);
   const filledSlots = baseOptions.flatMap((option, slot) => (option.trim().length > 0 ? [slot] : []));
 
@@ -590,15 +588,15 @@ function TranslationBlock({
       <legend>{label}</legend>
 
       <label>
-        {t("translations.prompt")}
+        {adminText.translationPrompt}
         <textarea rows={2} value={value.prompt} onChange={(event) => onChange({ prompt: event.target.value })} />
       </label>
 
       {type === "multiple-choice" && (
         <fieldset className="options-fieldset">
-          <legend>{t("translations.options")}</legend>
+          <legend>{adminText.translationOptions}</legend>
 
-          {filledSlots.length === 0 && <p className="field-hint">{t("translations.addOptionsFirst")}</p>}
+          {filledSlots.length === 0 && <p className="field-hint">{adminText.translationAddOptionsFirst}</p>}
 
           {filledSlots.map((slot) => (
             <div key={slot} className="translation-option-row">
@@ -606,7 +604,7 @@ function TranslationBlock({
               <input
                 type="text"
                 value={value.options[slot] ?? ""}
-                aria-label={`${label}, ${t("translations.optionFor")} ${String.fromCharCode(65 + slot)}`}
+                aria-label={`${label}, ${adminText.translationOptionFor} ${String.fromCharCode(65 + slot)}`}
                 onChange={(event) => {
                   const options = [...value.options];
                   while (options.length <= slot) options.push("");
@@ -615,9 +613,9 @@ function TranslationBlock({
                 }}
               />
               <span className="field-hint translation-option-base">
-                {t("translations.optionFor")} {baseOptions[slot].trim()}
+                {adminText.translationOptionFor} {baseOptions[slot].trim()}
                 {slot === correctIndex && (
-                  <strong className="translation-correct"> - {t("translations.correctOption")}</strong>
+                  <strong className="translation-correct"> - {adminText.translationCorrectOption}</strong>
                 )}
               </span>
             </div>
@@ -627,18 +625,18 @@ function TranslationBlock({
 
       {type === "short-answer" && (
         <label>
-          {t("translations.answer")}
+          {adminText.translationAnswer}
           <input
             type="text"
             value={value.correctAnswer}
             onChange={(event) => onChange({ correctAnswer: event.target.value })}
           />
-          <span className="field-hint">{t("translations.answerHint")}</span>
+          <span className="field-hint">{adminText.translationAnswerHint}</span>
         </label>
       )}
 
       <label>
-        {t("translations.explanation")}
+        {adminText.translationExplanation}
         <textarea
           rows={2}
           value={value.explanation}

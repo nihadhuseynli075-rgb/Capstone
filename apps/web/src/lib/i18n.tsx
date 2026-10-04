@@ -183,41 +183,6 @@ const en = {
     "Your profile, your photo and your test history are gone. You can still take tests as a guest whenever you like.",
   "profile.backHome": "Back to the home page",
 
-  // Translations
-  "translations.title": "Translations",
-  "translations.optional": "optional",
-  "translations.intro":
-    "Maths questions are shown in the language a student has chosen for the site. Above is the question as first written. Add other languages here; where there is no translation, students see the text above.",
-  "translations.prompt": "Question text",
-  "translations.options": "Options, in the same order as above",
-  "translations.optionFor": "translation of",
-  "translations.correctOption": "Correct answer",
-  "translations.explanation": "Explanation",
-  "translations.answer": "Correct answer in this language",
-  "translations.answerHint":
-    "Only for short answers that read differently, like 26 cm and 26 см. Leave empty to use the answer above.",
-  "translations.addOptionsFirst":
-    "Fill in the options above first: each translated option is matched to one of them by its position.",
-  "translations.errorNoPrompt": "add the question text, or clear everything for this language.",
-  "translations.errorOptions": "translate every option shown, or none of them.",
-  "translations.listLabel": "Translations",
-  "translations.listNone": "none yet",
-  "import.dropTitle": "Drop a CSV or TSV file here",
-  "import.dropOr": "or",
-  "import.choose": "choose a file",
-  "import.dropActive": "Drop to load this file",
-  "import.loaded": "Loaded",
-  "import.loadedHint": "Check it below, then press Import questions.",
-  "import.notSheet":
-    "That is not a .csv or .tsv file. In Google Sheets choose File, Download, Comma-separated values.",
-  "import.empty": "That file is empty.",
-  "import.tooBig":
-    "That file is over 2 MB, which is far more than a question sheet. Check it is the right one.",
-  "import.unreadable": "That file could not be read.",
-  "import.firstOnly": "Only one file is loaded at a time, so only the first was used.",
-  "import.translationHint":
-    "A translation goes in a column with the same name ending in _ru or _en: question_ru, option_a_ru, explanation_ru. See docs/question-format.md.",
-
   // Friends
   "friends.title": "Friends",
   "friends.subtitle": "Add friends by email or username, and see how your test results compare.",
@@ -528,41 +493,6 @@ const ru: Dictionary = {
     "Ваш профиль, фото и история тестов удалены. Вы по-прежнему можете проходить тесты как гость.",
   "profile.backHome": "На главную",
 
-  // Translations
-  "translations.title": "Переводы",
-  "translations.optional": "необязательно",
-  "translations.intro":
-    "Задания по математике показываются на языке, который ученик выбрал для сайта. Выше задание в том виде, в каком оно было написано. Добавьте здесь другие языки; если перевода нет, ученик видит текст выше.",
-  "translations.prompt": "Текст задания",
-  "translations.options": "Варианты ответа, в том же порядке, что и выше",
-  "translations.optionFor": "перевод варианта",
-  "translations.correctOption": "Верный ответ",
-  "translations.explanation": "Объяснение",
-  "translations.answer": "Верный ответ на этом языке",
-  "translations.answerHint":
-    "Нужен только для коротких ответов, которые пишутся по-разному, например 26 cm и 26 см. Если оставить пустым, берётся ответ выше.",
-  "translations.addOptionsFirst":
-    "Сначала заполните варианты ответа выше: каждый переведённый вариант сопоставляется с одним из них по порядку.",
-  "translations.errorNoPrompt": "добавьте текст задания или очистите все поля для этого языка.",
-  "translations.errorOptions": "переведите все показанные варианты или ни одного.",
-  "translations.listLabel": "Переводы",
-  "translations.listNone": "пока нет",
-  "import.dropTitle": "Перетащите сюда файл CSV или TSV",
-  "import.dropOr": "или",
-  "import.choose": "выберите файл",
-  "import.dropActive": "Отпустите, чтобы загрузить файл",
-  "import.loaded": "Загружено",
-  "import.loadedHint": "Проверьте текст ниже и нажмите Import questions.",
-  "import.notSheet":
-    "Это не файл .csv или .tsv. В Google Таблицах выберите «Файл», «Скачать», «Значения, разделённые запятыми».",
-  "import.empty": "Этот файл пуст.",
-  "import.tooBig":
-    "Файл больше 2 МБ, а это намного больше, чем таблица с вопросами. Проверьте, тот ли это файл.",
-  "import.unreadable": "Не удалось прочитать этот файл.",
-  "import.firstOnly": "Загружается один файл за раз, поэтому использован только первый.",
-  "import.translationHint":
-    "Перевод добавляется в столбец с тем же названием и окончанием _ru или _en: question_ru, option_a_ru, explanation_ru. Подробности в docs/question-format.md.",
-
   // Friends
   "friends.title": "Друзья",
   "friends.subtitle":
@@ -866,41 +796,6 @@ const az: Dictionary = {
   "profile.deletedBody":
     "Profiliniz, şəkliniz və test tarixçəniz silindi. İstədiyiniz vaxt qonaq kimi test həll etməyə davam edə bilərsiniz.",
   "profile.backHome": "Ana səhifəyə qayıt",
-
-  // Translations
-  "translations.title": "Tərcümələr",
-  "translations.optional": "ixtiyari",
-  "translations.intro":
-    "Riyaziyyat tapşırıqları şagirdin sayt üçün seçdiyi dildə göstərilir. Yuxarıda tapşırıq ilkin yazıldığı kimidir. Digər dilləri burada əlavə edin; tərcümə olmayan dildə şagird yuxarıdakı mətni görür.",
-  "translations.prompt": "Tapşırığın mətni",
-  "translations.options": "Cavab variantları, yuxarıdakı ilə eyni sıra ilə",
-  "translations.optionFor": "variantın tərcüməsi",
-  "translations.correctOption": "Düzgün cavab",
-  "translations.explanation": "İzah",
-  "translations.answer": "Bu dildə düzgün cavab",
-  "translations.answerHint":
-    "Yalnız fərqli yazılan qısa cavablar üçündür, məsələn, 26 cm və 26 см. Boş buraxsanız, yuxarıdakı cavab götürülür.",
-  "translations.addOptionsFirst":
-    "Əvvəlcə yuxarıdakı cavab variantlarını doldurun: tərcümə olunmuş hər variant sıra ilə onlardan biri ilə uyğunlaşdırılır.",
-  "translations.errorNoPrompt": "tapşırığın mətnini əlavə edin və ya bu dil üçün bütün sahələri silin.",
-  "translations.errorOptions": "göstərilən bütün variantları tərcümə edin və ya heç birini.",
-  "translations.listLabel": "Tərcümələr",
-  "translations.listNone": "hələ yoxdur",
-  "import.dropTitle": "CSV və ya TSV faylını bura sürüşdürün",
-  "import.dropOr": "və ya",
-  "import.choose": "fayl seçin",
-  "import.dropActive": "Faylı yükləmək üçün buraxın",
-  "import.loaded": "Yükləndi",
-  "import.loadedHint": "Aşağıdakı mətni yoxlayın, sonra Import questions düyməsini basın.",
-  "import.notSheet":
-    ".csv və ya .tsv faylı deyil. Google Cədvəllərdə Fayl, Yüklə, Vergüllə ayrılmış dəyərlər seçin.",
-  "import.empty": "Bu fayl boşdur.",
-  "import.tooBig":
-    "Fayl 2 MB-dan böyükdür, bu isə sual cədvəlindən xeyli böyükdür. Düzgün fayl olduğunu yoxlayın.",
-  "import.unreadable": "Bu faylı oxumaq mümkün olmadı.",
-  "import.firstOnly": "Eyni anda yalnız bir fayl yüklənir, ona görə yalnız birincisi istifadə olundu.",
-  "import.translationHint":
-    "Tərcümə eyni adlı, lakin sonu _ru və ya _en olan sütunda yazılır: question_ru, option_a_ru, explanation_ru. Ətraflı: docs/question-format.md.",
 
   // Friends
   "friends.title": "Dostlar",

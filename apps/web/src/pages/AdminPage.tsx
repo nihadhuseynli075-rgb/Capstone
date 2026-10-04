@@ -10,7 +10,7 @@ import {
   topicName
 } from "@grade9/shared";
 import { QuestionForm, type QuestionCarryOver } from "../components/QuestionForm";
-import { useLanguage } from "../lib/i18n";
+import { adminText } from "../components/adminText";
 import { ApiError } from "../services/apiClient";
 import {
   adminLogin,
@@ -93,7 +93,6 @@ function LoginScreen({ onSignedIn }: { onSignedIn: (storageMode: string, isDefau
 }
 
 export function AdminPage() {
-  const { t } = useLanguage();
   const [token, setToken] = useState<string | null>(() => getAdminToken());
   const [tab, setTab] = useState<Tab>("add");
 
@@ -321,17 +320,17 @@ export function AdminPage() {
 
     // Judged by name: a CSV saved on Windows often has no type at all.
     if (!/\.(csv|tsv)$/i.test(file.name)) {
-      setSheetNote({ kind: "error", text: t("import.notSheet") });
+      setSheetNote({ kind: "error", text: adminText.importNotSheet });
       return;
     }
 
     if (file.size === 0) {
-      setSheetNote({ kind: "error", text: t("import.empty") });
+      setSheetNote({ kind: "error", text: adminText.importEmpty });
       return;
     }
 
     if (file.size > MAX_SHEET_BYTES) {
-      setSheetNote({ kind: "error", text: t("import.tooBig") });
+      setSheetNote({ kind: "error", text: adminText.importTooBig });
       return;
     }
 
@@ -339,17 +338,17 @@ export function AdminPage() {
       const text = await file.text();
 
       if (text.trim().length === 0) {
-        setSheetNote({ kind: "error", text: t("import.empty") });
+        setSheetNote({ kind: "error", text: adminText.importEmpty });
         return;
       }
 
       setCsv(text);
       setSheetNote({
         kind: "success",
-        text: `${t("import.loaded")} ${file.name}. ${t("import.loadedHint")}${fileCount > 1 ? ` ${t("import.firstOnly")}` : ""}`
+        text: `${adminText.importLoaded} ${file.name}. ${adminText.importLoadedHint}${fileCount > 1 ? ` ${adminText.importFirstOnly}` : ""}`
       });
     } catch {
-      setSheetNote({ kind: "error", text: t("import.unreadable") });
+      setSheetNote({ kind: "error", text: adminText.importUnreadable });
     }
   }
 
@@ -491,14 +490,14 @@ export function AdminPage() {
                     <p className="question-row-answer">Answer: {question.correctAnswer || "not entered yet"}</p>
                     {followsSiteLanguage(question.subjectId) && (
                       <p className="question-row-translations">
-                        {t("translations.listLabel")}:{" "}
+                        {adminText.translationsListLabel}:{" "}
                         {siteLanguages.filter((language) => question.translations?.[language]).map((language) => (
                           <span key={language} className="translation-chip">
                             {language.toUpperCase()}
                           </span>
                         ))}
                         {!siteLanguages.some((language) => question.translations?.[language]) && (
-                          <span className="translation-none">{t("translations.listNone")}</span>
+                          <span className="translation-none">{adminText.translationsListNone}</span>
                         )}
                       </p>
                     )}
@@ -551,7 +550,7 @@ export function AdminPage() {
             {markLimits.max}. Leave it blank and the question counts for one.
           </p>
 
-          <p className="panel-hint">{t("import.translationHint")}</p>
+          <p className="panel-hint">{adminText.importTranslationHint}</p>
 
           {/* A file dropped here fills the box below; nothing is imported until the button is pressed. */}
           <div
@@ -570,9 +569,9 @@ export function AdminPage() {
               void loadSheet(event.dataTransfer.files);
             }}
           >
-            <strong>{dragging ? t("import.dropActive") : t("import.dropTitle")}</strong>
+            <strong>{dragging ? adminText.importDropActive : adminText.importDropTitle}</strong>
             <label className="drop-zone-pick">
-              {t("import.dropOr")} {t("import.choose")}
+              {adminText.importDropOr} {adminText.importChoose}
               <input
                 type="file"
                 accept=".csv,.tsv,text/csv,text/tab-separated-values"
