@@ -315,6 +315,28 @@ function isKnownRoute(path: string): boolean {
 }
 
 
+/** The page's name for the tab title, from its route. */
+function titleKeyFor(path: string, signedIn: boolean): TranslationKey {
+  if (!isKnownRoute(path)) return "title.notFound";
+  if (path === "/") return signedIn ? "title.dashboard" : "title.home";
+  if (path.startsWith("/results")) return "title.results";
+
+  const titles: Record<string, TranslationKey> = {
+    "/login": "title.signIn",
+    "/register": "title.register",
+    "/build": "title.build",
+    "/exam": "title.exam",
+    "/history": "title.history",
+    "/friends": "title.friends",
+    "/profile": "title.profile",
+    "/settings": "title.settings",
+    "/admin": "title.admin"
+  };
+
+  return titles[path] ?? "title.home";
+}
+
+
 function Shell() {
   const path = useRoute();
 
@@ -345,6 +367,16 @@ function Shell() {
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
+
+
+  /*
+   * Each page names itself in the tab, the browser history and a screen
+   * reader's announcement of the page. With one title for the whole site,
+   * every tab and every step back read "Exampeak - Grade 9 mock tests".
+   */
+  useEffect(() => {
+    document.title = `${t(titleKeyFor(path, user !== null))} - Exampeak`;
+  }, [path, user, t]);
 
 
   useEffect(() => {

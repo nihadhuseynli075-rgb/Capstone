@@ -344,7 +344,22 @@ const en = {
   "notFound.body":
     "There is nothing at this address. The link may have a typing mistake in it, or the page may have moved.",
   "notFound.home": "Go to the home page",
-  "notFound.dashboard": "Go to your dashboard"
+  "notFound.dashboard": "Go to your dashboard",
+
+  // Page titles, shown in the tab and the history as "<page> - Exampeak"
+  "title.home": "Grade 9 mock tests",
+  "title.dashboard": "Dashboard",
+  "title.signIn": "Sign in",
+  "title.register": "Create account",
+  "title.build": "Create a mock test",
+  "title.exam": "Test in progress",
+  "title.results": "Results",
+  "title.history": "Test history",
+  "title.friends": "Friends",
+  "title.profile": "Your profile",
+  "title.settings": "Settings",
+  "title.admin": "Admin dashboard",
+  "title.notFound": "Page not found"
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -666,7 +681,22 @@ const ru: Dictionary = {
   "notFound.body":
     "По этому адресу ничего нет. Возможно, в ссылке опечатка или страница переехала.",
   "notFound.home": "На главную",
-  "notFound.dashboard": "На главную"
+  "notFound.dashboard": "На главную",
+
+  // Page titles
+  "title.home": "Пробные тесты для 9 класса",
+  "title.dashboard": "Главная",
+  "title.signIn": "Вход",
+  "title.register": "Создать аккаунт",
+  "title.build": "Новый пробный тест",
+  "title.exam": "Идёт тест",
+  "title.results": "Результаты",
+  "title.history": "История тестов",
+  "title.friends": "Друзья",
+  "title.profile": "Ваш профиль",
+  "title.settings": "Настройки",
+  "title.admin": "Панель администратора",
+  "title.notFound": "Страница не найдена"
 };
 
 const az: Dictionary = {
@@ -984,7 +1014,22 @@ const az: Dictionary = {
   "notFound.body":
     "Bu ünvanda heç nə yoxdur. Linkdə hərf səhvi ola bilər, ya da səhifə başqa yerə köçüb.",
   "notFound.home": "Ana səhifəyə qayıt",
-  "notFound.dashboard": "Ana səhifəyə qayıt"
+  "notFound.dashboard": "Ana səhifəyə qayıt",
+
+  // Page titles
+  "title.home": "9-cu sinif üçün sınaq testləri",
+  "title.dashboard": "Ana səhifə",
+  "title.signIn": "Daxil ol",
+  "title.register": "Hesab yarat",
+  "title.build": "Yeni sınaq testi",
+  "title.exam": "Test gedir",
+  "title.results": "Nəticələr",
+  "title.history": "Test tarixçəsi",
+  "title.friends": "Dostlar",
+  "title.profile": "Profiliniz",
+  "title.settings": "Tənzimləmələr",
+  "title.admin": "Admin paneli",
+  "title.notFound": "Səhifə tapılmadı"
 };
 
 const dictionaries: Record<Language, Dictionary> = { en, ru, az };
