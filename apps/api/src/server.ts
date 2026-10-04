@@ -18,6 +18,22 @@ const app = express();
 // authoritative everywhere else.
 const LOCALHOST_ORIGIN = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/;
 
+/**
+ * A request from a page on an origin this API does not serve.
+ *
+ * It is refused before any route runs, so a form or script on another site
+ * cannot make a student's browser act here. That refusal is the visitor's
+ * page being where it should not be, not the server failing: it is a 403,
+ * and it is not logged as an error on every such request, which a plain
+ * Error turned into a 500 with a stack trace in the log.
+ */
+class OriginRefused extends Error {
+  constructor(readonly origin: string) {
+    super(`Origin ${origin} is not allowed by CORS.`);
+    this.name = "OriginRefused";
+  }
+}
+
 app.use(
   cors({
     origin(origin, callback) {
@@ -32,7 +48,7 @@ app.use(
         return;
       }
 
-      callback(new Error(`Origin ${origin} is not allowed by CORS.`));
+      callback(new OriginRefused(origin));
     },
     // A signed-in student's requests carry an Authorization header, so each
     // needs the browser's preflight check first. Without a max age browsers
@@ -74,6 +90,13 @@ interface BodyError extends Error {
 }
 
 app.use((error: BodyError, request: Request, response: Response, _next: NextFunction) => {
+  if (error instanceof OriginRefused) {
+    return response.status(403).json({
+      code: "origin-not-allowed",
+      message: "This API does not take requests from that website."
+    });
+  }
+
   // A body over the limit above was answered as a 500 reading "request entity
   // too large": a picture of 4 MB, say, which grows by a third as base64. It
   // is the sender's to fix, so it is a 413 in words, before any route runs.

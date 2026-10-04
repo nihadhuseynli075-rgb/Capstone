@@ -724,6 +724,30 @@ async function main() {
   const fakeGzip = await rawPost({ "Content-Encoding": "gzip" }, "not gzip");
   check("a body that claims gzip and is not is a 400", fakeGzip.status === 400, `got ${fakeGzip.status}`);
 
+  section("Other websites are refused, as a 403");
+  // A page on another site is refused before any route runs. That used to be
+  // a 500 with a stack trace logged for every such request.
+  const foreign = await fetch(`${BASE_URL}/api/catalog`, { headers: { Origin: "http://evil.example" } });
+  const foreignBody = await foreign.json().catch(() => ({}));
+  check(
+    "a request from another website is a 403 with a code",
+    foreign.status === 403 && foreignBody.code === "origin-not-allowed",
+    `${foreign.status} ${JSON.stringify(foreignBody)}`
+  );
+  const foreignPreflight = await fetch(`${BASE_URL}/api/tests/generate`, {
+    method: "OPTIONS",
+    headers: { Origin: "http://evil.example", "Access-Control-Request-Method": "POST" }
+  });
+  check("so is its preflight", foreignPreflight.status === 403, `got ${foreignPreflight.status}`);
+  // The smoke test runs against a development API, where any localhost port
+  // is the Vite dev server.
+  const devOrigin = await fetch(`${BASE_URL}/api/catalog`, { headers: { Origin: "http://localhost:5999" } });
+  check(
+    "a localhost page is allowed outside production",
+    devOrigin.status === 200 && devOrigin.headers.get("access-control-allow-origin") === "http://localhost:5999",
+    `got ${devOrigin.status}`
+  );
+
   section("Untimed tests have no limit");
   // The browser's figure used to be refused above six hours, so an untimed
   // test left open that long could never be handed in, however often it retried.
