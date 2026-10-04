@@ -1647,22 +1647,20 @@ button:focus-visible {
   /* --------------------------------------------------------------- admin */
 
   /*
-   * The tab strip scrolls rather than wrapping, so the panel below always
-   * starts in the same place whichever tab is open.
+   * The tabs share the available width, and their labels wrap instead of
+   * hiding the last tab beyond the edge of a phone.
    */
   .tab-row {
     flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .tab-row::-webkit-scrollbar {
-    display: none;
   }
 
   .tab {
-    flex: 0 0 auto;
+    flex: 1 1 0;
+    min-width: 0;
     min-height: 44px;
+    padding-inline: 8px;
+    text-align: center;
+    white-space: normal;
   }
 
   .question-row-actions {
