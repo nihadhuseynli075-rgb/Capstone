@@ -159,6 +159,7 @@ export const profileLimits = {
 } as const;
 
 export * from "./usernames";
+export * from "./topics";
 
 /**
  * A student's profile: how they appear in the app.

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type {
   BankQuestion,
   Difficulty,
@@ -7,14 +7,26 @@ import type {
   QuestionTranslations,
   QuestionType
 } from "@grade9/shared";
-import { followsSiteLanguage, markLimits, subjects } from "@grade9/shared";
+import { followsSiteLanguage, markLimits, subjects, topicIdFor } from "@grade9/shared";
 import { languages, useLanguage } from "../lib/i18n";
 import { uploadQuestionImage } from "../services/adminApi";
 
-const OPTION_SLOTS = 4;
+/**
+ * Every question on a DIM paper has five options, A to E, so the form offers
+ * five. A question saved with fewer (the older four-option ones) leaves the
+ * rest empty; one saved with more keeps them all (see paddedOptions).
+ */
+const OPTION_SLOTS = 5;
+
+/** The options as typed, padded with empty ones up to the slots the form always offers. */
+function paddedOptions(options: readonly string[]): string[] {
+  const padded = [...options];
+  while (padded.length < OPTION_SLOTS) padded.push("");
+  return padded;
+}
 
 function emptyOptions(): string[] {
-  return Array.from({ length: OPTION_SLOTS }, () => "");
+  return paddedOptions([]);
 }
 
 /**
@@ -27,8 +39,8 @@ const translationLanguages = ["en", "ru"] as const;
 type TranslationLanguage = (typeof translationLanguages)[number];
 
 /**
- * One language's translation as it is typed. The options sit in the same four
- * slots as the question's own, so slot B here is the translation of option B.
+ * One language's translation as it is typed. The options sit in the same slots
+ * as the question's own, so slot B here is the translation of option B.
  */
 interface TranslationInput {
   prompt: string;
@@ -54,12 +66,9 @@ function translationInputs(saved: QuestionTranslations): TranslationInputs {
     const translation = saved[language];
     if (!translation) continue;
 
-    const options = [...(translation.options ?? [])];
-    while (options.length < OPTION_SLOTS) options.push("");
-
     inputs[language] = {
       prompt: translation.prompt,
-      options,
+      options: paddedOptions(translation.options ?? []),
       explanation: translation.explanation ?? "",
       correctAnswer: translation.correctAnswer ?? ""
     };
@@ -73,85 +82,81 @@ function languageLabel(language: TranslationLanguage): string {
 }
 
 /**
+ * What a paper's questions have in common, kept from one question to the next.
+ *
+ * Someone typing in a paper adds a run of questions with the same subject,
+ * topic, difficulty, year and source. Starting each from empty meant picking
+ * all five again every time. The question itself, its options and its
+ * explanation are never carried, so nothing of the last question leaks into
+ * the next.
+ */
+export interface QuestionCarryOver {
+  subjectId: string;
+  topicId: string;
+  difficulty: Difficulty;
+  paperYear: number | null;
+  source: string | null;
+}
+
+/**
  * The question entry form.
  *
  * Laid out like a survey form on purpose: one question per screen, fill it in,
  * submit. Subject is a fixed list, but topic is free text with suggestions,
  * because the real topic names are still being read off the past papers and
  * should not need a code change to add.
+ *
+ * It starts from `initial` (a question being edited) or from empty, and does
+ * not follow later changes to either: the page gives it a new `key` for each
+ * question, which is also how it is emptied after one has been added.
  */
 export function QuestionForm({
   initial,
+  carryOver,
   onSubmit,
   onCancel,
   submitting,
   error
 }: {
   initial: BankQuestion | null;
+  /** Only used when there is no `initial`. */
+  carryOver?: QuestionCarryOver | null;
   onSubmit: (draft: QuestionDraft) => void;
   onCancel?: () => void;
   submitting: boolean;
   error: string | null;
 }) {
-  const [subjectId, setSubjectId] = useState("math");
-  const [topicId, setTopicId] = useState("");
-  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
-  const [type, setType] = useState<QuestionType>("multiple-choice");
-  const [prompt, setPrompt] = useState("");
-  const [options, setOptions] = useState<string[]>(emptyOptions);
-  const [correctIndex, setCorrectIndex] = useState(0);
-  const [shortAnswer, setShortAnswer] = useState("");
-  const [explanation, setExplanation] = useState("");
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [marks, setMarks] = useState("1");
-  const [paperYear, setPaperYear] = useState("");
-  const [source, setSource] = useState("");
-  const [translations, setTranslations] = useState<TranslationInputs>(emptyTranslations);
+  const kept = initial ? null : (carryOver ?? null);
+
+  const [subjectId, setSubjectId] = useState(initial?.subjectId ?? kept?.subjectId ?? "math");
+  const [topicId, setTopicId] = useState(initial?.topicId ?? kept?.topicId ?? "");
+  const [difficulty, setDifficulty] = useState<Difficulty>(initial?.difficulty ?? kept?.difficulty ?? "medium");
+  const [type, setType] = useState<QuestionType>(initial?.type ?? "multiple-choice");
+  const [prompt, setPrompt] = useState(initial?.prompt ?? "");
+  const [options, setOptions] = useState<string[]>(() => paddedOptions(initial?.options ?? []));
+  const [correctIndex, setCorrectIndex] = useState(() =>
+    initial ? Math.max(0, initial.options.indexOf(initial.correctAnswer)) : 0
+  );
+  // Short answers and written questions both keep their text here: the answer
+  // for one, the marking guide for the other.
+  const [shortAnswer, setShortAnswer] = useState(
+    initial && initial.type !== "multiple-choice" ? initial.correctAnswer : ""
+  );
+  const [explanation, setExplanation] = useState(initial?.explanation ?? "");
+  const [imageUrl, setImageUrl] = useState<string | null>(initial?.imageUrl ?? null);
+  const [marks, setMarks] = useState(initial ? String(initial.marks) : "1");
+  const [paperYear, setPaperYear] = useState(() => {
+    const year = initial ? initial.paperYear : (kept?.paperYear ?? null);
+    return year === null ? "" : String(year);
+  });
+  const [source, setSource] = useState(initial?.source ?? kept?.source ?? "");
+  const [translations, setTranslations] = useState<TranslationInputs>(() =>
+    initial ? translationInputs(initial.translations ?? {}) : emptyTranslations()
+  );
 
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!initial) {
-      setSubjectId("math");
-      setTopicId("");
-      setDifficulty("medium");
-      setType("multiple-choice");
-      setPrompt("");
-      setOptions(emptyOptions());
-      setCorrectIndex(0);
-      setShortAnswer("");
-      setExplanation("");
-      setImageUrl(null);
-      setMarks("1");
-      setPaperYear("");
-      setSource("");
-      setTranslations(emptyTranslations());
-      return;
-    }
-
-    setSubjectId(initial.subjectId);
-    setTopicId(initial.topicId);
-    setDifficulty(initial.difficulty);
-    setType(initial.type);
-    setPrompt(initial.prompt);
-
-    const padded = [...initial.options];
-    while (padded.length < OPTION_SLOTS) padded.push("");
-    setOptions(padded);
-
-    setCorrectIndex(Math.max(0, initial.options.indexOf(initial.correctAnswer)));
-    // Short answers and written questions both keep their text here: the
-    // answer for one, the marking guide for the other.
-    setShortAnswer(initial.type === "multiple-choice" ? "" : initial.correctAnswer);
-    setExplanation(initial.explanation);
-    setImageUrl(initial.imageUrl);
-    setMarks(String(initial.marks));
-    setPaperYear(initial.paperYear === null ? "" : String(initial.paperYear));
-    setSource(initial.source ?? "");
-    setTranslations(translationInputs(initial.translations ?? {}));
-  }, [initial]);
 
   const { t } = useLanguage();
 
@@ -188,8 +193,10 @@ export function QuestionForm({
       const prompt = typed.prompt.trim();
       const explanation = typed.explanation.trim();
       const correctAnswer = type === "short-answer" ? typed.correctAnswer.trim() : "";
+      // A slot the translation was never given is empty, not missing: a question
+      // can have more options than the translation was sized for.
       const translatedOptions =
-        type === "multiple-choice" ? filledSlots.map((slot) => typed.options[slot].trim()) : [];
+        type === "multiple-choice" ? filledSlots.map((slot) => (typed.options[slot] ?? "").trim()) : [];
       const hasOptions = translatedOptions.some((option) => option.length > 0);
 
       if (prompt.length === 0 && explanation.length === 0 && correctAnswer.length === 0 && !hasOptions) continue;
@@ -226,6 +233,11 @@ export function QuestionForm({
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+
+    // The button is disabled while saving, but a second press can land before
+    // the page has drawn that, and would save the same question twice.
+    if (submitting) return;
+
     setFormError(null);
 
     const filledOptions = options.map((option) => option.trim()).filter((option) => option.length > 0);
@@ -276,7 +288,8 @@ export function QuestionForm({
 
     onSubmit({
       subjectId,
-      topicId: topicId.trim().toLowerCase().replace(/\s+/g, "-"),
+      // What was typed may be a topic's name rather than its id.
+      topicId: topicIdFor(topicId, knownTopics),
       difficulty,
       type,
       prompt: prompt.trim(),
@@ -568,15 +581,14 @@ function TranslationBlock({
               <span className="option-letter">{String.fromCharCode(65 + slot)}</span>
               <input
                 type="text"
-                value={value.options[slot]}
+                value={value.options[slot] ?? ""}
                 aria-label={`${label}, ${t("translations.optionFor")} ${String.fromCharCode(65 + slot)}`}
-                onChange={(event) =>
-                  onChange({
-                    options: value.options.map((option, position) =>
-                      position === slot ? event.target.value : option
-                    )
-                  })
-                }
+                onChange={(event) => {
+                  const options = [...value.options];
+                  while (options.length <= slot) options.push("");
+                  options[slot] = event.target.value;
+                  onChange({ options });
+                }}
               />
               <span className="field-hint translation-option-base">
                 {t("translations.optionFor")} {baseOptions[slot].trim()}

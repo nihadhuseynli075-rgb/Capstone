@@ -433,6 +433,88 @@ async function main() {
       JSON.stringify(promptOnlyServed)
     );
 
+    section("Admin questions in the table: subjects and five options");
+    const fiveTopic = `${topicId}-five`;
+    const fiveStudent = randomUUID();
+    const fiveBody = (overrides = {}) => ({
+      subjectId: "math",
+      topicId: fiveTopic,
+      difficulty: "easy",
+      type: "multiple-choice",
+      prompt: "Which of these is a prime number?",
+      options: ["4", "6", "8", "9", "11"],
+      correctAnswer: "11",
+      explanation: "11 has no divisors but 1 and itself.",
+      translations: {
+        ru: { prompt: "Какое из этих чисел простое?", options: ["4", "6", "8", "9", "11"] }
+      },
+      ...overrides
+    });
+
+    const stray = await call("/api/admin/questions", {
+      method: "POST",
+      token: adminToken,
+      body: fiveBody({ subjectId: "chemistry", translations: {} })
+    });
+    check("a subject that is not one of ours is refused", stray.status === 400, JSON.stringify(stray.body));
+    check(
+      "and leaves no row in the questions table",
+      !(await rows("questions")).some((row) => row.subject_id === "chemistry"),
+      "a chemistry row was written"
+    );
+
+    // Five options with a Russian translation, the shape the form could not save.
+    const fiveCreated = await call("/api/admin/questions", { method: "POST", token: adminToken, body: fiveBody() });
+    const fiveId = fiveCreated.body.question?.id;
+    check("a five-option question with a Russian translation saves", fiveCreated.status === 201, JSON.stringify(fiveCreated.body));
+    const fiveRow = (await rows("questions", `?id=eq.${fiveId}`))[0];
+    check(
+      "the table holds all five options and all five translated ones",
+      fiveRow?.options?.length === 5 && fiveRow.correct_answer === "11" && fiveRow.translations?.ru?.options?.length === 5,
+      JSON.stringify(fiveRow)
+    );
+
+    const fiveEdited = await call(`/api/admin/questions/${fiveId}`, {
+      method: "PUT",
+      token: adminToken,
+      body: fiveBody({
+        options: ["4", "6", "8", "9", "13"],
+        correctAnswer: "13",
+        translations: {
+          ru: { prompt: "Какое из этих чисел простое?", options: ["4", "6", "8", "9", "13"] }
+        }
+      })
+    });
+    check("it can be edited, with the fifth option changed", fiveEdited.status === 200, JSON.stringify(fiveEdited.body));
+    const fiveEditedRow = (await rows("questions", `?id=eq.${fiveId}`))[0];
+    check(
+      "the edit reached the table",
+      fiveEditedRow?.options?.[4] === "13" && fiveEditedRow.correct_answer === "13" && fiveEditedRow.translations?.ru?.options?.[4] === "13",
+      JSON.stringify(fiveEditedRow)
+    );
+
+    const strayEdit = await call(`/api/admin/questions/${fiveId}`, {
+      method: "PUT",
+      token: adminToken,
+      body: fiveBody({ subjectId: "chemistry", translations: {} })
+    });
+    check("moving it to a subject that is not one of ours is refused", strayEdit.status === 400, JSON.stringify(strayEdit.body));
+    check(
+      "and the row stays in its subject",
+      (await rows("questions", `?id=eq.${fiveId}`))[0]?.subject_id === "math"
+    );
+
+    for (const language of ["en", "ru"]) {
+      const fivePaper = await generate(fiveStudent, undefined, { topicIds: [fiveTopic], language });
+      const fiveServed = fivePaper.body.test?.questions?.find((question) => question.id === fiveId);
+      check(
+        `a student reading in ${language} is served all five options`,
+        fivePaper.status === 200 && fiveServed?.options?.length === 5 && fiveServed.options[4] === "13",
+        JSON.stringify(fivePaper.body)
+      );
+    }
+    await call(`/api/admin/questions/${fiveId}`, { method: "DELETE", token: adminToken });
+
     section("Written answers, marked by the AI marker");
     const writtenTopic = `${topicId}-written`;
     const writtenCreated = await call("/api/admin/questions", {

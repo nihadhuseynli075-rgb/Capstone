@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import type { QuestionDraft } from "@grade9/shared";
-import { markLimits, paperYearLimits, siteLanguages } from "@grade9/shared";
+import { markLimits, paperYearLimits, siteLanguages, subjects } from "@grade9/shared";
 import { bearerToken } from "../lib/bearerToken";
 import { env, storageMode, writtenMarkingEnabled } from "../lib/env";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
@@ -34,9 +34,18 @@ const translationSchema = z
   })
   .strict();
 
+const subjectIds = subjects.map((subject) => subject.id);
+const unknownSubject = `The subject must be one of: ${subjectIds.join(", ")}.`;
+
 const questionSchema = z
   .object({
-    subjectId: z.string().min(1),
+    // The subjects are a fixed list, and the student's builder makes a chip for
+    // every subject the bank holds a question for. Any other value, even a
+    // typo, put a new subject in front of students that no filter in the admin
+    // dashboard could then find.
+    subjectId: z
+      .string({ required_error: unknownSubject, invalid_type_error: unknownSubject })
+      .refine((id) => subjectIds.includes(id), { message: unknownSubject }),
     topicId: z.string().min(1),
     difficulty: z.enum(["easy", "medium", "hard"]),
     type: z.enum(["multiple-choice", "short-answer", "open-ended"]),
@@ -95,16 +104,18 @@ const questionSchema = z
 /**
  * The refusal for a question that does not pass the schema.
  *
- * The browser shows the message and not the issues, so a problem with the
- * translations, which cannot be seen from the form alone, is put in the message
- * itself.
+ * The browser shows the message and not the issues, so a problem the form
+ * cannot show beside the field (the translations, or a subject that is not one
+ * of ours, which the form's list never offers) is put in the message itself.
  */
 function invalidQuestion(error: z.ZodError) {
-  const translationIssue = error.issues.find((issue) => issue.path[0] === "translations");
+  const visibleIssue = error.issues.find(
+    (issue) => issue.path[0] === "translations" || issue.path[0] === "subjectId"
+  );
 
   return {
-    message: translationIssue
-      ? `That question is not valid yet. ${translationIssue.message}`
+    message: visibleIssue
+      ? `That question is not valid yet. ${visibleIssue.message}`
       : "That question is not valid yet.",
     issues: error.flatten()
   };

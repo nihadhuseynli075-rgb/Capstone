@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { BankQuestion, QuestionDraft, QuestionStatus } from "@grade9/shared";
 import { followsSiteLanguage, markLimits, siteLanguages, subjectName, topicName } from "@grade9/shared";
-import { QuestionForm } from "../components/QuestionForm";
+import { QuestionForm, type QuestionCarryOver } from "../components/QuestionForm";
 import { useLanguage } from "../lib/i18n";
 import { ApiError } from "../services/apiClient";
 import {
@@ -17,7 +17,7 @@ import {
 } from "../services/adminApi";
 
 const CSV_TEMPLATE =
-  "subject,topic,difficulty,type,question,option_a,option_b,option_c,option_d,correct_answer,marks,explanation,paper_year,source";
+  "subject,topic,difficulty,type,question,option_a,option_b,option_c,option_d,option_e,correct_answer,marks,explanation,paper_year,source";
 
 type Tab = "add" | "list" | "import";
 
@@ -102,8 +102,17 @@ export function AdminPage() {
 
   const [editing, setEditing] = useState<BankQuestion | null>(null);
   const [saving, setSaving] = useState(false);
+  // Set the moment a save starts, ahead of the state above reaching the page,
+  // so a second press of the button cannot start a second save.
+  const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const noticeRef = useRef<HTMLParagraphElement>(null);
+
+  // The form is emptied by giving it a new key, which remounts it. After a
+  // question is added the next one starts clean, with what a paper shares kept.
+  const [formKey, setFormKey] = useState(0);
+  const [carryOver, setCarryOver] = useState<QuestionCarryOver | null>(null);
 
   const [csv, setCsv] = useState("");
   const [importResult, setImportResult] = useState<ImportResponse | null>(null);
@@ -160,6 +169,13 @@ export function AdminPage() {
     if (token) void refresh();
   }, [token, refresh]);
 
+  // The form is long, so the person pressing its button is a long way down the
+  // page and a message at the top went unseen. It sits under the form instead
+  // (see below), and is brought into view in case the page has since shrunk.
+  useEffect(() => {
+    if (notice) noticeRef.current?.scrollIntoView({ block: "nearest" });
+  }, [notice]);
+
   if (!token) {
     return (
       <LoginScreen
@@ -173,6 +189,9 @@ export function AdminPage() {
   }
 
   async function handleSave(draft: QuestionDraft) {
+    if (savingRef.current) return;
+    savingRef.current = true;
+
     setSaving(true);
     setError(null);
     setNotice(null);
@@ -184,12 +203,23 @@ export function AdminPage() {
         setEditing(null);
       } else {
         await createQuestion(draft);
-        setNotice("Question added to the bank.");
+        setNotice("Question added to the bank. Subject, topic, difficulty, year and source are kept for the next one.");
+        // The form kept the whole question, so a second press saved it again
+        // and the next one began with this one's options and explanation.
+        setCarryOver({
+          subjectId: draft.subjectId,
+          topicId: draft.topicId,
+          difficulty: draft.difficulty,
+          paperYear: draft.paperYear,
+          source: draft.source
+        });
+        setFormKey((current) => current + 1);
       }
       await refresh();
     } catch (cause) {
       handleFailure(cause);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -335,19 +365,28 @@ export function AdminPage() {
         </button>
       </nav>
 
-      {notice && <p className="success-banner">{notice}</p>}
-      {error && <p className="error-banner">{error}</p>}
+      {/* On the form's tab both sit beside its button instead: see below. */}
+      {tab !== "add" && notice && <p className="success-banner">{notice}</p>}
+      {tab !== "add" && error && <p className="error-banner">{error}</p>}
 
       {tab === "add" && (
         <section className="panel">
           <h2>{editing ? "Edit question" : "Add a question"}</h2>
           <QuestionForm
+            // One form per question being edited, and a new one after each add.
+            key={editing ? `edit-${editing.id}` : `new-${formKey}`}
             initial={editing}
+            carryOver={carryOver}
             onSubmit={handleSave}
             onCancel={editing ? () => setEditing(null) : undefined}
             submitting={saving}
-            error={null}
+            error={error}
           />
+          {notice && (
+            <p className="success-banner" role="status" ref={noticeRef}>
+              {notice}
+            </p>
+          )}
         </section>
       )}
 
@@ -417,6 +456,9 @@ export function AdminPage() {
                       type="button"
                       className="ghost-button"
                       onClick={() => {
+                        // What the list last said does not apply to the form.
+                        setNotice(null);
+                        setError(null);
                         setEditing(question);
                         setTab("add");
                       }}
@@ -452,7 +494,7 @@ export function AdminPage() {
           </p>
 
           <p className="panel-hint">
-            correct_answer can be the letter (A, B, C, D) or the full answer text. Leave the option
+            correct_answer can be the letter (A, B, C, D, E) or the full answer text. Leave the option
             columns empty for short-answer questions. For a written answer marked by the AI marker,
             set type to <code>open-ended</code> and put the marking guide in correct_answer.
           </p>

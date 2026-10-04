@@ -100,6 +100,41 @@ async function main() {
     JSON.stringify(tooFewOptions.body)
   );
 
+  // The subjects are a fixed list. Anything else used to be saved, and became a
+  // new subject chip in every student's builder that no admin filter could find.
+  const unknownSubject = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ subjectId: "chemistry" })
+  });
+  check("a subject that is not one of ours is rejected", unknownSubject.status === 400, JSON.stringify(unknownSubject.body));
+  check(
+    "the refusal says which subjects there are",
+    /math, english, russian/.test(unknownSubject.body.message ?? ""),
+    unknownSubject.body.message
+  );
+
+  // Names are not ids: "Mathematics" is shown to people, `math` is what is stored.
+  const subjectByName = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ subjectId: "Mathematics" })
+  });
+  check("a subject's name is not accepted in place of its id", subjectByName.status === 400, `got ${subjectByName.status}`);
+
+  const noSubject = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: (({ subjectId, ...rest }) => rest)(mcq())
+  });
+  check("a question with no subject is rejected", noSubject.status === 400, `got ${noSubject.status}`);
+
+  const catalogAfterRefusals = await call("/api/catalog");
+  const strayIds = (catalogAfterRefusals.body.subjects ?? [])
+    .map((subject) => subject.id)
+    .filter((id) => !["math", "english", "russian"].includes(id));
+  check("none of those added a subject for students", strayIds.length === 0, strayIds.join(", "));
+
   section("Creating questions");
   const created = await call("/api/admin/questions", { method: "POST", token, body: mcq() });
   check("multiple choice question saves", created.status === 201, JSON.stringify(created.body));
@@ -120,6 +155,29 @@ async function main() {
   });
   check("short answer question saves", shortAnswer.status === 201, JSON.stringify(shortAnswer.body));
 
+  // Every question on a DIM paper has five options, A to E. The answer here is
+  // the fifth, which the admin form used to have no room for.
+  const fiveTopic = `five-options-${Date.now()}`;
+  const fiveOptions = ["x = 1", "x = 2", "x = 3", "x = 4", "x = 5"];
+  const five = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({
+      topicId: fiveTopic,
+      prompt: "Solve for x: x + 1 = 6 (five options)",
+      options: fiveOptions,
+      correctAnswer: "x = 5"
+    })
+  });
+  check("a five-option question saves", five.status === 201, JSON.stringify(five.body));
+  const fiveId = five.body.question?.id;
+  check(
+    "all five options are kept, with the fifth as the answer",
+    JSON.stringify(five.body.question?.options) === JSON.stringify(fiveOptions) &&
+      five.body.question?.correctAnswer === "x = 5",
+    JSON.stringify(five.body.question)
+  );
+
   section("Editing and deleting");
   const updated = await call(`/api/admin/questions/${createdId}`, {
     method: "PUT",
@@ -132,6 +190,65 @@ async function main() {
     updated.body.question?.explanation === "Updated explanation.",
     updated.body.question?.explanation
   );
+
+  const wrongSubjectUpdate = await call(`/api/admin/questions/${createdId}`, {
+    method: "PUT",
+    token,
+    body: mcq({ subjectId: "chemistry", explanation: "Should never be saved." })
+  });
+  check(
+    "moving a question to a subject that is not one of ours is rejected",
+    wrongSubjectUpdate.status === 400 && /math, english, russian/.test(wrongSubjectUpdate.body.message ?? ""),
+    JSON.stringify(wrongSubjectUpdate.body)
+  );
+  const afterWrongSubject = (await call("/api/admin/questions", { token })).body.questions?.find(
+    (question) => question.id === createdId
+  );
+  check(
+    "and the question was left as it was",
+    afterWrongSubject?.subjectId === "math" && afterWrongSubject?.explanation === "Updated explanation.",
+    JSON.stringify(afterWrongSubject)
+  );
+
+  // The fifth option has to survive an edit, and reach a student.
+  const editedFive = await call(`/api/admin/questions/${fiveId}`, {
+    method: "PUT",
+    token,
+    body: mcq({
+      topicId: fiveTopic,
+      prompt: "Solve for x: x + 1 = 6 (five options)",
+      options: [...fiveOptions.slice(0, 4), "x = 5 (E)"],
+      correctAnswer: "x = 5 (E)",
+      explanation: "Subtract 1 from both sides."
+    })
+  });
+  check(
+    "a five-option question edits, keeping all five options",
+    editedFive.status === 200 &&
+      editedFive.body.question?.options?.length === 5 &&
+      editedFive.body.question?.options?.[4] === "x = 5 (E)" &&
+      editedFive.body.question?.correctAnswer === "x = 5 (E)",
+    JSON.stringify(editedFive.body)
+  );
+
+  const fiveTest = await call("/api/tests/generate", {
+    method: "POST",
+    body: {
+      studentKey: `${studentKey}-five`,
+      subjectId: "math",
+      topicIds: [fiveTopic],
+      difficultyMode: "custom",
+      questionCount: 5,
+      timeLimitMinutes: 10
+    }
+  });
+  const servedFive = fiveTest.body.test?.questions?.find((question) => question.id === fiveId);
+  check(
+    "a student is served all five options",
+    fiveTest.status === 200 && servedFive?.options?.length === 5 && servedFive.options[4] === "x = 5 (E)",
+    JSON.stringify(fiveTest.body).slice(0, 400)
+  );
+  await call(`/api/admin/questions/${fiveId}`, { method: "DELETE", token });
 
   const throwaway = await call("/api/admin/questions", {
     method: "POST",
