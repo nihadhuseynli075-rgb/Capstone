@@ -152,9 +152,24 @@ testsRouter.post("/generate", async (request, response, next) => {
  */
 const SUBMIT_GRACE_SECONDS = 60;
 
+/**
+ * The most time the browser's own figure is believed for.
+ *
+ * Only a cap on what the browser says, never a reason to refuse. An untimed
+ * test can honestly be open for longer, and refusing one that was cost the
+ * student every answer: the retry sent the same figure and failed the same
+ * way. The time recorded is measured by the server anyway (see the submit
+ * route), so a longer sitting still shows its real length.
+ */
+const MAX_CLAIMED_SECONDS = 60 * 60 * 6;
+
 const submitSchema = z.object({
   studentKey: studentKeySchema,
-  timeTakenSeconds: z.number().int().min(0).max(60 * 60 * 6),
+  timeTakenSeconds: z
+    .number()
+    .int()
+    .min(0)
+    .transform((seconds) => Math.min(seconds, MAX_CLAIMED_SECONDS)),
   answers: z.array(
     z.object({
       questionId: z.string().min(1),

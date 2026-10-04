@@ -849,6 +849,25 @@ async function main() {
     const late = await submit(lateTest, lateKey, rightAnswers(lateTest));
     check("a paper past its time is refused", late.status === 409 && late.body.code === "time-expired", `${late.status} ${JSON.stringify(late.body)}`);
 
+    // An untimed paper open for seven hours, with the browser saying so too.
+    // That figure was once refused outright, and the answers with it.
+    const sevenHours = 7 * 60 * 60;
+    const longKey = randomUUID();
+    const longTest = (await generate(longKey, undefined, { timeLimitMinutes: null })).body.test;
+    await request(standin.url, `/__standin/rows/test_attempts/${longTest.id}`, {
+      method: "PATCH",
+      body: { created_at: new Date(Date.now() - sevenHours * 1000).toISOString() }
+    });
+    const long = await call(`/api/tests/${longTest.id}/submit`, {
+      method: "POST",
+      body: { studentKey: longKey, answers: rightAnswers(longTest), timeTakenSeconds: sevenHours }
+    });
+    check(
+      "an untimed paper open for seven hours is still marked, and keeps its real length",
+      long.status === 200 && long.body.timeTakenSeconds >= sevenHours,
+      `${long.status} ${JSON.stringify(long.body).slice(0, 300)}`
+    );
+
     section("Profiles need a signed-in account");
     const profileNoToken = await call("/api/profile");
     check("a profile is not readable without a token", profileNoToken.status === 401, `got ${profileNoToken.status}`);

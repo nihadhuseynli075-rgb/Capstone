@@ -597,6 +597,50 @@ async function main() {
   });
   check("submitting to a malformed attempt id is a 404", malformedSubmit.status === 404, `got ${malformedSubmit.status}`);
 
+  section("Untimed tests have no limit");
+  // The browser's figure used to be refused above six hours, so an untimed
+  // test left open that long could never be handed in, however often it retried.
+  const untimedKey = `${studentKey}-untimed`;
+  const untimed = await call("/api/tests/generate", {
+    method: "POST",
+    body: {
+      studentKey: untimedKey,
+      subjectId: "math",
+      topicIds: ["algebra"],
+      difficultyMode: "custom",
+      questionCount: 5,
+      timeLimitMinutes: null
+    }
+  });
+  check(
+    "an untimed test is created",
+    untimed.status === 200 && untimed.body.test?.settings.timeLimitMinutes === null,
+    JSON.stringify(untimed.body)
+  );
+  const sevenHours = 7 * 60 * 60;
+  const untimedSubmit = await call(`/api/tests/${untimed.body.test?.id}/submit`, {
+    method: "POST",
+    body: {
+      studentKey: untimedKey,
+      answers: (untimed.body.test?.questions ?? []).map((question, position) => ({
+        questionId: question.id,
+        position,
+        answer: ""
+      })),
+      timeTakenSeconds: sevenHours
+    }
+  });
+  check(
+    "it is still marked after more than six hours",
+    untimedSubmit.status === 200,
+    `${untimedSubmit.status} ${JSON.stringify(untimedSubmit.body)}`
+  );
+  check(
+    "and the browser's figure is capped rather than taken as it came",
+    untimedSubmit.body.timeTakenSeconds > 0 && untimedSubmit.body.timeTakenSeconds < sevenHours,
+    `timeTakenSeconds ${untimedSubmit.body.timeTakenSeconds}`
+  );
+
   section("Two submissions of one paper at once");
   // A second tab, or a retry racing the original. Exactly one may be kept, and
   // what is stored has to be that one, not a mix of the two.
