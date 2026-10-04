@@ -63,9 +63,14 @@ app.use((_request, response) => {
 /** What a failure the reader cannot be told more about says. */
 const GENERIC_FAILURE = "Something went wrong on the server. Try again in a moment.";
 
-/** What express.json() attaches to a body it turned away. */
+/**
+ * What express.json() attaches to a body it turned away, and what Express
+ * attaches to a path it could not decode: the status the sender earned.
+ */
 interface BodyError extends Error {
   type?: string;
+  status?: number;
+  statusCode?: number;
 }
 
 app.use((error: BodyError, request: Request, response: Response, _next: NextFunction) => {
@@ -83,6 +88,18 @@ app.use((error: BodyError, request: Request, response: Response, _next: NextFunc
 
   if (error.type === "entity.parse.failed") {
     return response.status(400).json({ message: "That request was not valid JSON." });
+  }
+
+  // Any other request the body reader or the router could not take is the
+  // sender's to fix as well: a charset other than UTF-8 or an unknown
+  // Content-Encoding (415), a body that claims gzip and is not (400), or a
+  // path with a broken percent escape such as /attempts/%E0%A4%A (400). Each
+  // carries its own 4xx status, and each used to be answered as a 500.
+  const status = error.status ?? error.statusCode;
+  if (typeof status === "number" && status >= 400 && status < 500) {
+    return response.status(status).json({
+      message: status === 415 ? "Send the request as plain UTF-8 JSON." : "That request could not be read."
+    });
   }
 
   // The full error, raw database wording and all, goes to the log under a

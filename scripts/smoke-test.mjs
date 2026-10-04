@@ -710,6 +710,20 @@ async function main() {
   });
   check("submitting to a malformed attempt id is a 404", malformedSubmit.status === 404, `got ${malformedSubmit.status}`);
 
+  section("Requests the server cannot read are the sender's to fix");
+  // Each of these used to be a 500 with the body reader's or the router's
+  // own words in it.
+  const brokenEscape = await call(`/api/tests/attempts/%E0%A4%A?studentKey=${encodeURIComponent(studentKey)}`);
+  check("a path with a broken percent escape is a 400", brokenEscape.status === 400, `${brokenEscape.status} ${JSON.stringify(brokenEscape.body)}`);
+  const rawPost = (headers, body) =>
+    fetch(`${BASE_URL}/api/tests/generate`, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body });
+  const latin1 = await rawPost({ "Content-Type": "application/json; charset=latin1" }, "{}");
+  check("a charset other than UTF-8 is a 415", latin1.status === 415, `got ${latin1.status}`);
+  const oddEncoding = await rawPost({ "Content-Encoding": "br2" }, "{}");
+  check("an unknown content encoding is a 415", oddEncoding.status === 415, `got ${oddEncoding.status}`);
+  const fakeGzip = await rawPost({ "Content-Encoding": "gzip" }, "not gzip");
+  check("a body that claims gzip and is not is a 400", fakeGzip.status === 400, `got ${fakeGzip.status}`);
+
   section("Untimed tests have no limit");
   // The browser's figure used to be refused above six hours, so an untimed
   // test left open that long could never be handed in, however often it retried.
