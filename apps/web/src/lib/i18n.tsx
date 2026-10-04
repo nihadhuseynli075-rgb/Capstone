@@ -1728,13 +1728,17 @@ interface LanguageContextValue {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
+/** The language a pinned page has put on <html>, while it is on screen. */
+let documentPin: Language | null = null;
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => getStoredLanguage());
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, language);
-    // Screen readers and browser translation both key off this.
-    document.documentElement.lang = language;
+    // Screen readers and browser translation both key off this. A page pinned
+    // to one language keeps its own (see usePinnedLanguage).
+    document.documentElement.lang = documentPin ?? language;
   }, [language]);
 
   const setLanguage = useCallback((next: Language) => setLanguageState(next), []);
@@ -1753,6 +1757,24 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 export function usePinnedLanguage(pinned: Language | null): LanguageContextValue {
   const site = useLanguage();
   const fixed = useLanguageValue(pinned ?? site.language, site.setLanguage);
+
+  /*
+   * The document says which language the page is in, not the site. The
+   * admin dashboard is English through and through, yet <html lang> kept
+   * saying "ru" or "az", so a screen reader read its English with Russian or
+   * Azerbaijani pronunciation. The pin is kept in a module variable because
+   * the provider's own effect runs after this one on the first render and
+   * would otherwise put the site's language back.
+   */
+  useEffect(() => {
+    documentPin = pinned;
+    document.documentElement.lang = pinned ?? site.language;
+    return () => {
+      documentPin = null;
+      document.documentElement.lang = site.language;
+    };
+  }, [pinned, site.language]);
+
   return pinned === null ? site : fixed;
 }
 
