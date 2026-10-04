@@ -105,6 +105,9 @@ code {
   border-radius: 4px;
   padding: 1px 5px;
   font-size: 0.9em;
+  /* A column list or a file name has no spaces to wrap at, and on a phone one
+     long run of it pushed the whole page sideways. */
+  overflow-wrap: anywhere;
 }
 
 /* ------------------------------------------------------------------ shell */
