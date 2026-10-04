@@ -2010,6 +2010,30 @@ async function main() {
         fallback.status === 200 && fallback.body.usingDefaultPassword === true,
         `${fallback.status} ${JSON.stringify(fallback.body)}`
       );
+
+      // Here rather than against the main API: the pause outlives this run,
+      // and this API is thrown away straight after.
+      section("Too many wrong admin passwords");
+      const wrongTries = [];
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        wrongTries.push(await request(blankUrl, "/api/admin/login", { method: "POST", body: { password: `guess-${attempt}` } }));
+      }
+      check(
+        "ten wrong passwords are each refused as wrong",
+        wrongTries.every((attempt) => attempt.status === 401),
+        wrongTries.map((attempt) => attempt.status).join(",")
+      );
+      const lockedOut = await request(blankUrl, "/api/admin/login", { method: "POST", body: { password: "capstone123" } });
+      check(
+        "after them even the right password is refused for a while",
+        lockedOut.status === 429 && lockedOut.body.code === "too-many-attempts" && !lockedOut.body.token,
+        `${lockedOut.status} ${JSON.stringify(lockedOut.body)}`
+      );
+      check(
+        "and the refusal says how long to wait",
+        lockedOut.body.retryAfterSeconds > 14 * 60 && /15 minutes/.test(lockedOut.body.message ?? ""),
+        JSON.stringify(lockedOut.body)
+      );
     } catch (error) {
       // A failure here is this one check's, not the whole suite's.
       check("an API with a blank ADMIN_PASSWORD starts", false, error.message);

@@ -13,6 +13,7 @@ import {
   listQuestions,
   updateQuestion
 } from "../repositories/questionRepository";
+import { createLoginLimiter } from "../services/loginLimiter";
 import { importQuestionsFromCsv } from "../services/questionImport";
 import { translationProblems } from "../services/questionTranslations";
 
@@ -121,6 +122,19 @@ function invalidQuestion(error: z.ZodError) {
   };
 }
 
+/**
+ * Ten wrong passwords in fifteen minutes shut the address out for fifteen.
+ *
+ * Counted per address the request came from. Behind a proxy that is the
+ * proxy's, so everyone shares one count, which is still the right side to err
+ * on for a dashboard guarded by one shared password.
+ */
+const loginLimiter = createLoginLimiter({
+  maxFailures: 10,
+  windowMs: 15 * 60 * 1000,
+  lockoutMs: 15 * 60 * 1000
+});
+
 adminRouter.post("/login", (request, response) => {
   const parsed = z.object({ password: z.string() }).safeParse(request.body);
 
@@ -128,10 +142,29 @@ adminRouter.post("/login", (request, response) => {
     return response.status(400).json({ message: "Password is required." });
   }
 
+  const address = request.ip ?? request.socket.remoteAddress ?? "unknown";
+
+  // Checked before the password, so a right one is refused too while the
+  // address is shut out: otherwise the pause would only slow guessing, not stop it.
+  const waitMs = loginLimiter.waitFor(address);
+  if (waitMs > 0) {
+    const seconds = Math.ceil(waitMs / 1000);
+    const minutes = Math.ceil(seconds / 60);
+    response.setHeader("Retry-After", String(seconds));
+    return response.status(429).json({
+      code: "too-many-attempts",
+      retryAfterSeconds: seconds,
+      message: `Too many wrong passwords. Wait ${minutes} minute${minutes === 1 ? "" : "s"}, then try again.`
+    });
+  }
+
   const token = login(parsed.data.password);
   if (!token) {
+    loginLimiter.recordFailure(address);
     return response.status(401).json({ message: "That password is not correct." });
   }
+
+  loginLimiter.recordSuccess(address);
 
   return response.json({
     token,
