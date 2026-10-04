@@ -203,7 +203,9 @@ adminRouter.get("/questions", requireAdmin, async (request, response, next) => {
           request.query.difficulty === "hard"
             ? request.query.difficulty
             : undefined,
-        search: typeof request.query.search === "string" ? request.query.search : undefined
+        // Spaces at either end are not part of what is looked for: pasted
+        // text often carries one, and " radius" then found nothing at all.
+        search: typeof request.query.search === "string" ? request.query.search.trim() || undefined : undefined
       }),
       bankSummary()
     ]);

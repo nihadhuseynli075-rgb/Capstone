@@ -234,7 +234,9 @@ export function AdminPage() {
   // Typing settles before the bank is asked. Without this every letter of a
   // search term was its own round trip, and the answers could land out of order.
   useEffect(() => {
-    const timer = window.setTimeout(() => setSearchQuery(search), 300);
+    // Trimmed as the API trims it, so a box holding only spaces is no filter
+    // rather than one announcing "Matching this filter".
+    const timer = window.setTimeout(() => setSearchQuery(search.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [search]);
 

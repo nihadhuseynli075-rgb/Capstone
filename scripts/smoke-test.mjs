@@ -249,6 +249,14 @@ async function main() {
     JSON.stringify((dottedSearch.body.questions ?? []).map((question) => question.prompt))
   );
 
+  // Pasted text often brings a space at one end, which found nothing.
+  const spacedSearch = await call(`/api/admin/questions?search=${encodeURIComponent("  6 * 7 (search check)  ")}`, { token });
+  check(
+    "spaces at either end of a search are not looked for",
+    (spacedSearch.body.questions ?? []).some((question) => question.prompt === "Work out 6 * 7 (search check)"),
+    JSON.stringify((spacedSearch.body.questions ?? []).map((question) => question.prompt))
+  );
+
   const backslash = await call(`/api/admin/questions?search=${encodeURIComponent("\\")}`, { token });
   check(
     "a backslash is searched for as itself",
