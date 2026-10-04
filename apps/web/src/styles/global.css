@@ -375,6 +375,15 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
+/*
+ * A heading that has been handed focus after a route change (see
+ * useRouteFocus). It is where reading starts rather than something to press,
+ * so it is not ringed like a control.
+ */
+.route-focus:focus {
+  outline: none;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
