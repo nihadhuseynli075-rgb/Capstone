@@ -1168,3 +1168,46 @@
 .difficulty-ready.empty {
   color: var(--warning);
 }
+
+/*
+ * Grey blocks in the shape of what is still loading (the builder's subjects,
+ * topics and difficulties), so the page keeps its size while it waits and
+ * nothing below it jumps when the real content arrives.
+ */
+.skeleton {
+  display: block;
+  border-radius: 10px;
+  background: var(--surface-alt);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.skeleton-chip {
+  width: 110px;
+  height: 40px;
+  border-radius: 999px;
+}
+
+.skeleton-tile {
+  height: 64px;
+}
+
+.skeleton-card {
+  height: 96px;
+}
+
+.skeleton-line {
+  width: min(260px, 60%);
+  height: 20px;
+}
+
+.skeleton-button {
+  width: 170px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}

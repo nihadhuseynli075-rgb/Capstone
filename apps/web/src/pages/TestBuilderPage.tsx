@@ -220,11 +220,63 @@ export function TestBuilderPage() {
     );
   }
 
+  const intro = (
+    <section>
+      <h1>Create a mock test</h1>
+      {/* No question has an explanation yet, so this promises the score and
+          the right answers, which every question has. An explanation still
+          shows on the results page wherever a question has one. */}
+      <p className="lede">
+        Pick what you want to practise. Your score and your mistakes, with the right answers, are
+        shown at the end, the same way a real exam works.
+      </p>
+    </section>
+  );
+
+  // The builder's own shape while the catalog is on its way. A line of text
+  // left the footer on screen to be pushed away when the subjects arrived (a
+  // layout shift over 0.1 on a slow phone), and nothing worth drawing was on
+  // screen until then. The panels and their grey blocks take roughly the room
+  // the real ones will.
   if (!catalog || !subject) {
     return (
-      <div className="stack">
-        <h1>Create a mock test</h1>
-        <p>Loading subjects...</p>
+      <div className="stack" aria-busy="true">
+        {intro}
+
+        <section className="panel">
+          <h2>Subject</h2>
+          <p className="panel-hint" role="status">
+            Loading subjects...
+          </p>
+          <div className="chip-row" aria-hidden="true">
+            {[0, 1, 2].map((index) => (
+              <span key={index} className="skeleton skeleton-chip" />
+            ))}
+          </div>
+        </section>
+
+        <section className="panel" aria-hidden="true">
+          <h2>Topics</h2>
+          <div className="topic-grid">
+            {[0, 1, 2, 3, 4, 5].map((index) => (
+              <span key={index} className="skeleton skeleton-tile" />
+            ))}
+          </div>
+        </section>
+
+        <section className="panel" aria-hidden="true">
+          <h2>Difficulty</h2>
+          <div className="difficulty-grid">
+            {[0, 1, 2, 3].map((index) => (
+              <span key={index} className="skeleton skeleton-card" />
+            ))}
+          </div>
+        </section>
+
+        <section className="panel summary-panel" aria-hidden="true">
+          <span className="skeleton skeleton-line" />
+          <span className="skeleton skeleton-button" />
+        </section>
       </div>
     );
   }
@@ -233,16 +285,7 @@ export function TestBuilderPage() {
 
   return (
     <div className="stack">
-      <section>
-        <h1>Create a mock test</h1>
-        {/* No question has an explanation yet, so this promises the score and
-            the right answers, which every question has. An explanation still
-            shows on the results page wherever a question has one. */}
-        <p className="lede">
-          Pick what you want to practise. Your score and your mistakes, with the right answers, are
-          shown at the end, the same way a real exam works.
-        </p>
-      </section>
+      {intro}
 
       <ResumeTestBanner />
 
