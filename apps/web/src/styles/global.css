@@ -1342,6 +1342,9 @@ button:focus-visible {
 .question-row-main {
   flex: 1;
   min-width: 240px;
+  /* A question or answer with a long run and no spaces (a link, a formula)
+     pushed the whole admin list sideways on a phone. */
+  overflow-wrap: anywhere;
 }
 
 .question-row-prompt {
