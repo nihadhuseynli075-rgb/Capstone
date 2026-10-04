@@ -49,11 +49,14 @@ const questionSchema = z
     subjectId: z
       .string({ required_error: unknownSubject, invalid_type_error: unknownSubject })
       .refine((id) => subjectIds.includes(id), { message: unknownSubject }),
-    topicId: z.string().min(1),
+    // Trimmed like the answer below, and as the form and the import trim
+    // them. Untrimmed, a topic of spaces became a blank topic chip in the
+    // student builder, and a question or option of spaces was served blank.
+    topicId: z.string().trim().min(1, "A topic is required"),
     difficulty: z.enum(["easy", "medium", "hard"]),
     type: z.enum(["multiple-choice", "short-answer", "open-ended"]),
-    prompt: z.string().min(1, "Question text is required"),
-    options: z.array(z.string().min(1)).default([]),
+    prompt: z.string().trim().min(1, "Question text is required"),
+    options: z.array(z.string().trim().min(1, "An option cannot be empty")).default([]),
     // For an open-ended question this is the marking guide the AI marker
     // works from.
     correctAnswer: z.string().trim().min(1, "A correct answer (or, for a written question, a marking guide) is required"),

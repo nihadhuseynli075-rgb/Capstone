@@ -264,6 +264,18 @@ async function main() {
     `${backslash.status} ${(backslash.body.questions ?? []).length} found`
   );
 
+  // Only spaces used to pass, and a blank topic showed in the builder.
+  const blankParts = await Promise.all([
+    call("/api/admin/questions", { method: "POST", token, body: mcq({ prompt: "   " }) }),
+    call("/api/admin/questions", { method: "POST", token, body: mcq({ topicId: "   " }) }),
+    call("/api/admin/questions", { method: "POST", token, body: mcq({ options: ["x = 4", "  "] }) })
+  ]);
+  check(
+    "a question, topic or option of only spaces is refused",
+    blankParts.every((response) => response.status === 400),
+    JSON.stringify(blankParts.map((response) => response.status))
+  );
+
   section("Editing and deleting");
   const updated = await call(`/api/admin/questions/${createdId}`, {
     method: "PUT",
