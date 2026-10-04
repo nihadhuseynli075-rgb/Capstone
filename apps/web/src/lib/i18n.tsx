@@ -38,6 +38,8 @@ const en = {
   "footer.tagline": "Exampeak - Grade 9 mock test practice",
 
   "main.greeting": "Welcome back",
+  // For an account made in the last day, which has nothing to come back to.
+  "main.greetingNew": "Welcome",
   "main.greetingGuest": "Welcome to Exampeak",
   "main.eyebrow": "Grade 9 final exam prep",
   "main.startPractice": "Start a practice test",
@@ -380,6 +382,7 @@ const ru: Dictionary = {
   "footer.tagline": "Exampeak - пробные тесты для 9 класса",
 
   "main.greeting": "С возвращением",
+  "main.greetingNew": "Добро пожаловать",
   "main.greetingGuest": "Добро пожаловать в Exampeak",
   "main.eyebrow": "Подготовка к выпускным экзаменам 9 класса",
   "main.startPractice": "Начать пробный тест",
@@ -713,6 +716,7 @@ const az: Dictionary = {
   "footer.tagline": "Exampeak - 9-cu sinif üçün sınaq testləri",
 
   "main.greeting": "Yenidən xoş gəldiniz",
+  "main.greetingNew": "Xoş gəldiniz",
   "main.greetingGuest": "Exampeak-ə xoş gəldiniz",
   "main.eyebrow": "9-cu sinif buraxılış imtahanlarına hazırlıq",
   "main.startPractice": "Sınaq testinə başla",

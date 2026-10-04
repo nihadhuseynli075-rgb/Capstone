@@ -33,6 +33,8 @@ export interface AuthUser {
    * one to sign in with.
    */
   pendingEmail: string | null;
+  /** When the account was made, as an ISO time; empty if the session did not say. */
+  createdAt: string;
 }
 
 interface AuthContextValue {
@@ -86,7 +88,8 @@ function toAuthUser(user: User): AuthUser {
     fullName: fullName.trim().length > 0 ? fullName.trim() : (user.email ?? "").split("@")[0],
     providers: [...new Set(providers)],
     googleEmail: typeof google?.identity_data?.email === "string" ? google.identity_data.email : null,
-    pendingEmail: typeof user.new_email === "string" && user.new_email.length > 0 ? user.new_email : null
+    pendingEmail: typeof user.new_email === "string" && user.new_email.length > 0 ? user.new_email : null,
+    createdAt: typeof user.created_at === "string" ? user.created_at : ""
   };
 }
 
