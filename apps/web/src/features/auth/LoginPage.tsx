@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
-import { navigate } from "../../app/router";
+import { navigate, useRouteParam } from "../../app/router";
 import { useAuth } from "./AuthContext";
 import { AuthDivider, AuthLayout, Field, PasswordField } from "./AuthLayout";
 import { GoogleButton } from "./GoogleButton";
 import { validateEmail } from "./authValidation";
+import { safeReturnPath, signInRoute } from "./returnPath";
 
 export function LoginPage() {
   const { signIn, user, configured, redirectResult, clearRedirectResult } = useAuth();
+
+  // The page that sent the student here, to go back to once signed in.
+  const returnTo = safeReturnPath(useRouteParam("next"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,8 +20,8 @@ export function LoginPage() {
 
   // Already signed in, or signed in from another tab: nothing to do here.
   useEffect(() => {
-    if (user) navigate("/");
-  }, [user]);
+    if (user) navigate(returnTo);
+  }, [user, returnTo]);
 
   // A trip to Google, or an email link, that did not sign in comes back here
   // with the reason. Anything that failed while still signed in is shown on
@@ -45,7 +49,7 @@ export function LoginPage() {
 
     try {
       await signIn({ email: email.trim(), password });
-      navigate("/");
+      navigate(returnTo);
     } catch (cause) {
       setFormError((cause as Error).message);
       setSubmitting(false);
@@ -59,7 +63,7 @@ export function LoginPage() {
       footer={
         <>
           <span>New here?</span>{" "}
-          <a href="#/register">Create an account</a>
+          <a href={`#${signInRoute("register", returnTo)}`}>Create an account</a>
         </>
       }
     >
@@ -76,7 +80,7 @@ export function LoginPage() {
         </p>
       )}
 
-      <GoogleButton disabled={submitting || !configured} onError={setFormError} />
+      <GoogleButton disabled={submitting || !configured} onError={setFormError} returnTo={returnTo} />
 
       <AuthDivider label="or sign in with your email" />
 

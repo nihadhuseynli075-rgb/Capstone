@@ -1,6 +1,7 @@
 import type { AuthError } from "@supabase/supabase-js";
 import { replaceRoute } from "../../app/router";
 import { redirectErrorCode, redirectErrorMessage } from "./authErrors";
+import { safeReturnPath, signInRoute } from "./returnPath";
 
 /**
  * Going to Google and coming back.
@@ -41,6 +42,8 @@ export interface AuthRedirectResult {
 interface PendingRedirect {
   intent: "sign-in" | "link";
   startedAt: number;
+  /** For a sign-in, the page that asked for it (see returnPath). */
+  returnTo?: string;
 }
 
 const PENDING_KEY = "examPeak.authRedirect";
@@ -98,13 +101,13 @@ export function authRedirectUrl(): string {
   return `${window.location.origin}${window.location.pathname}`;
 }
 
-/** Notes, before leaving for Google, what the trip is for. */
-export function rememberAuthRedirect(intent: PendingRedirect["intent"]): void {
+/** Notes, before leaving for Google, what the trip is for and where it should end. */
+export function rememberAuthRedirect(intent: PendingRedirect["intent"], returnTo?: string): void {
   try {
-    window.sessionStorage.setItem(PENDING_KEY, JSON.stringify({ intent, startedAt: Date.now() }));
+    window.sessionStorage.setItem(PENDING_KEY, JSON.stringify({ intent, startedAt: Date.now(), returnTo }));
   } catch {
     // Storage can be refused in private browsing. The trip still works; the
-    // student lands on the home page rather than their profile.
+    // student lands on the home page rather than the page they came from.
   }
 }
 
@@ -125,6 +128,7 @@ function takePendingRedirect(): PendingRedirect | null {
     const pending = JSON.parse(raw) as Partial<PendingRedirect>;
     const known = pending.intent === "sign-in" || pending.intent === "link";
     if (!known || typeof pending.startedAt !== "number") return null;
+    if (pending.returnTo !== undefined && typeof pending.returnTo !== "string") return null;
 
     return Date.now() - pending.startedAt <= PENDING_TTL_MS ? (pending as PendingRedirect) : null;
   } catch {
@@ -153,16 +157,18 @@ export function finishAuthRedirect(outcome: {
   if (outcome.error || !outcome.signedIn) {
     // Whoever is still signed in hears about it on their profile: connecting
     // Google starts there, and sending a signed-in student to the sign-in page
-    // only bounces them off it again, taking the message with them.
-    replaceRoute(outcome.signedIn ? "/profile" : "/login");
+    // only bounces them off it again, taking the message with them. Someone
+    // signed out goes back to the sign-in page, still knowing where it leads.
+    replaceRoute(outcome.signedIn ? "/profile" : signInRoute("login", pending?.returnTo));
     return { intent, error: redirectErrorMessage(outcome.error, intent), errorCode: redirectErrorCode(outcome.error) };
   }
 
   if (!pending) return null;
 
-  // Either way the trip ends on the profile, where the Google name and photo
-  // (or the newly connected Google account) now show.
-  replaceRoute("/profile");
+  // Connecting Google ends on the profile it was started from, where the newly
+  // connected account now shows. Signing in ends where the student asked to
+  // sign in, the same page an email and password sign-in goes back to.
+  replaceRoute(pending.intent === "link" ? "/profile" : safeReturnPath(pending.returnTo));
   return { intent, error: null, errorCode: null };
 }
 

@@ -45,8 +45,11 @@ interface AuthContextValue {
   clearRedirectResult: () => void;
   signUp: (input: { fullName: string; email: string; password: string }) => Promise<{ needsEmailConfirmation: boolean }>;
   signIn: (input: { email: string; password: string }) => Promise<void>;
-  /** Leaves for Google. Resolves as the browser goes, and throws if it cannot. */
-  signInWithGoogle: () => Promise<void>;
+  /**
+   * Leaves for Google, coming back to `returnTo` (home if left out). Resolves
+   * as the browser goes, and throws if it cannot.
+   */
+  signInWithGoogle: (returnTo?: string) => Promise<void>;
   /** Connects Google to the signed-in account, by the same trip. */
   linkGoogle: () => Promise<void>;
   /** Disconnects Google, when the account has another way in. */
@@ -203,13 +206,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error(authErrorMessage(error.message));
   }, []);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (returnTo?: string) => {
     if (!supabase) throw new Error(authErrorMessage("not-configured"));
     await requireGoogle();
 
     // Google creates the account if there is none yet, so this is signing up
     // as well as signing in.
-    rememberAuthRedirect("sign-in");
+    rememberAuthRedirect("sign-in", returnTo);
     const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: googleTripOptions() });
 
     if (error) {

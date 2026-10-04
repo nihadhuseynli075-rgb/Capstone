@@ -8,6 +8,7 @@ import { useLanguage, type TranslationKey } from "../lib/i18n";
 import { AuthProvider, useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
+import { currentRoute, signInRoute } from "../features/auth/returnPath";
 import { useHistoryClaim } from "../features/auth/useHistoryClaim";
 
 import { Avatar } from "../features/profile/Avatar";
@@ -167,7 +168,7 @@ function AccountMenu() {
       <button
         type="button"
         className="ghost-button"
-        onClick={() => navigate("/login")}
+        onClick={() => navigate(signInRoute("login", currentRoute()))}
       >
         {t("nav.signIn")}
       </button>

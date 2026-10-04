@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../features/auth/AuthContext";
+import { signInRoute } from "../features/auth/returnPath";
 import { AddFriendPanel } from "../features/friends/AddFriendPanel";
 import { FriendsList } from "../features/friends/FriendsList";
 import { RequestsPanel } from "../features/friends/RequestsPanel";
@@ -54,7 +55,7 @@ export function FriendsPage() {
           <p className="panel-hint">{configured ? t("friends.signedOut") : t("settings.notConfigured")}</p>
           {configured && (
             <div className="settings-actions">
-              <a className="primary-button" href="#/login">
+              <a className="primary-button" href={`#${signInRoute("login", "/friends")}`}>
                 {t("nav.signIn")}
               </a>
             </div>

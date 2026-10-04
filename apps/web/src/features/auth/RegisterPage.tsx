@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
-import { navigate } from "../../app/router";
+import { navigate, useRouteParam } from "../../app/router";
 import { useAuth } from "./AuthContext";
 import { AuthDivider, AuthLayout, Field, PasswordField } from "./AuthLayout";
 import { GoogleButton } from "./GoogleButton";
 import { passwordStrength, validateEmail, validateName, validatePassword } from "./authValidation";
+import { safeReturnPath, signInRoute } from "./returnPath";
 
 export function RegisterPage() {
   const { signUp, user, configured } = useAuth();
+
+  // The page that sent the student to sign in, carried over from there.
+  const returnTo = safeReturnPath(useRouteParam("next"));
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -21,8 +25,8 @@ export function RegisterPage() {
   const [confirmationSent, setConfirmationSent] = useState(false);
 
   useEffect(() => {
-    if (user) navigate("/");
-  }, [user]);
+    if (user) navigate(returnTo);
+  }, [user, returnTo]);
 
   const strength = passwordStrength(password);
 
@@ -57,7 +61,7 @@ export function RegisterPage() {
         return;
       }
 
-      navigate("/");
+      navigate(returnTo);
     } catch (cause) {
       setFormError((cause as Error).message);
       setSubmitting(false);
@@ -73,7 +77,7 @@ export function RegisterPage() {
         subtitle={`We sent a confirmation link to ${email.trim()}. Open it to finish setting up your account.`}
         footer={
           <>
-            <span>Already confirmed?</span> <a href="#/login">Sign in</a>
+            <span>Already confirmed?</span> <a href={`#${signInRoute("login", returnTo)}`}>Sign in</a>
           </>
         }
       >
@@ -91,7 +95,7 @@ export function RegisterPage() {
       subtitle="Your tests, your history and your best result, saved and on any device."
       footer={
         <>
-          <span>Already have an account?</span> <a href="#/login">Sign in</a>
+          <span>Already have an account?</span> <a href={`#${signInRoute("login", returnTo)}`}>Sign in</a>
         </>
       }
     >
@@ -108,7 +112,7 @@ export function RegisterPage() {
         </p>
       )}
 
-      <GoogleButton disabled={submitting || !configured} onError={setFormError} />
+      <GoogleButton disabled={submitting || !configured} onError={setFormError} returnTo={returnTo} />
 
       <AuthDivider label="or sign up with your email" />
 

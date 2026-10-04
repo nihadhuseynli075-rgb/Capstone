@@ -52,14 +52,17 @@ export function useLeavingForGoogle(): [boolean, (leaving: boolean) => void] {
  * "Continue with Google", for the sign-in and sign-up pages.
  *
  * One button for both: Google makes the account the first time and signs in
- * every time after, and the trip ends on the profile page either way.
+ * every time after, and either way the trip ends on `returnTo`, the page that
+ * asked for a sign-in, as an email sign-in does.
  */
 export function GoogleButton({
   disabled,
-  onError
+  onError,
+  returnTo
 }: {
   disabled?: boolean;
   onError: (message: string | null) => void;
+  returnTo?: string;
 }) {
   const { signInWithGoogle } = useAuth();
   const [leaving, setLeaving] = useLeavingForGoogle();
@@ -69,7 +72,7 @@ export function GoogleButton({
     setLeaving(true);
 
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(returnTo);
     } catch (cause) {
       setLeaving(false);
       onError((cause as Error).message);
