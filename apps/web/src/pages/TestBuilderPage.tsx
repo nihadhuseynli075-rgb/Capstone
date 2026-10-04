@@ -6,7 +6,7 @@ import { ResumeTestBanner } from "../components/ResumeTestBanner";
 import { useAuth } from "../features/auth/AuthContext";
 import { fill } from "../features/friends/fill";
 import { saveActiveTest } from "../lib/examSession";
-import { useLanguage, type TranslationKey } from "../lib/i18n";
+import { formatPercent, useLanguage, type TranslationKey } from "../lib/i18n";
 import { difficultyLabel, subjectLabel, testErrorText, topicLabel } from "../lib/testText";
 import {
   fetchCatalog,
@@ -443,7 +443,7 @@ export function TestBuilderPage() {
                   {last !== undefined ? (
                     <span className={`topic-last ${band}`}>
                       {" · "}
-                      {fill(t("builder.lastScore"), { n: String(last) })}
+                      {fill(t("builder.lastScore"), { n: formatPercent(last, language) })}
                     </span>
                   ) : (
                     lastScores.size > 0 &&

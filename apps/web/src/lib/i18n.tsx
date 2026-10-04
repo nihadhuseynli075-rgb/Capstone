@@ -380,7 +380,9 @@ const en = {
   "exam.leaveConfirmTimed":
     "Leave this test? Your answers are kept, and you can come back to it from the dashboard or the test builder. The timer keeps running while you are away.",
   "exam.resumeTitle": "You have a test in progress",
-  "exam.resumeBody": "{title}: {answered} of {total} questions answered. Starting a new test replaces it.",
+  // Counted by the paper's length, {n}: Russian says "из 21 вопроса" but "из 5 вопросов".
+  "exam.resumeBody":
+    "{title}: {answered} of {n} question answered. Starting a new test replaces it.|{title}: {answered} of {n} questions answered. Starting a new test replaces it.",
   "exam.resume": "Resume test",
 
   // Test builder: what each difficulty can draw
@@ -441,7 +443,8 @@ const en = {
   // A topic card counts what the difficulty chosen below can draw on.
   "builder.topicCountAt": "{questions} ({difficulty})",
   "builder.topicNoneAt": "no questions on {difficulty}",
-  "builder.lastScore": "Last score {n}%",
+  // {n} is the percentage with its sign, written by formatPercent.
+  "builder.lastScore": "Last score {n}",
   "builder.notTried": "Not tried yet",
   "builder.difficulty": "Difficulty",
   "builder.difficultyHint":
@@ -490,7 +493,8 @@ const en = {
   "results.title": "Results",
   "results.backToHistory": "Back to history",
   "results.loading": "Loading your results...",
-  "results.marksUnit": "marks",
+  // The word under "3/21", counted by the total: Russian reads it "3 из 21 балла".
+  "results.marksUnit": "mark|marks",
   "results.completeSubject": "{subject} test complete",
   "results.complete": "Test complete",
   "results.summary": "{questions} in {time} - {mistakes} to review.",
@@ -758,11 +762,11 @@ const ru: Dictionary = {
   "friends.empty": "Друзей пока нет. Добавьте кого-нибудь выше по почте или имени пользователя.",
   "friends.since": "Друзья с",
   "friends.remove": "Удалить",
-  "friends.removeConfirm": "Удалить {name} из друзей? Вы перестанете видеть прогресс друг друга.",
+  "friends.removeConfirm": "Удалить из друзей: {name}? Вы перестанете видеть прогресс друг друга.",
   "friends.removeYes": "Да, удалить",
   "friends.removeNo": "Оставить",
 
-  "friends.compareCaption": "Ваш прогресс в сравнении с {name}",
+  "friends.compareCaption": "Сравнение прогресса: вы и {name}",
   "friends.you": "Вы",
   "friends.testsTaken": "Пройдено тестов",
   "friends.bestScore": "Лучший результат",
@@ -911,7 +915,8 @@ const ru: Dictionary = {
   "exam.leaveConfirmTimed":
     "Выйти из теста? Ваши ответы сохранятся, и вы сможете вернуться к нему с главной страницы или со страницы создания теста. Таймер продолжает идти, пока вас нет.",
   "exam.resumeTitle": "У вас есть незаконченный тест",
-  "exam.resumeBody": "{title}: отвечено {answered} из {total} вопросов. Если начать новый тест, этот будет заменён.",
+  "exam.resumeBody":
+    "{title}: отвечено {answered} из {n} вопроса. Если начать новый тест, этот будет заменён.|{title}: отвечено {answered} из {n} вопросов. Если начать новый тест, этот будет заменён.|{title}: отвечено {answered} из {n} вопросов. Если начать новый тест, этот будет заменён.",
   "exam.resume": "Продолжить тест",
 
   // Test builder: what each difficulty can draw
@@ -968,7 +973,7 @@ const ru: Dictionary = {
   "builder.noQuestions": "вопросов пока нет",
   "builder.topicCountAt": "{questions} ({difficulty})",
   "builder.topicNoneAt": "нет вопросов уровня «{difficulty}»",
-  "builder.lastScore": "Последний результат: {n}%",
+  "builder.lastScore": "Последний результат: {n}",
   "builder.notTried": "Ещё не проходили",
   "builder.difficulty": "Сложность",
   "builder.difficultyHint":
@@ -1016,7 +1021,7 @@ const ru: Dictionary = {
   "results.title": "Результаты",
   "results.backToHistory": "К истории тестов",
   "results.loading": "Загружаем результаты...",
-  "results.marksUnit": "баллы",
+  "results.marksUnit": "балла|баллов|баллов",
   "results.completeSubject": "{subject}: тест завершён",
   "results.complete": "Тест завершён",
   "results.summary": "{questions} за {time}. На разбор: {mistakes}.",
@@ -1432,7 +1437,7 @@ const az: Dictionary = {
   "exam.leaveConfirmTimed":
     "Testdən çıxırsınız? Cavablarınız saxlanılır, ona ana səhifədən və ya test yaratma səhifəsindən qayıda bilərsiniz. Siz yoxkən taymer işləməyə davam edir.",
   "exam.resumeTitle": "Yarımçıq testiniz var",
-  "exam.resumeBody": "{title}: {total} sualdan {answered} cavablandırılıb. Yeni test başlasanız, bu test onunla əvəz olunacaq.",
+  "exam.resumeBody": "{title}: {n} sualdan {answered} cavablandırılıb. Yeni test başlasanız, bu test onunla əvəz olunacaq.",
   "exam.resume": "Testə davam et",
 
   // Test builder: what each difficulty can draw
@@ -1489,7 +1494,7 @@ const az: Dictionary = {
   "builder.noQuestions": "hələ sual yoxdur",
   "builder.topicCountAt": "{questions} ({difficulty})",
   "builder.topicNoneAt": "«{difficulty}» səviyyəsində sual yoxdur",
-  "builder.lastScore": "Son nəticə: {n}%",
+  "builder.lastScore": "Son nəticə: {n}",
   "builder.notTried": "Hələ cəhd edilməyib",
   "builder.difficulty": "Çətinlik",
   "builder.difficultyHint":
