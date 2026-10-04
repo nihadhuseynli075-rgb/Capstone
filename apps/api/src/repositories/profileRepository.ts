@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cleanName, isReadableName, normalizeUsername, profileLimits, type StudentProfile } from "@grade9/shared";
 import { isUuid } from "../lib/ids";
+import { PublicError } from "../lib/publicError";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import type { SignedInAccount } from "../modules/student/studentAuth";
 import { isUsernameConflict, USERNAME_TAKEN_MESSAGE } from "../services/usernames";
@@ -57,7 +58,8 @@ function profileError(action: string, error: { code?: string; message: string })
     ? "0012_usernames.sql"
     : "0007_profiles_and_google.sql";
   const hint = missingColumn ? ` Run supabase/migrations/${migration} in the Supabase SQL editor.` : "";
-  return new Error(`Failed to ${action}: ${error.message}.${hint}`);
+  // As for friends: the hint is for the reader, the raw message for the log.
+  return new PublicError(`Failed to ${action}.${hint}`, error.message);
 }
 
 function toProfile(row: Record<string, unknown>): StudentProfile {

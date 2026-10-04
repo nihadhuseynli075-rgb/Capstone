@@ -414,6 +414,20 @@ async function main() {
   });
   check("generating with no topics is rejected", badSettings.status === 400, `got ${badSettings.status}`);
 
+  // The ids go into the query string of the read that draws the paper. With
+  // no limit these were a 500 with Supabase and a 409 in memory.
+  const scopeRequest = (overrides) =>
+    call("/api/tests/generate", {
+      method: "POST",
+      body: { studentKey, subjectId: "math", topicIds: ["algebra"], difficultyMode: "easy", ...overrides }
+    });
+  const tooManyTopics = await scopeRequest({ topicIds: Array.from({ length: 10000 }, (_, index) => `topic-${index}`) });
+  check("ten thousand topics are a 400", tooManyTopics.status === 400, `${tooManyTopics.status} ${JSON.stringify(tooManyTopics.body).slice(0, 200)}`);
+  const hugeTopic = await scopeRequest({ topicIds: ["t".repeat(1024 * 1024)] });
+  check("a megabyte-long topic id is a 400", hugeTopic.status === 400, `got ${hugeTopic.status}`);
+  const hugeSubject = await scopeRequest({ subjectId: "m".repeat(1024 * 1024) });
+  check("a megabyte-long subject id is a 400", hugeSubject.status === 400, `got ${hugeSubject.status}`);
+
   const generated = await call("/api/tests/generate", {
     method: "POST",
     body: {
@@ -709,6 +723,44 @@ async function main() {
     body: { studentKey, answers: [], timeTakenSeconds: 1 }
   });
   check("submitting to a malformed attempt id is a 404", malformedSubmit.status === 404, `got ${malformedSubmit.status}`);
+
+  section("Requests the server cannot read are the sender's to fix");
+  // Each of these used to be a 500 with the body reader's or the router's
+  // own words in it.
+  const brokenEscape = await call(`/api/tests/attempts/%E0%A4%A?studentKey=${encodeURIComponent(studentKey)}`);
+  check("a path with a broken percent escape is a 400", brokenEscape.status === 400, `${brokenEscape.status} ${JSON.stringify(brokenEscape.body)}`);
+  const rawPost = (headers, body) =>
+    fetch(`${BASE_URL}/api/tests/generate`, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body });
+  const latin1 = await rawPost({ "Content-Type": "application/json; charset=latin1" }, "{}");
+  check("a charset other than UTF-8 is a 415", latin1.status === 415, `got ${latin1.status}`);
+  const oddEncoding = await rawPost({ "Content-Encoding": "br2" }, "{}");
+  check("an unknown content encoding is a 415", oddEncoding.status === 415, `got ${oddEncoding.status}`);
+  const fakeGzip = await rawPost({ "Content-Encoding": "gzip" }, "not gzip");
+  check("a body that claims gzip and is not is a 400", fakeGzip.status === 400, `got ${fakeGzip.status}`);
+
+  section("Other websites are refused, as a 403");
+  // A page on another site is refused before any route runs. That used to be
+  // a 500 with a stack trace logged for every such request.
+  const foreign = await fetch(`${BASE_URL}/api/catalog`, { headers: { Origin: "http://evil.example" } });
+  const foreignBody = await foreign.json().catch(() => ({}));
+  check(
+    "a request from another website is a 403 with a code",
+    foreign.status === 403 && foreignBody.code === "origin-not-allowed",
+    `${foreign.status} ${JSON.stringify(foreignBody)}`
+  );
+  const foreignPreflight = await fetch(`${BASE_URL}/api/tests/generate`, {
+    method: "OPTIONS",
+    headers: { Origin: "http://evil.example", "Access-Control-Request-Method": "POST" }
+  });
+  check("so is its preflight", foreignPreflight.status === 403, `got ${foreignPreflight.status}`);
+  // The smoke test runs against a development API, where any localhost port
+  // is the Vite dev server.
+  const devOrigin = await fetch(`${BASE_URL}/api/catalog`, { headers: { Origin: "http://localhost:5999" } });
+  check(
+    "a localhost page is allowed outside production",
+    devOrigin.status === 200 && devOrigin.headers.get("access-control-allow-origin") === "http://localhost:5999",
+    `got ${devOrigin.status}`
+  );
 
   section("Untimed tests have no limit");
   // The browser's figure used to be refused above six hours, so an untimed
