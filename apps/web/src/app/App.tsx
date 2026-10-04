@@ -536,9 +536,12 @@ function Shell() {
         className="app-header"
         ref={headerRef}
       >
+        {/* Named outright: below 760px the written name is hidden and the
+            mark beside it is decoration, which would leave the link unnamed. */}
         <a
           href="#/"
           className="brand-link"
+          aria-label="Exampeak"
           onClick={(event) => {
             if (
               isExam &&

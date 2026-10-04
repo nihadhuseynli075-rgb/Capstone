@@ -25,18 +25,25 @@ export const brandColors = {
  */
 export type LogoTone = "brand" | "light";
 
-/** The peak on its own. */
+/**
+ * The peak on its own. Alone, it is the only thing saying "Exampeak", so it
+ * says so to a screen reader; beside the written name it is decoration and
+ * gets an empty `alt`, or the two are read out together as "Exampeak
+ * Exampeak".
+ */
 export function LogoMark({
   size = 40,
-  tone = "brand"
+  tone = "brand",
+  alt = "Exampeak"
 }: {
   size?: number;
   tone?: LogoTone;
+  alt?: string;
 }) {
   return (
     <img
       src={logoMark}
-      alt="Exampeak"
+      alt={alt}
       style={{
         width: size * 2.18,
         height: size,
@@ -60,7 +67,7 @@ export function Wordmark({
 }) {
   return (
     <span className="wordmark">
-      <LogoMark size={size} />
+      <LogoMark size={size} alt="" />
 
       <span className="wordmark-text">
         Exampeak
@@ -87,6 +94,7 @@ export function LogoStacked({
       <LogoMark
         size={size}
         tone={tone}
+        alt=""
       />
 
       <span className="wordmark-text">

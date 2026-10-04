@@ -118,8 +118,8 @@ body {
  * bar, and the space is better spent on a button that is one tap away than on a
  * word the logo already says. It goes at 760px rather than at the phone
  * breakpoint because from 641px the links are back in the bar, and beside them
- * the name and the theme button no longer fit one row. The mark keeps the link's
- * accessible name (its alt text).
+ * the name and the theme button no longer fit one row. The link is named by its
+ * own aria-label, since the mark beside the name is decoration (empty alt).
  */
 @media (max-width: 760px) {
   .app-header .wordmark-text {

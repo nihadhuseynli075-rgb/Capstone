@@ -544,8 +544,15 @@
     min-height: 74px;
   }
 
+  /* Hidden from view but still read out: the mark beside it is decoration
+     (an empty alt), so this is what names the brand on a phone. */
   .landing-header .wordmark-text {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 
   .landing-nav button {
