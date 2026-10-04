@@ -244,6 +244,8 @@ const en = {
   "friends.error.alreadyRequested": "You have already sent them a request. They have not answered yet.",
   "friends.error.blocked": "A request cannot be sent to that account.",
   "friends.error.gone": "That request is no longer there. The list has been refreshed.",
+  // Removing a friendship that has already ended: it was never a request.
+  "friends.error.friendGone": "That friendship has already ended. The list has been refreshed.",
 
   "friends.incomingTitle": "Requests for you",
   "friends.outgoingTitle": "Waiting for an answer",
@@ -582,6 +584,7 @@ const ru: Dictionary = {
   "friends.error.alreadyRequested": "Вы уже отправили запрос. Ответа пока нет.",
   "friends.error.blocked": "Этому аккаунту нельзя отправить запрос.",
   "friends.error.gone": "Этого запроса больше нет. Список обновлён.",
+  "friends.error.friendGone": "Вы уже не друзья с этим человеком. Список обновлён.",
 
   "friends.incomingTitle": "Запросы к вам",
   "friends.outgoingTitle": "Ждут ответа",
@@ -916,6 +919,7 @@ const az: Dictionary = {
   "friends.error.alreadyRequested": "Siz artıq sorğu göndərmisiniz. Hələ cavab verilməyib.",
   "friends.error.blocked": "Bu hesaba sorğu göndərmək mümkün deyil.",
   "friends.error.gone": "Bu sorğu artıq yoxdur. Siyahı yeniləndi.",
+  "friends.error.friendGone": "Bu dostluq artıq bitib. Siyahı yeniləndi.",
 
   "friends.incomingTitle": "Sizə gələn sorğular",
   "friends.outgoingTitle": "Cavab gözləyənlər",

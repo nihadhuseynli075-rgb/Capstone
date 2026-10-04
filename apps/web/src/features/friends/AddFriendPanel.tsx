@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import type { SentFriendRequest } from "@grade9/shared";
 import { useLanguage } from "../../lib/i18n";
@@ -11,16 +11,26 @@ import { fill } from "./fill";
  */
 export function AddFriendPanel({
   onSend,
-  explain
+  explain,
+  resetSignal
 }: {
   onSend: (emailOrUsername: string) => Promise<SentFriendRequest>;
   explain: (cause: unknown) => string;
+  /** Changes whenever something else is done on the page (see FriendsPage). */
+  resetSignal: number;
 }) {
   const { t } = useLanguage();
   const [typed, setTyped] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<string | null>(null);
+
+  // Once a request has been answered or a friend removed, "Request sent to
+  // Aysel" or "You and Aysel are now friends" is old news, and could say the
+  // opposite of what the page now shows.
+  useEffect(() => {
+    setSent(null);
+  }, [resetSignal]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();

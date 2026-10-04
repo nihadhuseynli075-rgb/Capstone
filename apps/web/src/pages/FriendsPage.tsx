@@ -5,7 +5,8 @@ import { AddFriendPanel } from "../features/friends/AddFriendPanel";
 import { FriendsList } from "../features/friends/FriendsList";
 import { RequestsPanel } from "../features/friends/RequestsPanel";
 import { useFriends } from "../features/friends/useFriends";
-import { useLanguage } from "../lib/i18n";
+import { useLanguage, type TranslationKey } from "../lib/i18n";
+import { ApiError } from "../services/apiClient";
 import "../styles/friends.css";
 
 /**
@@ -26,17 +27,36 @@ export function FriendsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  async function act(id: string, run: () => Promise<unknown>): Promise<void> {
+  // Counts the actions taken on the page, so the add-a-friend panel can drop
+  // its "Request sent" or "You are now friends" banner once something else
+  // has happened. It used to stay through every accept, decline and remove,
+  // and sat beside messages that contradicted it.
+  const [actionCount, setActionCount] = useState(0);
+
+  /**
+   * Runs one action on a request or a friendship. `goneText` is what to say
+   * when the row has already gone: the API calls that "gone" for both, and
+   * "That request is no longer there" is wrong about a friendship.
+   */
+  async function act(id: string, run: () => Promise<unknown>, goneText?: TranslationKey): Promise<void> {
     setBusyId(id);
     setActionError(null);
+    setActionCount((count) => count + 1);
 
     try {
       await run();
     } catch (cause) {
-      setActionError(friends.explain(cause));
+      const gone = cause instanceof ApiError && cause.code === "gone";
+      setActionError(gone && goneText ? t(goneText) : friends.explain(cause));
     } finally {
       setBusyId(null);
     }
+  }
+
+  /** Sending a request is an action too: an older banner about something else no longer applies. */
+  function send(emailOrUsername: string) {
+    setActionError(null);
+    return friends.send(emailOrUsername);
   }
 
   const heading = (
@@ -100,7 +120,7 @@ export function FriendsPage() {
 
       {overview && (
         <>
-          <AddFriendPanel onSend={friends.send} explain={friends.explain} />
+          <AddFriendPanel onSend={send} explain={friends.explain} resetSignal={actionCount} />
 
           <RequestsPanel
             incoming={overview.incoming}
@@ -115,7 +135,7 @@ export function FriendsPage() {
             friends={overview.friends}
             me={overview.me}
             busyId={busyId}
-            onRemove={(id) => act(id, () => friends.remove(id))}
+            onRemove={(id) => act(id, () => friends.remove(id), "friends.error.friendGone")}
           />
         </>
       )}
