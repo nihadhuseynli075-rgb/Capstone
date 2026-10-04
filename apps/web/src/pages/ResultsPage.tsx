@@ -26,6 +26,12 @@ function breakdownFromReviews(reviews: QuestionReview[]): TopicPerformance[] {
   const topics = new Map<string, TopicPerformance>();
 
   for (const review of reviews) {
+    // A written answer the marker could not reach is left out of the paper's
+    // total when it is marked, so it is left out of its topic here too.
+    // Counting its marks made a reopened 12/12 paper show its topic as 12/16,
+    // where the result straight after submitting said 12/12.
+    if (review.counted === false) continue;
+
     const entry = topics.get(review.topicId) ?? { topicId: review.topicId, score: 0, marks: 0 };
     entry.marks += review.marks;
     entry.score += review.score;

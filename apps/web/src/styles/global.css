@@ -1043,6 +1043,10 @@ button:focus-visible {
   border-left: 4px solid var(--border);
   border-radius: 10px;
   padding: 16px;
+  /* A long number or an answer typed without spaces has nowhere to wrap, and on
+     a phone one such answer pushed the whole results page sideways. "anywhere"
+     rather than "break-word" so the flex rows of answers can shrink to fit too. */
+  overflow-wrap: anywhere;
 }
 
 .review.correct {
