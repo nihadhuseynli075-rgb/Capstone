@@ -101,7 +101,7 @@ function toPerson(row: Record<string, unknown>): FriendPerson {
     // Never the start of the email address as a stand-in: that would hand part
     // of it to somebody who was not given it. Every profile has a name, so this
     // only covers a row that has been edited by hand.
-    fullName: name.length > 0 ? name : "ExamPeak student",
+    fullName: name.length > 0 ? name : "Exampeak student",
     username: typeof row.username === "string" ? row.username : "",
     avatarUrl: typeof row.avatar_url === "string" && row.avatar_url.length > 0 ? row.avatar_url : null
   };

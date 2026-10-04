@@ -77,7 +77,7 @@ const en = {
   "landing.titleLead": "REACH YOUR",
   "landing.titlePeak": "PEAK.",
   "landing.intro":
-    "ExamPeak helps Grade 9 students prepare for final exams through mock tests, daily quizzes and detailed results.",
+    "Exampeak helps Grade 9 students prepare for final exams through mock tests, daily quizzes and detailed results.",
   "landing.introMore":
     "Practice by subject and difficulty, identify weak topics and track your progress as you improve.",
   "landing.mockTests": "Mock Tests",
@@ -224,7 +224,7 @@ const en = {
   "friends.addLabel": "Email or username",
   "friends.addPlaceholder": "Their email or @username",
   "friends.addHint":
-    "They need an ExamPeak account already. They will see your request and can accept or decline it.",
+    "They need an Exampeak account already. They will see your request and can accept or decline it.",
   "friends.send": "Send request",
   "friends.sending": "Sending...",
   "friends.sent": "Request sent to {name}. You will be friends once they accept.",
@@ -232,7 +232,7 @@ const en = {
 
   "friends.error.invalidLookup": "Enter an email address or a username, without spaces.",
   "friends.error.yourself": "That is your own account. Add a friend instead.",
-  "friends.error.noAccount": "No ExamPeak account with that email or username.",
+  "friends.error.noAccount": "No Exampeak account with that email or username.",
   "friends.error.alreadyFriends": "You are already friends.",
   "friends.error.alreadyRequested": "You have already sent them a request. They have not answered yet.",
   "friends.error.blocked": "A request cannot be sent to that account.",
@@ -391,7 +391,7 @@ const ru: Dictionary = {
   "landing.titleLead": "ДОСТИГНИТЕ СВОЕЙ",
   "landing.titlePeak": "ВЕРШИНЫ.",
   "landing.intro":
-    "ExamPeak помогает девятиклассникам готовиться к выпускным экзаменам: пробные тесты, ежедневные викторины и подробные результаты.",
+    "Exampeak помогает девятиклассникам готовиться к выпускным экзаменам: пробные тесты, ежедневные викторины и подробные результаты.",
   "landing.introMore":
     "Тренируйтесь по предметам и уровням сложности, находите слабые темы и следите за своим прогрессом.",
   "landing.mockTests": "Пробные тесты",
@@ -539,7 +539,7 @@ const ru: Dictionary = {
   "friends.addLabel": "Почта или имя пользователя",
   "friends.addPlaceholder": "Почта или @имя_пользователя",
   "friends.addHint":
-    "У этого человека уже должен быть аккаунт ExamPeak. Он увидит ваш запрос и сможет принять или отклонить его.",
+    "У этого человека уже должен быть аккаунт Exampeak. Он увидит ваш запрос и сможет принять или отклонить его.",
   "friends.send": "Отправить запрос",
   "friends.sending": "Отправляем...",
   "friends.sent": "Запрос отправлен: {name}. Вы станете друзьями, когда его примут.",
@@ -547,7 +547,7 @@ const ru: Dictionary = {
 
   "friends.error.invalidLookup": "Введите адрес электронной почты или имя пользователя без пробелов.",
   "friends.error.yourself": "Это ваш собственный аккаунт. Добавьте кого-нибудь другого.",
-  "friends.error.noAccount": "Нет аккаунта ExamPeak с такой почтой или таким именем пользователя.",
+  "friends.error.noAccount": "Нет аккаунта Exampeak с такой почтой или таким именем пользователя.",
   "friends.error.alreadyFriends": "Вы уже друзья.",
   "friends.error.alreadyRequested": "Вы уже отправили запрос. Ответа пока нет.",
   "friends.error.blocked": "Этому аккаунту нельзя отправить запрос.",
@@ -702,7 +702,7 @@ const az: Dictionary = {
   "landing.titleLead": "ZİRVƏNİZƏ",
   "landing.titlePeak": "ÇATIN.",
   "landing.intro":
-    "ExamPeak 9-cu sinif şagirdlərinə sınaq testləri, gündəlik viktorinalar və ətraflı nəticələrlə buraxılış imtahanlarına hazırlaşmağa kömək edir.",
+    "Exampeak 9-cu sinif şagirdlərinə sınaq testləri, gündəlik viktorinalar və ətraflı nəticələrlə buraxılış imtahanlarına hazırlaşmağa kömək edir.",
   "landing.introMore":
     "Fənn və çətinlik səviyyəsinə görə məşq edin, zəif mövzuları tapın və inkişafınızı izləyin.",
   "landing.mockTests": "Sınaq testləri",
@@ -850,7 +850,7 @@ const az: Dictionary = {
   "friends.addLabel": "E-poçt və ya istifadəçi adı",
   "friends.addPlaceholder": "E-poçt və ya @istifadəçi_adı",
   "friends.addHint":
-    "Onun artıq ExamPeak hesabı olmalıdır. O, sorğunuzu görəcək və qəbul edə və ya rədd edə biləcək.",
+    "Onun artıq Exampeak hesabı olmalıdır. O, sorğunuzu görəcək və qəbul edə və ya rədd edə biləcək.",
   "friends.send": "Sorğu göndər",
   "friends.sending": "Göndərilir...",
   "friends.sent": "Sorğu göndərildi: {name}. Qəbul ediləndə dost olacaqsınız.",
@@ -858,7 +858,7 @@ const az: Dictionary = {
 
   "friends.error.invalidLookup": "Boşluqsuz e-poçt ünvanı və ya istifadəçi adı daxil edin.",
   "friends.error.yourself": "Bu sizin öz hesabınızdır. Başqasını əlavə edin.",
-  "friends.error.noAccount": "Bu e-poçt və ya istifadəçi adı ilə ExamPeak hesabı yoxdur.",
+  "friends.error.noAccount": "Bu e-poçt və ya istifadəçi adı ilə Exampeak hesabı yoxdur.",
   "friends.error.alreadyFriends": "Siz artıq dostsunuz.",
   "friends.error.alreadyRequested": "Siz artıq sorğu göndərmisiniz. Hələ cavab verilməyib.",
   "friends.error.blocked": "Bu hesaba sorğu göndərmək mümkün deyil.",

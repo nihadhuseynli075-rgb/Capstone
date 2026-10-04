@@ -1661,7 +1661,7 @@ async function main() {
         "an email nobody signed up with says so",
         unknownEmail.status === 404 &&
           unknownEmail.body.code === "no-account" &&
-          unknownEmail.body.message === "No ExamPeak account with that email or username.",
+          unknownEmail.body.message === "No Exampeak account with that email or username.",
         `${unknownEmail.status} ${JSON.stringify(unknownEmail.body)}`
       );
       const unknownName = await ask(fiona.token, "@nobody.at.all");
