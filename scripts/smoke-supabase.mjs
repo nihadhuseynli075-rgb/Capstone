@@ -786,6 +786,32 @@ async function main() {
     );
     const authBack = await call(`/api/tests/history?studentKey=${bob.user.id}`, { token: bobToken });
     check("the same token works once it is back", authBack.status === 200, `got ${authBack.status}`);
+    check(
+      "the auth server's own error text is not passed on",
+      authDown.body.message === "Could not check your sign-in just now. Try again in a moment.",
+      JSON.stringify(authDown.body)
+    );
+
+    section("Database errors stay in the log");
+    // The stand-in fails with "injected failure", where a real project would
+    // put Postgres or PostgREST wording: table and column names, filter
+    // syntax. None of it belongs in a response.
+    await control("faults", { method: "GET", table: "test_attempts", times: 1 });
+    const historyDown = await call(`/api/tests/history?studentKey=${randomUUID()}`);
+    check(
+      "a failed read is a 500 with a generic message and a reference",
+      historyDown.status === 500 &&
+        !/injected failure|Failed to load history/.test(JSON.stringify(historyDown.body)) &&
+        typeof historyDown.body.ref === "string",
+      `${historyDown.status} ${JSON.stringify(historyDown.body)}`
+    );
+    await control("faults", { method: "GET", table: "questions", times: 1 });
+    const catalogDown = await call("/api/catalog");
+    check(
+      "so is a failed catalog read",
+      catalogDown.status === 500 && !/injected failure/.test(JSON.stringify(catalogDown.body)),
+      `${catalogDown.status} ${JSON.stringify(catalogDown.body)}`
+    );
 
     section("Two submissions of the same paper at once");
     const racerKey = randomUUID();

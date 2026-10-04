@@ -1,6 +1,7 @@
 import type { Request } from "express";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { bearerToken } from "../../lib/bearerToken";
+import { PublicError } from "../../lib/publicError";
 import { supabaseAdmin } from "../../lib/supabaseAdmin";
 import { accountIdFor } from "../../repositories/profileRepository";
 
@@ -46,7 +47,7 @@ export async function signedInAccount(request: Request): Promise<SignedInAccount
     // would send a student who is signed in round in a loop, so it is reported
     // as the failure it is.
     if (isAuthRetryableFetchError(error)) {
-      throw new Error(`Could not check your sign-in just now. Try again in a moment. (${error.message})`);
+      throw new PublicError("Could not check your sign-in just now. Try again in a moment.", error.message);
     }
     return null;
   }
@@ -87,7 +88,7 @@ export async function liveAccount(request: Request): Promise<SignedInAccount | n
   if (error) {
     // As above: unreachable is not the same as signed out.
     if (isAuthRetryableFetchError(error)) {
-      throw new Error(`Could not check your sign-in just now. Try again in a moment. (${error.message})`);
+      throw new PublicError("Could not check your sign-in just now. Try again in a moment.", error.message);
     }
     return null;
   }

@@ -1,6 +1,8 @@
+import { randomUUID } from "node:crypto";
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { env, storageMode } from "./lib/env";
+import { PublicError } from "./lib/publicError";
 import { adminRouter } from "./routes/admin";
 import { catalogRouter } from "./routes/catalog";
 import { friendsRouter } from "./routes/friends";
@@ -58,6 +60,9 @@ app.use((_request, response) => {
   response.status(404).json({ message: "Not found." });
 });
 
+/** What a failure the reader cannot be told more about says. */
+const GENERIC_FAILURE = "Something went wrong on the server. Try again in a moment.";
+
 /** What express.json() attaches to a body it turned away. */
 interface BodyError extends Error {
   type?: string;
@@ -80,8 +85,17 @@ app.use((error: BodyError, request: Request, response: Response, _next: NextFunc
     return response.status(400).json({ message: "That request was not valid JSON." });
   }
 
-  console.error("[api]", error);
-  response.status(500).json({ message: error.message || "Something went wrong on the server." });
+  // The full error, raw database wording and all, goes to the log under a
+  // short reference. The response carries that reference and, unless the
+  // error was written for the reader (see PublicError), only a generic
+  // sentence: a database message names tables, columns and filter syntax,
+  // and used to be sent to whoever asked.
+  const ref = randomUUID().slice(0, 8);
+  console.error(`[api] ${request.method} ${request.path} failed (ref ${ref}):`, error);
+  response.status(500).json({
+    message: error instanceof PublicError ? error.publicMessage : GENERIC_FAILURE,
+    ref
+  });
 });
 
 app.listen(env.port, () => {
