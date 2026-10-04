@@ -1429,28 +1429,8 @@ button:focus-visible {
     width: 100%;
   }
 
-  /* The account chip is a row in the menu here, not a chip in a bar. */
-  .account-menu {
-    width: 100%;
-  }
-
-  .account-trigger {
-    width: 100%;
-    justify-content: flex-start;
-    border-radius: 8px;
-    min-height: 44px;
-  }
-
-  .account-name {
-    max-width: none;
-  }
-
-  .account-dropdown {
-    position: static;
-    min-width: 0;
-    margin-top: 6px;
-    box-shadow: none;
-  }
+  /* The account menu's phone layout is in components.css, after the rules it
+     overrides: from here, earlier in the cascade, it lost to them. */
 
   /*
    * Everything tappable clears 44px. The buttons were already covered; these
