@@ -273,6 +273,31 @@ export async function deleteQuestion(id: string): Promise<boolean> {
   return (data ?? []).length > 0;
 }
 
+/**
+ * The size of the whole bank, whatever the admin list is filtered to.
+ *
+ * The admin dashboard's heading and its warning about written questions are
+ * about the bank, not about the search on screen. Both used to be worked out
+ * from the filtered list, so a search with no hits announced "0 questions in
+ * the bank". Two counts, so nothing but the numbers is read.
+ */
+export async function bankSummary(): Promise<{ total: number; written: number }> {
+  if (!supabaseAdmin) {
+    const all = [...memoryQuestions.values()];
+    return { total: all.length, written: all.filter((question) => question.type === "open-ended").length };
+  }
+
+  const [all, written] = await Promise.all([
+    supabaseAdmin.from("questions").select("id", { count: "exact", head: true }),
+    supabaseAdmin.from("questions").select("id", { count: "exact", head: true }).eq("type", "open-ended")
+  ]);
+
+  const failure = all.error ?? written.error;
+  if (failure) throw new Error(`Failed to count questions: ${failure.message}`);
+
+  return { total: all.count ?? 0, written: written.count ?? 0 };
+}
+
 type CountedQuestion = Pick<BankQuestion, "subjectId" | "topicId" | "difficulty" | "type">;
 
 /**

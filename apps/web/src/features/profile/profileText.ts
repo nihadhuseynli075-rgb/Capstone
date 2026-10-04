@@ -17,10 +17,8 @@ import type { AuthRedirectResult } from "../auth/oauthRedirect";
 
 type Translate = (key: TranslationKey) => string;
 
-/** Puts values into a sentence's {placeholders}: the dictionaries have no formatting of their own. */
-export function fill(template: string, values: Record<string, string>): string {
-  return template.replace(/\{(\w+)\}/g, (whole, name: string) => values[name] ?? whole);
-}
+// Kept importable from here, where the profile panels have always found it.
+export { fill } from "../../lib/i18n";
 
 const AUTH_CODES: Record<string, TranslationKey> = {
   email_exists: "profile.errEmailTaken",

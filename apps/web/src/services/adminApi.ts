@@ -25,12 +25,27 @@ export function adminLogin(password: string): Promise<LoginResponse> {
   return apiRequest<LoginResponse>("/api/admin/login", { method: "POST", body: { password } });
 }
 
+/**
+ * Ends the session on the API, not only in this tab.
+ *
+ * Forgetting the token here was all signing out did, and the API went on
+ * honouring it for the rest of its twelve hours: anyone who had copied it
+ * (from a shared computer's storage, say) could still use the dashboard.
+ */
+export async function adminLogout(): Promise<void> {
+  const token = getAdminToken();
+  if (!token) return;
+  await apiRequest("/api/admin/logout", { method: "POST", token });
+}
+
 export async function fetchQuestions(filters: {
   subject?: string;
   difficulty?: string;
   search?: string;
 }): Promise<{
   questions: BankQuestion[];
+  /** The whole bank, whatever the filters. Optional so an older API still reads. */
+  bank?: { total: number; written: number };
   storageMode: "supabase" | "memory";
   usingDefaultPassword: boolean;
   /** Whether the AI marker is set up. Optional so an older API still reads. */

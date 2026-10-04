@@ -300,6 +300,27 @@ async function main() {
     imported.body.questions?.[0]?.correctAnswer
   );
 
+  section("The admin list and the whole bank");
+  // The dashboard's heading counts the bank, not the search on screen: a
+  // search with no hits once announced "0 questions in the bank".
+  const everything = await call("/api/admin/questions", { token });
+  const noHits = await call("/api/admin/questions?search=zzzz-no-match-anywhere", { token });
+  check(
+    "the listing says how big the whole bank is",
+    everything.body.bank?.total === everything.body.questions?.length && everything.body.bank.total > 0,
+    JSON.stringify(everything.body.bank)
+  );
+  check(
+    "and a search with no hits still does",
+    noHits.body.questions?.length === 0 && noHits.body.bank?.total === everything.body.bank?.total,
+    JSON.stringify({ shown: noHits.body.questions?.length, bank: noHits.body.bank })
+  );
+  check(
+    "including how many written questions it holds",
+    typeof noHits.body.bank?.written === "number",
+    JSON.stringify(noHits.body.bank)
+  );
+
   section("Catalog");
   const catalog = await call("/api/catalog");
   check("catalog responds 200", catalog.status === 200);

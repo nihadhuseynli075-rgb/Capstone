@@ -331,6 +331,15 @@ const en = {
   "profile.detailsSaved": "Details updated.",
   "profile.saveDetails": "Save changes",
 
+  // Admin
+  "admin.sessionEnded": "Your admin session has ended, so you need to sign in again.",
+  "admin.sessionEndedDraft":
+    "Your admin session ended before the question was saved. It has been kept: sign in again and it is saved straight away.",
+  "admin.bankCount": "Questions in the bank: {total}.",
+  "admin.bankMatching": "Questions in the bank: {total}. Matching this filter: {count}.",
+  "admin.noMatch":
+    "No question matches this filter. Clear the search or choose all subjects to see the whole bank.",
+
   "common.saving": "Saving...",
   "common.back": "Back"
 } as const;
@@ -646,6 +655,15 @@ const ru: Dictionary = {
   "profile.detailsSaved": "Данные обновлены.",
   "profile.saveDetails": "Сохранить изменения",
 
+  // Admin
+  "admin.sessionEnded": "Сеанс администратора завершился. Войдите снова.",
+  "admin.sessionEndedDraft":
+    "Сеанс администратора завершился до того, как вопрос был сохранён. Он не потерян: войдите снова, и он сразу сохранится.",
+  "admin.bankCount": "Вопросов в банке: {total}.",
+  "admin.bankMatching": "Вопросов в банке: {total}. Подходят под фильтр: {count}.",
+  "admin.noMatch":
+    "Ни один вопрос не подходит под этот фильтр. Очистите поиск или выберите все предметы, чтобы увидеть весь банк.",
+
   "common.saving": "Сохранение...",
   "common.back": "Назад"
 };
@@ -957,6 +975,15 @@ const az: Dictionary = {
   "profile.detailsSaved": "Məlumatlar yeniləndi.",
   "profile.saveDetails": "Dəyişiklikləri yadda saxla",
 
+  // Admin
+  "admin.sessionEnded": "Admin sessiyanız başa çatdı. Yenidən daxil olun.",
+  "admin.sessionEndedDraft":
+    "Admin sessiyanız sual yadda saxlanmamışdan əvvəl başa çatdı. Sual itməyib: yenidən daxil olun, o dərhal yadda saxlanılacaq.",
+  "admin.bankCount": "Bankdakı suallar: {total}.",
+  "admin.bankMatching": "Bankdakı suallar: {total}. Bu filtrə uyğun gələnlər: {count}.",
+  "admin.noMatch":
+    "Bu filtrə uyğun sual yoxdur. Bütün bankı görmək üçün axtarışı təmizləyin və ya bütün fənləri seçin.",
+
   "common.saving": "Yadda saxlanılır...",
   "common.back": "Geri"
 };
@@ -990,6 +1017,13 @@ export function formatDay(iso: string, language: Language): string {
   const date = new Date(iso);
   if (language === "az") return `${date.getDate()} ${AZ_MONTHS[date.getMonth()]} ${date.getFullYear()}`;
   return date.toLocaleDateString(language, { day: "numeric", month: "long", year: "numeric" });
+}
+
+/** Puts values into a sentence's {placeholders}: the dictionaries have no formatting of their own. */
+export function fill(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (whole, name: string) =>
+    values[name] === undefined ? whole : String(values[name])
+  );
 }
 
 export function getStoredLanguage(): Language {

@@ -8,6 +8,7 @@ import { env, storageMode, writtenMarkingEnabled } from "../lib/env";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { login, logout, requireAdmin } from "../modules/admin/adminAuth";
 import {
+  bankSummary,
   createQuestions,
   deleteQuestion,
   listQuestions,
@@ -180,22 +181,27 @@ adminRouter.post("/logout", requireAdmin, (request, response) => {
 
 adminRouter.get("/questions", requireAdmin, async (request, response, next) => {
   try {
-    const questions = await listQuestions({
-      subjectId: typeof request.query.subject === "string" ? request.query.subject : undefined,
-      difficulty:
-        request.query.difficulty === "easy" ||
-        request.query.difficulty === "medium" ||
-        request.query.difficulty === "hard"
-          ? request.query.difficulty
-          : undefined,
-      search: typeof request.query.search === "string" ? request.query.search : undefined
-    });
+    const [questions, bank] = await Promise.all([
+      listQuestions({
+        subjectId: typeof request.query.subject === "string" ? request.query.subject : undefined,
+        difficulty:
+          request.query.difficulty === "easy" ||
+          request.query.difficulty === "medium" ||
+          request.query.difficulty === "hard"
+            ? request.query.difficulty
+            : undefined,
+        search: typeof request.query.search === "string" ? request.query.search : undefined
+      }),
+      bankSummary()
+    ]);
 
     // Sent on every listing, not only on the login reply. The admin token
     // outlives a page reload, so a dashboard that only learned this at sign-in
     // dropped the warning for exactly the person who never signs in again.
     response.json({
       questions,
+      // The whole bank, which the filters above do not touch.
+      bank,
       storageMode,
       usingDefaultPassword: env.adminPasswordIsDefault,
       // Without the AI marker, written questions are kept out of tests.
