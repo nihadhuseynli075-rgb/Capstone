@@ -120,6 +120,10 @@ export function AdminPage() {
   // The form is emptied by giving it a new key, which remounts it. After a
   // question is added the next one starts clean, with what a paper shares kept.
   const [formKey, setFormKey] = useState(0);
+
+  // Where the list was scrolled to when Edit was pressed, to go back to.
+  const listScrollRef = useRef(0);
+  const formPanelRef = useRef<HTMLElement>(null);
   const [carryOver, setCarryOver] = useState<QuestionCarryOver | null>(null);
 
   const [csv, setCsv] = useState("");
@@ -184,6 +188,34 @@ export function AdminPage() {
     if (notice) noticeRef.current?.scrollIntoView({ block: "nearest" });
   }, [notice]);
 
+  /*
+   * Editing a question from the list, and coming back to it.
+   *
+   * Edit used to leave the page where it was, deep in a long list, so the form
+   * opened scrolled to its end with the question text far above; and Cancel or
+   * Save left an empty "Add a question" form where the list had been. Now the
+   * form opens at its top, and either way out goes back to the list, scrolled
+   * to the row that was edited.
+   */
+  function startEditing(question: BankQuestion) {
+    listScrollRef.current = window.scrollY;
+    // What the list last said does not apply to the form.
+    setNotice(null);
+    setError(null);
+    setEditing(question);
+    setTab("add");
+    window.requestAnimationFrame(() => formPanelRef.current?.scrollIntoView({ block: "start" }));
+  }
+
+  function backToList() {
+    setEditing(null);
+    setTab("list");
+    const position = listScrollRef.current;
+    // Two frames: the list is drawn in the first, and only then is it tall
+    // enough to scroll back down.
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.scrollTo(0, position)));
+  }
+
   if (!token) {
     return (
       <LoginScreen
@@ -208,7 +240,7 @@ export function AdminPage() {
       if (editing) {
         await updateQuestion(editing.id, draft);
         setNotice("Question updated.");
-        setEditing(null);
+        backToList();
       } else {
         await createQuestion(draft);
         setNotice("Question added to the bank. Subject, topic, difficulty, year and source are kept for the next one.");
@@ -241,6 +273,16 @@ export function AdminPage() {
       if (editing?.id === question.id) setEditing(null);
       await refresh();
     } catch (cause) {
+      // Already deleted somewhere else, another tab or another admin: it is
+      // gone either way, which is what was asked for. Saying "Question not
+      // found." and leaving the row in the list until a reload helped nobody.
+      if (cause instanceof ApiError && cause.status === 404) {
+        setNotice("That question had already been deleted. The list has been refreshed.");
+        if (editing?.id === question.id) setEditing(null);
+        await refresh();
+        return;
+      }
+
       handleFailure(cause);
     }
   }
@@ -378,7 +420,7 @@ export function AdminPage() {
       {tab !== "add" && error && <p className="error-banner">{error}</p>}
 
       {tab === "add" && (
-        <section className="panel">
+        <section className="panel" ref={formPanelRef}>
           <h2>{editing ? "Edit question" : "Add a question"}</h2>
           <QuestionForm
             // One form per question being edited, and a new one after each add.
@@ -386,7 +428,7 @@ export function AdminPage() {
             initial={editing}
             carryOver={carryOver}
             onSubmit={handleSave}
-            onCancel={editing ? () => setEditing(null) : undefined}
+            onCancel={editing ? backToList : undefined}
             submitting={saving}
             error={error}
           />
@@ -463,13 +505,7 @@ export function AdminPage() {
                     <button
                       type="button"
                       className="ghost-button"
-                      onClick={() => {
-                        // What the list last said does not apply to the form.
-                        setNotice(null);
-                        setError(null);
-                        setEditing(question);
-                        setTab("add");
-                      }}
+                      onClick={() => startEditing(question)}
                     >
                       Edit
                     </button>
