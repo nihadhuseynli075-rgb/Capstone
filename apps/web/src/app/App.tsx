@@ -19,6 +19,7 @@ import { ExamPage } from "../pages/ExamPage";
 import { HistoryPage } from "../pages/HistoryPage";
 import { LandingPage } from "../pages/LandingPage";
 import { MainPage } from "../pages/MainPage";
+import { NotFoundPage } from "../pages/NotFoundPage";
 import { ProfilePage } from "../pages/ProfilePage";
 import { ResultsPage } from "../pages/ResultsPage";
 import { SettingsPage } from "../pages/SettingsPage";
@@ -290,21 +291,26 @@ function AccountMenu() {
 
 
 /*
- * Страницы приложения.
- * Всё остальное — главная.
+ * Every address the app has a page for. Anything else gets "Page not found"
+ * rather than the landing page or the dashboard, which used to hide a
+ * mistyped link behind a page that looked like it had worked.
  */
-function isAppPage(path: string): boolean {
+function isKnownRoute(path: string): boolean {
   return (
     [
+      "/",
+      "/login",
+      "/register",
       "/build",
       "/exam",
       "/history",
       "/friends",
       "/profile",
       "/settings",
-      "/admin"
+      "/admin",
+      "/results"
     ].includes(path) ||
-    path.startsWith("/results")
+    /^\/results\/[^/]+$/.test(path)
   );
 }
 
@@ -422,7 +428,9 @@ function Shell() {
   }
 
 
-  if (!user && !isAppPage(path)) {
+  // Home is the landing page for a visitor and the dashboard for a student.
+  // Every other page, and "Page not found", is the same for both.
+  if (!user && path === "/") {
     return <LandingPage />;
   }
 
@@ -433,11 +441,19 @@ function Shell() {
   const navItems: Array<{ path: string; label: TranslationKey; active: boolean }> = [
     { path: "/", label: user ? "nav.dashboard" : "nav.home", active: path === "/" },
     { path: "/build", label: "nav.newTest", active: path === "/build" },
-    { path: "/history", label: "nav.history", active: path === "/history" || path.startsWith("/results") }
+    {
+      path: "/history",
+      label: "nav.history",
+      active: isKnownRoute(path) && (path === "/history" || path.startsWith("/results"))
+    }
   ];
 
 
   function renderPage() {
+    if (!isKnownRoute(path)) {
+      return <NotFoundPage />;
+    }
+
     if (path === "/build") {
       return <TestBuilderPage />;
     }

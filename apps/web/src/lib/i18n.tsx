@@ -337,7 +337,14 @@ const en = {
   "profile.saveDetails": "Save changes",
 
   "common.saving": "Saving...",
-  "common.back": "Back"
+  "common.back": "Back",
+
+  // Page not found
+  "notFound.title": "Page not found",
+  "notFound.body":
+    "There is nothing at this address. The link may have a typing mistake in it, or the page may have moved.",
+  "notFound.home": "Go to the home page",
+  "notFound.dashboard": "Go to your dashboard"
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -652,7 +659,14 @@ const ru: Dictionary = {
   "profile.saveDetails": "Сохранить изменения",
 
   "common.saving": "Сохранение...",
-  "common.back": "Назад"
+  "common.back": "Назад",
+
+  // Page not found
+  "notFound.title": "Страница не найдена",
+  "notFound.body":
+    "По этому адресу ничего нет. Возможно, в ссылке опечатка или страница переехала.",
+  "notFound.home": "На главную",
+  "notFound.dashboard": "На главную"
 };
 
 const az: Dictionary = {
@@ -963,7 +977,14 @@ const az: Dictionary = {
   "profile.saveDetails": "Dəyişiklikləri yadda saxla",
 
   "common.saving": "Yadda saxlanılır...",
-  "common.back": "Geri"
+  "common.back": "Geri",
+
+  // Page not found
+  "notFound.title": "Səhifə tapılmadı",
+  "notFound.body":
+    "Bu ünvanda heç nə yoxdur. Linkdə hərf səhvi ola bilər, ya da səhifə başqa yerə köçüb.",
+  "notFound.home": "Ana səhifəyə qayıt",
+  "notFound.dashboard": "Ana səhifəyə qayıt"
 };
 
 const dictionaries: Record<Language, Dictionary> = { en, ru, az };

@@ -9,8 +9,20 @@ import { useEffect, useSyncExternalStore } from "react";
  */
 function currentPath(): string {
   // The query is not part of the route: "/build?subject=math" is still "/build".
-  const path = window.location.hash.replace(/^#/, "").split("?")[0];
-  return path.length > 0 ? path : "/";
+  return normalisePath(window.location.hash.replace(/^#/, "").split("?")[0]);
+}
+
+/**
+ * The route an address means, with the harmless differences taken out: a
+ * doubled slash, a slash on the end, and capital letters. "#/Build/" and
+ * "#//build" are someone's way of writing "#/build", and showing them a page
+ * that does not exist would be unkind. Only the route is tidied; the address
+ * bar is left as it was typed.
+ */
+export function normalisePath(raw: string): string {
+  let path = `/${raw}`.replace(/\/{2,}/g, "/").toLowerCase();
+  if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
+  return path;
 }
 
 /** One value from the route's query, e.g. `subject` in "#/build?subject=math". */
