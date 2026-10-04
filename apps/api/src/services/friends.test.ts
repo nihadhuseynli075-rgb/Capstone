@@ -67,6 +67,20 @@ describe("parseLookup", () => {
     assert.equal(parseLookup("@"), null);
     assert.equal(parseLookup("ana b"), null);
   });
+
+  test("a username is folded the way the profile page saves it", () => {
+    // The profile page calls each of these "@ilkin_eliyev is taken", so the
+    // add-friend box has to find that name from them too.
+    assert.deepEqual(parseLookup("@İlkin_eliyev"), { by: "username", username: "ilkin_eliyev" });
+    assert.deepEqual(parseLookup("@ilkin_əliyev"), { by: "username", username: "ilkin_eliyev" });
+    assert.deepEqual(parseLookup("Ilkın_Eliyev"), { by: "username", username: "ilkin_eliyev" });
+    assert.deepEqual(parseLookup("@hüseyn.k"), { by: "username", username: "huseyn.k" });
+  });
+
+  test("full-width letters and a full-width @ read as the plain ones", () => {
+    assert.deepEqual(parseLookup("＠ilkin_ceferov"), { by: "username", username: "ilkin_ceferov" });
+    assert.deepEqual(parseLookup("ａｎａ＠ｓｃｈｏｏｌ．ｅｘａｍｐｌｅ"), { by: "email", email: "ana@school.example" });
+  });
 });
 
 describe("planRequest", () => {

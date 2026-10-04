@@ -1814,6 +1814,16 @@ async function main() {
       );
       const askedAfterDecline = await ask(fiona.token, gabe.username);
       check("and she may ask again, this time with a bare username", askedAfterDecline.status === 201, `${askedAfterDecline.status} ${JSON.stringify(askedAfterDecline.body)}`);
+      // Spellings the profile page folds onto the same name: a full-width "＠"
+      // from a phone keyboard, the Azerbaijani "İ" and "ə". Each must find Gabe
+      // (who already has her request), not "no account with that username".
+      const folded = `＠${gabe.username.replace(/i/g, "İ").replace(/e/g, "ə")}`;
+      const askedFolded = await ask(fiona.token, folded);
+      check(
+        "a username spelt the way the profile page folds it finds the same account",
+        askedFolded.status === 409 && askedFolded.body.code === "already-requested",
+        `${folded}: ${askedFolded.status} ${JSON.stringify(askedFolded.body)}`
+      );
 
       section("Taking a request back");
       const outgoingId = (await friendsOf(fiona.token)).body.outgoing[0]?.requestId;

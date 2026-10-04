@@ -1,4 +1,4 @@
-import { attemptScoreValue, type DifficultyMode, type FriendProgress } from "@grade9/shared";
+import { attemptScoreValue, normalizeUsername, type DifficultyMode, type FriendProgress } from "@grade9/shared";
 
 /**
  * The rules of friend requests, apart from the database.
@@ -38,17 +38,25 @@ const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * keeps "@aysel.k" a username. Usernames may contain dots, so "@aysel.k" has an
  * "@" followed by something that looks like a domain, but an address cannot
  * start with an "@". A username is typed with or without one leading "@", as
- * it is printed, and is stored lowercase.
+ * it is printed.
+ *
+ * A username goes through the same normalizeUsername the profile page saves
+ * it with, so every spelling the profile page counts as the same name finds
+ * it here too: "İlkin" and "ilkin", "əliyev" and "eliyev", accents, and the
+ * full-width letters and "＠" some phone keyboards type. Lowercasing alone
+ * found none of those, while the profile page said the name was taken.
  *
  * This does not hold a username to the shape the profile page enforces. A
  * name that cannot exist is simply not found, and a rule changed over there
  * does not need changing here. Null is for text that cannot be either.
  */
 export function parseLookup(input: string): FriendLookup | null {
-  const text = input.trim().toLowerCase();
-  if (EMAIL_SHAPE.test(text)) return { by: "email", email: text };
+  // Full-width forms first, so a "＠" or a full-width letter reads as the plain one.
+  const text = input.normalize("NFKC").trim();
+  const lower = text.toLowerCase();
+  if (EMAIL_SHAPE.test(lower)) return { by: "email", email: lower };
 
-  const username = text.replace(/^@/, "");
+  const username = normalizeUsername(text);
   if (username.length === 0 || username.length > 254 || /\s/.test(username)) return null;
 
   return { by: "username", username };
