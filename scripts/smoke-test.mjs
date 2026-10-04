@@ -190,6 +190,43 @@ async function main() {
     JSON.stringify(five.body.question)
   );
 
+  section("Searching the bank");
+  // Postgres's ILIKE reads "%" as any run of characters and "_" as any one, so
+  // a search for either used to list every question in the bank.
+  const percentQuestion = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ prompt: "A price rises by 54% (search check)" })
+  });
+  const underscoreQuestion = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ prompt: "Name the variable x_1 (search check)" })
+  });
+  check(
+    "the two questions to search for save",
+    percentQuestion.status === 201 && underscoreQuestion.status === 201,
+    JSON.stringify([percentQuestion.body, underscoreQuestion.body]).slice(0, 200)
+  );
+  for (const [character, expected] of [
+    ["%", "A price rises by 54% (search check)"],
+    ["_", "Name the variable x_1 (search check)"]
+  ]) {
+    const found = await call(`/api/admin/questions?search=${encodeURIComponent(character)}`, { token });
+    const prompts = (found.body.questions ?? []).map((question) => question.prompt);
+    check(
+      `searching for "${character}" finds only questions with that character in them`,
+      found.status === 200 && prompts.includes(expected) && prompts.every((prompt) => prompt.includes(character)),
+      JSON.stringify(prompts.filter((prompt) => !prompt.includes(character)).slice(0, 3))
+    );
+  }
+  const backslash = await call(`/api/admin/questions?search=${encodeURIComponent("\\")}`, { token });
+  check(
+    "a backslash is searched for as itself",
+    backslash.status === 200 && (backslash.body.questions ?? []).every((question) => question.prompt.includes("\\")),
+    `${backslash.status} ${(backslash.body.questions ?? []).length} found`
+  );
+
   section("Editing and deleting");
   const updated = await call(`/api/admin/questions/${createdId}`, {
     method: "PUT",

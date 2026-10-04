@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { BankQuestion, Difficulty, QuestionDraft, QuestionStatus, QuestionType } from "@grade9/shared";
 import { isUuid } from "../lib/ids";
+import { containsPattern } from "../lib/likePattern";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { readTranslations } from "../services/questionTranslations";
 
@@ -169,7 +170,9 @@ export async function listQuestions(filter: QuestionFilter = {}): Promise<BankQu
     if (filter.subjectId) query = query.eq("subject_id", filter.subjectId);
     if (filter.difficulty) query = query.eq("difficulty", filter.difficulty);
     if (filter.topicIds?.length) query = query.in("topic_id", filter.topicIds);
-    if (filter.search) query = query.ilike("prompt", `%${filter.search}%`);
+    // Literal text, like the memory branch's includes(): "%" and "_" are
+    // escaped rather than left to match anything (see containsPattern).
+    if (filter.search) query = query.ilike("prompt", containsPattern(filter.search));
     if (filter.readyOnly) query = query.eq("status", "ready");
     if (filter.excludeTypes?.length) query = query.not("type", "in", `(${filter.excludeTypes.join(",")})`);
 

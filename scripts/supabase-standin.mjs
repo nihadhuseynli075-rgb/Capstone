@@ -404,15 +404,31 @@ function splitTopLevel(text) {
   return parts;
 }
 
+/**
+ * A LIKE pattern as a regular expression: "%" (or PostgREST's "*") is any run
+ * of characters and "_" any one. A backslash is Postgres's default escape
+ * character, so the character after it stands for itself: "\%" is a percent
+ * sign, which is how the API searches for one.
+ */
 function likePattern(pattern, caseInsensitive) {
-  const source = pattern
-    .split("")
-    .map((char) => {
-      if (char === "%" || char === "*") return ".*";
-      if (char === "_") return ".";
-      return char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    })
-    .join("");
+  const literal = (char) => char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  let source = "";
+
+  for (let index = 0; index < pattern.length; index += 1) {
+    const char = pattern[index];
+
+    if (char === "\\" && index + 1 < pattern.length) {
+      index += 1;
+      source += literal(pattern[index]);
+    } else if (char === "%" || char === "*") {
+      source += ".*";
+    } else if (char === "_") {
+      source += ".";
+    } else {
+      source += literal(char);
+    }
+  }
+
   return new RegExp(`^${source}$`, caseInsensitive ? "is" : "s");
 }
 
