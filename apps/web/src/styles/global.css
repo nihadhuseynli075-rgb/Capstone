@@ -19,14 +19,21 @@
   --surface: #ffffff;
   --surface-alt: #e8f2fa;
   --text: #0a3a58;
-  --muted: #5a7893;
+  /*
+   * Text colours a step darker than the logo's: the logo blue (#0C82C8) as
+   * text or as a button behind white text reached only 4.2:1 on white and
+   * 3.5:1 on the pale brand tint, and the old muted (#5A7893) and success
+   * (#1C8A5B) fell to 3.9:1 and 4.3:1, under the 4.5:1 small text needs.
+   * These clear 4.5:1 on every light surface the app uses.
+   */
+  --muted: #4f6d88;
   --border: #d1e2ef;
-  --brand: #0c82c8;
+  --brand: #0a70ad;
   --brand-strong: #0a3a58;
   --brand-soft: #e0eefa;
   /* The wordmark navy, as the edge a primary button stands on. */
   --brand-edge: #0a3a58;
-  --success: #1c8a5b;
+  --success: #177a50;
   --success-soft: #e2f5ec;
   --danger: #c0392b;
   --danger-soft: #fdeceb;
