@@ -4,6 +4,7 @@ import { customLimits, difficultyPresets } from "@grade9/shared";
 import { navigate, useRouteParam } from "../app/router";
 import { ResumeTestBanner } from "../components/ResumeTestBanner";
 import { useAuth } from "../features/auth/AuthContext";
+import { useClaimedHistoryVersion } from "../features/auth/useHistoryClaim";
 import { fill } from "../features/friends/fill";
 import { saveActiveTest } from "../lib/examSession";
 import { formatPercent, useLanguage, type TranslationKey } from "../lib/i18n";
@@ -136,6 +137,8 @@ function withBoldNumber(text: string, count: number) {
 
 export function TestBuilderPage() {
   const { ready, user } = useAuth();
+  // Guest tests moved onto the account after history was read: read it again.
+  const claimedVersion = useClaimedHistoryVersion();
   const { language, t, tn } = useLanguage();
   const [catalog, setCatalog] = useState<CatalogSubject[] | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
@@ -204,7 +207,7 @@ export function TestBuilderPage() {
     return () => {
       active = false;
     };
-  }, [ready, user?.id]);
+  }, [ready, user?.id, claimedVersion]);
 
   const subject = useMemo(
     () => catalog?.find((item) => item.id === subjectId) ?? null,

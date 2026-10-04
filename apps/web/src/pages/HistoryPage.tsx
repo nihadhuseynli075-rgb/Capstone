@@ -3,6 +3,7 @@ import type { AttemptSummary } from "@grade9/shared";
 import { attemptScoreValue } from "@grade9/shared";
 import { navigate } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
+import { useClaimedHistoryVersion } from "../features/auth/useHistoryClaim";
 import { formatDayTime, formatPercent, useLanguage } from "../lib/i18n";
 import { difficultyLabel, subjectLabel, testErrorText } from "../lib/testText";
 import { fetchHistory } from "../services/testsApi";
@@ -12,6 +13,8 @@ export function HistoryPage() {
   // The failure rather than its sentence, so it is shown in the current language.
   const [error, setError] = useState<unknown>(null);
   const { ready, user } = useAuth();
+  // Guest tests moved onto the account after history was read: read it again.
+  const claimedVersion = useClaimedHistoryVersion();
   const { language, t } = useLanguage();
 
   // Waits for the stored session before asking, and asks again if the account
@@ -35,7 +38,7 @@ export function HistoryPage() {
     return () => {
       active = false;
     };
-  }, [ready, user?.id]);
+  }, [ready, user?.id, claimedVersion]);
 
   if (error !== null) {
     return (

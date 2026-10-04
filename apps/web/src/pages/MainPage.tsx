@@ -13,6 +13,7 @@ import {
 import { ResumeTestBanner } from "../components/ResumeTestBanner";
 import { SubjectShortcuts } from "../components/SubjectShortcuts";
 import { useAuth } from "../features/auth/AuthContext";
+import { useClaimedHistoryVersion } from "../features/auth/useHistoryClaim";
 import { useProfile } from "../features/profile/ProfileContext";
 import { useLanguage, type TranslationKey } from "../lib/i18n";
 import { fetchHistory } from "../services/testsApi";
@@ -51,6 +52,8 @@ const NEW_ACCOUNT_MS = 24 * 60 * 60 * 1000;
 export function MainPage() {
   const { t } = useLanguage();
   const { ready, user } = useAuth();
+  // Guest tests moved onto the account after history was read: read it again.
+  const claimedVersion = useClaimedHistoryVersion();
   const { profile } = useProfile();
   const [attempts, setAttempts] = useState<AttemptSummary[] | null>(null);
 
@@ -72,7 +75,7 @@ export function MainPage() {
     return () => {
       active = false;
     };
-  }, [ready, user?.id]);
+  }, [ready, user?.id, claimedVersion]);
 
   const best =
     attempts && attempts.length > 0

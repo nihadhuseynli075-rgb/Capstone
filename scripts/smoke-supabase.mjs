@@ -738,6 +738,38 @@ async function main() {
       JSON.stringify(aliceAfterTakeover.body)
     );
 
+    // An account that signed up before the profile trigger has no profile row
+    // until it opens its profile page. Its id used to pass as a guest key, so
+    // its history could be read with no token and claimed onto anyone's account.
+    const noProfile = (await control("users", { email: "noprofile@standin.test", fullName: "No Profile" })).body;
+    await request(standin.url, `/__standin/rows/profiles/${noProfile.user.id}`, { method: "DELETE" });
+    const noProfileTest = await generate(noProfile.user.id, noProfile.session.access_token);
+    check("an account with no profile row can still sit a test", noProfileTest.status === 200, `got ${noProfileTest.status}`);
+    const noProfileHistory = await call(`/api/tests/history?studentKey=${noProfile.user.id}`);
+    check(
+      "an account with no profile row is not readable without its token",
+      noProfileHistory.status === 401,
+      `got ${noProfileHistory.status}: ${JSON.stringify(noProfileHistory.body).slice(0, 120)}`
+    );
+    const noProfileTakeover = await call("/api/tests/claim", {
+      method: "POST",
+      token: bobToken,
+      body: { studentKey: bob.user.id, guestKey: noProfile.user.id }
+    });
+    check(
+      "an account with no profile row cannot be claimed as if it were a guest",
+      noProfileTakeover.status === 403,
+      `got ${noProfileTakeover.status}: ${JSON.stringify(noProfileTakeover.body)}`
+    );
+    // Unreachable is not the same as "no such account": guessing guest would
+    // hand the account's tests out.
+    const freshGuest = randomUUID();
+    await control("faults", { method: "GET", table: "auth/admin", times: 1, status: 503 });
+    const authAdminDown = await call(`/api/tests/history?studentKey=${freshGuest}`);
+    check("a new key is not taken as a guest's while accounts cannot be checked", authAdminDown.status === 500, `got ${authAdminDown.status}`);
+    const authAdminBack = await call(`/api/tests/history?studentKey=${freshGuest}`);
+    check("and the same guest key works once they can", authAdminBack.status === 200, `got ${authAdminBack.status}`);
+
     // An unfinished paper moves too, so a guest who signs in mid-test can
     // still hand it in as the account.
     const openGuestTest = await generate(guestKey);
