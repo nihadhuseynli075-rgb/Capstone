@@ -841,6 +841,16 @@
   color: inherit;
 }
 
+/*
+ * The panel's headline and points read from its left edge, so the lockup
+ * starts there too. Stretched across the panel and centred, the logo sat in
+ * the middle of an 800px column with the copy hugging the left beneath it.
+ */
+.auth-aside .wordmark-stacked {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
 /* A note under an admin form field, e.g. what "marks" means. */
 .field-hint {
   font-weight: 400;
