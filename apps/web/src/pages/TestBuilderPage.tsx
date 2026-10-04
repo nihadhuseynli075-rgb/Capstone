@@ -5,7 +5,7 @@ import { navigate, useRouteParam } from "../app/router";
 import { ResumeTestBanner } from "../components/ResumeTestBanner";
 import { useAuth } from "../features/auth/AuthContext";
 import { saveActiveTest } from "../lib/examSession";
-import { useLanguage } from "../lib/i18n";
+import { fill, useLanguage, type TranslationKey } from "../lib/i18n";
 import {
   fetchCatalog,
   fetchHistory,
@@ -20,6 +20,38 @@ const difficultyOptions: Array<{ mode: DifficultyMode; label: string; detail: st
   { mode: "custom", label: "Custom", detail: "Choose the length and timer yourself" }
 ];
 
+/** Why a difficulty cannot be chosen: nothing of that difficulty in the topics picked. */
+const noQuestionsYet: Record<Difficulty, TranslationKey> = {
+  easy: "build.noneEasy",
+  medium: "build.noneMedium",
+  hard: "build.noneHard"
+};
+
+const presetModes: Difficulty[] = ["easy", "medium", "hard"];
+
+/**
+ * How many questions a test of this kind can draw from these topics: the
+ * questions of that difficulty, or every question for a custom test. The same
+ * pool the API draws from (see mockTestGenerator), so the two cannot disagree.
+ */
+function drawableCount(subject: CatalogSubject | null, topicIds: string[], mode: DifficultyMode): number {
+  if (!subject) return 0;
+
+  return subject.topics
+    .filter((topic) => topicIds.includes(topic.id))
+    .reduce((total, topic) => total + (mode === "custom" ? topic.total : topic.counts[mode]), 0);
+}
+
+/**
+ * The difficulty to start a subject on: the one already chosen if it can draw
+ * anything there, otherwise the first that can. Opening a subject on a
+ * difficulty it has no questions for only showed a dead Start button.
+ */
+function usableMode(subject: CatalogSubject, topicIds: string[], current: DifficultyMode): DifficultyMode {
+  if (current === "custom" || drawableCount(subject, topicIds, current) > 0) return current;
+  return presetModes.find((mode) => drawableCount(subject, topicIds, mode) > 0) ?? current;
+}
+
 /** The same bands as the topic bars on the results screen. */
 function scoreBand(percent: number): "weak" | "ok" | "strong" {
   if (percent < 50) return "weak";
@@ -29,7 +61,7 @@ function scoreBand(percent: number): "weak" | "ok" | "strong" {
 
 export function TestBuilderPage() {
   const { ready, user } = useAuth();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const [catalog, setCatalog] = useState<CatalogSubject[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [history, setHistory] = useState<AttemptSummary[] | null>(null);
@@ -66,8 +98,10 @@ export function TestBuilderPage() {
       catalog[0];
 
     if (first) {
+      const topics = first.topics.filter((topic) => topic.total > 0).map((topic) => topic.id);
       setSubjectId(first.id);
-      setTopicIds(first.topics.filter((topic) => topic.total > 0).map((topic) => topic.id));
+      setTopicIds(topics);
+      setDifficultyMode((current) => usableMode(first, topics, current));
     }
   }, [catalog, requestedSubject]);
 
@@ -120,16 +154,10 @@ export function TestBuilderPage() {
   }, [history, subjectId]);
 
   /** How many questions the bank can actually supply for the current choices. */
-  const availableCount = useMemo(() => {
-    if (!subject) return 0;
-
-    return subject.topics
-      .filter((topic) => topicIds.includes(topic.id))
-      .reduce((total, topic) => {
-        if (difficultyMode === "custom") return total + topic.total;
-        return total + topic.counts[difficultyMode as Difficulty];
-      }, 0);
-  }, [subject, topicIds, difficultyMode]);
+  const availableCount = useMemo(
+    () => drawableCount(subject, topicIds, difficultyMode),
+    [subject, topicIds, difficultyMode]
+  );
 
   const requestedCount =
     difficultyMode === "custom" ? customCount : difficultyPresets[difficultyMode].questionCount;
@@ -149,6 +177,10 @@ export function TestBuilderPage() {
       setError("Choose at least one topic.");
       return;
     }
+
+    // The button is disabled then too, but a test with nothing in it must not
+    // be asked for whatever pressed it.
+    if (availableCount === 0) return;
 
     setGenerating(true);
 
@@ -230,8 +262,10 @@ export function TestBuilderPage() {
               type="button"
               className={`chip ${item.id === subjectId ? "selected" : ""}`}
               onClick={() => {
+                const topics = item.topics.filter((topic) => topic.total > 0).map((topic) => topic.id);
                 setSubjectId(item.id);
-                setTopicIds(item.topics.filter((topic) => topic.total > 0).map((topic) => topic.id));
+                setTopicIds(topics);
+                setDifficultyMode((current) => usableMode(item, topics, current));
               }}
             >
               {item.name}
@@ -289,19 +323,40 @@ export function TestBuilderPage() {
           Easy, medium and hard set the number of questions and the timer for you. Choose custom to
           set them yourself.
         </p>
+        {/* Each card says what it can actually draw from the topics picked. The
+            Hard card used to promise 50 questions with none in the bank, and
+            the Start button stayed greyed out with no reason on the card. */}
         <div className="difficulty-grid">
-          {difficultyOptions.map((option) => (
-            <button
-              key={option.mode}
-              type="button"
-              className={`difficulty-card ${option.mode === difficultyMode ? "selected" : ""}`}
-              onClick={() => setDifficultyMode(option.mode)}
-              aria-pressed={option.mode === difficultyMode}
-            >
-              <span className="difficulty-label">{option.label}</span>
-              <span className="difficulty-detail">{option.detail}</span>
-            </button>
-          ))}
+          {difficultyOptions.map((option) => {
+            const selected = option.mode === difficultyMode;
+            const drawable = drawableCount(subject, topicIds, option.mode);
+            const empty = option.mode !== "custom" && drawable === 0;
+
+            return (
+              <button
+                key={option.mode}
+                type="button"
+                className={`difficulty-card ${selected ? "selected" : ""}`}
+                onClick={() => setDifficultyMode(option.mode)}
+                aria-pressed={selected}
+                // Left pressable while chosen, so it still shows why nothing can start.
+                disabled={empty && !selected}
+              >
+                <span className="difficulty-label">{option.label}</span>
+                <span className="difficulty-detail">{option.detail}</span>
+                <span className={`difficulty-ready ${empty ? "empty" : ""}`}>
+                  {option.mode === "custom"
+                    ? fill(t("build.customReady"), { available: drawable })
+                    : empty
+                      ? t(noQuestionsYet[option.mode])
+                      : fill(t("build.presetReady"), {
+                          available: Math.min(drawable, difficultyPresets[option.mode].questionCount),
+                          asked: difficultyPresets[option.mode].questionCount
+                        })}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {difficultyMode === "custom" && (

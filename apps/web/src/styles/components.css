@@ -1154,3 +1154,17 @@
   margin: 4px 0 0;
   color: var(--muted);
 }
+
+/* ------------------------------------------------------------ test builder */
+
+/* What a difficulty can draw from the topics picked, at the foot of its card. */
+.difficulty-ready {
+  margin-top: 4px;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--brand-strong);
+}
+
+.difficulty-ready.empty {
+  color: var(--warning);
+}

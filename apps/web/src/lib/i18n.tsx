@@ -412,6 +412,13 @@ const en = {
   "exam.resumeBody": "{title}: {answered} of {total} questions answered. Starting a new test replaces it.",
   "exam.resume": "Resume test",
 
+  // Test builder
+  "build.presetReady": "{available} of {asked} ready",
+  "build.customReady": "Questions in these topics: {available}",
+  "build.noneEasy": "No easy questions in these topics yet",
+  "build.noneMedium": "No medium questions in these topics yet",
+  "build.noneHard": "No hard questions in these topics yet",
+
   "common.saving": "Saving...",
   "common.back": "Back"
 } as const;
@@ -809,6 +816,13 @@ const ru: Dictionary = {
   "exam.resumeBody": "{title}: отвечено {answered} из {total} вопросов. Если начать новый тест, этот будет заменён.",
   "exam.resume": "Продолжить тест",
 
+  // Test builder
+  "build.presetReady": "Готово: {available} из {asked}",
+  "build.customReady": "Вопросов в этих темах: {available}",
+  "build.noneEasy": "В этих темах пока нет лёгких вопросов",
+  "build.noneMedium": "В этих темах пока нет вопросов средней сложности",
+  "build.noneHard": "В этих темах пока нет сложных вопросов",
+
   "common.saving": "Сохранение...",
   "common.back": "Назад"
 };
@@ -1201,6 +1215,13 @@ const az: Dictionary = {
   "exam.resumeTitle": "Yarımçıq testiniz var",
   "exam.resumeBody": "{title}: {total} sualdan {answered} cavablandırılıb. Yeni test başlasanız, bu test onunla əvəz olunacaq.",
   "exam.resume": "Testə davam et",
+
+  // Test builder
+  "build.presetReady": "Hazırdır: {asked} sualdan {available}",
+  "build.customReady": "Bu mövzulardakı suallar: {available}",
+  "build.noneEasy": "Bu mövzularda hələ asan sual yoxdur",
+  "build.noneMedium": "Bu mövzularda hələ orta çətinlikdə sual yoxdur",
+  "build.noneHard": "Bu mövzularda hələ çətin sual yoxdur",
 
   "common.saving": "Yadda saxlanılır...",
   "common.back": "Geri"
