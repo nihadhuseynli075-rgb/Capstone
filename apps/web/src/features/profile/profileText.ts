@@ -6,13 +6,15 @@ import type { EmailProblem, NameProblem, PasswordProblem } from "../auth/authVal
 import type { AuthRedirectResult } from "../auth/oauthRedirect";
 
 /**
- * The profile page's words for things going wrong, in the student's language.
+ * Words for things going wrong, in the student's language: the profile page's,
+ * and the sign-in and sign-up pages'.
  *
  * Supabase and the API both write their error messages in English, for a
  * developer to read. Each failure also has a code that stays the same between
- * releases, so the page picks its sentence by that. Anything without a
+ * releases, so the page picks its sentence by that. An API refusal without a
  * sentence here falls back to the English one it came with, which is still
- * better than hiding what happened.
+ * better than hiding what happened. An account error without one gets the
+ * plain apology: its English text is already only that (see authErrors).
  */
 
 type Translate = (key: TranslationKey) => string;
@@ -21,6 +23,12 @@ type Translate = (key: TranslationKey) => string;
 export { fill } from "../../lib/i18n";
 
 const AUTH_CODES: Record<string, TranslationKey> = {
+  invalid_credentials: "auth.errWrongPassword",
+  email_not_confirmed: "auth.errNotConfirmed",
+  user_already_exists: "auth.errAccountExists",
+  "server-unavailable": "auth.errUnavailable",
+  network: "profile.errNetwork",
+  unexpected_failure: "auth.errSetupFailed",
   email_exists: "profile.errEmailTaken",
   email_address_invalid: "profile.errEmailInvalid",
   email_address_not_authorized: "profile.errEmailNotAllowed",
@@ -78,7 +86,7 @@ export function errorText(
     if (key) return t(key);
 
     if (cause.status === 429) return t("profile.errRateLimit");
-    return cause.message;
+    return t("profile.errGeneric");
   }
 
   if (cause instanceof ApiError) {

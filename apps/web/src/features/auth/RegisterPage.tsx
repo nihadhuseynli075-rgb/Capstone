@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { replaceRoute } from "../../app/router";
+import { fill, useLanguage } from "../../lib/i18n";
+import { emailProblemText, errorText, nameProblemText, passwordProblemText } from "../profile/profileText";
 import { useAuth } from "./AuthContext";
 import { AuthDivider, AuthLayout, Field, PasswordField } from "./AuthLayout";
 import { GoogleButton } from "./GoogleButton";
-import { passwordStrength, validateEmail, validateName, validatePassword } from "./authValidation";
+import { strengthText } from "./authText";
+import { emailProblem, nameProblem, passwordProblem, passwordStrength } from "./authValidation";
 
 export function RegisterPage() {
+  const { t } = useLanguage();
   const { signUp, user, configured } = useAuth();
 
   const [fullName, setFullName] = useState("");
@@ -31,17 +35,20 @@ export function RegisterPage() {
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
-    const nameError = validateName(fullName);
-    const emailError = validateEmail(email);
-    const passwordError = validatePassword(password);
+    // The same problem names the profile page words, so the two pages agree
+    // about what is wrong and say it in the same language.
+    const nameIssue = nameProblem(fullName);
+    const emailIssue = emailProblem(email);
+    const passwordIssue = passwordProblem(password);
 
-    setFieldErrors({
-      fullName: nameError ?? undefined,
-      email: emailError ?? undefined,
-      password: passwordError ?? undefined
-    });
+    const errors = {
+      fullName: nameIssue ? nameProblemText(nameIssue, t) : undefined,
+      email: emailIssue ? emailProblemText(emailIssue, t) : undefined,
+      password: passwordIssue ? passwordProblemText(passwordIssue, t) : undefined
+    };
 
-    if (nameError || emailError || passwordError) return;
+    setFieldErrors(errors);
+    if (errors.fullName || errors.email || errors.password) return;
 
     setSubmitting(true);
     setFormError(null);
@@ -61,7 +68,7 @@ export function RegisterPage() {
 
       replaceRoute("/");
     } catch (cause) {
-      setFormError((cause as Error).message);
+      setFormError(errorText(cause, t));
       setSubmitting(false);
     }
   }
@@ -71,17 +78,16 @@ export function RegisterPage() {
   if (confirmationSent) {
     return (
       <AuthLayout
-        title="Check your email"
-        subtitle={`We sent a confirmation link to ${email.trim()}. Open it to finish setting up your account.`}
+        title={t("auth.checkEmailTitle")}
+        subtitle={fill(t("auth.checkEmailBody"), { email: email.trim() })}
         footer={
           <>
-            <span>Already confirmed?</span> <a href="#/login">Sign in</a>
+            <span>{t("auth.alreadyConfirmed")}</span> <a href="#/login">{t("nav.signIn")}</a>
           </>
         }
       >
         <p className="success-banner" role="status">
-          Nothing else to do here. The link expires after 24 hours, so if it has been longer than
-          that, sign up again with the same email.
+          {t("auth.checkEmailNote")}
         </p>
       </AuthLayout>
     );
@@ -89,18 +95,17 @@ export function RegisterPage() {
 
   return (
     <AuthLayout
-      title="Create your account"
-      subtitle="Your tests, your history and your best result, saved and on any device."
+      title={t("auth.registerTitle")}
+      subtitle={t("auth.registerSubtitle")}
       footer={
         <>
-          <span>Already have an account?</span> <a href="#/login">Sign in</a>
+          <span>{t("auth.haveAccount")}</span> <a href="#/login">{t("nav.signIn")}</a>
         </>
       }
     >
       {!configured && (
         <p className="warning-banner" role="status">
-          Accounts are not switched on yet because Supabase is not connected. You can still{" "}
-          <a href="#/build">take a test as a guest</a>.
+          {t("profile.errNotConfigured")} <a href="#/build">{t("auth.guestTest")}</a>
         </p>
       )}
 
@@ -112,15 +117,15 @@ export function RegisterPage() {
 
       <GoogleButton disabled={submitting || !configured} onError={setFormError} />
 
-      <AuthDivider label="or sign up with your email" />
+      <AuthDivider label={t("auth.orEmailSignUp")} />
 
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
         <Field
           id="register-name"
-          label="Name"
+          label={t("profile.name")}
           type="text"
           autoComplete="name"
-          placeholder="Your name"
+          placeholder={t("auth.namePlaceholder")}
           value={fullName}
           error={fieldErrors.fullName}
           disabled={submitting || !configured}
@@ -129,7 +134,7 @@ export function RegisterPage() {
 
         <Field
           id="register-email"
-          label="Email"
+          label={t("profile.email")}
           type="email"
           autoComplete="email"
           inputMode="email"
@@ -142,10 +147,10 @@ export function RegisterPage() {
 
         <PasswordField
           id="register-password"
-          label="Password"
+          label={t("profile.password")}
           autoComplete="new-password"
-          placeholder="At least 8 characters"
-          hint="At least 8 characters, with a letter and a number."
+          placeholder={t("auth.newPasswordPlaceholder")}
+          hint={t("profile.passwordHint")}
           value={password}
           error={fieldErrors.password}
           disabled={submitting || !configured}
@@ -160,12 +165,12 @@ export function RegisterPage() {
                 style={{ width: `${strength.percent}%` }}
               />
             </div>
-            <span className="strength-label">{strength.label}</span>
+            <span className="strength-label">{strengthText(strength.level, t)}</span>
           </div>
         )}
 
         <button type="submit" className="primary-button auth-submit" disabled={submitting || !configured}>
-          {submitting ? "Creating account..." : "Create account"}
+          {submitting ? t("auth.creatingAccount") : t("auth.createAccount")}
         </button>
       </form>
     </AuthLayout>

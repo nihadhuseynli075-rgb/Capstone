@@ -11,10 +11,10 @@ import { profileLimits } from "@grade9/shared";
 export const MIN_PASSWORD_LENGTH = 8;
 
 /*
- * Each rule is written once, as a problem name, and the English sentence for
- * the sign-in and sign-up pages is picked by that name below. The profile page
- * picks its sentence in the student's own language by the same name, so the
- * two cannot disagree about what counts as a problem.
+ * Each rule is written once, as a problem name. The sign-in, sign-up and
+ * profile pages all pick their sentence for it, in the student's own language,
+ * by that name (see profileText), so they cannot disagree about what counts as
+ * a problem.
  */
 
 export type NameProblem = "empty" | "too-short" | "too-long";
@@ -45,39 +45,17 @@ export function passwordProblem(value: string): PasswordProblem | null {
   return null;
 }
 
-export function validateName(value: string): string | null {
-  const problem = nameProblem(value);
-  if (problem === "empty") return "Enter your name.";
-  if (problem === "too-short") return "That name is too short.";
-  if (problem === "too-long") return "That name is too long.";
-  return null;
-}
-
-export function validateEmail(value: string): string | null {
-  const problem = emailProblem(value);
-  if (problem === "empty") return "Enter your email address.";
-  if (problem === "invalid") return "That does not look like an email address.";
-  return null;
-}
-
-export function validatePassword(value: string): string | null {
-  const problem = passwordProblem(value);
-  if (problem === "empty") return "Enter a password.";
-  if (problem === "too-short") return `Use at least ${MIN_PASSWORD_LENGTH} characters.`;
-  if (problem === "needs-letter-and-number") return "Include at least one letter and one number.";
-  return null;
-}
-
 export type PasswordStrength = "weak" | "fair" | "strong";
 
 /**
- * A rough strength read for the meter on the register form.
+ * A rough strength read for the meter on the register form. The word under the
+ * meter is the page's to choose, in the site language (see authText).
  *
  * Length carries most of the weight because it genuinely matters most; the
  * character classes are a nudge, not a rule.
  */
-export function passwordStrength(value: string): { level: PasswordStrength; label: string; percent: number } {
-  if (value.length === 0) return { level: "weak", label: "", percent: 0 };
+export function passwordStrength(value: string): { level: PasswordStrength; percent: number } {
+  if (value.length === 0) return { level: "weak", percent: 0 };
 
   let score = 0;
   if (value.length >= MIN_PASSWORD_LENGTH) score += 1;
@@ -86,7 +64,7 @@ export function passwordStrength(value: string): { level: PasswordStrength; labe
   if (/[0-9]/.test(value)) score += 1;
   if (/[^a-zA-Z0-9]/.test(value)) score += 1;
 
-  if (score <= 2) return { level: "weak", label: "Weak", percent: 33 };
-  if (score <= 3) return { level: "fair", label: "Fair", percent: 66 };
-  return { level: "strong", label: "Strong", percent: 100 };
+  if (score <= 2) return { level: "weak", percent: 33 };
+  if (score <= 3) return { level: "fair", percent: 66 };
+  return { level: "strong", percent: 100 };
 }

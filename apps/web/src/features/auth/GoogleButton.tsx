@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useLanguage } from "../../lib/i18n";
+import { errorText } from "../profile/profileText";
 import { useAuth } from "./AuthContext";
 
 /** Google's "G" in its four colours, which Google's sign-in guidelines ask for. */
@@ -59,8 +61,10 @@ export function GoogleButton({
   onError
 }: {
   disabled?: boolean;
+  /** Called with the reason to show, already in the site language, or null to clear it. */
   onError: (message: string | null) => void;
 }) {
+  const { t } = useLanguage();
   const { signInWithGoogle } = useAuth();
   const [leaving, setLeaving] = useLeavingForGoogle();
 
@@ -72,14 +76,14 @@ export function GoogleButton({
       await signInWithGoogle();
     } catch (cause) {
       setLeaving(false);
-      onError((cause as Error).message);
+      onError(errorText(cause, t));
     }
   }
 
   return (
     <button type="button" className="google-button" onClick={handleClick} disabled={disabled || leaving}>
       <GoogleMark />
-      <span>{leaving ? "Opening Google..." : "Continue with Google"}</span>
+      <span>{leaving ? t("profile.openingGoogle") : t("auth.continueGoogle")}</span>
     </button>
   );
 }

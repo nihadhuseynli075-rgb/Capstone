@@ -365,7 +365,7 @@ function Shell() {
   if (!ready) {
     return (
       <div className="landing-loading">
-        Loading Exampeak...
+        {t("app.loading")}
       </div>
     );
   }

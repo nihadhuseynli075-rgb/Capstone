@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { LogoStacked, Wordmark } from "../../lib/brand";
+import { useLanguage } from "../../lib/i18n";
 
 /**
  * The shell both auth screens sit in.
@@ -21,17 +22,17 @@ export function AuthLayout({
   children: ReactNode;
   footer: ReactNode;
 }) {
+  const { t } = useLanguage();
+
   return (
     <div className="auth-layout">
       <aside className="auth-aside" aria-hidden="true">
         <LogoStacked size={54} tone="light" />
-        <p className="auth-aside-title">
-          Practise the real exam, then find out exactly what to fix.
-        </p>
+        <p className="auth-aside-title">{t("auth.asideTitle")}</p>
         <ul className="auth-aside-points">
-          <li>Mock tests built from real past-paper questions</li>
-          <li>Marked instantly, with the reason behind every mistake</li>
-          <li>Your history and best result, saved to your account</li>
+          <li>{t("auth.asidePoint1")}</li>
+          <li>{t("auth.asidePoint2")}</li>
+          <li>{t("auth.asidePoint3")}</li>
         </ul>
       </aside>
 
@@ -102,7 +103,7 @@ export function Field({
   );
 }
 
-/** The words on a password field's show/hide button, for a page that is not in English. */
+/** The words on a password field's show/hide button. */
 export interface PasswordToggleLabels {
   show: string;
   hide: string;
@@ -110,26 +111,19 @@ export interface PasswordToggleLabels {
   hideAria: string;
 }
 
-const ENGLISH_TOGGLE: PasswordToggleLabels = {
-  show: "Show",
-  hide: "Hide",
-  showAria: "Show password",
-  hideAria: "Hide password"
-};
-
 /**
  * Password input with a show/hide toggle.
  *
  * Typing a password blind on a phone keyboard is where most sign-in attempts go
- * wrong, so revealing it is one tap away. The sign-in and sign-up pages are in
- * English and take the default words; the profile page passes its own.
+ * wrong, so revealing it is one tap away. The button's words are in the site
+ * language unless a page passes its own.
  */
 export function PasswordField({
   id,
   label,
   error,
   hint,
-  toggleLabels = ENGLISH_TOGGLE,
+  toggleLabels,
   ...inputProps
 }: {
   id: string;
@@ -138,7 +132,14 @@ export function PasswordField({
   hint?: string;
   toggleLabels?: PasswordToggleLabels;
 } & React.InputHTMLAttributes<HTMLInputElement>) {
+  const { t } = useLanguage();
   const [visible, setVisible] = useState(false);
+  const labels = toggleLabels ?? {
+    show: t("profile.showPassword"),
+    hide: t("profile.hidePassword"),
+    showAria: t("profile.showPasswordAria"),
+    hideAria: t("profile.hidePasswordAria")
+  };
   const describedBy = [error ? `${id}-error` : null, hint ? `${id}-hint` : null]
     .filter(Boolean)
     .join(" ");
@@ -159,10 +160,10 @@ export function PasswordField({
           type="button"
           className="auth-password-toggle"
           onClick={() => setVisible((current) => !current)}
-          aria-label={visible ? toggleLabels.hideAria : toggleLabels.showAria}
+          aria-label={visible ? labels.hideAria : labels.showAria}
           aria-pressed={visible}
         >
-          {visible ? toggleLabels.hide : toggleLabels.show}
+          {visible ? labels.hide : labels.show}
         </button>
       </div>
       {hint && !error && (

@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { replaceRoute } from "../../app/router";
+import { useLanguage } from "../../lib/i18n";
+import { emailProblemText, errorText } from "../profile/profileText";
 import { useAuth } from "./AuthContext";
 import { AuthDivider, AuthLayout, Field, PasswordField } from "./AuthLayout";
 import { GoogleButton } from "./GoogleButton";
-import { validateEmail } from "./authValidation";
+import { signInRedirectErrorText } from "./authText";
+import { emailProblem } from "./authValidation";
 
 export function LoginPage() {
+  const { t } = useLanguage();
   const { signIn, user, configured, redirectResult, clearRedirectResult } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -26,20 +30,21 @@ export function LoginPage() {
   // the profile instead, so whatever reaches this page belongs on it.
   useEffect(() => {
     if (redirectResult?.error) {
-      setFormError(redirectResult.error);
+      setFormError(signInRedirectErrorText(redirectResult, t));
       clearRedirectResult();
     }
-  }, [redirectResult, clearRedirectResult]);
+  }, [redirectResult, clearRedirectResult, t]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
-    const emailError = validateEmail(email);
+    const problem = emailProblem(email);
+    const emailError = problem ? emailProblemText(problem, t) : undefined;
     // Sign-in deliberately does not check the password format. The rules may
     // have changed since the account was made, and the server is the authority.
-    const passwordError = password.length === 0 ? "Enter your password." : undefined;
+    const passwordError = password.length === 0 ? t("auth.enterPassword") : undefined;
 
-    setFieldErrors({ email: emailError ?? undefined, password: passwordError });
+    setFieldErrors({ email: emailError, password: passwordError });
     if (emailError || passwordError) return;
 
     setSubmitting(true);
@@ -49,26 +54,24 @@ export function LoginPage() {
       await signIn({ email: email.trim(), password });
       replaceRoute("/");
     } catch (cause) {
-      setFormError((cause as Error).message);
+      setFormError(errorText(cause, t));
       setSubmitting(false);
     }
   }
 
   return (
     <AuthLayout
-      title="Welcome back"
-      subtitle="Sign in to pick up your history and your best result."
+      title={t("auth.loginTitle")}
+      subtitle={t("auth.loginSubtitle")}
       footer={
         <>
-          <span>New here?</span>{" "}
-          <a href="#/register">Create an account</a>
+          <span>{t("auth.newHere")}</span> <a href="#/register">{t("auth.createAccountLink")}</a>
         </>
       }
     >
       {!configured && (
         <p className="warning-banner" role="status">
-          Accounts are not switched on yet because Supabase is not connected. You can still{" "}
-          <a href="#/build">take a test as a guest</a>.
+          {t("profile.errNotConfigured")} <a href="#/build">{t("auth.guestTest")}</a>
         </p>
       )}
 
@@ -80,12 +83,12 @@ export function LoginPage() {
 
       <GoogleButton disabled={submitting || !configured} onError={setFormError} />
 
-      <AuthDivider label="or sign in with your email" />
+      <AuthDivider label={t("auth.orEmailSignIn")} />
 
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
         <Field
           id="login-email"
-          label="Email"
+          label={t("profile.email")}
           type="email"
           autoComplete="email"
           inputMode="email"
@@ -98,9 +101,9 @@ export function LoginPage() {
 
         <PasswordField
           id="login-password"
-          label="Password"
+          label={t("profile.password")}
           autoComplete="current-password"
-          placeholder="Your password"
+          placeholder={t("auth.passwordPlaceholder")}
           value={password}
           error={fieldErrors.password}
           disabled={submitting || !configured}
@@ -108,7 +111,7 @@ export function LoginPage() {
         />
 
         <button type="submit" className="primary-button auth-submit" disabled={submitting || !configured}>
-          {submitting ? "Signing in..." : "Sign in"}
+          {submitting ? t("auth.signingIn") : t("nav.signIn")}
         </button>
       </form>
     </AuthLayout>
