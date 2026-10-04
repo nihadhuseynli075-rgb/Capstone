@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SubmittedAnswer } from "@grade9/shared";
 import { topicName, writtenAnswerMaxLength } from "@grade9/shared";
-import { navigate, replaceRoute } from "../app/router";
+import { navigate, replaceRoute, setLeaveGuard } from "../app/router";
 import {
   clearActiveTest,
   loadActiveTest,
@@ -9,6 +9,7 @@ import {
   saveProgress,
   type ActiveTest
 } from "../lib/examSession";
+import { useLanguage } from "../lib/i18n";
 import { ApiError } from "../services/apiClient";
 import { submitTest } from "../services/testsApi";
 
@@ -25,6 +26,7 @@ function formatClock(totalSeconds: number): string {
 }
 
 export function ExamPage() {
+  const { t } = useLanguage();
   const [active, setActive] = useState<ActiveTest | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -226,7 +228,8 @@ export function ExamPage() {
     });
   }, [currentIndex]);
 
-  // Catch a tab close or a browser back mid-test.
+  // A reload or a closed tab: the browser asks, in its own words. Leaving for
+  // another page of the app never unloads it, so that is the guard's below.
   useEffect(() => {
     function warn(event: BeforeUnloadEvent) {
       if (!submittedRef.current) event.preventDefault();
@@ -234,6 +237,21 @@ export function ExamPage() {
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, []);
+
+  // Leaving by Back, by the logo or by typing another address asks first while
+  // the paper is open. The paper is kept whatever the answer, and the dashboard
+  // and the builder offer to resume it, so the question says that rather than
+  // claiming the answers are lost. A timed paper also says its clock goes on:
+  // the time is the server's, counted from when the test was made.
+  const leaveText =
+    active === null
+      ? null
+      : t(active.test.settings.timeLimitMinutes === null ? "exam.leaveConfirm" : "exam.leaveConfirmTimed");
+
+  useEffect(() => {
+    if (leaveText === null) return;
+    return setLeaveGuard((to) => to === "/exam" || closedRef.current || window.confirm(leaveText));
+  }, [leaveText]);
 
   if (!active) {
     return <p>Loading your test...</p>;

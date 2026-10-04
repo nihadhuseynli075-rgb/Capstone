@@ -403,6 +403,15 @@ const en = {
   "auth.newPasswordSaved": "Your password has been changed, and you are signed in.",
   "auth.goToDashboard": "Go to your dashboard",
 
+  // A test in progress
+  "exam.leaveConfirm":
+    "Leave this test? Your answers are kept, and you can come back to it from the dashboard or the test builder.",
+  "exam.leaveConfirmTimed":
+    "Leave this test? Your answers are kept, and you can come back to it from the dashboard or the test builder. The timer keeps running while you are away.",
+  "exam.resumeTitle": "You have a test in progress",
+  "exam.resumeBody": "{title}: {answered} of {total} questions answered. Starting a new test replaces it.",
+  "exam.resume": "Resume test",
+
   "common.saving": "Saving...",
   "common.back": "Back"
 } as const;
@@ -791,6 +800,15 @@ const ru: Dictionary = {
   "auth.newPasswordSaved": "Пароль изменён, и вы вошли в аккаунт.",
   "auth.goToDashboard": "Перейти на главную",
 
+  // A test in progress
+  "exam.leaveConfirm":
+    "Выйти из теста? Ваши ответы сохранятся, и вы сможете вернуться к нему с главной страницы или со страницы создания теста.",
+  "exam.leaveConfirmTimed":
+    "Выйти из теста? Ваши ответы сохранятся, и вы сможете вернуться к нему с главной страницы или со страницы создания теста. Таймер продолжает идти, пока вас нет.",
+  "exam.resumeTitle": "У вас есть незаконченный тест",
+  "exam.resumeBody": "{title}: отвечено {answered} из {total} вопросов. Если начать новый тест, этот будет заменён.",
+  "exam.resume": "Продолжить тест",
+
   "common.saving": "Сохранение...",
   "common.back": "Назад"
 };
@@ -1174,6 +1192,15 @@ const az: Dictionary = {
   "auth.newPasswordSubtitle": "Bundan sonra bu şifrə ilə daxil olacaqsınız.",
   "auth.newPasswordSaved": "Şifrəniz dəyişdirildi və siz hesabınıza daxil oldunuz.",
   "auth.goToDashboard": "Ana səhifəyə keçin",
+
+  // A test in progress
+  "exam.leaveConfirm":
+    "Testdən çıxırsınız? Cavablarınız saxlanılır, ona ana səhifədən və ya test yaratma səhifəsindən qayıda bilərsiniz.",
+  "exam.leaveConfirmTimed":
+    "Testdən çıxırsınız? Cavablarınız saxlanılır, ona ana səhifədən və ya test yaratma səhifəsindən qayıda bilərsiniz. Siz yoxkən taymer işləməyə davam edir.",
+  "exam.resumeTitle": "Yarımçıq testiniz var",
+  "exam.resumeBody": "{title}: {total} sualdan {answered} cavablandırılıb. Yeni test başlasanız, bu test onunla əvəz olunacaq.",
+  "exam.resume": "Testə davam et",
 
   "common.saving": "Yadda saxlanılır...",
   "common.back": "Geri"

@@ -10,6 +10,7 @@ import {
   IconSettings,
   IconTest
 } from "../components/icons";
+import { ResumeTestBanner } from "../components/ResumeTestBanner";
 import { SubjectShortcuts } from "../components/SubjectShortcuts";
 import { useAuth } from "../features/auth/AuthContext";
 import { useProfile } from "../features/profile/ProfileContext";
@@ -93,6 +94,8 @@ export function MainPage() {
           <h1>{`${t("main.greeting")}, ${profile?.fullName ?? user.fullName}.`}</h1>
         </div>
       </section>
+
+      <ResumeTestBanner />
 
       {/* The tiles say the same thing in pictures, so a phone drops this. */}
       <p className="lede main-lede">{t("main.lede")}</p>

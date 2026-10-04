@@ -1134,3 +1134,23 @@
   margin-top: -10px;
   font-size: 0.9rem;
 }
+
+/* ------------------------------------------------------- test in progress */
+
+/* The way back to a test left part way through, on the dashboard and the builder. */
+.resume-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+  padding: 16px 18px;
+  border: 1px solid var(--brand);
+  border-radius: var(--radius);
+  background: var(--brand-soft);
+}
+
+.resume-banner p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}

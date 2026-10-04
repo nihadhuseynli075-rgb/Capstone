@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { AttemptSummary, Difficulty, DifficultyMode } from "@grade9/shared";
 import { customLimits, difficultyPresets } from "@grade9/shared";
 import { navigate, useRouteParam } from "../app/router";
+import { ResumeTestBanner } from "../components/ResumeTestBanner";
 import { useAuth } from "../features/auth/AuthContext";
 import { saveActiveTest } from "../lib/examSession";
 import { useLanguage } from "../lib/i18n";
@@ -207,6 +208,8 @@ export function TestBuilderPage() {
           the same way a real exam works.
         </p>
       </section>
+
+      <ResumeTestBanner />
 
       {bankIsEmpty && (
         <p className="warning-banner">

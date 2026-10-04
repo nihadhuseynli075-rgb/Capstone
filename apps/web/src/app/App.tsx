@@ -26,7 +26,7 @@ import { ResultsPage } from "../pages/ResultsPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { TestBuilderPage } from "../pages/TestBuilderPage";
 
-import { navigate, replaceRoute, useRoute } from "./router";
+import { navigate, navigateAway, replaceRoute, useRoute } from "./router";
 
 
 /**
@@ -438,13 +438,12 @@ function Shell() {
           href="#/"
           className="brand-link"
           onClick={(event) => {
-            if (
-              isExam &&
-              !window.confirm(
-                "Leave this test? Your answers will be lost."
-              )
-            ) {
+            // During a test the exam page's guard asks first (see
+            // setLeaveGuard), before the address changes, so "stay" leaves
+            // the history untouched.
+            if (isExam) {
               event.preventDefault();
+              navigateAway("/");
             }
           }}
         >
