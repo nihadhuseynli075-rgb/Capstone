@@ -818,10 +818,16 @@
     justify-content: flex-start;
     border-radius: 8px;
     min-height: 44px;
+    text-align: left;
   }
 
+  /* The whole name, wrapping onto a second line when it is long. Kept on one
+     line, a long name set the width of the whole menu panel, which ran off
+     the right of the screen and took the account list with it. */
   .account-name {
     max-width: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .account-dropdown {
