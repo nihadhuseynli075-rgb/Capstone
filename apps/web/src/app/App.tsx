@@ -376,6 +376,8 @@ function Shell() {
    */
   useEffect(() => {
     document.title = `${t(titleKeyFor(path, user !== null))} - Exampeak`;
+    // The description a search result or a pasted link shows follows the site language too.
+    document.querySelector('meta[name="description"]')?.setAttribute("content", t("title.description"));
   }, [path, user, t]);
 
 
