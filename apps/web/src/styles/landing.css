@@ -571,6 +571,9 @@
 
   .landing-header {
     min-height: 74px;
+    padding-block: 10px;
+    /* The mark follows the first control row instead of floating between two rows. */
+    align-items: flex-start;
   }
 
   /* Hidden from view but still read out: the mark beside it is decoration
