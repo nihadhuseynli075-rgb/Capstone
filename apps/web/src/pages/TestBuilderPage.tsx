@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { AttemptSummary, Difficulty, DifficultyMode } from "@grade9/shared";
-import { customLimits, difficultyPresets } from "@grade9/shared";
+import type { AttemptSummary, DifficultyMode } from "@grade9/shared";
+import { customLimits, difficultyNames, difficultyPresets } from "@grade9/shared";
 import { navigate, useRouteParam } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
 import { saveActiveTest } from "../lib/examSession";
@@ -18,6 +18,31 @@ const difficultyOptions: Array<{ mode: DifficultyMode; label: string; detail: st
   { mode: "hard", label: "Hard", detail: difficultyPresets.hard.description },
   { mode: "custom", label: "Custom", detail: "Choose the length and timer yourself" }
 ];
+
+type CatalogTopic = CatalogSubject["topics"][number];
+
+/**
+ * How many questions a topic can supply at this difficulty. A preset draws
+ * only questions of its own difficulty; custom draws from all three.
+ */
+function questionsAt(topic: CatalogTopic, mode: DifficultyMode): number {
+  return mode === "custom" ? topic.total : topic.counts[mode];
+}
+
+/**
+ * The count on a topic's card, for the difficulty chosen below. It used to
+ * count every difficulty, so a topic reading "3 questions" could give none on
+ * Easy while the summary said the bank had nothing for the choice.
+ */
+function topicCountText(topic: CatalogTopic, mode: DifficultyMode): string {
+  if (topic.total === 0) return "no questions yet";
+
+  const count = questionsAt(topic, mode);
+  const kind = mode === "custom" ? "" : `${difficultyNames[mode].toLowerCase()} `;
+
+  if (count === 0) return `no ${kind}questions`;
+  return `${count} ${kind}question${count === 1 ? "" : "s"}`;
+}
 
 /** The same bands as the topic bars on the results screen. */
 function scoreBand(percent: number): "weak" | "ok" | "strong" {
@@ -124,10 +149,7 @@ export function TestBuilderPage() {
 
     return subject.topics
       .filter((topic) => topicIds.includes(topic.id))
-      .reduce((total, topic) => {
-        if (difficultyMode === "custom") return total + topic.total;
-        return total + topic.counts[difficultyMode as Difficulty];
-      }, 0);
+      .reduce((total, topic) => total + questionsAt(topic, difficultyMode), 0);
   }, [subject, topicIds, difficultyMode]);
 
   const requestedCount =
@@ -246,16 +268,14 @@ export function TestBuilderPage() {
             return (
               <label
                 key={topic.id}
-                className={`topic-option ${topic.total === 0 ? "empty" : ""} ${
+                className={`topic-option ${questionsAt(topic, difficultyMode) === 0 ? "empty" : ""} ${
                   selected ? "selected" : ""
                 }`}
               >
                 <input type="checkbox" checked={selected} onChange={() => toggleTopic(topic.id)} />
                 <span className="topic-name">{topic.name}</span>
                 <span className="topic-count">
-                  {topic.total === 0
-                    ? "no questions yet"
-                    : `${topic.total} question${topic.total === 1 ? "" : "s"}`}
+                  {topicCountText(topic, difficultyMode)}
                   {/* "Not tried yet" only once something in this subject has
                       been: on a first visit it would be on every tile and say
                       nothing. Nor on a topic with no questions to try. */}
@@ -350,17 +370,27 @@ export function TestBuilderPage() {
       </section>
 
       <section className="panel summary-panel">
-        <div>
-          <strong>{Math.min(requestedCount, availableCount)}</strong> question
-          {Math.min(requestedCount, availableCount) === 1 ? "" : "s"} ready
-          {availableCount < requestedCount && (
-            <span className="summary-warning">
-              {" "}
-              - you asked for {requestedCount}, but the bank only has {availableCount} for this
-              selection
-            </span>
-          )}
-        </div>
+        {/* With nothing ticked the real problem is the topics, not the size of
+            the bank: "the bank only has 0" sent students looking for missing
+            questions, and the button it disabled kept the right message from
+            ever showing. */}
+        {topicIds.length === 0 ? (
+          <div className="summary-warning" role="status">
+            Choose at least one topic.
+          </div>
+        ) : (
+          <div>
+            <strong>{Math.min(requestedCount, availableCount)}</strong> question
+            {Math.min(requestedCount, availableCount) === 1 ? "" : "s"} ready
+            {availableCount < requestedCount && (
+              <span className="summary-warning">
+                {" "}
+                - you asked for {requestedCount}, but the bank only has {availableCount} for this
+                selection
+              </span>
+            )}
+          </div>
+        )}
 
         {error && <p className="error-banner">{error}</p>}
 
