@@ -57,8 +57,25 @@ export function setLeaveGuard(guard: LeaveGuard): () => void {
 // inside the page instead came too late: the browser's Back re-rendered the
 // page away, guard and all, before the guard's own listener was reached.
 //
-// Undoing it replaces the step the browser moved to with the page that was
-// left, since an address change cannot be cancelled outright.
+// An address change cannot be cancelled outright, so a refused one is walked
+// back with history.go. Overwriting the step the browser moved to instead
+// left two entries for the same page, and Back then did nothing or skipped
+// the builder. To know how far to walk, every entry carries its place in the
+// session's history as `step` in its state.
+let currentStep = 0;
+
+function stepOf(state: unknown): number | null {
+  const value = state && typeof state === "object" ? (state as Record<string, unknown>).step : null;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+currentStep = stepOf(window.history.state) ?? 0;
+window.history.replaceState({ ...entryStateOf(window.history.state), step: currentStep }, "");
+
+function entryStateOf(state: unknown): Record<string, unknown> {
+  return state && typeof state === "object" ? (state as Record<string, unknown>) : {};
+}
+
 window.addEventListener(
   "hashchange",
   (event) => {
@@ -66,16 +83,21 @@ window.addEventListener(
     const asked = alreadyAsked;
     alreadyAsked = false;
 
+    // An entry with no step is new: a link or a typed address pushed it just
+    // after the one we were on.
+    const known = stepOf(window.history.state);
+    const step = known ?? currentStep + 1;
+
     if (!asked && leaveGuard && to !== pathOfHash(allowedHash) && !leaveGuard(to)) {
       event.stopImmediatePropagation();
-      window.history.replaceState(
-        window.history.state,
-        "",
-        `${window.location.pathname}${window.location.search}${allowedHash}`
-      );
+      window.history.go(currentStep - step);
       return;
     }
 
+    if (known === null) {
+      window.history.replaceState({ ...entryStateOf(window.history.state), step }, "");
+    }
+    currentStep = step;
     allowedHash = window.location.hash;
   },
   true
