@@ -31,6 +31,10 @@ export function EmailPanel({ email, googleOnly }: { email: string; googleOnly: b
   const { reload } = useProfile();
 
   const pending = user?.pendingEmail ?? null;
+  // The newest account, for code that runs after an await and would otherwise
+  // read the one from the render it started in.
+  const userRef = useRef(user);
+  userRef.current = user;
 
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -134,14 +138,37 @@ export function EmailPanel({ email, googleOnly }: { email: string; googleOnly: b
     setNotice(null);
     setSaving(true);
     savingRef.current = true;
-    const result = await request(pending);
+
+    // The link may have been opened elsewhere since this tab last looked, and
+    // the address read at click time is then the account's own. Ask first, and
+    // go by what the account says afterwards. The refresh queues behind any
+    // auth call already running (see AuthContext), so the order is kept.
+    await refreshUser().catch(() => undefined);
+    // The refresh tells the rest of the app through a state change; let that
+    // render land so the latest account is the one read below.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const latest = userRef.current;
+    const stillWaiting = latest?.pendingEmail ?? null;
+
+    if (!stillWaiting) {
+      savingRef.current = false;
+      setSaving(false);
+      // Nothing is waiting any more: the change went through, so send nothing
+      // and say so rather than claiming a link was sent.
+      if (latest && latest.email.toLowerCase() === pending.toLowerCase()) {
+        setNotice({ ok: true, text: fill(t("profile.emailChanged"), { email: latest.email }) });
+      }
+      return;
+    }
+
+    const result = await request(stillWaiting);
     savingRef.current = false;
     setSaving(false);
 
     setNotice(
       typeof result === "string"
         ? { ok: false, text: result }
-        : { ok: true, text: fill(t("profile.emailResent"), { email: pending }) }
+        : { ok: true, text: fill(t("profile.emailResent"), { email: stillWaiting }) }
     );
   }
 
