@@ -1730,6 +1730,38 @@ button:focus-visible {
   }
 }
 
+/* ------------------------------------------------------------ forced colours
+ *
+ * Windows High Contrast and other forced-colour modes replace every
+ * background with one system colour, and the chosen subject, difficulty and
+ * theme, the answered questions in the palette and the page the bar is on
+ * were shown by background alone, so they looked exactly like the rest.
+ * Here they take the system's own colours for a selection.
+ */
+
+@media (forced-colors: active) {
+  .chip.selected,
+  .difficulty-card.selected,
+  .segmented button.selected,
+  .palette-dot.answered,
+  .app-nav [aria-current="page"] {
+    /* Kept as written, with system colours only: left to the browser, the
+       text gets a dark backplate that hides it on the Highlight fill. Marked
+       important because that also lets the app's own, more specific colour
+       rules for these states back in, and they must not win here. */
+    forced-color-adjust: none;
+    background: Highlight !important;
+    color: HighlightText !important;
+    border-color: Highlight !important;
+  }
+
+  .chip.selected *,
+  .difficulty-card.selected * {
+    background: transparent !important;
+    color: HighlightText !important;
+  }
+}
+
 /* ------------------------------------------------------------------ motion
  *
  * Honoured for the whole app in one place. Everything here is decoration -- a
