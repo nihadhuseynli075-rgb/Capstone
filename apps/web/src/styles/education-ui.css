@@ -92,20 +92,12 @@ body {
 }
 
 /*
- * The buttons at the end of the header bar: light/dark mode, and the menu
- * button on a phone. Their markup comes before the nav so the menu button
- * precedes the menu it opens; `order` puts them after the links here.
+ * The bar is laid out in the order of its markup, which is also the order Tab
+ * takes: logo, the links, then the theme button at the end. Nothing here
+ * reorders it, so what is focused next is always what is drawn next.
  */
-.header-actions {
-  order: 2;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .app-header .app-nav {
-  order: 1;
-  /* Takes the spare width, so the links and the buttons sit together on the right. */
+  /* Takes the spare width, so the links and the theme button sit together on the right. */
   margin-left: auto;
 }
 
@@ -136,7 +128,19 @@ body {
 }
 
 @media (max-width: 640px) {
-  /* The menu folds back under the bar instead of sitting beside the buttons. */
+  /*
+   * The menu folds back under the bar instead of sitting beside the buttons,
+   * which leaves the menu button and the theme button side by side on the
+   * right of the first row, in their markup order.
+   */
+  .app-header {
+    column-gap: 8px;
+  }
+
+  .app-header .nav-toggle {
+    margin-left: auto;
+  }
+
   .app-header .app-nav {
     order: 3;
     margin-left: 0;
