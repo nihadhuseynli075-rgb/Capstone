@@ -234,6 +234,21 @@ async function main() {
       JSON.stringify(prompts.filter((prompt) => !prompt.includes(character)).slice(0, 3))
     );
   }
+  // The memory store lowercased "İ" to "i" plus a combining dot, so it and a
+  // Supabase project disagreed about which questions "istanbul" and "i" find.
+  const dottedQuestion = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ prompt: "How far is İstanbul from Bakı? (search check)" })
+  });
+  const dottedSearch = await call(`/api/admin/questions?search=${encodeURIComponent("istanbul from")}`, { token });
+  check(
+    'searching for "istanbul" finds "İstanbul", as Postgres lowercases it',
+    dottedQuestion.status === 201 &&
+      (dottedSearch.body.questions ?? []).some((question) => question.prompt.startsWith("How far is İstanbul")),
+    JSON.stringify((dottedSearch.body.questions ?? []).map((question) => question.prompt))
+  );
+
   const backslash = await call(`/api/admin/questions?search=${encodeURIComponent("\\")}`, { token });
   check(
     "a backslash is searched for as itself",
