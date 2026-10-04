@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import { cleanName, isReadableName } from "@grade9/shared";
 import { isSupabaseConfigured, supabase } from "../../lib/supabaseClient";
 import { clearSessionRecords, settleSessionRecords } from "../../lib/examSession";
 import { setSignedInUserId } from "../../lib/studentKey";
@@ -72,7 +73,9 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 function toAuthUser(user: User): AuthUser {
   const metadata = user.user_metadata ?? {};
-  const fullName = typeof metadata.full_name === "string" ? metadata.full_name : "";
+  // Cleaned like a profile name, so one made of invisible characters falls
+  // back to the start of the email rather than showing as a blank.
+  const fullName = typeof metadata.full_name === "string" ? cleanName(metadata.full_name) : "";
 
   // Identities are the accurate list. A session saved before they were read
   // may not carry them, and the provider list in the app metadata says the
@@ -85,7 +88,7 @@ function toAuthUser(user: User): AuthUser {
   return {
     id: user.id,
     email: user.email ?? "",
-    fullName: fullName.trim().length > 0 ? fullName.trim() : (user.email ?? "").split("@")[0],
+    fullName: isReadableName(fullName) ? fullName : (user.email ?? "").split("@")[0],
     providers: [...new Set(providers)],
     googleEmail: typeof google?.identity_data?.email === "string" ? google.identity_data.email : null,
     pendingEmail: typeof user.new_email === "string" && user.new_email.length > 0 ? user.new_email : null,
@@ -192,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName.trim() } }
+      options: { data: { full_name: cleanName(fullName) } }
     });
 
     if (error) throw new Error(authErrorMessage(error.message));

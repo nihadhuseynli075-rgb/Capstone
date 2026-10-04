@@ -177,6 +177,29 @@ export const profileLimits = {
   photoMaxBytes: 2 * 1024 * 1024
 } as const;
 
+/**
+ * Characters that draw nothing: format characters (zero-width spaces and
+ * joiners, direction marks, soft hyphens) and the Hangul fillers, which
+ * Unicode counts as letters although they are blank. trim() keeps all of
+ * them, so a name made only of these was saved and showed as nothing in the
+ * header and on a friend's list.
+ */
+const INVISIBLE_IN_NAMES = /[\p{Cf}ᅟᅠㅤﾠ]/gu;
+
+/**
+ * A name as it is kept and shown: invisible characters taken out, any run of
+ * spaces, tabs or line breaks made one space, and the ends trimmed. The form,
+ * the API and the friends list all clean a name this way, so they agree.
+ */
+export function cleanName(value: string): string {
+  return value.replace(INVISIBLE_IN_NAMES, "").replace(/\s+/g, " ").trim();
+}
+
+/** Whether a cleaned name has anything to read in it: at least one letter or digit. */
+export function isReadableName(value: string): boolean {
+  return /[\p{L}\p{N}]/u.test(value);
+}
+
 export * from "./usernames";
 export * from "./sessionOwner";
 export * from "./topics";

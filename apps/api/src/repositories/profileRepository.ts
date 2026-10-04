@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { normalizeUsername, profileLimits, type StudentProfile } from "@grade9/shared";
+import { cleanName, isReadableName, normalizeUsername, profileLimits, type StudentProfile } from "@grade9/shared";
 import { isUuid } from "../lib/ids";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import type { SignedInAccount } from "../modules/student/studentAuth";
@@ -62,11 +62,13 @@ function profileError(action: string, error: { code?: string; message: string })
 
 function toProfile(row: Record<string, unknown>): StudentProfile {
   const email = typeof row.email === "string" ? row.email : "";
-  const name = typeof row.full_name === "string" ? row.full_name.trim() : "";
+  // A name stored before names were cleaned, or written by hand, can still be
+  // made of characters that draw nothing; it is treated as no name at all.
+  const name = typeof row.full_name === "string" ? cleanName(row.full_name) : "";
 
   return {
     id: row.id as string,
-    fullName: name.length > 0 ? name : email.split("@")[0],
+    fullName: isReadableName(name) ? name : email.split("@")[0],
     username: typeof row.username === "string" ? row.username : "",
     email,
     avatarUrl: typeof row.avatar_url === "string" && row.avatar_url.length > 0 ? row.avatar_url : null,
@@ -87,7 +89,7 @@ function metadataText(account: SignedInAccount, key: string): string {
  * layout in it, would reach the profile and later the leaderboard.
  */
 function boundedName(value: string): string {
-  return value.trim().replace(/\s+/g, " ").slice(0, profileLimits.nameMax);
+  return cleanName(value).slice(0, profileLimits.nameMax);
 }
 
 /**
@@ -191,8 +193,12 @@ export async function ensureProfile(account: SignedInAccount): Promise<StudentPr
       .from("profiles")
       .insert({
         id: account.id,
+        // The first of these with something readable in it: a sign-up name
+        // made only of invisible characters falls through to the next.
         full_name: boundedName(
-          metadataText(account, "full_name") || metadataText(account, "name") || account.email.split("@")[0]
+          [metadataText(account, "full_name"), metadataText(account, "name")].find((name) =>
+            isReadableName(cleanName(name))
+          ) ?? account.email.split("@")[0]
         ),
         email: account.email || null,
         avatar_url: googlePhotoUrl(account)

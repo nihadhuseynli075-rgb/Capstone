@@ -6,7 +6,7 @@
  * actual guard.
  */
 
-import { profileLimits } from "@grade9/shared";
+import { cleanName, isReadableName, profileLimits } from "@grade9/shared";
 
 export const MIN_PASSWORD_LENGTH = 8;
 
@@ -21,12 +21,16 @@ export type NameProblem = "empty" | "too-short" | "too-long";
 export type EmailProblem = "empty" | "invalid";
 export type PasswordProblem = "empty" | "too-short" | "needs-letter-and-number";
 
-/** The same limits the API holds a new name to, so the two cannot disagree. */
+/**
+ * The same limits the API holds a new name to, so the two cannot disagree. A
+ * name with nothing readable in it, such as three zero-width spaces, is as
+ * good as an empty one.
+ */
 export function nameProblem(value: string): NameProblem | null {
-  const trimmed = value.trim().replace(/\s+/g, " ");
-  if (trimmed.length === 0) return "empty";
-  if (trimmed.length < profileLimits.nameMin) return "too-short";
-  if (trimmed.length > profileLimits.nameMax) return "too-long";
+  const cleaned = cleanName(value);
+  if (!isReadableName(cleaned)) return "empty";
+  if (cleaned.length < profileLimits.nameMin) return "too-short";
+  if (cleaned.length > profileLimits.nameMax) return "too-long";
   return null;
 }
 

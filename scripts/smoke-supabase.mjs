@@ -1084,6 +1084,26 @@ async function main() {
       JSON.stringify(justTheName.body)
     );
 
+    // trim() keeps characters that draw nothing, so these used to be saved
+    // and showed as a blank name in the header and on friends' lists.
+    for (const [label, invisible] of [
+      ["zero-width spaces", "​​​"],
+      ["Hangul fillers", "ㅤㅤ"]
+    ]) {
+      const blank = await patchProfile(carolToken, { fullName: invisible });
+      check(
+        `a name made only of ${label} is refused like an empty one`,
+        blank.status === 400 && blank.body.code === "name-invalid" && blank.body.message === "Enter your name.",
+        JSON.stringify(blank.body)
+      );
+    }
+    const strayMarks = await patchProfile(carolToken, { fullName: "Carol​ Smith‏" });
+    check(
+      "invisible characters inside a real name are taken out",
+      strayMarks.status === 200 && strayMarks.body.profile?.fullName === "Carol Smith",
+      JSON.stringify(strayMarks.body)
+    );
+
     check(
       "the answer to \"is it free?\" needs a sign-in",
       (await call("/api/profile/username-available?username=anything")).status === 401

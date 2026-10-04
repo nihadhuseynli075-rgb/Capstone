@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { normalizeUsername, usernameProblem } from "@grade9/shared";
+import { cleanName, normalizeUsername, usernameProblem } from "@grade9/shared";
 import { useLanguage } from "../../lib/i18n";
 import { ApiError } from "../../services/apiClient";
 import { Field, focusFirstError } from "../auth/AuthLayout";
@@ -47,7 +47,7 @@ export function DetailsPanel({
     setUsername(currentUsername);
   }, [currentUsername]);
 
-  const nameChanged = name.trim().replace(/\s+/g, " ") !== currentName;
+  const nameChanged = cleanName(name) !== currentName;
   const usernameChanged = normalizeUsername(username) !== currentUsername;
   const state = useUsernameState(username, currentUsername);
 

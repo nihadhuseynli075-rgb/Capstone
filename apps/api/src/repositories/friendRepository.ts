@@ -8,6 +8,7 @@ import type {
   FriendsOverview,
   SentFriendRequest
 } from "@grade9/shared";
+import { cleanName, isReadableName } from "@grade9/shared";
 import { isUuid } from "../lib/ids";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import {
@@ -94,14 +95,16 @@ async function rowsInvolving(me: string): Promise<FriendshipRow[]> {
 // ---------------------------------------------------------------------------
 
 function toPerson(row: Record<string, unknown>): FriendPerson {
-  const name = typeof row.full_name === "string" ? row.full_name.trim() : "";
+  // Cleaned as the profile page cleans a new name, so one saved before that,
+  // made only of characters that draw nothing, does not show as a blank.
+  const name = typeof row.full_name === "string" ? cleanName(row.full_name) : "";
 
   return {
     id: row.id as string,
     // Never the start of the email address as a stand-in: that would hand part
     // of it to somebody who was not given it. Every profile has a name, so this
-    // only covers a row that has been edited by hand.
-    fullName: name.length > 0 ? name : "Exampeak student",
+    // only covers a row that has been edited by hand, or an unreadable one.
+    fullName: isReadableName(name) ? name : "Exampeak student",
     username: typeof row.username === "string" ? row.username : "",
     avatarUrl: typeof row.avatar_url === "string" && row.avatar_url.length > 0 ? row.avatar_url : null
   };
