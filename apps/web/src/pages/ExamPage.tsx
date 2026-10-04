@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SubmittedAnswer } from "@grade9/shared";
 import { topicName, writtenAnswerMaxLength } from "@grade9/shared";
-import { navigate } from "../app/router";
+import { navigate, replaceRoute } from "../app/router";
 import {
   clearActiveTest,
   loadActiveTest,
@@ -54,8 +54,11 @@ export function ExamPage() {
 
   useEffect(() => {
     const stored = loadActiveTest();
+    // Nothing to sit, so this address is swapped for the builder rather than
+    // left in the history: Back from the results of a finished test lands
+    // here, and adding a step each time made it a trap that never went further.
     if (!stored) {
-      navigate("/build");
+      replaceRoute("/build");
       return;
     }
     setActive(stored);
@@ -115,7 +118,9 @@ export function ExamPage() {
 
         closedRef.current = true;
         clearActiveTest();
-        navigate(stored ? "/results" : `/results/${active.test.id}`);
+        // The finished paper's step becomes the results, so Back from them
+        // goes to the builder and not to a paper that no longer exists.
+        replaceRoute(stored ? "/results" : `/results/${active.test.id}`);
       } catch (cause) {
         const code = cause instanceof ApiError ? cause.code : null;
 
@@ -124,7 +129,7 @@ export function ExamPage() {
         if (code === "already-submitted") {
           closedRef.current = true;
           clearActiveTest();
-          navigate(`/results/${active.test.id}`);
+          replaceRoute(`/results/${active.test.id}`);
           return;
         }
 

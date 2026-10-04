@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AttemptComparison, QuestionReview, TopicPerformance } from "@grade9/shared";
 import { subjectName, topicName } from "@grade9/shared";
-import { navigate } from "../app/router";
+import { navigate, replaceRoute } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
 import { loadLastResult } from "../lib/examSession";
 import { fetchAttempt } from "../services/testsApi";
@@ -102,9 +102,11 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
       };
     }
 
+    // No result in this tab: the address is swapped for the history, not
+    // added to it, so Back does not keep returning here to be sent on again.
     const stored = loadLastResult();
     if (!stored) {
-      navigate("/history");
+      replaceRoute("/history");
       return;
     }
 

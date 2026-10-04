@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { navigate } from "../../app/router";
+import { replaceRoute } from "../../app/router";
 import { useAuth } from "./AuthContext";
 import { AuthDivider, AuthLayout, Field, PasswordField } from "./AuthLayout";
 import { GoogleButton } from "./GoogleButton";
@@ -20,8 +20,10 @@ export function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
 
+  // Signed in: the form's step in the history becomes the home page, so Back
+  // goes to wherever the student was before it (see LoginPage).
   useEffect(() => {
-    if (user) navigate("/");
+    if (user) replaceRoute("/");
   }, [user]);
 
   const strength = passwordStrength(password);
@@ -57,7 +59,7 @@ export function RegisterPage() {
         return;
       }
 
-      navigate("/");
+      replaceRoute("/");
     } catch (cause) {
       setFormError((cause as Error).message);
       setSubmitting(false);

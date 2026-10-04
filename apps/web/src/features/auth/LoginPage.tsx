@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { navigate } from "../../app/router";
+import { replaceRoute } from "../../app/router";
 import { useAuth } from "./AuthContext";
 import { AuthDivider, AuthLayout, Field, PasswordField } from "./AuthLayout";
 import { GoogleButton } from "./GoogleButton";
@@ -14,9 +14,11 @@ export function LoginPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Already signed in, or signed in from another tab: nothing to do here.
+  // Already signed in, or signed in from another tab: nothing to do here. The
+  // form's own step in the history is swapped for the home page rather than
+  // added to, or Back would land here again and be sent straight forward.
   useEffect(() => {
-    if (user) navigate("/");
+    if (user) replaceRoute("/");
   }, [user]);
 
   // A trip to Google, or an email link, that did not sign in comes back here
@@ -45,7 +47,7 @@ export function LoginPage() {
 
     try {
       await signIn({ email: email.trim(), password });
-      navigate("/");
+      replaceRoute("/");
     } catch (cause) {
       setFormError((cause as Error).message);
       setSubmitting(false);
