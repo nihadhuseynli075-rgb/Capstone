@@ -151,7 +151,10 @@ export async function listQuestions(filter: QuestionFilter = {}): Promise<BankQu
   if (!supabaseAdmin) {
     return [...memoryQuestions.values()]
       .filter((question) => matchesFilter(question, filter))
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      // Newest first, then by id, the order Supabase reads them in below. A
+      // whole import shares one timestamp, and without the id the two stores
+      // listed the same import in different orders.
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   const client = supabaseAdmin;

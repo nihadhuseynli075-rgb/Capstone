@@ -20,6 +20,18 @@ describe("parseCsv", () => {
     ]);
   });
 
+  test("a quote inside a cell is part of the text, not the start of a quoted cell", () => {
+    assert.deepEqual(parseCsv('a\tb\nA 12" ruler\t30\nnext\trow'), [
+      ["a", "b"],
+      ['A 12" ruler', "30"],
+      ["next", "row"]
+    ]);
+    assert.deepEqual(parseCsv('a,b\n5" long,"quoted, still"'), [
+      ["a", "b"],
+      ['5" long', "quoted, still"]
+    ]);
+  });
+
   test("drops blank rows", () => {
     assert.deepEqual(parseCsv("a,b\n\n , \nc,d"), [
       ["a", "b"],
@@ -358,5 +370,92 @@ describe("translation columns", () => {
     assert.deepEqual(drafts[0].translations, {
       ru: { prompt: "Выберите", options: ["Да", "Нет"] }
     });
+  });
+});
+
+describe("importQuestionsFromCsv row numbers", () => {
+  test("a row after a blank one is reported by its spreadsheet row", () => {
+    // Row 3 is blank in the sheet: an empty line here, a row of commas below.
+    const lines = ["subject,topic,question,correct_answer", "math,algebra,Fine,1", "", "math,algebra,,1"];
+    assert.deepEqual(importQuestionsFromCsv(lines.join("\n")).errors, [{ row: 4, message: "Question text is empty." }]);
+    lines[2] = ",,,";
+    assert.deepEqual(importQuestionsFromCsv(lines.join("\r\n")).errors, [{ row: 4, message: "Question text is empty." }]);
+  });
+
+  test("a quoted cell over two lines is still one row", () => {
+    const csv = ["subject,topic,question,correct_answer", 'math,algebra,"Two\nlines",1', "math,algebra,,1"].join("\n");
+    assert.deepEqual(importQuestionsFromCsv(csv).errors, [{ row: 3, message: "Question text is empty." }]);
+  });
+
+  test("blank rows above the header count, and do not hide a tab-separated header", () => {
+    const tsv = "\n\nsubject\ttopic\tquestion\tcorrect_answer\nmath\talgebra\t\t1";
+    assert.deepEqual(importQuestionsFromCsv(tsv).errors, [{ row: 4, message: "Question text is empty." }]);
+  });
+});
+
+describe("importQuestionsFromCsv fifth option", () => {
+  const fiveHeader = "subject,topic,question,option_a,option_b,option_c,option_d,option_e,correct_answer";
+
+  test("option_e is read, and E names it", () => {
+    const { drafts, errors } = importQuestionsFromCsv(`${fiveHeader}\nmath,algebra,Pick,1,2,3,4,5,E`);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(drafts[0].options, ["1", "2", "3", "4", "5"]);
+    assert.equal(drafts[0].correctAnswer, "5");
+  });
+
+  test("a fifth option is kept when the answer is another letter, with its translation", () => {
+    const csv = [
+      `${fiveHeader},question_ru,option_a_ru,option_b_ru,option_c_ru,option_d_ru,option_e_ru`,
+      "math,algebra,Pick,1,2,3,4,5,B,Выбери,1р,2р,3р,4р,5р"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(drafts[0].options, ["1", "2", "3", "4", "5"]);
+    assert.deepEqual(drafts[0].translations.ru?.options, ["1р", "2р", "3р", "4р", "5р"]);
+  });
+});
+
+describe("importQuestionsFromCsv topics", () => {
+  test("a topic's name is that topic, and anything else becomes a new one", () => {
+    const csv = [
+      "subject,topic,question,correct_answer",
+      "english,Reading Comprehension,Q1,a",
+      "math,Functions and Graphs,Q2,1",
+      "math,Quadratic Equations,Q3,1"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(
+      drafts.map((draft) => draft.topicId),
+      ["reading", "functions", "quadratic-equations"]
+    );
+  });
+});
+
+describe("importQuestionsFromCsv subjects", () => {
+  test("a subject that is not one of ours is reported against its row, not saved", () => {
+    const csv = ["subject,topic,question,correct_answer", "history,wars,When?,1914", "Maths,algebra,1 + 1,2"].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.equal(drafts.length, 0);
+    assert.deepEqual(
+      errors.map((error) => error.row),
+      [2, 3]
+    );
+    assert.match(errors[0].message, /history/);
+  });
+
+  test("a subject can be given by the name the site shows, in any case", () => {
+    const csv = ["subject,topic,question,correct_answer", "Mathematics,algebra,1 + 1,2", "ENGLISH,grammar,Plural of cat,cats"].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(
+      drafts.map((draft) => draft.subjectId),
+      ["math", "english"]
+    );
   });
 });

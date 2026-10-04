@@ -7,8 +7,8 @@ imported in one paste, rather than typed into the form question by question.
 
 | Column           | Required | Notes                                                       |
 | ---------------- | -------- | ----------------------------------------------------------- |
-| `subject`        | yes      | `math`, `english` or `russian`                              |
-| `topic`          | yes      | Free text, e.g. `algebra`. Spaces become dashes.            |
+| `subject`        | yes      | `math`, `english` or `russian`, or the name the site shows (`Mathematics`). Anything else is reported as a bad row. |
+| `topic`          | yes      | Free text, e.g. `algebra`. A topic's name as the site shows it (`Reading Comprehension`) is that topic; anything else becomes a new topic, with spaces turned into dashes. |
 | `difficulty`     | no       | `easy`, `medium` or `hard`. Defaults to `medium` if blank.  |
 | `type`           | no       | `multiple-choice`, `short-answer`, or `open-ended` for a written answer marked by the AI marker (put its marking guide in `correct_answer`). Worked out from whether options are filled in if blank. |
 | `question`       | yes      | The question text, exactly as on the paper.                 |
@@ -16,7 +16,8 @@ imported in one paste, rather than typed into the form question by question.
 | `option_b`       | for MCQ  | Second option. At least two options are needed.             |
 | `option_c`       | no       | Third option.                                               |
 | `option_d`       | no       | Fourth option.                                              |
-| `correct_answer` | yes      | The letter (`A`, `B`, `C`, `D`) or the full answer text.    |
+| `option_e`       | no       | Fifth option, as on DIM papers.                             |
+| `correct_answer` | yes      | The letter (`A` to `E`) or the full answer text.            |
 | `marks`          | no       | What the question is worth, e.g. `3`. A whole number from 1 to 100. Defaults to `1` if blank. |
 | `explanation`    | no       | Why the answer is right. Shown to the student after the test. |
 | `image_url`      | no       | Link to a diagram. Leave blank and attach the picture through the admin form instead. |
@@ -58,7 +59,7 @@ no translation.
 | Column                                         | Notes                                                                 |
 | ---------------------------------------------- | --------------------------------------------------------------------- |
 | `question_ru` / `question_en`                  | The question text in that language. Required if any other column for that language is filled in. |
-| `option_a_ru` ... `option_d_ru` (and `_en`)    | The options in that language, **in the same order as `option_a` ... `option_d`**. |
+| `option_a_ru` ... `option_e_ru` (and `_en`)    | The options in that language, **in the same order as `option_a` ... `option_e`**. |
 | `explanation_ru` / `explanation_en`            | The explanation in that language.                                     |
 | `correct_answer_ru` / `correct_answer_en`      | Short answers only, and only when the answer reads differently (`26 cm` and `26 см`). Ignored on multiple choice. |
 
@@ -91,7 +92,9 @@ are taken as the question itself and only the Russian ones become a translation.
 ## Rows that are skipped
 
 A row is reported and skipped, with the rest of the paste still importing, when
-`subject`, `topic`, `question` or `correct_answer` is empty, when a
+`subject`, `topic`, `question` or `correct_answer` is empty, when `subject` is
+not one of the three subjects (a new subject would appear in front of students
+with no way to filter it in the dashboard), when a
 multiple-choice row has fewer than two options, when `correct_answer` matches
 none of them, or when `difficulty` or `marks` is filled in with something
 unusable. Subject and topic are checked per row, not just as columns: the
@@ -121,6 +124,10 @@ answer itself in `correct_answer`.
    the box below, so you can check it. (Opening the file in a text editor,
    copying everything, header row included, and pasting works as well.)
 3. Press **Import questions**.
+
+A quote mark inside a cell, as in `A 12" ruler`, is kept as part of the text.
+Only a cell that starts with a quote is read as a quoted cell, which is how
+spreadsheets export a cell holding commas, tabs or line breaks.
 
 Rows that do not validate are reported back with their spreadsheet row number and
 skipped. The rest still import, so one bad cell does not block the other forty.

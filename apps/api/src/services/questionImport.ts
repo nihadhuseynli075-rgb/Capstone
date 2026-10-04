@@ -1,5 +1,5 @@
 import type { Difficulty, QuestionDraft, QuestionTranslation, QuestionTranslations, QuestionType } from "@grade9/shared";
-import { markLimits, paperYearLimits, repeatedOption } from "@grade9/shared";
+import { markLimits, paperYearLimits, repeatedOption, subjects, topicIdFor } from "@grade9/shared";
 import { languageNames, translationProblems } from "./questionTranslations";
 
 /**
@@ -29,10 +29,42 @@ export interface ImportResult {
  * else is the comma-separated format this has always read.
  */
 function detectDelimiter(text: string): "," | "\t" {
-  const headerLine = text.split("\n", 1)[0];
+  // The first line with anything on it: blank rows above the header are
+  // skipped when the rows are read, so they must not decide this either.
+  const headerLine = text.split("\n").find((line) => line.trim().length > 0) ?? "";
   const tabs = headerLine.split("\t").length - 1;
   const commas = headerLine.split(",").length - 1;
   return tabs > 0 && tabs >= commas ? "\t" : ",";
+}
+
+/** One row of the sheet, with the number the spreadsheet shows beside it. */
+export interface SheetRow {
+  row: number;
+  cells: string[];
+}
+
+/** Whether a row has nothing in it, as an empty line or a row of empty cells. */
+function isBlank(cells: string[]): boolean {
+  return !cells.some((value) => value.trim().length > 0);
+}
+
+/**
+ * The sheet's rows with their spreadsheet row numbers, blank rows left out.
+ *
+ * Each record is one spreadsheet row, however many lines a quoted cell spans,
+ * so the number is the record's position. It is taken before the blank rows
+ * go: numbering what was left once they had gone reported every row after a
+ * gap in the sheet one row too early, pointing at the wrong question.
+ */
+export function readSheetRows(input: string): SheetRow[] {
+  return readRecords(input)
+    .map((cells, index) => ({ row: index + 1, cells }))
+    .filter((entry) => !isBlank(entry.cells));
+}
+
+/** The sheet's rows without their numbers, blank rows left out. */
+export function parseCsv(input: string): string[][] {
+  return readSheetRows(input).map((entry) => entry.cells);
 }
 
 /**
@@ -41,9 +73,10 @@ function detectDelimiter(text: string): "," | "\t" {
  * Handles quoted fields, escaped quotes, commas and newlines inside quotes, and
  * both LF and CRLF line endings. Written out rather than pulled from a package
  * so the whole import path stays readable in one file. A tab-separated sheet is
- * read the same way, with tabs where the commas would be.
+ * read the same way, with tabs where the commas would be. Blank rows are kept,
+ * so each record's position is its spreadsheet row.
  */
-export function parseCsv(input: string): string[][] {
+function readRecords(input: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -73,7 +106,12 @@ export function parseCsv(input: string): string[][] {
       continue;
     }
 
-    if (char === '"') {
+    // Only a quote at the start of a cell opens a quoted cell, as spreadsheets
+    // read it. One further in is the text itself: a tab-separated sheet does
+    // not quote `A 12" ruler`, and reading that quote as an opening one
+    // swallowed every tab and line after it, so the rest of the sheet vanished
+    // into one cell without a single row being reported.
+    if (char === '"' && field.trim().length === 0) {
       inQuotes = true;
       index += 1;
       continue;
@@ -109,7 +147,7 @@ export function parseCsv(input: string): string[][] {
     rows.push(row);
   }
 
-  return rows.filter((entry) => entry.some((value) => value.trim().length > 0));
+  return rows;
 }
 
 /** Header names we accept for each field, so the sheet does not have to be exact. */
@@ -123,6 +161,11 @@ const headerAliases: Record<string, string[]> = {
   optionB: ["option_b", "b", "optionb", "answer_b"],
   optionC: ["option_c", "c", "optionc", "answer_c"],
   optionD: ["option_d", "d", "optiond", "answer_d"],
+  // DIM papers have five options, A to E, and the admin form offers five. The
+  // dashboard's column list names option_e too, so a sheet that followed it
+  // lost its fifth option without a word, and a correct answer of "E" was
+  // refused as matching none of the options.
+  optionE: ["option_e", "e", "optione", "answer_e"],
   correctAnswer: ["correct_answer", "answer", "correct", "correctanswer"],
   marks: ["marks", "mark", "points", "point", "weight"],
   explanation: ["explanation", "reason", "why"],
@@ -142,6 +185,7 @@ const translatedFields = [
   "optionB",
   "optionC",
   "optionD",
+  "optionE",
   "correctAnswer",
   "explanation"
 ] as const;
@@ -205,6 +249,18 @@ function mapHeaders(headerRow: string[]): Record<string, number> {
   return mapping;
 }
 
+/**
+ * The subject a cell names, by its id or by the name the site shows for it, in
+ * any case: `math`, `Math` and `Mathematics` are all maths. Null when it names
+ * none of them, so the row can be reported rather than filed under a subject
+ * no student filter or admin filter knows.
+ */
+function subjectIdFor(value: string): string | null {
+  const typed = value.trim().toLowerCase();
+  const known = subjects.find((subject) => subject.id === typed || subject.name.toLowerCase() === typed);
+  return known ? known.id : null;
+}
+
 const difficulties: Difficulty[] = ["easy", "medium", "hard"];
 
 function parseDifficulty(value: string): Difficulty | null {
@@ -255,7 +311,7 @@ export function resolveCorrectAnswer(raw: string, options: string[]): string | n
   const exact = filled.find((option) => option === value);
   if (exact) return exact;
 
-  const letterMatch = /^\(?([a-dA-D])\)?[.)]?$/.exec(value);
+  const letterMatch = /^\(?([a-eA-E])\)?[.)]?$/.exec(value);
   if (letterMatch) {
     const chosen = options[letterMatch[1].toUpperCase().charCodeAt(0) - 65] ?? "";
     return chosen.length > 0 ? chosen : null;
@@ -268,7 +324,7 @@ export function resolveCorrectAnswer(raw: string, options: string[]): string | n
 }
 
 export function importQuestionsFromCsv(csv: string): ImportResult {
-  const rows = parseCsv(csv);
+  const rows = readSheetRows(csv);
   const drafts: QuestionDraft[] = [];
   const errors: ImportRowError[] = [];
 
@@ -276,7 +332,8 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     return { drafts, errors: [{ row: 0, message: "The pasted text was empty." }] };
   }
 
-  const mapping = mapHeaders(rows[0]);
+  const [headerRow, ...dataRows] = rows;
+  const mapping = mapHeaders(headerRow.cells);
 
   const missing = ["subjectId", "topicId", "prompt", "correctAnswer"].filter(
     (field) => mapping[field] === undefined
@@ -292,7 +349,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       drafts,
       errors: [
         {
-          row: 1,
+          row: headerRow.row,
           message: `Missing column(s): ${columns.join(", ")}. The header row needs at least subject, topic, question and correct_answer.`
         }
       ]
@@ -305,10 +362,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     return (row[columnIndex] ?? "").trim();
   };
 
-  rows.slice(1).forEach((row, offset) => {
-    // Row number as the person sees it in the spreadsheet: header is row 1.
-    const rowNumber = offset + 2;
-
+  dataRows.forEach(({ row: rowNumber, cells: row }) => {
     const prompt = cell(row, "prompt");
     if (prompt.length === 0) {
       errors.push({ row: rowNumber, message: "Question text is empty." });
@@ -320,13 +374,31 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     // builder filters on both, so it sits in the bank unreachable and uncounted.
     // Saying so is the difference between a row that failed and a row that
     // vanished.
-    const subjectId = cell(row, "subjectId").toLowerCase();
-    if (subjectId.length === 0) {
+    const rawSubject = cell(row, "subjectId");
+    if (rawSubject.length === 0) {
       errors.push({ row: rowNumber, message: "Subject is empty." });
       return;
     }
 
-    const topicId = cell(row, "topicId").toLowerCase().replace(/\s+/g, "-");
+    // The subjects are a fixed list, held to the same rule as the admin form
+    // and the API. Anything else (a typo, "Maths", "history") used to be saved
+    // as it was, and put a subject of its own in front of students that the
+    // dashboard's subject filter could never pick.
+    const subjectId = subjectIdFor(rawSubject);
+    if (subjectId === null) {
+      errors.push({
+        row: rowNumber,
+        message: `Subject "${rawSubject}" is not one of ours. Use ${subjects.map((subject) => subject.id).join(", ")}.`
+      });
+      return;
+    }
+
+    // The topic's name is that topic, as it is in the admin form: "Reading
+    // Comprehension" is `reading`. Turned into a slug on its own it became
+    // `reading-comprehension`, a second topic with the same name that the
+    // builder showed beside the first, with the questions split between them.
+    const knownTopics = subjects.find((subject) => subject.id === subjectId)?.topics ?? [];
+    const topicId = topicIdFor(cell(row, "topicId"), knownTopics);
     if (topicId.length === 0) {
       errors.push({ row: rowNumber, message: "Topic is empty." });
       return;
@@ -336,7 +408,8 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       cell(row, "optionA"),
       cell(row, "optionB"),
       cell(row, "optionC"),
-      cell(row, "optionD")
+      cell(row, "optionD"),
+      cell(row, "optionE")
     ];
     const options = optionCells.filter((option) => option.length > 0);
 
@@ -424,7 +497,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
 
     for (const language of importLanguages) {
       const translatedPrompt = cell(row, translatedField("prompt", language.id));
-      const translatedOptions = (["optionA", "optionB", "optionC", "optionD"] as const)
+      const translatedOptions = (["optionA", "optionB", "optionC", "optionD", "optionE"] as const)
         .map((field) => cell(row, translatedField(field, language.id)))
         .filter((option) => option.length > 0);
       const translatedExplanation = cell(row, translatedField("explanation", language.id));

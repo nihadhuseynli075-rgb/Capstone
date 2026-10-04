@@ -234,11 +234,46 @@ async function main() {
       JSON.stringify(prompts.filter((prompt) => !prompt.includes(character)).slice(0, 3))
     );
   }
+  // The memory store lowercased "İ" to "i" plus a combining dot, so it and a
+  // Supabase project disagreed about which questions "istanbul" and "i" find.
+  const dottedQuestion = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ prompt: "How far is İstanbul from Bakı? (search check)" })
+  });
+  const dottedSearch = await call(`/api/admin/questions?search=${encodeURIComponent("istanbul from")}`, { token });
+  check(
+    'searching for "istanbul" finds "İstanbul", as Postgres lowercases it',
+    dottedQuestion.status === 201 &&
+      (dottedSearch.body.questions ?? []).some((question) => question.prompt.startsWith("How far is İstanbul")),
+    JSON.stringify((dottedSearch.body.questions ?? []).map((question) => question.prompt))
+  );
+
+  // Pasted text often brings a space at one end, which found nothing.
+  const spacedSearch = await call(`/api/admin/questions?search=${encodeURIComponent("  6 * 7 (search check)  ")}`, { token });
+  check(
+    "spaces at either end of a search are not looked for",
+    (spacedSearch.body.questions ?? []).some((question) => question.prompt === "Work out 6 * 7 (search check)"),
+    JSON.stringify((spacedSearch.body.questions ?? []).map((question) => question.prompt))
+  );
+
   const backslash = await call(`/api/admin/questions?search=${encodeURIComponent("\\")}`, { token });
   check(
     "a backslash is searched for as itself",
     backslash.status === 200 && (backslash.body.questions ?? []).every((question) => question.prompt.includes("\\")),
     `${backslash.status} ${(backslash.body.questions ?? []).length} found`
+  );
+
+  // Only spaces used to pass, and a blank topic showed in the builder.
+  const blankParts = await Promise.all([
+    call("/api/admin/questions", { method: "POST", token, body: mcq({ prompt: "   " }) }),
+    call("/api/admin/questions", { method: "POST", token, body: mcq({ topicId: "   " }) }),
+    call("/api/admin/questions", { method: "POST", token, body: mcq({ options: ["x = 4", "  "] }) })
+  ]);
+  check(
+    "a question, topic or option of only spaces is refused",
+    blankParts.every((response) => response.status === 400),
+    JSON.stringify(blankParts.map((response) => response.status))
   );
 
   section("Editing and deleting");
@@ -935,6 +970,103 @@ async function main() {
   );
   const yearless = edges.body.questions?.find((question) => question.prompt === "A year nobody wrote down");
   check("a blank year is stored as unknown", yearless !== undefined && yearless.paperYear === null, JSON.stringify(yearless));
+
+  // A subject outside the fixed list became a subject chip of its own in the
+  // student builder, which no admin filter could pick.
+  const subjectCsv = [
+    "subject,topic,question,correct_answer",
+    "history,import-subjects,A subject we do not have,1914",
+    "Mathematics,import-subjects,A subject given by its name,2"
+  ].join("\n");
+  const subjectImport = await call("/api/admin/questions/import", { method: "POST", token, body: { csv: subjectCsv } });
+  check(
+    "an import refuses a subject that is not one of ours, by row",
+    subjectImport.body.importedCount === 1 &&
+      subjectImport.body.errors?.length === 1 &&
+      subjectImport.body.errors[0].row === 2,
+    JSON.stringify(subjectImport.body.errors)
+  );
+  check(
+    "and takes a subject given by the name the site shows",
+    subjectImport.body.questions?.[0]?.subjectId === "math",
+    JSON.stringify(subjectImport.body.questions?.map((question) => question.subjectId))
+  );
+  // The dashboard's column list names option_e, and the form has five
+  // options, but the import used to drop the fifth and refuse an answer of E.
+  const fiveCsv = [
+    "subject,topic,question,option_a,option_b,option_c,option_d,option_e,correct_answer",
+    "math,import-five,Which is the fifth option?,1,2,3,4,5,E"
+  ].join("\n");
+  const fiveImport = await call("/api/admin/questions/import", { method: "POST", token, body: { csv: fiveCsv } });
+  check(
+    "an import reads option_e, and an answer of E names it",
+    fiveImport.body.questions?.[0]?.options?.length === 5 && fiveImport.body.questions[0].correctAnswer === "5",
+    JSON.stringify(fiveImport.body).slice(0, 300)
+  );
+
+  // Row numbers were counted after blank rows had been dropped, so every row
+  // below a gap in the sheet was reported one row too early.
+  const gapCsv = ["subject,topic,question,correct_answer", "math,import-gaps,A row before the gap,1", ",,,", "math,import-gaps,,1"].join(
+    "\r\n"
+  );
+  const gapImport = await call("/api/admin/questions/import", { method: "POST", token, body: { csv: gapCsv } });
+  check(
+    "a bad row below a blank one is reported by its spreadsheet row",
+    gapImport.body.errors?.length === 1 && gapImport.body.errors[0].row === 4,
+    JSON.stringify(gapImport.body.errors)
+  );
+
+  // A quote inside an unquoted cell opened a quoted cell that ran to the end
+  // of the sheet, so the rows after it vanished without being reported.
+  const inchTsv = [
+    "subject\ttopic\tquestion\tcorrect_answer",
+    'math\timport-inches\tA 12" ruler is how many cm?\t30',
+    "math\timport-inches\tThe row after the inch mark\t5"
+  ].join("\n");
+  const inchImport = await call("/api/admin/questions/import", { method: "POST", token, body: { csv: inchTsv } });
+  check(
+    "a quote inside a tab-separated cell is text, and the rows after it import",
+    inchImport.body.importedCount === 2 && inchImport.body.questions?.[0]?.prompt === 'A 12" ruler is how many cm?',
+    JSON.stringify(inchImport.body).slice(0, 300)
+  );
+
+  // A topic written by its name became a second topic of the same name.
+  const topicNameImport = await call("/api/admin/questions/import", {
+    method: "POST",
+    token,
+    body: { csv: "subject,topic,question,correct_answer\nenglish,Reading Comprehension,A topic given by its name,a" }
+  });
+  check(
+    "an import files a topic given by its name under that topic",
+    topicNameImport.body.questions?.[0]?.topicId === "reading",
+    JSON.stringify(topicNameImport.body.questions?.map((question) => question.topicId))
+  );
+
+  // One import shares one timestamp. Memory listed it in sheet order and
+  // Supabase by id, so the two stores showed the same import differently.
+  const orderCsv = ["subject,topic,question,correct_answer"]
+    .concat(Array.from({ length: 6 }, (_, index) => `math,import-order,Import order check ${index + 1},1`))
+    .join("\n");
+  await call("/api/admin/questions/import", { method: "POST", token, body: { csv: orderCsv } });
+  const orderList = (await call(`/api/admin/questions?search=${encodeURIComponent("Import order check")}`, { token })).body
+    .questions ?? [];
+  const inListOrder = orderList.every((question, index) => {
+    const next = orderList[index + 1];
+    if (!next) return true;
+    return question.createdAt > next.createdAt || (question.createdAt === next.createdAt && question.id < next.id);
+  });
+  check(
+    "the list is newest first, then by id, in either store",
+    orderList.length === 6 && inListOrder,
+    JSON.stringify(orderList.map((question) => [question.createdAt, question.id.slice(0, 8)]))
+  );
+
+  const subjectCatalog = await call("/api/catalog");
+  check(
+    "so the catalog shows no subject the bank should not have",
+    (subjectCatalog.body.subjects ?? []).every((subject) => ["math", "english", "russian"].includes(subject.id)),
+    JSON.stringify((subjectCatalog.body.subjects ?? []).map((subject) => subject.id))
+  );
 
   section("Question diagrams");
   // A 1x1 PNG, the smallest real picture there is.

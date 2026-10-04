@@ -7,7 +7,7 @@ import type {
   QuestionTranslations,
   QuestionType
 } from "@grade9/shared";
-import { followsSiteLanguage, markLimits, repeatedOption, subjects, topicIdFor } from "@grade9/shared";
+import { followsSiteLanguage, markLimits, paperYearLimits, repeatedOption, subjects, topicIdFor } from "@grade9/shared";
 import { adminLanguageNames, adminText } from "./adminText";
 import { uploadQuestionImage } from "../services/adminApi";
 
@@ -509,8 +509,10 @@ export function QuestionForm({
           Paper year
           <input
             type="number"
-            min="1900"
-            max="2100"
+            // The limits the API holds the year to, from the shared package
+            // rather than a copy that could drift from it.
+            min={paperYearLimits.min}
+            max={paperYearLimits.max}
             value={paperYear}
             onChange={(event) => setPaperYear(event.target.value)}
             placeholder="e.g. 2024"
