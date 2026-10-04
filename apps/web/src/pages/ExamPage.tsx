@@ -47,6 +47,7 @@ export function ExamPage() {
   const closedRef = useRef(false);
 
   const paletteRef = useRef<HTMLDivElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
 
   // The countdown fires once when it reaches zero and then leaves it alone.
   // Without this the timer retries the same failing request on every tick, so a
@@ -253,6 +254,15 @@ export function ExamPage() {
     return setLeaveGuard((to) => to === "/exam" || closedRef.current || window.confirm(leaveText));
   }, [leaveText]);
 
+  // On a phone the error sits under the question, behind the sticky
+  // Previous/Finish bar, so a failed submit looked like a button that did
+  // nothing. Centred, it clears the bar.
+  useEffect(() => {
+    if (!error) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    errorRef.current?.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
+  }, [error]);
+
   if (!active) {
     return <p>Loading your test...</p>;
   }
@@ -395,7 +405,7 @@ export function ExamPage() {
       </section>
 
       {error && (
-        <div className="error-banner exam-error" role="alert">
+        <div className="error-banner exam-error" role="alert" ref={errorRef}>
           <span>{error}</span>
           {dead ? (
             // This paper is finished with, one way or another. Offering to send
