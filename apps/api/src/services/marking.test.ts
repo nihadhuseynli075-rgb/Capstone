@@ -140,7 +140,7 @@ describe("markAttempt", () => {
 describe("compareToPrevious", () => {
   test("the first attempt is a personal best", () => {
     const current = { percentage: 40, totalQuestions: 10, difficultyMode: "easy" as const };
-    assert.deepEqual(compareToPrevious(current, []), { isPersonalBest: true, previousBest: null });
+    assert.deepEqual(compareToPrevious(current, []), { isPersonalBest: true, matchedBest: false, previousBest: null });
   });
 
   test("a perfect easy test does not outrank a strong hard one", () => {
@@ -168,9 +168,27 @@ describe("compareToPrevious", () => {
     assert.equal(comparison.previousBest?.takenAt, "2026-09-10T10:00:00.000Z");
   });
 
-  test("equalling the best counts as a personal best", () => {
+  test("equalling the best is a match, not a new personal best", () => {
     const history = [summary({ percentage: 80 })];
     const current = { percentage: 80, totalQuestions: 10, difficultyMode: "medium" as const };
-    assert.equal(compareToPrevious(current, history).isPersonalBest, true);
+    const comparison = compareToPrevious(current, history);
+
+    assert.equal(comparison.isPersonalBest, false);
+    assert.equal(comparison.matchedBest, true);
+  });
+
+  test("beating the best is a new personal best and not a match", () => {
+    const history = [summary({ percentage: 80 })];
+    const current = { percentage: 90, totalQuestions: 10, difficultyMode: "medium" as const };
+    const comparison = compareToPrevious(current, history);
+
+    assert.equal(comparison.isPersonalBest, true);
+    assert.equal(comparison.matchedBest, false);
+  });
+
+  test("names the subject the best was in, which can differ from this test's", () => {
+    const history = [summary({ subjectId: "math", percentage: 30, difficultyMode: "easy" })];
+    const current = { percentage: 20, totalQuestions: 10, difficultyMode: "easy" as const };
+    assert.equal(compareToPrevious(current, history).previousBest?.subjectId, "math");
   });
 });

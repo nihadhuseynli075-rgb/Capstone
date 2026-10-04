@@ -375,7 +375,13 @@ export interface TopicPerformance {
 
 /** How this attempt compares to the previous best. */
 export interface AttemptComparison {
+  /** Better than every earlier attempt, or the first one. A tie is not a new best. */
   isPersonalBest: boolean;
+  /**
+   * Exactly level with the best earlier attempt. Optional because a result
+   * saved in the browser before this existed does not have it.
+   */
+  matchedBest?: boolean;
   previousBest: {
     score: number;
     totalMarks: number;
@@ -383,6 +389,8 @@ export interface AttemptComparison {
     percentage: number;
     difficultyMode: DifficultyMode;
     takenAt: string;
+    /** The best can be in another subject; optional for the same reason as matchedBest. */
+    subjectId?: string;
   } | null;
 }
 

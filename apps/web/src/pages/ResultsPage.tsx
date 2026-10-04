@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { AttemptComparison, QuestionReview, TopicPerformance } from "@grade9/shared";
+import type { AttemptComparison, DifficultyMode, QuestionReview, TopicPerformance } from "@grade9/shared";
 import { subjectName, topicName } from "@grade9/shared";
 import { navigate } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
@@ -54,6 +54,39 @@ function verdictOf(review: QuestionReview): { label: string; tone: "correct" | "
 /** Anything short of full marks is worth another look, except an answer nobody marked. */
 function isMistake(review: QuestionReview): boolean {
   return !review.isCorrect && review.counted !== false;
+}
+
+/** The names the builder gives the difficulty choices, not their ids. */
+const difficultyLabel: Record<DifficultyMode, string> = {
+  easy: "Easy",
+  medium: "Medium",
+  hard: "Hard",
+  custom: "Custom"
+};
+
+/**
+ * The earlier best, as "3/10 (Mathematics, Easy)". Put in brackets rather
+ * than in a sentence, which read "on a easy test" with the raw id. The
+ * subject is named because the best can be in a different one from this
+ * test: a 3/10 under an English result was the maths test before it.
+ */
+function describeBest(best: NonNullable<AttemptComparison["previousBest"]>): string {
+  const details = [best.subjectId ? subjectName(best.subjectId) : null, difficultyLabel[best.difficultyMode]]
+    .filter(Boolean)
+    .join(", ");
+
+  return `${best.score}/${best.totalMarks} (${details})`;
+}
+
+/** The line under the score, or nothing when there is nothing to compare with. */
+function comparisonLine(comparison: AttemptComparison): string {
+  const best = comparison.previousBest;
+
+  if (!best) return "First test recorded. Everything from here is measured against this one.";
+  if (comparison.isPersonalBest) return `New personal best. Your previous best was ${describeBest(best)}.`;
+  // A tie is not a new best: the same 5/5 twice used to be announced as one.
+  if (comparison.matchedBest) return `You matched your best so far, ${describeBest(best)}.`;
+  return `Your best so far is ${describeBest(best)}.`;
 }
 
 export function ResultsPage({ attemptId }: { attemptId?: string }) {
@@ -169,12 +202,12 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
           </p>
 
           {view.comparison && (
-            <p className={`comparison ${view.comparison.isPersonalBest ? "best" : ""}`}>
-              {view.comparison.isPersonalBest
-                ? view.comparison.previousBest
-                  ? `New personal best. Your previous best was ${view.comparison.previousBest.score}/${view.comparison.previousBest.totalMarks}.`
-                  : "First test recorded. Everything from here is measured against this one."
-                : `Your best so far is ${view.comparison.previousBest?.score}/${view.comparison.previousBest?.totalMarks} on a ${view.comparison.previousBest?.difficultyMode} test.`}
+            <p
+              className={`comparison ${
+                view.comparison.isPersonalBest || view.comparison.matchedBest ? "best" : ""
+              }`}
+            >
+              {comparisonLine(view.comparison)}
             </p>
           )}
         </div>

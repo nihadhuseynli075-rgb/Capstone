@@ -462,6 +462,34 @@ async function main() {
     JSON.stringify(rightResult.body.comparison)
   );
 
+  // The same paper settings, all right again: level with the best, which is
+  // a match and not a second "new personal best".
+  const third = await call("/api/tests/generate", {
+    method: "POST",
+    body: { studentKey, subjectId: "math", topicIds: ["algebra"], difficultyMode: "easy" }
+  });
+  const tieResult = await call(`/api/tests/${third.body.test.id}/submit`, {
+    method: "POST",
+    body: {
+      studentKey,
+      answers: third.body.test.questions.map((question) => ({
+        questionId: question.id,
+        answer: answerFor.get(question.id) ?? ""
+      })),
+      timeTakenSeconds: 30
+    }
+  });
+  check(
+    "equalling the best is a match, not a new personal best",
+    tieResult.body.comparison?.isPersonalBest === false && tieResult.body.comparison?.matchedBest === true,
+    JSON.stringify(tieResult.body.comparison)
+  );
+  check(
+    "the previous best names its subject",
+    tieResult.body.comparison?.previousBest?.subjectId === "math",
+    JSON.stringify(tieResult.body.comparison?.previousBest)
+  );
+
   section("Marks");
   // A question worth three, sat alongside one worth one. Getting the big one
   // right and the small one wrong has to beat the other way round, which a
@@ -548,7 +576,8 @@ async function main() {
   section("History");
   const history = await call(`/api/tests/history?studentKey=${encodeURIComponent(studentKey)}`);
   check("history responds 200", history.status === 200);
-  check("every attempt is listed", history.body.attempts?.length === 3, `${history.body.attempts?.length}`);
+  // All wrong, all right, the tie with it, and the marks paper.
+  check("every attempt is listed", history.body.attempts?.length === 4, `${history.body.attempts?.length}`);
   check(
     "history rows carry the marks available",
     history.body.attempts?.every((attempt) => typeof attempt.totalMarks === "number" && attempt.totalMarks > 0),
