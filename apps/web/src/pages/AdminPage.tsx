@@ -29,6 +29,13 @@ const CSV_TEMPLATE =
 
 type Tab = "add" | "list" | "import";
 
+/** The dashboard's tabs, in the order they are shown and stepped through. */
+const TABS: Array<{ id: Tab; label: string }> = [
+  { id: "add", label: "Add question" },
+  { id: "list", label: "All questions" },
+  { id: "import", label: "Bulk import" }
+];
+
 /**
  * The most a dropped sheet may be. A question sheet is a few hundred kilobytes
  * at the very most, so a file this size is the wrong file, and reading it into
@@ -138,6 +145,24 @@ export function AdminPage() {
     setNotice(null);
     setError(null);
     if (next !== "add") setEditing(null);
+  }
+
+  /** Left and Right step through the tabs (wrapping), Home and End jump to the ends. */
+  function handleTabKey(event: React.KeyboardEvent<HTMLDivElement>) {
+    const index = TABS.findIndex((item) => item.id === tab);
+    const moves: Record<string, number> = {
+      ArrowRight: (index + 1) % TABS.length,
+      ArrowLeft: (index - 1 + TABS.length) % TABS.length,
+      Home: 0,
+      End: TABS.length - 1
+    };
+    const nextIndex = moves[event.key];
+    if (nextIndex === undefined) return;
+
+    event.preventDefault();
+    const next = TABS[nextIndex].id;
+    switchTab(next);
+    window.requestAnimationFrame(() => document.getElementById(`admin-tab-${next}`)?.focus());
   }
 
   /** Any 401 means the API restarted or the session expired: show login again. */
@@ -393,36 +418,42 @@ export function AdminPage() {
         </p>
       )}
 
-      <nav className="tab-row">
-        <button
-          type="button"
-          className={`tab ${tab === "add" ? "selected" : ""}`}
-          onClick={() => switchTab("add")}
-        >
-          {editing ? "Edit question" : "Add question"}
-        </button>
-        <button
-          type="button"
-          className={`tab ${tab === "list" ? "selected" : ""}`}
-          onClick={() => switchTab("list")}
-        >
-          All questions
-        </button>
-        <button
-          type="button"
-          className={`tab ${tab === "import" ? "selected" : ""}`}
-          onClick={() => switchTab("import")}
-        >
-          Bulk import
-        </button>
-      </nav>
+      {/*
+        * Real tabs, not three buttons told apart only by a class: a screen
+        * reader hears "tab, 2 of 3, selected". As the tabs pattern expects,
+        * Tab reaches only the selected one and the arrow keys move between
+        * them (see handleTabKey).
+        */}
+      <div className="tab-row" role="tablist" aria-label="Admin sections" onKeyDown={handleTabKey}>
+        {TABS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            id={`admin-tab-${item.id}`}
+            aria-selected={tab === item.id}
+            aria-controls={`admin-panel-${item.id}`}
+            tabIndex={tab === item.id ? 0 : -1}
+            className={`tab ${tab === item.id ? "selected" : ""}`}
+            onClick={() => switchTab(item.id)}
+          >
+            {item.id === "add" && editing ? "Edit question" : item.label}
+          </button>
+        ))}
+      </div>
 
       {/* On the form's tab both sit beside its button instead: see below. */}
       {tab !== "add" && notice && <p className="success-banner">{notice}</p>}
       {tab !== "add" && error && <p className="error-banner">{error}</p>}
 
       {tab === "add" && (
-        <section className="panel" ref={formPanelRef}>
+        <section
+          className="panel"
+          ref={formPanelRef}
+          role="tabpanel"
+          id="admin-panel-add"
+          aria-labelledby="admin-tab-add"
+        >
           <h2>{editing ? "Edit question" : "Add a question"}</h2>
           <QuestionForm
             // One form per question being edited, and a new one after each add.
@@ -443,7 +474,7 @@ export function AdminPage() {
       )}
 
       {tab === "list" && (
-        <section className="panel">
+        <section className="panel" role="tabpanel" id="admin-panel-list" aria-labelledby="admin-tab-list">
           <div className="filter-row">
             <label>
               Subject
@@ -527,7 +558,7 @@ export function AdminPage() {
       )}
 
       {tab === "import" && (
-        <section className="panel">
+        <section className="panel" role="tabpanel" id="admin-panel-import" aria-labelledby="admin-tab-import">
           <h2>Bulk import from a spreadsheet</h2>
           <p className="panel-hint">
             In Google Sheets choose File, Download, Comma-separated values, then open the file and

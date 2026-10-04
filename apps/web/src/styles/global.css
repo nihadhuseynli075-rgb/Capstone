@@ -1264,14 +1264,33 @@ button:focus-visible {
 
 .option-input-row {
   display: grid;
-  grid-template-columns: auto auto 1fr;
+  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 10px;
 }
 
+/* The radio and its letter, as one target at least 44px square. */
+.option-correct {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 4px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.option-correct:hover {
+  background: var(--surface-alt);
+}
+
 .option-input-row input[type="radio"] {
-  width: auto;
+  width: 18px;
+  height: 18px;
   min-height: auto;
+  margin: 0;
+  cursor: pointer;
 }
 
 .image-field {

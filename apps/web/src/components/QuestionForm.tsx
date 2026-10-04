@@ -397,17 +397,26 @@ export function QuestionForm({
           <legend>Options - select the correct one</legend>
           {options.map((option, index) => (
             <div key={index} className="option-input-row">
-              <input
-                type="radio"
-                name="correct-option"
-                checked={correctIndex === index}
-                onChange={() => setCorrectIndex(index)}
-                aria-label={`Option ${String.fromCharCode(65 + index)} is correct`}
-              />
-              <span className="option-letter">{String.fromCharCode(65 + index)}</span>
+              {/* The radio and its letter are one label, so the whole 44px
+                  square around them picks the answer, not just a 13px dot. */}
+              <label className="option-correct">
+                <input
+                  type="radio"
+                  name="correct-option"
+                  checked={correctIndex === index}
+                  onChange={() => setCorrectIndex(index)}
+                  aria-label={`Option ${String.fromCharCode(65 + index)} is correct`}
+                />
+                <span className="option-letter" aria-hidden="true">
+                  {String.fromCharCode(65 + index)}
+                </span>
+              </label>
+              {/* Named for a screen reader, which otherwise heard only
+                  "Required" or "Optional", the placeholder. */}
               <input
                 type="text"
                 value={option}
+                aria-label={`Option ${String.fromCharCode(65 + index)}`}
                 onChange={(event) => setOption(index, event.target.value)}
                 placeholder={index < 2 ? "Required" : "Optional"}
               />
