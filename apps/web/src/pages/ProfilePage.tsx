@@ -9,7 +9,8 @@ import { EmailPanel } from "../features/profile/EmailPanel";
 import { PhotoPanel } from "../features/profile/PhotoPanel";
 import { useProfile } from "../features/profile/ProfileContext";
 import { SignInMethodsPanel } from "../features/profile/SignInMethodsPanel";
-import { errorText, passwordProblemText, redirectErrorText } from "../features/profile/profileText";
+import { SignInAgainButton } from "../features/auth/SignInAgainButton";
+import { errorText, needsSignInAgain, passwordProblemText, redirectErrorText } from "../features/profile/profileText";
 import { formatDay, useLanguage } from "../lib/i18n";
 
 /**
@@ -119,12 +120,18 @@ export function ProfilePage() {
         </p>
       )}
 
+      {/* Worded by what went wrong, in the site language. A session that has
+          ended gets a way to sign in again, since trying again cannot help. */}
       {status === "error" && (
         <p className="error-banner" role="alert">
-          {error}{" "}
-          <button type="button" className="link-button" onClick={reload}>
-            {t("profile.retry")}
-          </button>
+          {errorText(error, t)}{" "}
+          {needsSignInAgain(error) ? (
+            <SignInAgainButton />
+          ) : (
+            <button type="button" className="link-button" onClick={reload}>
+              {t("profile.retry")}
+            </button>
+          )}
         </p>
       )}
 

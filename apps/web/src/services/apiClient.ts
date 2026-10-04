@@ -47,10 +47,11 @@ export async function apiRequest<T>(
       body: options.body === undefined ? undefined : JSON.stringify(options.body)
     });
   } catch {
-    throw new ApiError(
-      `Could not reach the API at ${API_BASE_URL}. Is it running? Start it with "npm run dev".`,
-      0
-    );
+    // The hint about starting the API is for a developer, so it goes to the
+    // console. Students saw it on the page, in English beside a translated
+    // "Try again". Pages word this failure by its status (see errorText).
+    console.error(`[api] Could not reach the API at ${API_BASE_URL}. Is it running? Start it with "npm run dev".`);
+    throw new ApiError("Could not reach the server. Check your internet connection and try again.", 0);
   }
 
   const text = await response.text();

@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useAuth } from "../features/auth/AuthContext";
+import { SignInAgainButton } from "../features/auth/SignInAgainButton";
 import { AddFriendPanel } from "../features/friends/AddFriendPanel";
 import { FriendsList } from "../features/friends/FriendsList";
 import { RequestsPanel } from "../features/friends/RequestsPanel";
 import { useFriends } from "../features/friends/useFriends";
+import { needsSignInAgain } from "../features/profile/profileText";
 import { useLanguage } from "../lib/i18n";
 import "../styles/friends.css";
 
@@ -23,7 +25,7 @@ export function FriendsPage() {
   // The request or friendship being acted on, which holds every button until
   // the answer is back so nothing is pressed twice.
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<unknown>(null);
 
   async function act(id: string, run: () => Promise<unknown>): Promise<void> {
     setBusyId(id);
@@ -32,7 +34,7 @@ export function FriendsPage() {
     try {
       await run();
     } catch (cause) {
-      setActionError(friends.explain(cause));
+      setActionError(cause);
     } finally {
       setBusyId(null);
     }
@@ -66,6 +68,12 @@ export function FriendsPage() {
 
   const { overview, status, error } = friends;
 
+  const loadText = error === null ? null : friends.explain(error);
+  const actionText = actionError === null ? null : friends.explain(actionError);
+  // A session that has ended fails the action and the read after it alike, and
+  // the same sentence twice said nothing more.
+  const showAction = actionText !== null && !((status === "error" || status === "ready") && actionText === loadText);
+
   return (
     <div className="stack">
       {heading}
@@ -82,18 +90,22 @@ export function FriendsPage() {
         </p>
       )}
 
-      {(status === "error" || (status === "ready" && error)) && (
+      {(status === "error" || (status === "ready" && error !== null)) && (
         <p className="error-banner" role="alert">
-          {error}{" "}
-          <button type="button" className="link-button" onClick={() => void friends.reload()}>
-            {t("friends.retry")}
-          </button>
+          {loadText}{" "}
+          {needsSignInAgain(error) ? (
+            <SignInAgainButton />
+          ) : (
+            <button type="button" className="link-button" onClick={() => void friends.reload()}>
+              {t("friends.retry")}
+            </button>
+          )}
         </p>
       )}
 
-      {actionError && (
+      {showAction && (
         <p className="error-banner" role="alert">
-          {actionError}
+          {actionText} {needsSignInAgain(actionError) && <SignInAgainButton />}
         </p>
       )}
 

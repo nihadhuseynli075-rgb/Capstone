@@ -9,6 +9,7 @@ import {
   saveProgress,
   type ActiveTest
 } from "../lib/examSession";
+import { errorText } from "../features/profile/profileText";
 import { useLanguage } from "../lib/i18n";
 import { ApiError } from "../services/apiClient";
 import { submitTest } from "../services/testsApi";
@@ -154,12 +155,12 @@ export function ExamPage() {
         setSubmitting(false);
         setError(
           reason === "time-up"
-            ? `Time ran out but the test could not be sent: ${(cause as Error).message}`
-            : (cause as Error).message
+            ? `Time ran out but the test could not be sent: ${errorText(cause, t)}`
+            : errorText(cause, t)
         );
       }
     },
-    [active, answers]
+    [active, answers, t]
   );
 
   // Drive the countdown off wall-clock time, so a backgrounded tab that stops

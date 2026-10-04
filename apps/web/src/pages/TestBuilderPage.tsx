@@ -4,6 +4,7 @@ import { customLimits, difficultyPresets } from "@grade9/shared";
 import { navigate, useRouteParam } from "../app/router";
 import { ResumeTestBanner } from "../components/ResumeTestBanner";
 import { useAuth } from "../features/auth/AuthContext";
+import { errorText } from "../features/profile/profileText";
 import { saveActiveTest } from "../lib/examSession";
 import { fill, useLanguage, type TranslationKey } from "../lib/i18n";
 import {
@@ -63,7 +64,8 @@ export function TestBuilderPage() {
   const { ready, user } = useAuth();
   const { language, t } = useLanguage();
   const [catalog, setCatalog] = useState<CatalogSubject[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  // The failure itself, worded when shown (errorText).
+  const [loadError, setLoadError] = useState<unknown>(null);
   const [history, setHistory] = useState<AttemptSummary[] | null>(null);
 
   const [subjectId, setSubjectId] = useState("math");
@@ -82,7 +84,7 @@ export function TestBuilderPage() {
   useEffect(() => {
     fetchCatalog()
       .then(setCatalog)
-      .catch((cause: Error) => setLoadError(cause.message));
+      .catch((cause: unknown) => setLoadError(cause));
   }, []);
 
   // A subject shortcut arrives as ?subject=, whether the builder is opening or
@@ -205,17 +207,17 @@ export function TestBuilderPage() {
 
       navigate("/exam");
     } catch (cause) {
-      setError((cause as Error).message);
+      setError(errorText(cause, t));
     } finally {
       setGenerating(false);
     }
   }
 
-  if (loadError) {
+  if (loadError !== null) {
     return (
       <div className="stack">
         <h1>Create a mock test</h1>
-        <p className="error-banner">{loadError}</p>
+        <p className="error-banner">{errorText(loadError, t)}</p>
       </div>
     );
   }

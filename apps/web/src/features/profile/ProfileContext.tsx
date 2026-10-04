@@ -25,8 +25,12 @@ interface ProfileContextValue {
   /** The latest profile, or the one this browser saw last until that arrives. */
   profile: StudentProfile | null;
   status: ProfileStatus;
-  /** Why loading failed, when the status is "error". */
-  error: string | null;
+  /**
+   * Why loading failed, when the status is "error": the failure itself, which
+   * the page words in the site language (errorText). Its message is English
+   * and can be a developer's.
+   */
+  error: unknown;
   reload: () => void;
   /** Saves a new name, username, or both. Throws the API's reason when it is refused. */
   updateDetails: (changes: { fullName?: string; username?: string }) => Promise<void>;
@@ -75,7 +79,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [status, setStatus] = useState<ProfileStatus>("signed-out");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [loads, setLoads] = useState(0);
 
   // Who is signed in right now, for answers that arrive after that changed.
@@ -116,7 +120,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         }
 
         setStatus("error");
-        setError((cause as Error).message);
+        setError(cause);
       });
 
     return () => {

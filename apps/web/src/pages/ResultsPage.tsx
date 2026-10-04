@@ -3,7 +3,9 @@ import type { AttemptComparison, QuestionReview, TopicPerformance } from "@grade
 import { subjectName, topicName } from "@grade9/shared";
 import { navigate, replaceRoute } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
+import { errorText } from "../features/profile/profileText";
 import { loadLastResult } from "../lib/examSession";
+import { useLanguage } from "../lib/i18n";
 import { fetchAttempt } from "../services/testsApi";
 
 interface ResultView {
@@ -57,8 +59,10 @@ function isMistake(review: QuestionReview): boolean {
 }
 
 export function ResultsPage({ attemptId }: { attemptId?: string }) {
+  const { t } = useLanguage();
   const [view, setView] = useState<ResultView | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // The failure itself, worded when shown (errorText).
+  const [error, setError] = useState<unknown>(null);
   const [showOnlyMistakes, setShowOnlyMistakes] = useState(false);
   const { ready, user } = useAuth();
 
@@ -93,8 +97,8 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
             comparison: null
           });
         })
-        .catch((cause: Error) => {
-          if (active) setError(cause.message);
+        .catch((cause: unknown) => {
+          if (active) setError(cause);
         });
 
       return () => {
@@ -132,11 +136,11 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
     return showOnlyMistakes ? numbered.filter((item) => isMistake(item.review)) : numbered;
   }, [view, showOnlyMistakes]);
 
-  if (error) {
+  if (error !== null) {
     return (
       <div className="stack">
         <h1>Results</h1>
-        <p className="error-banner">{error}</p>
+        <p className="error-banner">{errorText(error, t)}</p>
         <button type="button" className="ghost-button" onClick={() => navigate("/history")}>
           Back to history
         </button>

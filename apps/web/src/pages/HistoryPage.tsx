@@ -3,6 +3,8 @@ import type { AttemptSummary } from "@grade9/shared";
 import { attemptScoreValue, subjectName } from "@grade9/shared";
 import { navigate } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
+import { errorText } from "../features/profile/profileText";
+import { useLanguage } from "../lib/i18n";
 import { fetchHistory } from "../services/testsApi";
 
 function formatDate(value: string): string {
@@ -17,8 +19,11 @@ function formatDate(value: string): string {
 }
 
 export function HistoryPage() {
+  const { t } = useLanguage();
   const [attempts, setAttempts] = useState<AttemptSummary[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // The failure itself, worded when shown (errorText): its own message can be
+  // the server's, or a developer's.
+  const [error, setError] = useState<unknown>(null);
   const { ready, user } = useAuth();
 
   // Waits for the stored session before asking, and asks again if the account
@@ -35,8 +40,8 @@ export function HistoryPage() {
       .then((rows) => {
         if (active) setAttempts(rows);
       })
-      .catch((cause: Error) => {
-        if (active) setError(cause.message);
+      .catch((cause: unknown) => {
+        if (active) setError(cause);
       });
 
     return () => {
@@ -44,11 +49,11 @@ export function HistoryPage() {
     };
   }, [ready, user?.id]);
 
-  if (error) {
+  if (error !== null) {
     return (
       <div className="stack">
         <h1>Test history</h1>
-        <p className="error-banner">{error}</p>
+        <p className="error-banner">{errorText(error, t)}</p>
       </div>
     );
   }

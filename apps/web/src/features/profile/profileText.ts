@@ -96,10 +96,23 @@ export function errorText(
     if (key) return t(key);
 
     if (cause.status === 401) return t("profile.errSignInAgain");
+    // A server failure's message is the server's own ("Failed to accept the
+    // request: ..."), written for whoever reads the logs, not for a student.
+    if (cause.status >= 500) return t("profile.errGeneric");
     return cause.message;
   }
 
   return cause instanceof Error && cause.message ? cause.message : t("profile.errGeneric");
+}
+
+/**
+ * Whether a failure means the session has ended, so the way forward is to sign
+ * in again rather than to try again.
+ */
+export function needsSignInAgain(cause: unknown): boolean {
+  if (cause instanceof ApiError) return cause.status === 401;
+  if (cause instanceof AuthActionError) return AUTH_CODES[cause.code ?? ""] === "profile.errSignInAgain";
+  return false;
 }
 
 /** How a trip to Google, or a link from an email, came back with an error. */

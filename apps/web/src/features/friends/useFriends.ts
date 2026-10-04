@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { FriendsOverview } from "@grade9/shared";
 import { useLanguage, type TranslationKey } from "../../lib/i18n";
 import { ApiError } from "../../services/apiClient";
+import { errorText } from "../profile/profileText";
 import * as friendsApi from "../../services/friendsApi";
 import { useAuth } from "../auth/AuthContext";
 
@@ -13,7 +14,7 @@ export type FriendsStatus =
   | "error";
 
 /** The API's refusal codes, and the words each one gets in the site language. */
-const errorText: Record<string, TranslationKey> = {
+const refusalText: Record<string, TranslationKey> = {
   "invalid-lookup": "friends.error.invalidLookup",
   yourself: "friends.error.yourself",
   "no-account": "friends.error.noAccount",
@@ -39,7 +40,8 @@ export function useFriends() {
 
   const [overview, setOverview] = useState<FriendsOverview | null>(null);
   const [status, setStatus] = useState<FriendsStatus>("loading");
-  const [error, setError] = useState<string | null>(null);
+  /** Why the last read failed, worded by explain; null once one works. */
+  const [error, setError] = useState<unknown>(null);
 
   // Reads can overlap, and an older answer arriving last must not win.
   const latestRead = useRef(0);
@@ -62,7 +64,7 @@ export function useFriends() {
         return;
       }
 
-      setError((cause as Error).message);
+      setError(cause);
       // A refresh that fails leaves the list that was already there on screen.
       setStatus((current) => (current === "ready" ? current : "error"));
     }
@@ -87,14 +89,14 @@ export function useFriends() {
     return () => window.removeEventListener("focus", onFocus);
   }, [ready, userId, load]);
 
-  /** The words for a failure: the site language where the API's reason has a translation, its own message otherwise. */
-  const explain = useCallback(
-    (cause: unknown): string => {
-      const key = cause instanceof ApiError && cause.code ? errorText[cause.code] : undefined;
-      return key ? t(key) : (cause as Error).message;
-    },
-    [t]
-  );
+  /**
+   * The words for a failure, in the site language: the API's reason where it
+   * has one here, otherwise by what kind of failure it was (no connection, a
+   * session that has ended, the server failing). The API's own message for
+   * those is English and written for a developer ("Failed to accept the
+   * request: ...", or how to start the API).
+   */
+  const explain = useCallback((cause: unknown): string => errorText(cause, t, refusalText), [t]);
 
   /** Runs a change, then reads the list again whether or not it worked: a refusal usually means it was out of date. */
   const change = useCallback(
