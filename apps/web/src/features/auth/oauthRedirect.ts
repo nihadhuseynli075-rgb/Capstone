@@ -1,6 +1,6 @@
 import type { AuthError } from "@supabase/supabase-js";
 import { replaceRoute } from "../../app/router";
-import { redirectErrorCode, redirectErrorMessage } from "./authErrors";
+import { AuthActionError, redirectErrorCode, redirectErrorMessage, unreachableError } from "./authErrors";
 
 /**
  * Going to Google and coming back.
@@ -183,13 +183,14 @@ let providersRequest: Promise<Record<string, boolean>> | null = null;
 export async function isGoogleSignInEnabled(): Promise<boolean> {
   providersRequest ??= fetch(`${supabaseUrl}/auth/v1/settings`, { headers: { apikey: supabaseAnonKey } })
     .then(async (response) => {
-      if (!response.ok) throw new Error(`Supabase answered ${response.status} when asked which sign-ins are on.`);
+      if (!response.ok) throw unreachableError(response.status);
       const settings = (await response.json()) as { external?: Record<string, boolean> };
       return settings.external ?? {};
     })
     .catch((error: unknown) => {
       providersRequest = null;
-      throw error;
+      // A fetch that never got an answer rejects with the browser's own words.
+      throw error instanceof AuthActionError ? error : unreachableError(0);
     });
 
   const enabled = (await providersRequest).google === true;

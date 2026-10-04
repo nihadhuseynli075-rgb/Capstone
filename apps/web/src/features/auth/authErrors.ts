@@ -1,76 +1,106 @@
-import { isAuthImplicitGrantRedirectError, type AuthError } from "@supabase/supabase-js";
+import { isAuthImplicitGrantRedirectError, isAuthRetryableFetchError, type AuthError } from "@supabase/supabase-js";
 
 /**
  * Supabase auth errors, rewritten for a fifteen-year-old.
  *
  * The raw messages are written for developers ("Invalid login credentials",
  * "AuthApiError"), so each one that a student can actually trigger is mapped to
- * something that says what to do next. Anything unmapped falls through
- * unchanged rather than being hidden behind a generic apology.
+ * something that says what to do next. Each also has the code Supabase sends
+ * for it, which is what a page in the student's own language picks its words
+ * by (see profileText); the code is worked out from the message for a server
+ * too old to send one.
+ *
+ * Anything unmapped gets a plain apology rather than its raw text. That text
+ * was never written for a student: when the auth server was down it was the
+ * failed response turned into a string, a bare "{}".
  */
-const MESSAGES: Array<{ match: RegExp; message: string }> = [
+const MESSAGES: Array<{ match: RegExp; code: string; message: string }> = [
   {
     match: /invalid login credentials/i,
+    code: "invalid_credentials",
     message: "That email and password do not match. Check them and try again."
   },
   {
     match: /email not confirmed/i,
+    code: "email_not_confirmed",
     message: "Confirm your email address first. Check your inbox for the link we sent."
   },
   {
     match: /user already registered|already been registered/i,
+    code: "user_already_exists",
     message: "There is already an account with that email. Try signing in instead."
   },
   {
     match: /password should be at least/i,
+    code: "weak_password",
     message: "That password is too short. Use at least 8 characters."
   },
   {
     match: /new password should be different/i,
+    code: "same_password",
     message: "That is already your password. Pick a different one."
   },
   {
     match: /unable to validate email|invalid email/i,
+    code: "email_address_invalid",
     message: "That does not look like a valid email address."
   },
   {
     match: /email rate limit|over_email_send_rate_limit|too many requests|rate limit/i,
+    code: "over_request_rate_limit",
     message: "Too many attempts. Wait a minute and try again."
   },
   {
     match: /failed to fetch|network|load failed/i,
+    code: "network",
     message: "Could not reach the server. Check your internet connection and try again."
   },
   {
     match: /^not-configured$/,
+    code: "not-configured",
     message:
       "Accounts are not switched on yet because Supabase is not connected. You can still take tests as a guest."
   },
   {
     match: /^google-not-enabled$|provider is not enabled|unsupported provider/i,
+    code: "google-not-enabled",
     message: "Signing in with Google is not switched on yet. Use your email and password for now."
   },
   {
     match: /manual linking is disabled|manual_linking_disabled/i,
+    code: "manual_linking_disabled",
     message: "Connecting Google to an account that already exists is not switched on yet."
   },
   {
     match: /identity is already linked|identity_already_exists/i,
+    code: "identity_already_exists",
     message: "That Google account is already connected to a different Exampeak account."
   },
   {
     match: /at least 1 identity|single_identity_not_deletable/i,
+    code: "single_identity_not_deletable",
     message: "Google is the only way into this account, so it cannot be disconnected."
   },
   {
     match: /database error saving new user/i,
+    code: "unexpected_failure",
     message: "Your account could not be set up just now. Try again in a moment."
   }
 ];
 
+/** For anything the list above does not know. */
+const GENERIC_MESSAGE = "Something went wrong. Try again in a moment.";
+
+/** The auth server answered that it is down or restarting (502, 503 or 504). */
+const UNAVAILABLE_MESSAGE = "Could not reach the server. Try again in a moment.";
+
 export function authErrorMessage(raw: string): string {
   const hit = MESSAGES.find((entry) => entry.match.test(raw));
-  return hit ? hit.message : raw;
+  return hit ? hit.message : GENERIC_MESSAGE;
+}
+
+function codeFromMessage(raw: string): string | null {
+  return MESSAGES.find((entry) => entry.match.test(raw))?.code ?? null;
 }
 
 /**
@@ -95,8 +125,25 @@ export class AuthActionError extends Error {
   }
 }
 
+/**
+ * The auth server out of reach: no answer at all (status 0), or an answer
+ * that it is down (502 to 504). Supabase's own message for either is whatever
+ * the failed response turned into as a string, often "{}".
+ */
+export function unreachableError(status: number): AuthActionError {
+  return status === 0
+    ? new AuthActionError(authErrorMessage("network"), "network", 0)
+    : new AuthActionError(UNAVAILABLE_MESSAGE, "server-unavailable", status);
+}
+
 export function authActionError(error: { message: string; code?: string; status?: number }): AuthActionError {
-  return new AuthActionError(authErrorMessage(error.message), error.code ?? null, error.status ?? null);
+  if (isAuthRetryableFetchError(error)) return unreachableError(error.status ?? 0);
+
+  return new AuthActionError(
+    authErrorMessage(error.message),
+    error.code ?? codeFromMessage(error.message),
+    error.status ?? null
+  );
 }
 
 /**

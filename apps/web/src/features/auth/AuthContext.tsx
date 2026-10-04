@@ -4,7 +4,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase } from "../../lib/supabaseClient";
 import { clearSessionRecords, settleSessionRecords } from "../../lib/examSession";
 import { setSignedInUserId } from "../../lib/studentKey";
-import { AuthActionError, authActionError, authErrorMessage } from "./authErrors";
+import { AuthActionError, authActionError, authErrorMessage, unreachableError } from "./authErrors";
 import {
   authRedirectUrl,
   finishAuthRedirect,
@@ -94,7 +94,9 @@ async function requireGoogle(): Promise<void> {
   try {
     enabled = await isGoogleSignInEnabled();
   } catch (cause) {
-    throw new AuthActionError(authErrorMessage((cause as Error).message), null, 0);
+    // Its own message is for a developer ("Supabase answered 503 when asked
+    // which sign-ins are on"), so only how it failed is kept.
+    throw cause instanceof AuthActionError ? cause : unreachableError(0);
   }
 
   if (!enabled) throw new AuthActionError(authErrorMessage("google-not-enabled"), "google-not-enabled");
@@ -181,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearRedirectResult = useCallback(() => setRedirectResult(null), []);
 
   const signUp = useCallback<AuthContextValue["signUp"]>(async ({ fullName, email, password }) => {
-    if (!supabase) throw new Error(authErrorMessage("not-configured"));
+    if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -189,7 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       options: { data: { full_name: fullName.trim() } }
     });
 
-    if (error) throw new Error(authErrorMessage(error.message));
+    if (error) throw authActionError(error);
 
     // With email confirmation switched on, Supabase creates the user but no
     // session. Say so rather than dropping them on a page that looks signed out.
@@ -197,14 +199,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback<AuthContextValue["signIn"]>(async ({ email, password }) => {
-    if (!supabase) throw new Error(authErrorMessage("not-configured"));
+    if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw new Error(authErrorMessage(error.message));
+    if (error) throw authActionError(error);
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    if (!supabase) throw new Error(authErrorMessage("not-configured"));
+    if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
     await requireGoogle();
 
     // Google creates the account if there is none yet, so this is signing up
@@ -214,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       forgetAuthRedirect();
-      throw new Error(authErrorMessage(error.message));
+      throw authActionError(error);
     }
   }, []);
 
