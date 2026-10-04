@@ -1,6 +1,7 @@
 import type { Request } from "express";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { bearerToken } from "../../lib/bearerToken";
+import { isUuid } from "../../lib/ids";
 import { supabaseAdmin } from "../../lib/supabaseAdmin";
 import { accountIdFor } from "../../repositories/profileRepository";
 
@@ -103,9 +104,50 @@ export async function liveAccount(request: Request): Promise<SignedInAccount | n
   };
 }
 
-/** Whether a key is a guest's: one no account owns. */
+/**
+ * Keys already shown to be nobody's account, so the auth server is asked
+ * about each at most once per process. A random guest key never turns into an
+ * account id later, so a verdict here cannot go stale. Capped so a stream of
+ * made-up keys cannot grow it without end.
+ */
+const knownGuestKeys = new Set<string>();
+const KNOWN_GUEST_KEYS_MAX = 10_000;
+
+/**
+ * Whether an account exists with this id, asked of the auth server itself.
+ *
+ * Throws when the auth server cannot answer, as accountIdFor does when the
+ * profiles lookup fails: guessing "guest" would hand out an account's tests.
+ */
+async function isAuthUser(studentKey: string): Promise<boolean> {
+  if (!supabaseAdmin || !isUuid(studentKey)) return false;
+
+  const { data, error } = await supabaseAdmin.auth.admin.getUserById(studentKey);
+  if (error) {
+    if (error.status === 404) return false;
+    throw new Error(`Failed to verify student account: ${error.message}`);
+  }
+  return Boolean(data.user);
+}
+
+/**
+ * Whether a key is a guest's: one no account owns.
+ *
+ * A profile row is the quick answer, but not a complete one: an account that
+ * signed up before the profile trigger existed has none until it opens its
+ * profile page (see ensureProfile). Its id then passed as a guest key, so
+ * anyone who knew it could read that account's history with no token and claim
+ * it onto their own account. A uuid with no profile is checked against the
+ * auth server before it is treated as a guest's.
+ */
 async function isGuestKey(studentKey: string): Promise<boolean> {
-  return (await accountIdFor(studentKey)) === null;
+  if (knownGuestKeys.has(studentKey)) return true;
+  if ((await accountIdFor(studentKey)) !== null) return false;
+  if (await isAuthUser(studentKey)) return false;
+
+  if (knownGuestKeys.size >= KNOWN_GUEST_KEYS_MAX) knownGuestKeys.clear();
+  knownGuestKeys.add(studentKey);
+  return true;
 }
 
 /**
