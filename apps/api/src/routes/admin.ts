@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import type { QuestionDraft } from "@grade9/shared";
-import { markLimits, paperYearLimits, siteLanguages, subjects } from "@grade9/shared";
+import { markLimits, paperYearLimits, repeatedOption, siteLanguages, subjects } from "@grade9/shared";
 import { bearerToken } from "../lib/bearerToken";
 import { env, storageMode, writtenMarkingEnabled } from "../lib/env";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
@@ -86,6 +86,17 @@ const questionSchema = z
         });
         return;
       }
+      // Marking compares the text picked, so both copies would be marked the
+      // same way: two right answers, or two wrong ones.
+      const repeated = repeatedOption(value.options);
+      if (repeated !== null) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["options"],
+          message: `Two options are the same ("${repeated}"). Each option has to be different.`
+        });
+        return;
+      }
       if (!value.options.includes(value.correctAnswer)) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
@@ -106,12 +117,13 @@ const questionSchema = z
  * The refusal for a question that does not pass the schema.
  *
  * The browser shows the message and not the issues, so a problem the form
- * cannot show beside the field (the translations, or a subject that is not one
- * of ours, which the form's list never offers) is put in the message itself.
+ * cannot show beside the field (the translations, a subject that is not one
+ * of ours, which the form's list never offers, or a repeated option) is put
+ * in the message itself.
  */
 function invalidQuestion(error: z.ZodError) {
   const visibleIssue = error.issues.find(
-    (issue) => issue.path[0] === "translations" || issue.path[0] === "subjectId"
+    (issue) => issue.path[0] === "translations" || issue.path[0] === "subjectId" || issue.path[0] === "options"
   );
 
   return {

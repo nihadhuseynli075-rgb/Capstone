@@ -144,6 +144,16 @@ describe("importQuestionsFromCsv", () => {
     ]);
   });
 
+  test("a row with two options that read the same is reported, not saved with both marked right", () => {
+    const csv = [header, "math,algebra,Pick one,same,same ,other,,B", "math,algebra,Case counts,x,X,,,B"].join("\n");
+
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(errors, [{ row: 2, message: 'Two options are the same ("same"). Each option has to be different.' }]);
+    assert.equal(drafts.length, 1);
+    assert.equal(drafts[0].prompt, "Case counts");
+  });
+
   test("rejects a difficulty that is not easy, medium or hard", () => {
     const { errors } = importQuestionsFromCsv("subject,topic,question,answer,difficulty\nmath,algebra,Q,1,tricky");
     assert.match(errors[0].message, /Difficulty "tricky"/);

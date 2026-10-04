@@ -89,6 +89,18 @@ async function main() {
     JSON.stringify(mismatched.body)
   );
 
+  // Marked by the text picked, so both copies would count as the right answer.
+  const repeatedOptions = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ options: ["same", "same", "other"], correctAnswer: "same" })
+  });
+  check(
+    "two options that read the same are refused, and the refusal says so",
+    repeatedOptions.status === 400 && /Two options are the same/.test(repeatedOptions.body.message ?? ""),
+    JSON.stringify(repeatedOptions.body).slice(0, 200)
+  );
+
   const tooFewOptions = await call("/api/admin/questions", {
     method: "POST",
     token,

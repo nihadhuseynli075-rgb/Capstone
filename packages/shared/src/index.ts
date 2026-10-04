@@ -630,6 +630,28 @@ export function topicName(subjectId: string, topicId: string): string {
   return topicId.replace(/[-_]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+/**
+ * The first option a multiple choice question has twice, or null.
+ *
+ * Marking compares the text of the option picked, so two options that read
+ * the same are both marked correct, or both wrong. The admin form, the API
+ * and the spreadsheet import all refuse such a question for this reason.
+ * Compared as written, apart from the ends: "x" and "X" can be different
+ * answers in a maths question.
+ */
+export function repeatedOption(options: readonly string[]): string | null {
+  const seen = new Set<string>();
+
+  for (const option of options) {
+    const text = option.trim();
+    if (text.length === 0) continue;
+    if (seen.has(text)) return text;
+    seen.add(text);
+  }
+
+  return null;
+}
+
 /** Short-answer marking is lenient about case and spacing, nothing more. */
 export function normalizeAnswer(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");

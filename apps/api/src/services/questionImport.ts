@@ -1,5 +1,5 @@
 import type { Difficulty, QuestionDraft, QuestionTranslation, QuestionTranslations, QuestionType } from "@grade9/shared";
-import { markLimits, paperYearLimits } from "@grade9/shared";
+import { markLimits, paperYearLimits, repeatedOption } from "@grade9/shared";
 import { languageNames, translationProblems } from "./questionTranslations";
 
 /**
@@ -342,6 +342,14 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
         row: rowNumber,
         message: "Multiple choice needs at least two options in option_a / option_b."
       });
+      return;
+    }
+
+    // Held to the same rule as the admin form: two options reading the same
+    // would both be marked right, or both wrong.
+    const repeated = type === "multiple-choice" ? repeatedOption(options) : null;
+    if (repeated !== null) {
+      errors.push({ row: rowNumber, message: `Two options are the same ("${repeated}"). Each option has to be different.` });
       return;
     }
 

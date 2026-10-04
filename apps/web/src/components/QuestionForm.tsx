@@ -7,7 +7,7 @@ import type {
   QuestionTranslations,
   QuestionType
 } from "@grade9/shared";
-import { followsSiteLanguage, markLimits, subjects, topicIdFor } from "@grade9/shared";
+import { followsSiteLanguage, markLimits, repeatedOption, subjects, topicIdFor } from "@grade9/shared";
 import { languages, useLanguage } from "../lib/i18n";
 import { uploadQuestionImage } from "../services/adminApi";
 
@@ -273,6 +273,12 @@ export function QuestionForm({
     if (type === "multiple-choice") {
       if (filledOptions.length < 2) {
         setFormError("Fill in at least two options.");
+        return;
+      }
+      // Marked by the text picked, so both copies would count as correct.
+      const repeated = repeatedOption(filledOptions);
+      if (repeated !== null) {
+        setFormError(`Two options are the same ("${repeated}"). Each option has to be different.`);
         return;
       }
       // The correct answer is stored by text, so a gap in the option list must
