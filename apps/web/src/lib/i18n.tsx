@@ -492,7 +492,8 @@ const en = {
   "results.title": "Results",
   "results.backToHistory": "Back to history",
   "results.loading": "Loading your results...",
-  "results.marksUnit": "marks",
+  // The word under "3/21", counted by the total: Russian reads it "3 из 21 балла".
+  "results.marksUnit": "mark|marks",
   "results.completeSubject": "{subject} test complete",
   "results.complete": "Test complete",
   "results.summary": "{questions} in {time} - {mistakes} to review.",
@@ -1018,7 +1019,7 @@ const ru: Dictionary = {
   "results.title": "Результаты",
   "results.backToHistory": "К истории тестов",
   "results.loading": "Загружаем результаты...",
-  "results.marksUnit": "баллы",
+  "results.marksUnit": "балла|баллов|баллов",
   "results.completeSubject": "{subject}: тест завершён",
   "results.complete": "Тест завершён",
   "results.summary": "{questions} за {time}. На разбор: {mistakes}.",

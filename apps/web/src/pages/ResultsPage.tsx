@@ -195,7 +195,8 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
             {view.score}
             <span className="score-total">/{view.totalMarks}</span>
           </span>
-          <span className="score-unit">{t("results.marksUnit")}</span>
+          {/* Agrees with the total it follows: "3/21 балла", "3/25 баллов". */}
+          <span className="score-unit">{tn("results.marksUnit", view.totalMarks)}</span>
           {/* Written the way the site language writes a percentage: "14,3 %"
               in Russian, not the English "14.3%". */}
           <span className="score-percent">{formatPercent(view.percentage, language)}</span>
