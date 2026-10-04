@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BankQuestion, QuestionDraft, QuestionStatus } from "@grade9/shared";
-import { followsSiteLanguage, markLimits, siteLanguages, subjectName, topicName } from "@grade9/shared";
+import {
+  difficultyNames,
+  followsSiteLanguage,
+  markLimits,
+  questionTypeNames,
+  siteLanguages,
+  subjectName,
+  topicName
+} from "@grade9/shared";
 import { QuestionForm, type QuestionCarryOver } from "../components/QuestionForm";
 import { useLanguage } from "../lib/i18n";
 import { ApiError } from "../services/apiClient";
@@ -431,7 +439,7 @@ export function AdminPage() {
                     <p className="question-row-prompt">{question.prompt}</p>
                     <p className="question-row-meta">
                       {subjectName(question.subjectId)} - {topicName(question.subjectId, question.topicId)}{" "}
-                      - {question.difficulty} - {question.type}
+                      - {difficultyNames[question.difficulty]} - {questionTypeNames[question.type]}
                       {question.paperYear ? ` - ${question.paperYear}` : ""}
                       {question.subtopic ? ` - ${question.subtopic}` : ""}
                     </p>

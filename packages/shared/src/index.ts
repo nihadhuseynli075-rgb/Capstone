@@ -100,6 +100,25 @@ export const difficultyPresets: Record<Difficulty, DifficultyPreset> = {
 };
 
 /**
+ * How a difficulty and a question type are written for people: the builder's
+ * own words. Printing the ids and leaving the stylesheet to capitalise them
+ * also capitalised every word around them, so "Probability and Statistics"
+ * came out as "Probability And Statistics".
+ */
+export const difficultyNames: Record<DifficultyMode, string> = {
+  easy: "Easy",
+  medium: "Medium",
+  hard: "Hard",
+  custom: "Custom"
+};
+
+export const questionTypeNames: Record<QuestionType, string> = {
+  "multiple-choice": "Multiple choice",
+  "short-answer": "Short answer",
+  "open-ended": "Written answer"
+};
+
+/**
  * What a single question may be worth.
  *
  * Shared rather than written out in each place that checks it. The admin form

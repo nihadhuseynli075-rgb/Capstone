@@ -756,11 +756,12 @@ button:focus-visible {
   box-shadow: var(--shadow);
 }
 
+/* Printed as written: the topic name is already capitalised as it should be
+   ("Probability and Statistics"), and the difficulty is given its name. */
 .question-meta {
   margin: 0 0 8px;
   color: var(--muted);
   font-size: 0.8rem;
-  text-transform: capitalize;
 }
 
 .question-prompt {
@@ -904,8 +905,6 @@ button:focus-visible {
 .question-marks {
   font-weight: 600;
   color: var(--brand);
-  /* The meta line capitalises topic and difficulty; "3 Marks" is not a name. */
-  text-transform: none;
 }
 
 .score-percent {
@@ -946,7 +945,6 @@ button:focus-visible {
   justify-content: space-between;
   font-size: 0.9rem;
   margin-bottom: 4px;
-  text-transform: capitalize;
 }
 
 .topic-bar-track {
@@ -1317,18 +1315,18 @@ button:focus-visible {
 .question-row-prompt {
   margin: 0 0 6px;
   font-weight: 600;
+  /* Numbered statements ("1) ... 2) ...") on their own lines, as the exam and
+     the review show them. */
+  white-space: pre-line;
 }
 
+/* As written: topic and subtopic names keep their own capitals, and the
+   difficulty and type are given their names (see AdminPage). */
 .question-row-meta,
 .question-row-answer {
   margin: 0;
   color: var(--muted);
   font-size: 0.85rem;
-  text-transform: capitalize;
-}
-
-.question-row-answer {
-  text-transform: none;
 }
 
 .question-row-actions {

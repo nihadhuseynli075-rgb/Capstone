@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SubmittedAnswer } from "@grade9/shared";
-import { topicName, writtenAnswerMaxLength } from "@grade9/shared";
+import { difficultyNames, topicName, writtenAnswerMaxLength } from "@grade9/shared";
 import { navigate } from "../app/router";
 import {
   clearActiveTest,
@@ -310,7 +310,7 @@ export function ExamPage() {
 
       <section className="question-card">
         <p className="question-meta">
-          {topicName(question.subjectId, question.topicId)} - {question.difficulty}
+          {topicName(question.subjectId, question.topicId)} - {difficultyNames[question.difficulty]}
           {" - "}
           <span className="question-marks">
             {question.marks} {question.marks === 1 ? "mark" : "marks"}
