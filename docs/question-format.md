@@ -7,7 +7,7 @@ imported in one paste, rather than typed into the form question by question.
 
 | Column           | Required | Notes                                                       |
 | ---------------- | -------- | ----------------------------------------------------------- |
-| `subject`        | yes      | `math`, `english` or `russian`                              |
+| `subject`        | yes      | `math`, `english` or `russian`, or the name the site shows (`Mathematics`). Anything else is reported as a bad row. |
 | `topic`          | yes      | Free text, e.g. `algebra`. Spaces become dashes.            |
 | `difficulty`     | no       | `easy`, `medium` or `hard`. Defaults to `medium` if blank.  |
 | `type`           | no       | `multiple-choice`, `short-answer`, or `open-ended` for a written answer marked by the AI marker (put its marking guide in `correct_answer`). Worked out from whether options are filled in if blank. |
@@ -91,7 +91,9 @@ are taken as the question itself and only the Russian ones become a translation.
 ## Rows that are skipped
 
 A row is reported and skipped, with the rest of the paste still importing, when
-`subject`, `topic`, `question` or `correct_answer` is empty, when a
+`subject`, `topic`, `question` or `correct_answer` is empty, when `subject` is
+not one of the three subjects (a new subject would appear in front of students
+with no way to filter it in the dashboard), when a
 multiple-choice row has fewer than two options, when `correct_answer` matches
 none of them, or when `difficulty` or `marks` is filled in with something
 unusable. Subject and topic are checked per row, not just as columns: the

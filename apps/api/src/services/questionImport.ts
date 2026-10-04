@@ -1,5 +1,5 @@
 import type { Difficulty, QuestionDraft, QuestionTranslation, QuestionTranslations, QuestionType } from "@grade9/shared";
-import { markLimits, paperYearLimits, repeatedOption } from "@grade9/shared";
+import { markLimits, paperYearLimits, repeatedOption, subjects } from "@grade9/shared";
 import { languageNames, translationProblems } from "./questionTranslations";
 
 /**
@@ -205,6 +205,18 @@ function mapHeaders(headerRow: string[]): Record<string, number> {
   return mapping;
 }
 
+/**
+ * The subject a cell names, by its id or by the name the site shows for it, in
+ * any case: `math`, `Math` and `Mathematics` are all maths. Null when it names
+ * none of them, so the row can be reported rather than filed under a subject
+ * no student filter or admin filter knows.
+ */
+function subjectIdFor(value: string): string | null {
+  const typed = value.trim().toLowerCase();
+  const known = subjects.find((subject) => subject.id === typed || subject.name.toLowerCase() === typed);
+  return known ? known.id : null;
+}
+
 const difficulties: Difficulty[] = ["easy", "medium", "hard"];
 
 function parseDifficulty(value: string): Difficulty | null {
@@ -320,9 +332,22 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     // builder filters on both, so it sits in the bank unreachable and uncounted.
     // Saying so is the difference between a row that failed and a row that
     // vanished.
-    const subjectId = cell(row, "subjectId").toLowerCase();
-    if (subjectId.length === 0) {
+    const rawSubject = cell(row, "subjectId");
+    if (rawSubject.length === 0) {
       errors.push({ row: rowNumber, message: "Subject is empty." });
+      return;
+    }
+
+    // The subjects are a fixed list, held to the same rule as the admin form
+    // and the API. Anything else (a typo, "Maths", "history") used to be saved
+    // as it was, and put a subject of its own in front of students that the
+    // dashboard's subject filter could never pick.
+    const subjectId = subjectIdFor(rawSubject);
+    if (subjectId === null) {
+      errors.push({
+        row: rowNumber,
+        message: `Subject "${rawSubject}" is not one of ours. Use ${subjects.map((subject) => subject.id).join(", ")}.`
+      });
       return;
     }
 

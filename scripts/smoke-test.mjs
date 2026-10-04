@@ -884,6 +884,33 @@ async function main() {
   const yearless = edges.body.questions?.find((question) => question.prompt === "A year nobody wrote down");
   check("a blank year is stored as unknown", yearless !== undefined && yearless.paperYear === null, JSON.stringify(yearless));
 
+  // A subject outside the fixed list became a subject chip of its own in the
+  // student builder, which no admin filter could pick.
+  const subjectCsv = [
+    "subject,topic,question,correct_answer",
+    "history,import-subjects,A subject we do not have,1914",
+    "Mathematics,import-subjects,A subject given by its name,2"
+  ].join("\n");
+  const subjectImport = await call("/api/admin/questions/import", { method: "POST", token, body: { csv: subjectCsv } });
+  check(
+    "an import refuses a subject that is not one of ours, by row",
+    subjectImport.body.importedCount === 1 &&
+      subjectImport.body.errors?.length === 1 &&
+      subjectImport.body.errors[0].row === 2,
+    JSON.stringify(subjectImport.body.errors)
+  );
+  check(
+    "and takes a subject given by the name the site shows",
+    subjectImport.body.questions?.[0]?.subjectId === "math",
+    JSON.stringify(subjectImport.body.questions?.map((question) => question.subjectId))
+  );
+  const subjectCatalog = await call("/api/catalog");
+  check(
+    "so the catalog shows no subject the bank should not have",
+    (subjectCatalog.body.subjects ?? []).every((subject) => ["math", "english", "russian"].includes(subject.id)),
+    JSON.stringify((subjectCatalog.body.subjects ?? []).map((subject) => subject.id))
+  );
+
   section("Question diagrams");
   // A 1x1 PNG, the smallest real picture there is.
   const tinyPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";

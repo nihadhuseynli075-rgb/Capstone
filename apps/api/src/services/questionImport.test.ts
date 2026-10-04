@@ -360,3 +360,28 @@ describe("translation columns", () => {
     });
   });
 });
+
+describe("importQuestionsFromCsv subjects", () => {
+  test("a subject that is not one of ours is reported against its row, not saved", () => {
+    const csv = ["subject,topic,question,correct_answer", "history,wars,When?,1914", "Maths,algebra,1 + 1,2"].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.equal(drafts.length, 0);
+    assert.deepEqual(
+      errors.map((error) => error.row),
+      [2, 3]
+    );
+    assert.match(errors[0].message, /history/);
+  });
+
+  test("a subject can be given by the name the site shows, in any case", () => {
+    const csv = ["subject,topic,question,correct_answer", "Mathematics,algebra,1 + 1,2", "ENGLISH,grammar,Plural of cat,cats"].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(
+      drafts.map((draft) => draft.subjectId),
+      ["math", "english"]
+    );
+  });
+});
