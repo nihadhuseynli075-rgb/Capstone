@@ -159,6 +159,7 @@ export const profileLimits = {
 } as const;
 
 export * from "./usernames";
+export * from "./sessionOwner";
 export * from "./topics";
 
 /**

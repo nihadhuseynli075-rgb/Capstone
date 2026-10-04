@@ -1,7 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase } from "../../lib/supabaseClient";
+import { clearSessionRecords, settleSessionRecords } from "../../lib/examSession";
 import { setSignedInUserId } from "../../lib/studentKey";
 import { AuthActionError, authActionError, authErrorMessage } from "./authErrors";
 import {
@@ -115,11 +116,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(!isSupabaseConfigured);
   const [redirectResult, setRedirectResult] = useState<AuthRedirectResult | null>(null);
 
+  // Who the last session was for. Undefined until the first one is applied, so
+  // the first page load settles what the tab holds as well as a later change.
+  const appliedUserId = useRef<string | null | undefined>(undefined);
+
   const applySession = useCallback((session: Session | null) => {
     const nextUser = session?.user ? toAuthUser(session.user) : null;
     setUser(nextUser);
     // Keep the API identity in step with the session before any request runs.
     setSignedInUserId(nextUser?.id ?? null);
+
+    // The result and the paper in progress are kept in the tab, and signing out
+    // does not empty it. Whoever is signed in after this - nobody, another
+    // account, or the same person after a session that ended in another tab -
+    // must not find the last student's test there. A guest who has just signed
+    // in keeps their own (see settleSessionRecords). A token refresh or a tab
+    // coming back to focus reports the same account again, and changes nothing.
+    if (appliedUserId.current !== (nextUser?.id ?? null)) {
+      appliedUserId.current = nextUser?.id ?? null;
+      settleSessionRecords();
+    }
   }, []);
 
   useEffect(() => {
@@ -234,7 +250,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     if (!supabase) return;
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+
+    // The session change this causes already settles the tab (see applySession).
+    // Said again so that does not depend on the event arriving.
+    if (!error) clearSessionRecords();
 
     // No new guest key is made here. A key whose tests were moved onto the
     // account is recorded as claimed and replaced the first time it is needed

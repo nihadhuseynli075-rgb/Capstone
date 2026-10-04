@@ -1,4 +1,4 @@
-import { studentKeyLimits } from "@grade9/shared";
+import { studentKeyLimits, type TabIdentity } from "@grade9/shared";
 import { supabase } from "./supabaseClient";
 
 const STORAGE_KEY = "examPeak.studentKey";
@@ -84,6 +84,18 @@ export async function resolveStudentIdentity(): Promise<StudentIdentity> {
   if (error) return { studentKey: signedInUserId ?? guestKey() };
 
   return { studentKey: guestKey() };
+}
+
+/**
+ * Who this tab is right now, read without a request and without making a key.
+ *
+ * It is what the records kept in the tab are stamped with and checked against
+ * (see lib/examSession). A guest key already moved onto an account is left out:
+ * it is retired, and nothing stamped with it belongs to a guest.
+ */
+export function peekIdentity(): TabIdentity {
+  const key = peekGuestKey();
+  return { userId: signedInUserId, guestKey: key !== null && !isGuestKeyClaimed(key) ? key : null };
 }
 
 export function isGuestKeyClaimed(key: string): boolean {
