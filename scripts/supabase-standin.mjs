@@ -411,9 +411,14 @@ function splitTopLevel(text) {
  * of characters and "_" any one. A backslash is Postgres's default escape
  * character, so the character after it stands for itself: "\%" is a percent
  * sign, which is how the API searches for one.
+ *
+ * PostgREST turns every "*" into "%" before Postgres reads the pattern, with
+ * no way to escape it: "\*" arrives as "\%", a literal percent sign. So the
+ * swap happens first here too, and a "*" can never be searched for as itself.
  */
-function likePattern(pattern, caseInsensitive) {
+function likePattern(raw, caseInsensitive) {
   const literal = (char) => char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = raw.replaceAll("*", "%");
   let source = "";
 
   for (let index = 0; index < pattern.length; index += 1) {
@@ -422,7 +427,7 @@ function likePattern(pattern, caseInsensitive) {
     if (char === "\\" && index + 1 < pattern.length) {
       index += 1;
       source += literal(pattern[index]);
-    } else if (char === "%" || char === "*") {
+    } else if (char === "%") {
       source += ".*";
     } else if (char === "_") {
       source += ".";

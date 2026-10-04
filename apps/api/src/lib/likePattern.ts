@@ -7,7 +7,33 @@
  * in "54%" or "x_1"; passed through as they were, either one matched every
  * question in the bank. So all three are escaped, and only the "%" at each
  * end is a wildcard.
+ *
+ * "*" cannot be escaped at all. PostgREST turns every "*" in a like pattern
+ * into "%" before Postgres sees it, backslash or not (`star` in its
+ * SqlFragment.hs), so a search for "2 * 3" found every question with a 2 and
+ * a 3 in it, and "*" on its own found the whole bank. It goes as "_" instead,
+ * any one character, which PostgREST leaves alone. That still matches a
+ * little more than was typed, so a search containing "*" has its rows checked
+ * with containsText afterwards (see needsTextCheck).
  */
 export function containsPattern(text: string): string {
-  return `%${text.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+  const escaped = text.replace(/[\\%_]/g, (char) => `\\${char}`).replace(/\*/g, "_");
+  return `%${escaped}%`;
+}
+
+/**
+ * Whether the rows a containsPattern search matched can include ones without
+ * the text typed, and so have to be checked with containsText.
+ */
+export function needsTextCheck(text: string): boolean {
+  return text.includes("*");
+}
+
+/**
+ * Whether `text` contains `search`, ignoring case: the question containsPattern
+ * asks Postgres, answered here. The memory store searches this way, so its
+ * results and a Supabase project's agree.
+ */
+export function containsText(text: string, search: string): boolean {
+  return text.toLowerCase().includes(search.toLowerCase());
 }

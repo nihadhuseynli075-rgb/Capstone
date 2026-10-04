@@ -203,19 +203,33 @@ async function main() {
     token,
     body: mcq({ prompt: "Name the variable x_1 (search check)" })
   });
+  // PostgREST reads "*" as "%" too, and nothing escapes it there. The "+"
+  // question is one a near miss for "6 * 7" would also find.
+  const starQuestion = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ prompt: "Work out 6 * 7 (search check)" })
+  });
+  const plusQuestion = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ prompt: "Work out 6 + 7 (search check)" })
+  });
   check(
-    "the two questions to search for save",
-    percentQuestion.status === 201 && underscoreQuestion.status === 201,
-    JSON.stringify([percentQuestion.body, underscoreQuestion.body]).slice(0, 200)
+    "the questions to search for save",
+    [percentQuestion, underscoreQuestion, starQuestion, plusQuestion].every((saved) => saved.status === 201),
+    JSON.stringify([percentQuestion.body, underscoreQuestion.body, starQuestion.body, plusQuestion.body]).slice(0, 200)
   );
   for (const [character, expected] of [
     ["%", "A price rises by 54% (search check)"],
-    ["_", "Name the variable x_1 (search check)"]
+    ["_", "Name the variable x_1 (search check)"],
+    ["*", "Work out 6 * 7 (search check)"],
+    ["6 * 7", "Work out 6 * 7 (search check)"]
   ]) {
     const found = await call(`/api/admin/questions?search=${encodeURIComponent(character)}`, { token });
     const prompts = (found.body.questions ?? []).map((question) => question.prompt);
     check(
-      `searching for "${character}" finds only questions with that character in them`,
+      `searching for "${character}" finds only questions with that text in them`,
       found.status === 200 && prompts.includes(expected) && prompts.every((prompt) => prompt.includes(character)),
       JSON.stringify(prompts.filter((prompt) => !prompt.includes(character)).slice(0, 3))
     );

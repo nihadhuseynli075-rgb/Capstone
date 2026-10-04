@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { BankQuestion, Difficulty, QuestionDraft, QuestionStatus, QuestionType } from "@grade9/shared";
 import { isUuid } from "../lib/ids";
-import { containsPattern } from "../lib/likePattern";
+import { containsPattern, containsText, needsTextCheck } from "../lib/likePattern";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { statusAfterSave } from "../services/questionStatus";
 import { readTranslations } from "../services/questionTranslations";
@@ -105,10 +105,7 @@ function matchesFilter(question: BankQuestion, filter: QuestionFilter): boolean 
   if (filter.difficulty && question.difficulty !== filter.difficulty) return false;
   if (filter.readyOnly && question.status !== "ready") return false;
   if (filter.excludeTypes?.includes(question.type)) return false;
-  if (filter.search) {
-    const needle = filter.search.toLowerCase();
-    if (!question.prompt.toLowerCase().includes(needle)) return false;
-  }
+  if (filter.search && !containsText(question.prompt, filter.search)) return false;
   return true;
 }
 
@@ -171,8 +168,8 @@ export async function listQuestions(filter: QuestionFilter = {}): Promise<BankQu
     if (filter.subjectId) query = query.eq("subject_id", filter.subjectId);
     if (filter.difficulty) query = query.eq("difficulty", filter.difficulty);
     if (filter.topicIds?.length) query = query.in("topic_id", filter.topicIds);
-    // Literal text, like the memory branch's includes(): "%" and "_" are
-    // escaped rather than left to match anything (see containsPattern).
+    // Literal text, like the memory branch: "%" and "_" are escaped rather
+    // than left to match anything, and "*" is checked below (see containsPattern).
     if (filter.search) query = query.ilike("prompt", containsPattern(filter.search));
     if (filter.readyOnly) query = query.eq("status", "ready");
     if (filter.excludeTypes?.length) query = query.not("type", "in", `(${filter.excludeTypes.join(",")})`);
@@ -180,7 +177,14 @@ export async function listQuestions(filter: QuestionFilter = {}): Promise<BankQu
     return query.range(from, to);
   }, "list questions");
 
-  return (rows as QuestionRow[]).map(toQuestion);
+  const questions = (rows as QuestionRow[]).map(toQuestion);
+
+  // A "*" went to Postgres as "any one character", so only the rows with the
+  // "*" itself in that place are kept.
+  const search = filter.search;
+  return search && needsTextCheck(search)
+    ? questions.filter((question) => containsText(question.prompt, search))
+    : questions;
 }
 
 export async function getQuestion(id: string): Promise<BankQuestion | null> {
