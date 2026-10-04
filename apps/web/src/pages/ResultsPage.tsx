@@ -175,7 +175,8 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
     return (
       <div className="stack">
         <h1>{t("results.title")}</h1>
-        <p className="error-banner">{testErrorText(error, t, "test.errNotSubmitted")}</p>
+        {/* An alert, so a failed load is said out loud and not only painted. */}
+        <p className="error-banner" role="alert">{testErrorText(error, t, "test.errNotSubmitted")}</p>
         <button type="button" className="ghost-button" onClick={() => navigate("/history")}>
           {t("results.backToHistory")}
         </button>
