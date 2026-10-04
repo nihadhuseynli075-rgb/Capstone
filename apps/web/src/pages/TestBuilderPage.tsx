@@ -400,6 +400,10 @@ export function TestBuilderPage() {
               key={item.id}
               type="button"
               className={`chip ${item.id === subjectId ? "selected" : ""}`}
+              // The chosen subject was shown by colour alone, so a screen
+              // reader heard three identical buttons. Pressed, like the
+              // difficulty cards below.
+              aria-pressed={item.id === subjectId}
               onClick={() => {
                 const topics = item.topics.filter((topic) => topic.total > 0).map((topic) => topic.id);
                 setSubjectId(item.id);
