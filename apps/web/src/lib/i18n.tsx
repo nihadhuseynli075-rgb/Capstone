@@ -380,7 +380,9 @@ const en = {
   "exam.leaveConfirmTimed":
     "Leave this test? Your answers are kept, and you can come back to it from the dashboard or the test builder. The timer keeps running while you are away.",
   "exam.resumeTitle": "You have a test in progress",
-  "exam.resumeBody": "{title}: {answered} of {total} questions answered. Starting a new test replaces it.",
+  // Counted by the paper's length, {n}: Russian says "из 21 вопроса" but "из 5 вопросов".
+  "exam.resumeBody":
+    "{title}: {answered} of {n} question answered. Starting a new test replaces it.|{title}: {answered} of {n} questions answered. Starting a new test replaces it.",
   "exam.resume": "Resume test",
 
   // Test builder: what each difficulty can draw
@@ -911,7 +913,8 @@ const ru: Dictionary = {
   "exam.leaveConfirmTimed":
     "Выйти из теста? Ваши ответы сохранятся, и вы сможете вернуться к нему с главной страницы или со страницы создания теста. Таймер продолжает идти, пока вас нет.",
   "exam.resumeTitle": "У вас есть незаконченный тест",
-  "exam.resumeBody": "{title}: отвечено {answered} из {total} вопросов. Если начать новый тест, этот будет заменён.",
+  "exam.resumeBody":
+    "{title}: отвечено {answered} из {n} вопроса. Если начать новый тест, этот будет заменён.|{title}: отвечено {answered} из {n} вопросов. Если начать новый тест, этот будет заменён.|{title}: отвечено {answered} из {n} вопросов. Если начать новый тест, этот будет заменён.",
   "exam.resume": "Продолжить тест",
 
   // Test builder: what each difficulty can draw
@@ -1431,7 +1434,7 @@ const az: Dictionary = {
   "exam.leaveConfirmTimed":
     "Testdən çıxırsınız? Cavablarınız saxlanılır, ona ana səhifədən və ya test yaratma səhifəsindən qayıda bilərsiniz. Siz yoxkən taymer işləməyə davam edir.",
   "exam.resumeTitle": "Yarımçıq testiniz var",
-  "exam.resumeBody": "{title}: {total} sualdan {answered} cavablandırılıb. Yeni test başlasanız, bu test onunla əvəz olunacaq.",
+  "exam.resumeBody": "{title}: {n} sualdan {answered} cavablandırılıb. Yeni test başlasanız, bu test onunla əvəz olunacaq.",
   "exam.resume": "Testə davam et",
 
   // Test builder: what each difficulty can draw
