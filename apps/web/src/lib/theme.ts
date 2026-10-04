@@ -12,8 +12,23 @@ export function getStoredTheme(): Theme {
   return prefersDark ? "dark" : "light";
 }
 
+/**
+ * The page background in each theme, for the browser's own bar on a phone.
+ * The same two colours are in index.html, whose script sets them first.
+ */
+const THEME_COLOURS: Record<Theme, string> = { light: "#f4f8fc", dark: "#07202f" };
+
 export function applyTheme(theme: Theme): void {
-  document.documentElement.dataset.theme = theme;
+  const root = document.documentElement;
+  root.dataset.theme = theme;
+  // index.html sets this before the first paint, and an inline style outranks
+  // the stylesheet's, so it has to follow every change from here on.
+  root.style.colorScheme = theme;
+
+  for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
+    meta.content = THEME_COLOURS[theme];
+  }
+
   window.localStorage.setItem(STORAGE_KEY, theme);
 }
 
