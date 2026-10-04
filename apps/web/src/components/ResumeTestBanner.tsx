@@ -2,6 +2,7 @@ import { useState } from "react";
 import { navigate } from "../app/router";
 import { loadActiveTest } from "../lib/examSession";
 import { fill, useLanguage } from "../lib/i18n";
+import { paperTitle } from "../lib/testText";
 
 /**
  * The way back to a test left part way through.
@@ -12,7 +13,7 @@ import { fill, useLanguage } from "../lib/i18n";
  * whenever a paper is waiting, and say what starting another one does to it.
  */
 export function ResumeTestBanner() {
-  const { t } = useLanguage();
+  const { t, tn } = useLanguage();
 
   // Read once, as the page opens: the paper cannot change while this is on screen.
   const [paper] = useState(() => loadActiveTest());
@@ -27,7 +28,8 @@ export function ResumeTestBanner() {
     <section className="resume-banner" aria-label={t("exam.resumeTitle")}>
       <div>
         <strong>{t("exam.resumeTitle")}</strong>
-        <p>{fill(t("exam.resumeBody"), { title: paper.test.title, answered, total })}</p>
+        {/* The paper's name in the site language, as the exam page shows it. */}
+        <p>{fill(t("exam.resumeBody"), { title: paperTitle(paper.test, t, tn), answered, total })}</p>
       </div>
 
       <button type="button" className="primary-button" onClick={() => navigate("/exam")}>

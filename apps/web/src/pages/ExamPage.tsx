@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SubmittedAnswer } from "@grade9/shared";
-import { topicName, writtenAnswerMaxLength } from "@grade9/shared";
+import { writtenAnswerMaxLength } from "@grade9/shared";
 import { navigate, replaceRoute, setLeaveGuard } from "../app/router";
+import { fill } from "../features/friends/fill";
 import {
   clearActiveTest,
   loadActiveTest,
@@ -9,10 +10,21 @@ import {
   saveProgress,
   type ActiveTest
 } from "../lib/examSession";
-import { errorText } from "../features/profile/profileText";
 import { useLanguage } from "../lib/i18n";
+import { difficultyLabel, paperTitle, testErrorText, topicLabel } from "../lib/testText";
 import { ApiError } from "../services/apiClient";
 import { submitTest } from "../services/testsApi";
+
+/**
+ * Refusals that no amount of resending changes: out of time, or a paper that
+ * is not this student's (a 403) or no longer exists (a 404, as after an API
+ * in memory mode restarts). Offering "try again" for these only strands the
+ * student on a paper they cannot put down.
+ */
+function isFinalRefusal(cause: unknown): boolean {
+  if (!(cause instanceof ApiError)) return false;
+  return cause.code === "time-expired" || cause.status === 403 || cause.status === 404;
+}
 
 /** Words as a teacher would count them: runs of letters or digits, in any script. */
 function wordCount(text: string): number {
@@ -27,12 +39,14 @@ function formatClock(totalSeconds: number): string {
 }
 
 export function ExamPage() {
-  const { t } = useLanguage();
+  const { t, tn } = useLanguage();
   const [active, setActive] = useState<ActiveTest | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
   const [now, setNow] = useState(() => Date.now());
-  const [error, setError] = useState<string | null>(null);
+  // The failure, and whether the timer sent it, rather than a sentence: the
+  // sentence is put together when shown, in whatever language the site is in.
+  const [error, setError] = useState<{ cause: unknown; timeUp: boolean } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Set when the server will never accept this paper, however many times it is
@@ -137,15 +151,16 @@ export function ExamPage() {
           return;
         }
 
-        // Out of time: nothing was saved and nothing can be. Say so once and
-        // offer the way out, rather than a retry button that cannot work and a
-        // paper that cannot be left without an "are you sure".
-        if (code === "time-expired") {
+        // Out of time, or a paper the server will never take from this
+        // student: nothing was saved and nothing can be. Say so once and offer
+        // the way out, rather than a retry button that cannot work and a paper
+        // that cannot be left without an "are you sure".
+        if (isFinalRefusal(cause)) {
           closedRef.current = true;
           clearActiveTest();
           setSubmitting(false);
           setDead(true);
-          setError((cause as Error).message);
+          setError({ cause, timeUp: false });
           return;
         }
 
@@ -153,14 +168,10 @@ export function ExamPage() {
         // paper to a dropped connection.
         submittedRef.current = false;
         setSubmitting(false);
-        setError(
-          reason === "time-up"
-            ? `Time ran out but the test could not be sent: ${errorText(cause, t)}`
-            : errorText(cause, t)
-        );
+        setError({ cause, timeUp: reason === "time-up" });
       }
     },
-    [active, answers, t]
+    [active, answers]
   );
 
   // Drive the countdown off wall-clock time, so a backgrounded tab that stops
@@ -265,7 +276,7 @@ export function ExamPage() {
   }, [error]);
 
   if (!active) {
-    return <p>Loading your test...</p>;
+    return <p>{t("exam.loading")}</p>;
   }
 
   const questions = active.test.questions;
@@ -283,34 +294,42 @@ export function ExamPage() {
 
   function confirmAndSubmit() {
     const unanswered = questions.length - answeredCount;
-    if (
-      unanswered > 0 &&
-      !window.confirm(
-        `${unanswered} question${unanswered === 1 ? " is" : "s are"} still unanswered. Submit anyway?`
-      )
-    ) {
+    if (unanswered > 0 && !window.confirm(tn("exam.confirmUnanswered", unanswered))) {
       return;
     }
     void handleSubmit("manual");
   }
 
+  // The banner's sentence. A send the timer made that failed says so first,
+  // since otherwise the student only sees the reason and not what it stopped.
+  const errorText =
+    error === null
+      ? null
+      : error.timeUp
+        ? fill(t("exam.timeUpFailed"), { reason: testErrorText(error.cause, t) })
+        : testErrorText(error.cause, t);
+
   return (
     <div className="exam-layout">
       <div className="exam-bar">
         <div className="exam-heading">
-          <h1 className="exam-title">{active.test.title}</h1>
+          <h1 className="exam-title">{paperTitle(active.test, t, tn)}</h1>
           <p className="exam-progress">
-            Question {currentIndex + 1} of {questions.length} - {answeredCount} answered
+            {fill(t("exam.progress"), {
+              current: String(currentIndex + 1),
+              total: String(questions.length),
+              answered: String(answeredCount)
+            })}
           </p>
         </div>
 
         <div className={`exam-timer ${secondsLeft !== null && secondsLeft <= 60 ? "urgent" : ""}`}>
           {secondsLeft === null ? (
-            <span className="timer-untimed">No time limit</span>
+            <span className="timer-untimed">{t("exam.untimed")}</span>
           ) : (
             <>
               <span className="timer-value">{formatClock(secondsLeft)}</span>
-              <span className="timer-label">remaining</span>
+              <span className="timer-label">{t("exam.remaining")}</span>
             </>
           )}
         </div>
@@ -318,13 +337,14 @@ export function ExamPage() {
 
       {active.short && (
         <p className="warning-banner">
-          The question bank only had {questions.length} matching question
-          {questions.length === 1 ? "" : "s"}, so this test is shorter than the {active.requestedCount}{" "}
-          you asked for.
+          {fill(t("exam.short"), {
+            questions: tn("count.questions", questions.length),
+            requested: String(active.requestedCount)
+          })}
         </p>
       )}
 
-      <div className="question-palette" ref={paletteRef} role="navigation" aria-label="Jump to question">
+      <div className="question-palette" ref={paletteRef} role="navigation" aria-label={t("exam.palette")}>
         {questions.map((item, index) => (
           <button
             key={item.id}
@@ -333,9 +353,10 @@ export function ExamPage() {
               (answers[item.id] ?? "").trim().length > 0 ? "answered" : ""
             }`}
             onClick={() => goToQuestion(index)}
-            aria-label={`Question ${index + 1}${
-              (answers[item.id] ?? "").trim().length > 0 ? ", answered" : ", not answered"
-            }`}
+            aria-label={fill(
+              t((answers[item.id] ?? "").trim().length > 0 ? "exam.dotAnswered" : "exam.dotUnanswered"),
+              { n: String(index + 1) }
+            )}
           >
             {index + 1}
           </button>
@@ -344,17 +365,18 @@ export function ExamPage() {
 
       <section className="question-card">
         <p className="question-meta">
-          {topicName(question.subjectId, question.topicId)} - {question.difficulty}
+          {topicLabel(t, question.subjectId, question.topicId)} - {difficultyLabel(t, question.difficulty)}
           {" - "}
-          <span className="question-marks">
-            {question.marks} {question.marks === 1 ? "mark" : "marks"}
-          </span>
+          <span className="question-marks">{tn("count.marks", question.marks)}</span>
         </p>
 
+        {/* The question itself is never translated here. The API has already
+            put maths into the site language where a translation exists, and an
+            English or Russian question stays in the language it is testing. */}
         <h2 className="question-prompt">{question.prompt}</h2>
 
         {question.imageUrl && (
-          <img className="question-image" src={question.imageUrl} alt="Question diagram" />
+          <img className="question-image" src={question.imageUrl} alt={t("exam.diagram")} />
         )}
 
         {question.type === "multiple-choice" ? (
@@ -380,43 +402,45 @@ export function ExamPage() {
           </div>
         ) : question.type === "open-ended" ? (
           <label className="short-answer written-answer">
-            Your answer
+            {t("exam.yourAnswer")}
             <textarea
               value={answers[question.id] ?? ""}
               onChange={(event) => setAnswer(event.target.value)}
-              placeholder="Write your answer here. A teacher-style marker will read it when you submit."
+              placeholder={t("exam.writtenPlaceholder")}
               rows={8}
               maxLength={writtenAnswerMaxLength}
             />
             {/* Tasks set a minimum ("at least 35 words"), so show the count. */}
-            <span className="written-answer-count">{wordCount(answers[question.id] ?? "")} words</span>
+            <span className="written-answer-count">
+              {tn("count.words", wordCount(answers[question.id] ?? ""))}
+            </span>
           </label>
         ) : (
           <label className="short-answer">
-            Your answer
+            {t("exam.yourAnswer")}
             <input
               type="text"
               value={answers[question.id] ?? ""}
               onChange={(event) => setAnswer(event.target.value)}
-              placeholder="Type your answer"
+              placeholder={t("exam.shortPlaceholder")}
               autoComplete="off"
             />
           </label>
         )}
       </section>
 
-      {error && (
+      {errorText && (
         <div className="error-banner exam-error" role="alert" ref={errorRef}>
-          <span>{error}</span>
+          <span>{errorText}</span>
           {dead ? (
             // This paper is finished with, one way or another. Offering to send
             // it again would be offering something that cannot happen.
             <>
               <button type="button" className="ghost-button" onClick={() => navigate("/history")}>
-                Test history
+                {t("main.history")}
               </button>
               <button type="button" className="ghost-button" onClick={() => navigate("/build")}>
-                Start a new test
+                {t("exam.newTest")}
               </button>
             </>
           ) : (
@@ -429,7 +453,7 @@ export function ExamPage() {
               onClick={() => void handleSubmit("manual")}
               disabled={submitting}
             >
-              {submitting ? "Sending..." : "Try sending again"}
+              {submitting ? t("exam.sending") : t("exam.retry")}
             </button>
           )}
         </div>
@@ -442,7 +466,7 @@ export function ExamPage() {
           onClick={() => goToQuestion(currentIndex - 1)}
           disabled={currentIndex === 0}
         >
-          Previous
+          {t("exam.previous")}
         </button>
 
         {isLast ? (
@@ -452,7 +476,7 @@ export function ExamPage() {
             onClick={confirmAndSubmit}
             disabled={submitting}
           >
-            {submitting ? "Marking..." : "Finish and see results"}
+            {submitting ? t("exam.marking") : t("exam.finish")}
           </button>
         ) : (
           <button
@@ -460,7 +484,7 @@ export function ExamPage() {
             className="primary-button"
             onClick={() => goToQuestion(currentIndex + 1)}
           >
-            Next
+            {t("exam.next")}
           </button>
         )}
       </div>

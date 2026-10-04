@@ -1,30 +1,18 @@
 import { useEffect, useState } from "react";
 import type { AttemptSummary } from "@grade9/shared";
-import { attemptScoreValue, subjectName } from "@grade9/shared";
+import { attemptScoreValue } from "@grade9/shared";
 import { navigate } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
-import { errorText } from "../features/profile/profileText";
-import { useLanguage } from "../lib/i18n";
+import { formatDayTime, useLanguage } from "../lib/i18n";
+import { difficultyLabel, subjectLabel, testErrorText } from "../lib/testText";
 import { fetchHistory } from "../services/testsApi";
 
-function formatDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString(undefined, {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-}
-
 export function HistoryPage() {
-  const { t } = useLanguage();
   const [attempts, setAttempts] = useState<AttemptSummary[] | null>(null);
-  // The failure itself, worded when shown (errorText): its own message can be
-  // the server's, or a developer's.
+  // The failure rather than its sentence, so it is shown in the current language.
   const [error, setError] = useState<unknown>(null);
   const { ready, user } = useAuth();
+  const { language, t } = useLanguage();
 
   // Waits for the stored session before asking, and asks again if the account
   // changes. Fetching on mount alone sent the guest key while Supabase was
@@ -52,8 +40,8 @@ export function HistoryPage() {
   if (error !== null) {
     return (
       <div className="stack">
-        <h1>Test history</h1>
-        <p className="error-banner">{errorText(error, t)}</p>
+        <h1>{t("main.history")}</h1>
+        <p className="error-banner">{testErrorText(error, t)}</p>
       </div>
     );
   }
@@ -61,8 +49,8 @@ export function HistoryPage() {
   if (!attempts) {
     return (
       <div className="stack">
-        <h1>Test history</h1>
-        <p>Loading your history...</p>
+        <h1>{t("main.history")}</h1>
+        <p>{t("history.loading")}</p>
       </div>
     );
   }
@@ -70,10 +58,10 @@ export function HistoryPage() {
   if (attempts.length === 0) {
     return (
       <div className="stack">
-        <h1>Test history</h1>
-        <p className="lede">You have not finished a test yet.</p>
+        <h1>{t("main.history")}</h1>
+        <p className="lede">{t("history.empty")}</p>
         <button type="button" className="primary-button" onClick={() => navigate("/build")}>
-          Create your first mock test
+          {t("history.first")}
         </button>
       </div>
     );
@@ -88,26 +76,24 @@ export function HistoryPage() {
   return (
     <div className="stack">
       <section>
-        <h1>Test history</h1>
-        <p className="lede">
-          Your best result is highlighted. It accounts for difficulty and test length, not just the
-          percentage.
-        </p>
+        <h1>{t("main.history")}</h1>
+        <p className="lede">{t("history.lede")}</p>
       </section>
 
       <section className="panel best-panel">
-        <p className="eyebrow">Best test so far</p>
+        <p className="eyebrow">{t("history.best")}</p>
         <p className="best-score">
           {best.score}/{best.totalMarks}
           <span className="best-percent">{best.percentage}%</span>
         </p>
         <p className="best-meta">
-          {subjectName(best.subjectId)} - {best.difficultyMode} - {formatDate(best.submittedAt)}
+          {subjectLabel(t, best.subjectId)} - {difficultyLabel(t, best.difficultyMode)} -{" "}
+          {formatDayTime(best.submittedAt, language)}
         </p>
       </section>
 
       <section className="panel">
-        <h2>All attempts</h2>
+        <h2>{t("history.all")}</h2>
         <ul className="attempt-list">
           {attempts.map((attempt) => (
             <li key={attempt.id}>
@@ -116,13 +102,13 @@ export function HistoryPage() {
                 className={`attempt-row ${attempt.id === best.id ? "best" : ""}`}
                 onClick={() => navigate(`/results/${attempt.id}`)}
               >
-                <span className="attempt-subject">{subjectName(attempt.subjectId)}</span>
+                <span className="attempt-subject">{subjectLabel(t, attempt.subjectId)}</span>
                 {/* Difficulty and date travel together: on a phone the row is
                     two columns, and they are one line of small print under the
                     subject rather than two cells of a puzzle. */}
                 <span className="attempt-meta">
-                  <span className="attempt-mode">{attempt.difficultyMode}</span>
-                  <span className="attempt-date">{formatDate(attempt.submittedAt)}</span>
+                  <span className="attempt-mode">{difficultyLabel(t, attempt.difficultyMode)}</span>
+                  <span className="attempt-date">{formatDayTime(attempt.submittedAt, language)}</span>
                 </span>
                 <span className="attempt-score">
                   {attempt.score}/{attempt.totalMarks}
