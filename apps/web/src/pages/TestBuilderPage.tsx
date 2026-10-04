@@ -321,12 +321,17 @@ export function TestBuilderPage() {
   // layout shift over 0.1 on a slow phone), and nothing worth drawing was on
   // screen until then. The panels and their grey blocks take roughly the room
   // the real ones will.
+  //
+  // The panels carry the same keys here and in the loaded page below. Matched
+  // by position instead, React reused the skeleton's Difficulty and summary
+  // panels, far down the page, as the real Subject and Topics panels, which
+  // jumped up into view when the subjects arrived (a layout shift of 0.72).
   if (!catalog || !subject) {
     return (
       <div className="stack" aria-busy="true">
         {intro}
 
-        <section className="panel">
+        <section className="panel" key="subject">
           <h2>{t("builder.subject")}</h2>
           <p className="panel-hint" role="status">
             {t("builder.loading")}
@@ -338,7 +343,7 @@ export function TestBuilderPage() {
           </div>
         </section>
 
-        <section className="panel" aria-hidden="true">
+        <section className="panel" key="topics" aria-hidden="true">
           <h2>{t("builder.topics")}</h2>
           <div className="topic-grid">
             {[0, 1, 2, 3, 4, 5].map((index) => (
@@ -347,7 +352,7 @@ export function TestBuilderPage() {
           </div>
         </section>
 
-        <section className="panel" aria-hidden="true">
+        <section className="panel" key="difficulty" aria-hidden="true">
           <h2>{t("builder.difficulty")}</h2>
           <div className="difficulty-grid">
             {[0, 1, 2, 3].map((index) => (
@@ -356,7 +361,7 @@ export function TestBuilderPage() {
           </div>
         </section>
 
-        <section className="panel summary-panel" aria-hidden="true">
+        <section className="panel summary-panel" key="summary" aria-hidden="true">
           <span className="skeleton skeleton-line" />
           <span className="skeleton skeleton-button" />
         </section>
@@ -383,7 +388,7 @@ export function TestBuilderPage() {
         </p>
       )}
 
-      <section className="panel">
+      <section className="panel" key="subject">
         <h2>{t("builder.subject")}</h2>
         <div className="chip-row">
           {catalog.map((item) => (
@@ -405,7 +410,7 @@ export function TestBuilderPage() {
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel" key="topics">
         <h2>{t("builder.topics")}</h2>
         <div className="topic-grid">
           {subject.topics.map((topic) => {
@@ -448,7 +453,7 @@ export function TestBuilderPage() {
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel" key="difficulty">
         <h2>{t("builder.difficulty")}</h2>
         <p className="panel-hint">{t("builder.difficultyHint")}</p>
         {/* Each card says what it can actually draw from the topics picked. The
@@ -552,7 +557,7 @@ export function TestBuilderPage() {
         )}
       </section>
 
-      <section className="panel summary-panel">
+      <section className="panel summary-panel" key="summary">
         {/* With nothing ticked the real problem is the topics, not the size of
             the bank: "the bank only has 0" sent students looking for missing
             questions, and the button it disabled kept the right message from
