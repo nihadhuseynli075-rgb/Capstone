@@ -540,6 +540,9 @@ export function AdminPage() {
               onCancel={editing ? backToList : undefined}
               submitting={saving}
               error={error}
+              // The "added" notice is about the last question, not the one now
+              // being typed or rejected.
+              onEdited={() => setNotice(null)}
             />
             {notice && (
               <p className="success-banner" role="status" ref={noticeRef}>
