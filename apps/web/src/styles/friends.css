@@ -71,17 +71,6 @@
   font-size: 0.88rem;
 }
 
-/*
- * The shared avatar is white on the brand blue, which is fine in the light
- * theme and washed out in the dark one, where the blue is the light one. Here
- * the disc is the strong brand colour with the surface colour on top, so the
- * initials contrast in both.
- */
-.friends-person .avatar {
-  background: var(--brand-strong);
-  color: var(--surface);
-}
-
 /* ------------------------------------------------------------------ adding */
 
 .friends-add-form {

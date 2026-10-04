@@ -1210,6 +1210,12 @@ button:focus-visible {
   border-bottom: 1px solid var(--border);
 }
 
+/*
+ * Both tab colours are taken a quarter of the way to the text colour: the
+ * plain muted grey was 4.3:1 on the page and the plain brand blue 4.2:1 on
+ * white, under the 4.5:1 that text this size needs. Dark mode already passed,
+ * and only gets lighter on its dark ground.
+ */
 .tab {
   border: 1px solid transparent;
   border-bottom: none;
@@ -1218,13 +1224,13 @@ button:focus-visible {
   padding: 10px 16px;
   cursor: pointer;
   font-weight: 600;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--muted) 75%, var(--text));
 }
 
 .tab.selected {
   border-color: var(--border);
   background: var(--surface);
-  color: var(--brand);
+  color: color-mix(in srgb, var(--brand) 75%, var(--text));
   margin-bottom: -1px;
 }
 

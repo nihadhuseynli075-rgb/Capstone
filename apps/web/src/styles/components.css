@@ -263,6 +263,12 @@
   background: var(--brand-soft);
 }
 
+/*
+ * Initials on the strong brand colour, in the surface colour: navy and white
+ * in the light theme, light blue and dark blue in the dark one. White on the
+ * plain brand blue was 4.2:1 in light and 2.7:1 in dark, both under the 4.5:1
+ * small text needs. The friends page already did this; now every avatar does.
+ */
 .avatar {
   display: inline-flex;
   align-items: center;
@@ -270,8 +276,8 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: var(--brand);
-  color: #ffffff;
+  background: var(--brand-strong);
+  color: var(--surface);
   font-size: 0.8rem;
   font-weight: 800;
   flex: none;
@@ -642,9 +648,11 @@
   font-size: 0.85rem;
 }
 
-/* "@nihad", under the name: what friends find this student by. */
+/* "@nihad", under the name: what friends find this student by. The brand blue
+   is taken a quarter of the way to the text colour, which keeps it blue and
+   lifts it from 4.2:1 to 5.3:1 on white. */
 .profile-identity-text .profile-username {
-  color: var(--brand);
+  color: color-mix(in srgb, var(--brand) 75%, var(--text));
   font-weight: 700;
 }
 
@@ -728,7 +736,9 @@
   border-radius: 999px;
   padding: 4px 10px;
   background: var(--success-soft);
-  color: var(--success);
+  /* Green on its pale green was 3.8:1; a quarter of the text colour in it
+     makes 4.9:1, and the dark theme only gets lighter on its dark ground. */
+  color: color-mix(in srgb, var(--success) 75%, var(--text));
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -871,8 +881,9 @@
   font-weight: 600;
 }
 
+/* The text colour, not the muted one, which was 3.9:1 on this pale blue. */
 .question-status-draft {
-  color: var(--muted);
+  color: var(--text);
   background: var(--brand-soft);
 }
 
