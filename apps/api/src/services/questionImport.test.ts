@@ -20,6 +20,18 @@ describe("parseCsv", () => {
     ]);
   });
 
+  test("a quote inside a cell is part of the text, not the start of a quoted cell", () => {
+    assert.deepEqual(parseCsv('a\tb\nA 12" ruler\t30\nnext\trow'), [
+      ["a", "b"],
+      ['A 12" ruler', "30"],
+      ["next", "row"]
+    ]);
+    assert.deepEqual(parseCsv('a,b\n5" long,"quoted, still"'), [
+      ["a", "b"],
+      ['5" long', "quoted, still"]
+    ]);
+  });
+
   test("drops blank rows", () => {
     assert.deepEqual(parseCsv("a,b\n\n , \nc,d"), [
       ["a", "b"],

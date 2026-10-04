@@ -929,6 +929,20 @@ async function main() {
     JSON.stringify(gapImport.body.errors)
   );
 
+  // A quote inside an unquoted cell opened a quoted cell that ran to the end
+  // of the sheet, so the rows after it vanished without being reported.
+  const inchTsv = [
+    "subject\ttopic\tquestion\tcorrect_answer",
+    'math\timport-inches\tA 12" ruler is how many cm?\t30',
+    "math\timport-inches\tThe row after the inch mark\t5"
+  ].join("\n");
+  const inchImport = await call("/api/admin/questions/import", { method: "POST", token, body: { csv: inchTsv } });
+  check(
+    "a quote inside a tab-separated cell is text, and the rows after it import",
+    inchImport.body.importedCount === 2 && inchImport.body.questions?.[0]?.prompt === 'A 12" ruler is how many cm?',
+    JSON.stringify(inchImport.body).slice(0, 300)
+  );
+
   const subjectCatalog = await call("/api/catalog");
   check(
     "so the catalog shows no subject the bank should not have",

@@ -106,7 +106,12 @@ function readRecords(input: string): string[][] {
       continue;
     }
 
-    if (char === '"') {
+    // Only a quote at the start of a cell opens a quoted cell, as spreadsheets
+    // read it. One further in is the text itself: a tab-separated sheet does
+    // not quote `A 12" ruler`, and reading that quote as an opening one
+    // swallowed every tab and line after it, so the rest of the sheet vanished
+    // into one cell without a single row being reported.
+    if (char === '"' && field.trim().length === 0) {
       inQuotes = true;
       index += 1;
       continue;

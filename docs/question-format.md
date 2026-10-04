@@ -125,6 +125,10 @@ answer itself in `correct_answer`.
    copying everything, header row included, and pasting works as well.)
 3. Press **Import questions**.
 
+A quote mark inside a cell, as in `A 12" ruler`, is kept as part of the text.
+Only a cell that starts with a quote is read as a quoted cell, which is how
+spreadsheets export a cell holding commas, tabs or line breaks.
+
 Rows that do not validate are reported back with their spreadsheet row number and
 skipped. The rest still import, so one bad cell does not block the other forty.
 
