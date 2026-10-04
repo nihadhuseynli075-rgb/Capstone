@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SubmittedAnswer } from "@grade9/shared";
 import { writtenAnswerMaxLength } from "@grade9/shared";
 import { navigate, replaceRoute, setLeaveGuard } from "../app/router";
+import { SignInToFinishButton } from "../features/auth/SignInToFinishButton";
 import { fill } from "../features/friends/fill";
 import {
   clearActiveTest,
@@ -134,7 +135,10 @@ export function ExamPage() {
         // The paper's own numbering, which survives the question being deleted
         // from the bank while this test is open.
         position: index,
-        answer: answers[question.id] ?? ""
+        // Cut to what the API accepts. The boxes stop typing there, but an
+        // answer can also come back from saved progress, and one too long
+        // gets the whole paper refused on every retry.
+        answer: (answers[question.id] ?? "").slice(0, writtenAnswerMaxLength)
       }));
 
       const timeTakenSeconds = Math.max(0, Math.round((Date.now() - active.startedAt) / 1000));
@@ -463,6 +467,10 @@ export function ExamPage() {
               onChange={(event) => setAnswer(event.target.value)}
               placeholder={t("exam.shortPlaceholder")}
               autoComplete="off"
+              // The API refuses any answer longer than this, short ones too,
+              // and refuses the whole paper with it: one long paste here made
+              // every send fail with no hint of which answer was at fault.
+              maxLength={writtenAnswerMaxLength}
             />
           </label>
         )}
@@ -483,17 +491,30 @@ export function ExamPage() {
               </button>
             </>
           ) : (
-            /* The only way back from a failed send. Without it a student whose
-               time ran out on question three is stranded: the timer has had its
-               one attempt and the finish button only appears on the last page. */
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={() => void handleSubmit("manual")}
-              disabled={submitting}
-            >
-              {submitting ? t("exam.sending") : t("exam.retry")}
-            </button>
+            <>
+              {/* A session the server no longer accepts: sending again cannot
+                  work until the student signs in again, and this keeps the
+                  paper through that. */}
+              {error?.cause instanceof ApiError && error.cause.status === 401 && (
+                <SignInToFinishButton
+                  paper={{ ...active, answers, currentIndex }}
+                  onLeave={() => {
+                    closedRef.current = true;
+                  }}
+                />
+              )}
+              {/* The only way back from a failed send. Without it a student whose
+                 time ran out on question three is stranded: the timer has had its
+                 one attempt and the finish button only appears on the last page. */}
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => void handleSubmit("manual")}
+                disabled={submitting}
+              >
+                {submitting ? t("exam.sending") : t("exam.retry")}
+              </button>
+            </>
           )}
         </div>
       )}
