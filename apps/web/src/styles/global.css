@@ -19,7 +19,7 @@
   --surface: #ffffff;
   --surface-alt: #e8f2fa;
   --text: #0a3a58;
-  --muted: #5a7893;
+  --muted: #4f6d88; /* 5.1:1 on the page, 4.6:1 on the pale blue panels; the old #5a7893 was 4.3:1 */
   --border: #d1e2ef;
   --brand: #0c82c8;
   --brand-strong: #0a3a58;

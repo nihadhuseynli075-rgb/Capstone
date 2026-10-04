@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   BankQuestion,
   Difficulty,
@@ -119,7 +119,8 @@ export function QuestionForm({
   onSubmit,
   onCancel,
   submitting,
-  error
+  error,
+  onEdited
 }: {
   initial: BankQuestion | null;
   /** Only used when there is no `initial`. */
@@ -128,6 +129,8 @@ export function QuestionForm({
   onCancel?: () => void;
   submitting: boolean;
   error: string | null;
+  /** Called when the form is edited or fails a check, so the page can drop a notice about the last save. */
+  onEdited?: () => void;
 }) {
   const kept = initial ? null : (carryOver ?? null);
 
@@ -160,6 +163,12 @@ export function QuestionForm({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // A failed check means the last save's notice no longer fits under the button.
+  useEffect(() => {
+    if (formError) onEdited?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formError]);
 
 
   const knownTopics = subjects.find((subject) => subject.id === subjectId)?.topics ?? [];
@@ -329,7 +338,7 @@ export function QuestionForm({
   }
 
   return (
-    <form className="question-form" onSubmit={handleSubmit}>
+    <form className="question-form" onSubmit={handleSubmit} onChange={onEdited}>
       <div className="form-row">
         <label>
           Subject
