@@ -311,6 +311,149 @@ const en = {
   "profile.detailsSaved": "Details updated.",
   "profile.saveDetails": "Save changes",
 
+  // Test flow: the builder, the exam, the results and the history.
+  // A string with "|" in it is one form per plural category, chosen by tn():
+  // English has two (one, other), Russian three (one, few, many), and
+  // Azerbaijani one, since a noun after a number stays singular there.
+  "app.loading": "Loading Exampeak...",
+
+  "count.questions": "{n} question|{n} questions",
+  "count.minutes": "{n} minute|{n} minutes",
+  "count.topics": "{n} topic|{n} topics",
+  "count.marks": "{n} mark|{n} marks",
+  "count.words": "{n} word|{n} words",
+  "count.mistakes": "{n} mistake|{n} mistakes",
+
+  "difficulty.easy": "Easy",
+  "difficulty.medium": "Medium",
+  "difficulty.hard": "Hard",
+  "difficulty.custom": "Custom",
+
+  "topic.algebra": "Algebra",
+  "topic.geometry": "Geometry",
+  "topic.functions": "Functions and Graphs",
+  "topic.probability": "Probability and Statistics",
+  "topic.arithmetic": "Arithmetic",
+  "topic.coordinate-geometry": "Coordinate Geometry",
+  "topic.number-theory": "Number Theory",
+  "topic.sets-logic": "Sets and Logic",
+  "topic.grammar": "Grammar",
+  "topic.vocabulary": "Vocabulary",
+  "topic.reading": "Reading Comprehension",
+  "topic.writing": "Writing",
+  "topic.spelling": "Spelling",
+  "topic.punctuation": "Punctuation",
+  "topic.phonetics": "Phonetics",
+
+  "test.errInvalid": "Those test settings were not accepted. Refresh the page and try again.",
+  "test.errNotFound": "That test could not be found.",
+  "test.errNotYours": "That test belongs to a different account.",
+  "test.errNotSubmitted": "That test has not been handed in yet.",
+  "test.errTimeExpired":
+    "The time limit for this test ran out, so it can no longer be handed in. Start a new test to try again.",
+  "test.errNoQuestions": "There are no questions in the bank for that subject, topic and difficulty yet.",
+
+  "builder.title": "Create a mock test",
+  "builder.loading": "Loading subjects...",
+  "builder.lede":
+    "Pick what you want to practise. Results, mistakes and explanations are shown at the end, the same way a real exam works.",
+  "builder.bankEmpty": "There are no questions in the bank yet. Add some from the {link} first.",
+  "builder.bankEmptyLink": "admin dashboard",
+  "builder.subject": "Subject",
+  "builder.topics": "Topics",
+  "builder.noQuestions": "no questions yet",
+  // A topic card counts what the difficulty chosen below can draw on.
+  "builder.topicCountAt": "{questions} ({difficulty})",
+  "builder.topicNoneAt": "no questions on {difficulty}",
+  "builder.lastScore": "Last score {n}%",
+  "builder.notTried": "Not tried yet",
+  "builder.difficulty": "Difficulty",
+  "builder.difficultyHint":
+    "Easy, medium and hard set the number of questions and the timer for you. Choose custom to set them yourself.",
+  "builder.presetDetail": "{questions} in {minutes}",
+  "builder.customDetail": "Choose the length and timer yourself",
+  "builder.countLabel": "Number of questions",
+  "builder.minutesLabel": "Time limit (minutes)",
+  "builder.countRange": "Between {min} and {max}",
+  "builder.minutesRange": "Between {min} and {max} minutes",
+  "builder.untimed": "No timer - take as long as I need",
+  "builder.ready": "{n} question ready|{n} questions ready",
+  "builder.short": "- you asked for {requested}, but the bank only has {available} for this selection",
+  "builder.noTopic": "Choose at least one topic.",
+  "builder.building": "Building your test...",
+  "builder.start": "Start mock test",
+
+  "exam.loading": "Loading your test...",
+  // One line that is cut short on a phone, so every language puts the subject
+  // and topic first and the words "mock test" last.
+  "exam.title": "{subject} - {topic} mock test",
+  "exam.progress": "Question {current} of {total} - {answered} answered",
+  "exam.untimed": "No time limit",
+  "exam.remaining": "remaining",
+  "exam.short":
+    "The question bank only had {questions} that matched, so this test is shorter than the {requested} you asked for.",
+  "exam.palette": "Jump to question",
+  "exam.dotAnswered": "Question {n}, answered",
+  "exam.dotUnanswered": "Question {n}, not answered",
+  "exam.diagram": "Question diagram",
+  "exam.yourAnswer": "Your answer",
+  "exam.writtenPlaceholder": "Write your answer here. A teacher-style marker will read it when you submit.",
+  "exam.shortPlaceholder": "Type your answer",
+  "exam.timeUpFailed": "Time ran out, but the test could not be sent. {reason}",
+  "exam.newTest": "Start a new test",
+  "exam.sending": "Sending...",
+  "exam.retry": "Try sending again",
+  "exam.previous": "Previous",
+  "exam.next": "Next",
+  "exam.marking": "Marking...",
+  "exam.finish": "Finish and see results",
+  "exam.confirmUnanswered":
+    "{n} question is still unanswered. Submit anyway?|{n} questions are still unanswered. Submit anyway?",
+  "exam.leaveConfirm": "Leave this test? Your answers will be lost.",
+
+  "results.title": "Results",
+  "results.backToHistory": "Back to history",
+  "results.loading": "Loading your results...",
+  "results.marksUnit": "marks",
+  "results.completeSubject": "{subject} test complete",
+  "results.complete": "Test complete",
+  "results.summary": "{questions} in {time} - {mistakes} to review.",
+  "results.durationMinutes": "{m}m {s}s",
+  "results.durationSeconds": "{s}s",
+  "results.newBest": "New personal best. Your previous best was {score}.",
+  "results.firstTest": "First test recorded. Everything from here is measured against this one.",
+  "results.bestSoFar": "Your best so far: {score} ({difficulty}).",
+  // Level with the best: not a new best, which a tie used to be called.
+  "results.matchedBest": "You matched your best so far: {score} ({difficulty}).",
+  "results.byTopic": "How you did by topic",
+  "results.everyQuestion": "Every question",
+  "results.onlyMistakes": "Show only my mistakes",
+  "results.questionNumber": "Q{n}",
+  "results.notCounted": "Not counted",
+  "results.marksOf": "{score}/{n} mark|{score}/{n} marks",
+  "results.notMarked": "Not marked",
+  "results.fullMarks": "Full marks",
+  "results.correct": "Correct",
+  "results.partly": "Partly right",
+  "results.wrong": "Wrong",
+  "results.leftBlank": "Left blank",
+  "results.markerLookedFor": "What the marker looked for",
+  "results.correctAnswer": "Correct answer",
+  "results.feedback": "Teacher's feedback:",
+  "results.unmarkedNote":
+    "This answer could not be marked just now, so it is not counted in your score either way.",
+  "results.why": "Why:",
+  "results.noMistakes": "No mistakes on this one. Nothing to review.",
+  "results.another": "Take another test",
+
+  "history.loading": "Loading your history...",
+  "history.empty": "You have not finished a test yet.",
+  "history.first": "Create your first mock test",
+  "history.lede":
+    "Your best result is highlighted. It accounts for difficulty and test length, not just the percentage.",
+  "history.best": "Best test so far",
+  "history.all": "All attempts",
+
   "common.saving": "Saving...",
   "common.back": "Back",
 
@@ -619,6 +762,143 @@ const ru: Dictionary = {
   "profile.detailsSaved": "Данные обновлены.",
   "profile.saveDetails": "Сохранить изменения",
 
+  // Test flow
+  "app.loading": "Загружаем Exampeak...",
+
+  "count.questions": "{n} вопрос|{n} вопроса|{n} вопросов",
+  "count.minutes": "{n} минута|{n} минуты|{n} минут",
+  "count.topics": "{n} тема|{n} темы|{n} тем",
+  "count.marks": "{n} балл|{n} балла|{n} баллов",
+  "count.words": "{n} слово|{n} слова|{n} слов",
+  "count.mistakes": "{n} ошибка|{n} ошибки|{n} ошибок",
+
+  "difficulty.easy": "Лёгкий",
+  "difficulty.medium": "Средний",
+  "difficulty.hard": "Сложный",
+  "difficulty.custom": "Свой",
+
+  "topic.algebra": "Алгебра",
+  "topic.geometry": "Геометрия",
+  "topic.functions": "Функции и графики",
+  "topic.probability": "Вероятность и статистика",
+  "topic.arithmetic": "Арифметика",
+  "topic.coordinate-geometry": "Координатная геометрия",
+  "topic.number-theory": "Теория чисел",
+  "topic.sets-logic": "Множества и логика",
+  "topic.grammar": "Грамматика",
+  "topic.vocabulary": "Лексика",
+  "topic.reading": "Работа с текстом",
+  "topic.writing": "Письменная речь",
+  "topic.spelling": "Орфография",
+  "topic.punctuation": "Пунктуация",
+  "topic.phonetics": "Фонетика",
+
+  "test.errInvalid": "Эти настройки теста не приняты. Обновите страницу и попробуйте снова.",
+  "test.errNotFound": "Этот тест не найден.",
+  "test.errNotYours": "Этот тест принадлежит другому аккаунту.",
+  "test.errNotSubmitted": "Этот тест ещё не сдан.",
+  "test.errTimeExpired":
+    "Время на этот тест истекло, поэтому сдать его уже нельзя. Начните новый тест, чтобы попробовать снова.",
+  "test.errNoQuestions": "В банке пока нет вопросов по этому предмету, теме и уровню сложности.",
+
+  "builder.title": "Создать пробный тест",
+  "builder.loading": "Загружаем предметы...",
+  "builder.lede":
+    "Выберите, что хотите потренировать. Результаты, ошибки и объяснения вы увидите в конце, как на настоящем экзамене.",
+  "builder.bankEmpty": "В банке пока нет вопросов. Сначала добавьте их в {link}.",
+  "builder.bankEmptyLink": "панели администратора",
+  "builder.subject": "Предмет",
+  "builder.topics": "Темы",
+  "builder.noQuestions": "вопросов пока нет",
+  "builder.topicCountAt": "{questions} ({difficulty})",
+  "builder.topicNoneAt": "нет вопросов уровня «{difficulty}»",
+  "builder.lastScore": "Последний результат: {n}%",
+  "builder.notTried": "Ещё не проходили",
+  "builder.difficulty": "Сложность",
+  "builder.difficultyHint":
+    "Лёгкий, средний и сложный уровни сами задают количество вопросов и таймер. Выберите «Свой», чтобы задать их самостоятельно.",
+  "builder.presetDetail": "{questions}, {minutes}",
+  "builder.customDetail": "Длину теста и таймер выбираете вы",
+  "builder.countLabel": "Количество вопросов",
+  "builder.minutesLabel": "Время на тест (минуты)",
+  "builder.countRange": "От {min} до {max}",
+  "builder.minutesRange": "От {min} до {max} минут",
+  "builder.untimed": "Без таймера — решать столько, сколько нужно",
+  "builder.ready": "{n} вопрос готов|{n} вопроса готовы|{n} вопросов готово",
+  "builder.short": "— вы просили {requested}, но для такого выбора в банке есть только {available}",
+  "builder.noTopic": "Выберите хотя бы одну тему.",
+  "builder.building": "Составляем тест...",
+  "builder.start": "Начать пробный тест",
+
+  "exam.loading": "Загружаем тест...",
+  "exam.title": "{subject}, {topic} — пробный тест",
+  "exam.progress": "Вопрос {current} из {total}, отвечено: {answered}",
+  "exam.untimed": "Без ограничения времени",
+  "exam.remaining": "осталось",
+  "exam.short":
+    "В банке нашлось только {questions} под ваш выбор, поэтому тест короче, чем вы просили ({requested}).",
+  "exam.palette": "Перейти к вопросу",
+  "exam.dotAnswered": "Вопрос {n}, есть ответ",
+  "exam.dotUnanswered": "Вопрос {n}, нет ответа",
+  "exam.diagram": "Рисунок к вопросу",
+  "exam.yourAnswer": "Ваш ответ",
+  "exam.writtenPlaceholder":
+    "Напишите ответ здесь. После отправки его прочитает и оценит проверяющий, как это сделал бы учитель.",
+  "exam.shortPlaceholder": "Введите ответ",
+  "exam.timeUpFailed": "Время вышло, но тест не удалось отправить. {reason}",
+  "exam.newTest": "Начать новый тест",
+  "exam.sending": "Отправляем...",
+  "exam.retry": "Отправить ещё раз",
+  "exam.previous": "Назад",
+  "exam.next": "Далее",
+  "exam.marking": "Проверяем...",
+  "exam.finish": "Завершить и узнать результат",
+  "exam.confirmUnanswered":
+    "Без ответа остался {n} вопрос. Всё равно отправить?|Без ответа осталось {n} вопроса. Всё равно отправить?|Без ответа осталось {n} вопросов. Всё равно отправить?",
+  "exam.leaveConfirm": "Выйти из теста? Ваши ответы пропадут.",
+
+  "results.title": "Результаты",
+  "results.backToHistory": "К истории тестов",
+  "results.loading": "Загружаем результаты...",
+  "results.marksUnit": "баллы",
+  "results.completeSubject": "{subject}: тест завершён",
+  "results.complete": "Тест завершён",
+  "results.summary": "{questions} за {time}. На разбор: {mistakes}.",
+  "results.durationMinutes": "{m} мин {s} с",
+  "results.durationSeconds": "{s} с",
+  "results.newBest": "Новый личный рекорд! Ваш прошлый лучший результат: {score}.",
+  "results.firstTest": "Первый тест записан. Все следующие будут сравниваться с ним.",
+  "results.bestSoFar": "Ваш лучший результат пока: {score} ({difficulty}).",
+  "results.matchedBest": "Вы повторили свой лучший результат: {score} ({difficulty}).",
+  "results.byTopic": "Результаты по темам",
+  "results.everyQuestion": "Все вопросы",
+  "results.onlyMistakes": "Показывать только ошибки",
+  "results.questionNumber": "Вопрос {n}",
+  "results.notCounted": "Не учитывается",
+  "results.marksOf": "Баллы: {score}/{n}",
+  "results.notMarked": "Не проверен",
+  "results.fullMarks": "Полный балл",
+  "results.correct": "Верно",
+  "results.partly": "Частично верно",
+  "results.wrong": "Неверно",
+  "results.leftBlank": "Нет ответа",
+  "results.markerLookedFor": "Что ожидал проверяющий",
+  "results.correctAnswer": "Верный ответ",
+  "results.feedback": "Отзыв учителя:",
+  "results.unmarkedNote":
+    "Этот ответ сейчас не удалось проверить, поэтому он никак не влияет на ваш результат.",
+  "results.why": "Почему:",
+  "results.noMistakes": "В этом тесте нет ошибок. Разбирать нечего.",
+  "results.another": "Пройти ещё один тест",
+
+  "history.loading": "Загружаем историю...",
+  "history.empty": "Вы ещё не завершили ни одного теста.",
+  "history.first": "Создать первый пробный тест",
+  "history.lede":
+    "Лучший результат выделен. Он учитывает сложность и длину теста, а не только процент.",
+  "history.best": "Лучший тест",
+  "history.all": "Все попытки",
+
   "common.saving": "Сохранение...",
   "common.back": "Назад",
 
@@ -923,6 +1203,142 @@ const az: Dictionary = {
   "profile.detailsSaved": "Məlumatlar yeniləndi.",
   "profile.saveDetails": "Dəyişiklikləri yadda saxla",
 
+  // Test flow
+  "app.loading": "Exampeak yüklənir...",
+
+  "count.questions": "{n} sual",
+  "count.minutes": "{n} dəqiqə",
+  "count.topics": "{n} mövzu",
+  "count.marks": "{n} bal",
+  "count.words": "{n} söz",
+  "count.mistakes": "{n} səhv",
+
+  "difficulty.easy": "Asan",
+  "difficulty.medium": "Orta",
+  "difficulty.hard": "Çətin",
+  "difficulty.custom": "Fərdi",
+
+  "topic.algebra": "Cəbr",
+  "topic.geometry": "Həndəsə",
+  "topic.functions": "Funksiyalar və qrafiklər",
+  "topic.probability": "Ehtimal və statistika",
+  "topic.arithmetic": "Hesab",
+  "topic.coordinate-geometry": "Koordinat həndəsəsi",
+  "topic.number-theory": "Ədədlər nəzəriyyəsi",
+  "topic.sets-logic": "Çoxluqlar və məntiq",
+  "topic.grammar": "Qrammatika",
+  "topic.vocabulary": "Leksika",
+  "topic.reading": "Oxu və anlama",
+  "topic.writing": "Yazı",
+  "topic.spelling": "Orfoqrafiya",
+  "topic.punctuation": "Durğu işarələri",
+  "topic.phonetics": "Fonetika",
+
+  "test.errInvalid": "Bu test parametrləri qəbul olunmadı. Səhifəni yeniləyib yenidən cəhd edin.",
+  "test.errNotFound": "Bu test tapılmadı.",
+  "test.errNotYours": "Bu test başqa hesaba aiddir.",
+  "test.errNotSubmitted": "Bu test hələ təhvil verilməyib.",
+  "test.errTimeExpired":
+    "Bu testin vaxtı bitib, ona görə onu artıq təhvil vermək olmaz. Yenidən cəhd etmək üçün yeni test başladın.",
+  "test.errNoQuestions": "Bankda bu fənn, mövzu və çətinlik üzrə hələ sual yoxdur.",
+
+  "builder.title": "Sınaq testi yarat",
+  "builder.loading": "Fənlər yüklənir...",
+  "builder.lede":
+    "Nəyi məşq etmək istədiyinizi seçin. Nəticələr, səhvlər və izahlar, əsl imtahanda olduğu kimi, sonda göstərilir.",
+  "builder.bankEmpty": "Bankda hələ sual yoxdur. Əvvəlcə {link} sual əlavə edin.",
+  "builder.bankEmptyLink": "admin panelindən",
+  "builder.subject": "Fənn",
+  "builder.topics": "Mövzular",
+  "builder.noQuestions": "hələ sual yoxdur",
+  "builder.topicCountAt": "{questions} ({difficulty})",
+  "builder.topicNoneAt": "«{difficulty}» səviyyəsində sual yoxdur",
+  "builder.lastScore": "Son nəticə: {n}%",
+  "builder.notTried": "Hələ cəhd edilməyib",
+  "builder.difficulty": "Çətinlik",
+  "builder.difficultyHint":
+    "Asan, orta və çətin səviyyələr sualların sayını və taymeri sizin yerinizə təyin edir. Bunları özünüz seçmək üçün «Fərdi» seçin.",
+  "builder.presetDetail": "{questions}, {minutes}",
+  "builder.customDetail": "Uzunluğu və taymeri özünüz seçin",
+  "builder.countLabel": "Sualların sayı",
+  "builder.minutesLabel": "Vaxt limiti (dəqiqə)",
+  "builder.countRange": "Ən azı {min}, ən çoxu {max}",
+  "builder.minutesRange": "Ən azı {min}, ən çoxu {max} dəqiqə",
+  "builder.untimed": "Taymersiz — nə qədər lazımdırsa, o qədər",
+  "builder.ready": "{n} sual hazırdır",
+  "builder.short": "— siz {requested} istədiniz, amma bu seçim üçün bankda cəmi {available} sual var",
+  "builder.noTopic": "Ən azı bir mövzu seçin.",
+  "builder.building": "Test hazırlanır...",
+  "builder.start": "Sınaq testinə başla",
+
+  "exam.loading": "Test yüklənir...",
+  "exam.title": "{subject}, {topic} — sınaq testi",
+  "exam.progress": "Sual {current} / {total}, cavablanıb: {answered}",
+  "exam.untimed": "Vaxt məhdudiyyəti yoxdur",
+  "exam.remaining": "qalıb",
+  "exam.short":
+    "Bankda seçiminizə uyğun cəmi {questions} tapıldı, ona görə bu test istədiyiniz {requested} sualdan qısadır.",
+  "exam.palette": "Suala keç",
+  "exam.dotAnswered": "Sual {n}, cavablanıb",
+  "exam.dotUnanswered": "Sual {n}, cavabsız",
+  "exam.diagram": "Sualın şəkli",
+  "exam.yourAnswer": "Cavabınız",
+  "exam.writtenPlaceholder":
+    "Cavabınızı bura yazın. Göndərdikdən sonra onu müəllim kimi yoxlayan qiymətləndirici oxuyacaq.",
+  "exam.shortPlaceholder": "Cavabınızı yazın",
+  "exam.timeUpFailed": "Vaxt bitdi, amma testi göndərmək mümkün olmadı. {reason}",
+  "exam.newTest": "Yeni testə başla",
+  "exam.sending": "Göndərilir...",
+  "exam.retry": "Yenidən göndər",
+  "exam.previous": "Əvvəlki",
+  "exam.next": "Növbəti",
+  "exam.marking": "Yoxlanılır...",
+  "exam.finish": "Bitir və nəticəyə bax",
+  "exam.confirmUnanswered": "{n} sual hələ cavabsızdır. Yenə də göndərilsin?",
+  "exam.leaveConfirm": "Testdən çıxmaq istəyirsiniz? Cavablarınız itəcək.",
+
+  "results.title": "Nəticələr",
+  "results.backToHistory": "Tarixçəyə qayıt",
+  "results.loading": "Nəticələriniz yüklənir...",
+  "results.marksUnit": "bal",
+  "results.completeSubject": "{subject}: test tamamlandı",
+  "results.complete": "Test tamamlandı",
+  "results.summary": "{questions}, {time}. Təhlil üçün: {mistakes}.",
+  "results.durationMinutes": "{m} dəq {s} san",
+  "results.durationSeconds": "{s} san",
+  "results.newBest": "Yeni şəxsi rekord! Əvvəlki ən yaxşı nəticəniz: {score}.",
+  "results.firstTest": "İlk test qeydə alındı. Bundan sonrakılar onunla müqayisə ediləcək.",
+  "results.bestSoFar": "İndiyə qədər ən yaxşı nəticəniz: {score} ({difficulty}).",
+  "results.matchedBest": "Ən yaxşı nəticənizi təkrarladınız: {score} ({difficulty}).",
+  "results.byTopic": "Mövzular üzrə nəticələr",
+  "results.everyQuestion": "Bütün suallar",
+  "results.onlyMistakes": "Yalnız səhvlərimi göstər",
+  "results.questionNumber": "Sual {n}",
+  "results.notCounted": "Hesaba alınmır",
+  "results.marksOf": "Bal: {score}/{n}",
+  "results.notMarked": "Yoxlanılmayıb",
+  "results.fullMarks": "Tam bal",
+  "results.correct": "Düzgün",
+  "results.partly": "Qismən düzgün",
+  "results.wrong": "Səhv",
+  "results.leftBlank": "Cavab verilməyib",
+  "results.markerLookedFor": "Qiymətləndiricinin gözlədiyi",
+  "results.correctAnswer": "Düzgün cavab",
+  "results.feedback": "Müəllimin rəyi:",
+  "results.unmarkedNote":
+    "Bu cavabı hələlik yoxlamaq mümkün olmadı, ona görə nəticənizə heç bir təsiri yoxdur.",
+  "results.why": "İzah:",
+  "results.noMistakes": "Bu testdə səhv yoxdur. Təhlil ediləcək heç nə yoxdur.",
+  "results.another": "Başqa test həll et",
+
+  "history.loading": "Tarixçəniz yüklənir...",
+  "history.empty": "Hələ heç bir testi bitirməmisiniz.",
+  "history.first": "İlk sınaq testinizi yaradın",
+  "history.lede":
+    "Ən yaxşı nəticəniz fərqləndirilib. O, yalnız faizi deyil, çətinliyi və testin uzunluğunu da nəzərə alır.",
+  "history.best": "Ən yaxşı test",
+  "history.all": "Bütün cəhdlər",
+
   "common.saving": "Yadda saxlanılır...",
   "common.back": "Geri",
 
@@ -993,6 +1409,56 @@ export function formatPercent(value: number, language: Language): string {
   return new Intl.NumberFormat(language, { style: "percent", maximumFractionDigits: 1 }).format(value / 100);
 }
 
+/**
+ * A day and a time in the site language, for a list of past tests: "Oct 4,
+ * 02:05 PM", "4 окт., 14:05", "4 oktyabr, 14:05". Azerbaijani is built here
+ * for the same reason as in formatDay.
+ */
+export function formatDayTime(iso: string, language: Language): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+
+  if (language === "az") {
+    const time = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+    return `${date.getDate()} ${AZ_MONTHS[date.getMonth()]}, ${time}`;
+  }
+
+  return date.toLocaleString(language, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+/**
+ * Which of a string's "|"-separated forms goes with a number.
+ *
+ * Written out rather than asked of Intl.PluralRules, because the browser's
+ * Azerbaijani data is as unreliable as its dates. Russian takes "1 вопрос",
+ * "2 вопроса", "5 вопросов", and 11-14 always the last; Azerbaijani has the one
+ * form, because a noun after a number does not change there.
+ */
+function pluralIndex(language: Language, count: number): number {
+  const whole = Math.abs(Math.trunc(count));
+
+  if (language === "ru") {
+    const lastDigit = whole % 10;
+    const lastTwo = whole % 100;
+    if (lastDigit === 1 && lastTwo !== 11) return 0;
+    if (lastDigit >= 2 && lastDigit <= 4 && (lastTwo < 12 || lastTwo > 14)) return 1;
+    return 2;
+  }
+
+  if (language === "en") return whole === 1 ? 0 : 1;
+  return 0;
+}
+
+/**
+ * Whether a key built at run time exists, such as a topic's "topic.<id>".
+ *
+ * A topic an admin types in has no translation, and is shown by the name the
+ * API gives it instead.
+ */
+export function isTranslationKey(key: string): key is TranslationKey {
+  return Object.prototype.hasOwnProperty.call(en, key);
+}
+
 export function getStoredLanguage(): Language {
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored === "en" || stored === "ru" || stored === "az") return stored;
@@ -1007,6 +1473,11 @@ interface LanguageContextValue {
   language: Language;
   setLanguage: (language: Language) => void;
   t: (key: TranslationKey) => string;
+  /**
+   * A counted phrase: picks the plural form for `count`, puts it in for {n},
+   * and fills any other {placeholders} from `values`.
+   */
+  tn: (key: TranslationKey, count: number, values?: Record<string, string | number>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
@@ -1024,7 +1495,21 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const t = useCallback((key: TranslationKey) => dictionaries[language][key] ?? en[key], [language]);
 
-  const value = useMemo(() => ({ language, setLanguage, t }), [language, setLanguage, t]);
+  const tn = useCallback(
+    (key: TranslationKey, count: number, values: Record<string, string | number> = {}) => {
+      const forms = t(key).split("|");
+      // A dictionary with fewer forms than the language uses gets its last one
+      // rather than nothing.
+      const form = forms[Math.min(pluralIndex(language, count), forms.length - 1)];
+      const filled: Record<string, string | number> = { ...values, n: count };
+      return form.replace(/\{(\w+)\}/g, (whole, name: string) =>
+        name in filled ? String(filled[name]) : whole
+      );
+    },
+    [language, t]
+  );
+
+  const value = useMemo(() => ({ language, setLanguage, t, tn }), [language, setLanguage, t, tn]);
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }

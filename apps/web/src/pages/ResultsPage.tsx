@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AttemptComparison, QuestionReview, TopicPerformance } from "@grade9/shared";
-import { difficultyNames, subjectName, topicName } from "@grade9/shared";
 import { navigate } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
+import { fill } from "../features/friends/fill";
 import { loadLastResult } from "../lib/examSession";
+import { useLanguage, type TranslationKey } from "../lib/i18n";
+import { difficultyLabel, subjectLabel, testErrorText, topicLabel } from "../lib/testText";
 import { fetchAttempt } from "../services/testsApi";
 
 interface ResultView {
@@ -33,22 +35,27 @@ function breakdownFromReviews(reviews: QuestionReview[]): TopicPerformance[] {
   return [...topics.values()];
 }
 
-function formatDuration(seconds: number): string {
+function formatDuration(seconds: number, t: (key: TranslationKey) => string): string {
   const minutes = Math.floor(seconds / 60);
   const rest = seconds % 60;
-  if (minutes === 0) return `${rest}s`;
-  return `${minutes}m ${String(rest).padStart(2, "0")}s`;
+  if (minutes === 0) return fill(t("results.durationSeconds"), { s: String(rest) });
+  return fill(t("results.durationMinutes"), { m: String(minutes), s: String(rest).padStart(2, "0") });
 }
 
 /**
  * Written answers can earn some of their marks, and one the marker could not
  * reach is neither right nor wrong, so the badge says which.
  */
-function verdictOf(review: QuestionReview): { label: string; tone: "correct" | "partial" | "wrong" | "unmarked" } {
-  if (review.counted === false) return { label: "Not marked", tone: "unmarked" };
-  if (review.isCorrect) return { label: review.type === "open-ended" ? "Full marks" : "Correct", tone: "correct" };
-  if (review.type === "open-ended" && review.score > 0) return { label: "Partly right", tone: "partial" };
-  return { label: "Wrong", tone: "wrong" };
+function verdictOf(review: QuestionReview): {
+  label: TranslationKey;
+  tone: "correct" | "partial" | "wrong" | "unmarked";
+} {
+  if (review.counted === false) return { label: "results.notMarked", tone: "unmarked" };
+  if (review.isCorrect) {
+    return { label: review.type === "open-ended" ? "results.fullMarks" : "results.correct", tone: "correct" };
+  }
+  if (review.type === "open-ended" && review.score > 0) return { label: "results.partly", tone: "partial" };
+  return { label: "results.wrong", tone: "wrong" };
 }
 
 /** Anything short of full marks is worth another look, except an answer nobody marked. */
@@ -57,35 +64,42 @@ function isMistake(review: QuestionReview): boolean {
 }
 
 /**
- * The earlier best, as "3/10 (Mathematics, Easy)". Put in brackets rather
- * than in a sentence, which read "on a easy test" with the raw id. The
- * subject is named because the best can be in a different one from this
- * test: a 3/10 under an English result was the maths test before it.
+ * The earlier best's score and what kind of test it was: "3/10" and
+ * "Mathematics, Easy". The subject is named because the best can be in a
+ * different one from this test: a 3/10 under an English result was the maths
+ * test before it, and said nothing of the kind.
  */
-function describeBest(best: NonNullable<AttemptComparison["previousBest"]>): string {
-  const details = [best.subjectId ? subjectName(best.subjectId) : null, difficultyNames[best.difficultyMode]]
+function bestDetails(
+  best: NonNullable<AttemptComparison["previousBest"]>,
+  t: (key: TranslationKey) => string
+): { score: string; difficulty: string } {
+  const what = [best.subjectId ? subjectLabel(t, best.subjectId) : null, difficultyLabel(t, best.difficultyMode)]
     .filter(Boolean)
     .join(", ");
 
-  return `${best.score}/${best.totalMarks} (${details})`;
+  return { score: `${best.score}/${best.totalMarks}`, difficulty: what };
 }
 
-/** The line under the score, or nothing when there is nothing to compare with. */
-function comparisonLine(comparison: AttemptComparison): string {
+/** The line under the score, in the site language. */
+function comparisonLine(comparison: AttemptComparison, t: (key: TranslationKey) => string): string {
   const best = comparison.previousBest;
+  if (!best) return t("results.firstTest");
 
-  if (!best) return "First test recorded. Everything from here is measured against this one.";
-  if (comparison.isPersonalBest) return `New personal best. Your previous best was ${describeBest(best)}.`;
+  const { score, difficulty } = bestDetails(best, t);
+
+  if (comparison.isPersonalBest) return fill(t("results.newBest"), { score: `${score} (${difficulty})` });
   // A tie is not a new best: the same 5/5 twice used to be announced as one.
-  if (comparison.matchedBest) return `You matched your best so far, ${describeBest(best)}.`;
-  return `Your best so far is ${describeBest(best)}.`;
+  if (comparison.matchedBest) return fill(t("results.matchedBest"), { score, difficulty });
+  return fill(t("results.bestSoFar"), { score, difficulty });
 }
 
 export function ResultsPage({ attemptId }: { attemptId?: string }) {
   const [view, setView] = useState<ResultView | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // The failure rather than its sentence, so it is shown in the current language.
+  const [error, setError] = useState<unknown>(null);
   const [showOnlyMistakes, setShowOnlyMistakes] = useState(false);
   const { ready, user } = useAuth();
+  const { t, tn } = useLanguage();
 
   useEffect(() => {
     // Reopening a past attempt is checked against the student key, so asking
@@ -118,8 +132,8 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
             comparison: null
           });
         })
-        .catch((cause: Error) => {
-          if (active) setError(cause.message);
+        .catch((cause: unknown) => {
+          if (active) setError(cause);
         });
 
       return () => {
@@ -155,19 +169,19 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
     return showOnlyMistakes ? numbered.filter((item) => isMistake(item.review)) : numbered;
   }, [view, showOnlyMistakes]);
 
-  if (error) {
+  if (error !== null) {
     return (
       <div className="stack">
-        <h1>Results</h1>
-        <p className="error-banner">{error}</p>
+        <h1>{t("results.title")}</h1>
+        <p className="error-banner">{testErrorText(error, t, "test.errNotSubmitted")}</p>
         <button type="button" className="ghost-button" onClick={() => navigate("/history")}>
-          Back to history
+          {t("results.backToHistory")}
         </button>
       </div>
     );
   }
 
-  if (!view) return <p>Loading your results...</p>;
+  if (!view) return <p>{t("results.loading")}</p>;
 
   const mistakeCount = view.reviews.filter(isMistake).length;
 
@@ -179,18 +193,22 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
             {view.score}
             <span className="score-total">/{view.totalMarks}</span>
           </span>
-          <span className="score-unit">marks</span>
+          <span className="score-unit">{t("results.marksUnit")}</span>
           <span className="score-percent">{view.percentage}%</span>
         </div>
 
         <div className="score-meta">
           <h1>
-            {view.subjectId ? `${subjectName(view.subjectId)} test complete` : "Test complete"}
+            {view.subjectId
+              ? fill(t("results.completeSubject"), { subject: subjectLabel(t, view.subjectId) })
+              : t("results.complete")}
           </h1>
           <p>
-            {view.totalQuestions} question{view.totalQuestions === 1 ? "" : "s"} in{" "}
-            {formatDuration(view.timeTakenSeconds)} - {mistakeCount} mistake
-            {mistakeCount === 1 ? "" : "s"} to review.
+            {fill(t("results.summary"), {
+              questions: tn("count.questions", view.totalQuestions),
+              time: formatDuration(view.timeTakenSeconds, t),
+              mistakes: tn("count.mistakes", mistakeCount)
+            })}
           </p>
 
           {view.comparison && (
@@ -199,14 +217,14 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
                 view.comparison.isPersonalBest || view.comparison.matchedBest ? "best" : ""
               }`}
             >
-              {comparisonLine(view.comparison)}
+              {comparisonLine(view.comparison, t)}
             </p>
           )}
         </div>
       </section>
 
       <section className="panel">
-        <h2>How you did by topic</h2>
+        <h2>{t("results.byTopic")}</h2>
         <ul className="topic-bars">
           {view.topicBreakdown.map((topic) => {
             const percent =
@@ -215,7 +233,7 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
             return (
               <li key={topic.topicId}>
                 <div className="topic-bar-header">
-                  <span>{topicName(view.subjectId ?? "", topic.topicId)}</span>
+                  <span>{topicLabel(t, view.subjectId ?? "", topic.topicId)}</span>
                   <span>
                     {topic.score}/{topic.marks}
                   </span>
@@ -234,14 +252,14 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
 
       <section className="panel">
         <div className="review-header">
-          <h2>Every question</h2>
+          <h2>{t("results.everyQuestion")}</h2>
           <label className="checkbox-row">
             <input
               type="checkbox"
               checked={showOnlyMistakes}
               onChange={(event) => setShowOnlyMistakes(event.target.checked)}
             />
-            Show only my mistakes
+            {t("results.onlyMistakes")}
           </label>
         </div>
 
@@ -249,24 +267,26 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
           {visibleReviews.map(({ review, number }) => (
             <li key={review.questionId} className={`review ${verdictOf(review).tone}`}>
               <div className="review-top">
-                <span className="review-index">Q{number}</span>
+                <span className="review-index">{fill(t("results.questionNumber"), { n: String(number) })}</span>
                 <span className="review-marks">
                   {review.counted === false
-                    ? "Not counted"
-                    : `${review.score}/${review.marks} ${review.marks === 1 ? "mark" : "marks"}`}
+                    ? t("results.notCounted")
+                    : tn("results.marksOf", review.marks, { score: review.score })}
                 </span>
-                <span className={`review-badge ${verdictOf(review).tone}`}>{verdictOf(review).label}</span>
+                <span className={`review-badge ${verdictOf(review).tone}`}>{t(verdictOf(review).label)}</span>
               </div>
 
+              {/* The question, the answers and the explanation are the paper's
+                  own text, kept from when it was served, and are not translated. */}
               <p className="review-prompt">{review.prompt}</p>
 
               {review.imageUrl && (
-                <img className="question-image" src={review.imageUrl} alt="Question diagram" />
+                <img className="question-image" src={review.imageUrl} alt={t("exam.diagram")} />
               )}
 
               <div className="review-answers">
                 <p>
-                  <span className="review-label">Your answer</span>
+                  <span className="review-label">{t("exam.yourAnswer")}</span>
                   <span
                     // A written answer is rarely all wrong, so it is not painted red:
                     // the marks and the feedback say how it went.
@@ -278,13 +298,13 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
                           : "answer-wrong"
                     }
                   >
-                    {review.studentAnswer.trim().length > 0 ? review.studentAnswer : "Left blank"}
+                    {review.studentAnswer.trim().length > 0 ? review.studentAnswer : t("results.leftBlank")}
                   </span>
                 </p>
                 {!review.isCorrect && (
                   <p>
                     <span className="review-label">
-                      {review.type === "open-ended" ? "What the marker looked for" : "Correct answer"}
+                      {review.type === "open-ended" ? t("results.markerLookedFor") : t("results.correctAnswer")}
                     </span>
                     <span className={review.type === "open-ended" ? "written-answer-text" : "answer-correct"}>
                       {review.correctAnswer}
@@ -295,20 +315,18 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
 
               {review.feedback && (
                 <p className="review-feedback">
-                  <strong>Teacher's feedback: </strong>
+                  <strong>{t("results.feedback")} </strong>
                   {review.feedback}
                 </p>
               )}
 
               {review.counted === false && (
-                <p className="review-feedback unmarked">
-                  This answer could not be marked just now, so it is not counted in your score either way.
-                </p>
+                <p className="review-feedback unmarked">{t("results.unmarkedNote")}</p>
               )}
 
               {review.explanation.trim().length > 0 && (
                 <p className="review-explanation">
-                  <strong>Why: </strong>
+                  <strong>{t("results.why")} </strong>
                   {review.explanation}
                 </p>
               )}
@@ -316,17 +334,15 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
           ))}
         </ol>
 
-        {visibleReviews.length === 0 && (
-          <p className="empty-note">No mistakes on this one. Nothing to review.</p>
-        )}
+        {visibleReviews.length === 0 && <p className="empty-note">{t("results.noMistakes")}</p>}
       </section>
 
       <div className="exam-actions">
         <button type="button" className="ghost-button" onClick={() => navigate("/history")}>
-          Test history
+          {t("main.history")}
         </button>
         <button type="button" className="primary-button" onClick={() => navigate("/build")}>
-          Take another test
+          {t("results.another")}
         </button>
       </div>
     </div>

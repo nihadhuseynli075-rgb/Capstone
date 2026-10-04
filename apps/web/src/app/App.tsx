@@ -451,7 +451,7 @@ function Shell() {
   if (!ready) {
     return (
       <div className="landing-loading">
-        Loading Exampeak...
+        {t("app.loading")}
       </div>
     );
   }
@@ -556,7 +556,7 @@ function Shell() {
             if (
               isExam &&
               !window.confirm(
-                "Leave this test? Your answers will be lost."
+                t("exam.leaveConfirm")
               )
             ) {
               event.preventDefault();
