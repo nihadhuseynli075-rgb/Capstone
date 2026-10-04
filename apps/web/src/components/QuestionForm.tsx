@@ -7,7 +7,7 @@ import type {
   QuestionTranslations,
   QuestionType
 } from "@grade9/shared";
-import { followsSiteLanguage, markLimits, paperYearLimits, repeatedOption, subjects, topicIdFor } from "@grade9/shared";
+import { followsSiteLanguage, markLimits, paperYearLimits, repeatedOption, subjects, testScopeLimits, topicIdFor } from "@grade9/shared";
 import { adminLanguageNames, adminText } from "./adminText";
 import { uploadQuestionImage } from "../services/adminApi";
 
@@ -369,6 +369,7 @@ export function QuestionForm({
             type="text"
             list="known-topics"
             data-field="topic"
+            maxLength={testScopeLimits.maxIdLength}
             value={topicId}
             onChange={(event) => setTopicId(event.target.value)}
             placeholder="e.g. algebra"

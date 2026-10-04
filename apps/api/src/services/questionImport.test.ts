@@ -459,3 +459,17 @@ describe("importQuestionsFromCsv subjects", () => {
     );
   });
 });
+
+describe("importQuestionsFromCsv topic length", () => {
+  test("a topic longer than a test can ask for is reported, not saved", () => {
+    const long = "a".repeat(101);
+    const csv = ["subject,topic,question,correct_answer", `math,${long},1 + 1,2`, `math,${"a".repeat(100)},2 + 2,4`].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(
+      errors.map((error) => error.row),
+      [2]
+    );
+    assert.equal(drafts.length, 1);
+  });
+});

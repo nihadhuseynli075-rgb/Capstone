@@ -275,6 +275,14 @@ async function main() {
     blankParts.every((response) => response.status === 400),
     JSON.stringify(blankParts.map((response) => response.status))
   );
+  // A topic is part of what generating a test is sent, which takes ids of at
+  // most 100 characters, so a longer one could be saved but never drawn.
+  const longTopic = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ topicId: "t".repeat(101) })
+  });
+  check("a topic longer than a test can ask for is refused", longTopic.status === 400, String(longTopic.status));
 
   section("Editing and deleting");
   const updated = await call(`/api/admin/questions/${createdId}`, {

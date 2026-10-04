@@ -1,5 +1,5 @@
 import type { Difficulty, QuestionDraft, QuestionTranslation, QuestionTranslations, QuestionType } from "@grade9/shared";
-import { markLimits, paperYearLimits, repeatedOption, subjects, topicIdFor } from "@grade9/shared";
+import { markLimits, paperYearLimits, repeatedOption, subjects, testScopeLimits, topicIdFor } from "@grade9/shared";
 import { languageNames, translationProblems } from "./questionTranslations";
 
 /**
@@ -401,6 +401,12 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     const topicId = topicIdFor(cell(row, "topicId"), knownTopics);
     if (topicId.length === 0) {
       errors.push({ row: rowNumber, message: "Topic is empty." });
+      return;
+    }
+    // Held to the length a test can ask for, as the admin form is: a longer
+    // topic would import but never be drawn into a paper.
+    if (topicId.length > testScopeLimits.maxIdLength) {
+      errors.push({ row: rowNumber, message: `Topic is longer than ${testScopeLimits.maxIdLength} characters.` });
       return;
     }
 

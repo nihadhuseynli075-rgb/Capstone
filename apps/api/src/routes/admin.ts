@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import type { QuestionDraft } from "@grade9/shared";
-import { markLimits, paperYearLimits, repeatedOption, siteLanguages, subjects } from "@grade9/shared";
+import { markLimits, paperYearLimits, repeatedOption, siteLanguages, subjects, testScopeLimits } from "@grade9/shared";
 import { bearerToken } from "../lib/bearerToken";
 import { env, storageMode, writtenMarkingEnabled } from "../lib/env";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
@@ -52,7 +52,13 @@ const questionSchema = z
     // Trimmed like the answer below, and as the form and the import trim
     // them. Untrimmed, a topic of spaces became a blank topic chip in the
     // student builder, and a question or option of spaces was served blank.
-    topicId: z.string().trim().min(1, "A topic is required"),
+    // No longer than generating a test accepts (testScopeLimits): a longer
+    // topic saved here could never be drawn into a paper.
+    topicId: z
+      .string()
+      .trim()
+      .min(1, "A topic is required")
+      .max(testScopeLimits.maxIdLength, `A topic can be at most ${testScopeLimits.maxIdLength} characters`),
     difficulty: z.enum(["easy", "medium", "hard"]),
     type: z.enum(["multiple-choice", "short-answer", "open-ended"]),
     prompt: z.string().trim().min(1, "Question text is required"),
