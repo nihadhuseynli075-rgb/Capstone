@@ -252,6 +252,12 @@ const en = {
   "friends.accept": "Accept",
   "friends.decline": "Decline",
   "friends.cancel": "Cancel request",
+  // What a screen reader calls each button: the visible word, then whose it
+  // is, so a list of a dozen "Remove" buttons can be told apart.
+  "friends.acceptAria": "Accept request from {name}",
+  "friends.declineAria": "Decline request from {name}",
+  "friends.cancelAria": "Cancel request to {name}",
+  "friends.removeAria": "Remove {name}",
 
   "friends.listTitle": "Your friends",
   "friends.empty": "No friends yet. Add someone above with their email or username.",
@@ -591,6 +597,10 @@ const ru: Dictionary = {
   "friends.accept": "Принять",
   "friends.decline": "Отклонить",
   "friends.cancel": "Отменить запрос",
+  "friends.acceptAria": "Принять запрос: {name}",
+  "friends.declineAria": "Отклонить запрос: {name}",
+  "friends.cancelAria": "Отменить запрос: {name}",
+  "friends.removeAria": "Удалить из друзей: {name}",
 
   "friends.listTitle": "Ваши друзья",
   "friends.empty": "Друзей пока нет. Добавьте кого-нибудь выше по почте или имени пользователя.",
@@ -926,6 +936,10 @@ const az: Dictionary = {
   "friends.accept": "Qəbul et",
   "friends.decline": "Rədd et",
   "friends.cancel": "Sorğunu ləğv et",
+  "friends.acceptAria": "Qəbul et: {name}",
+  "friends.declineAria": "Rədd et: {name}",
+  "friends.cancelAria": "Sorğunu ləğv et: {name}",
+  "friends.removeAria": "Sil: {name}",
 
   "friends.listTitle": "Dostlarınız",
   "friends.empty": "Hələ dostunuz yoxdur. Yuxarıda e-poçt və ya istifadəçi adı ilə kimisə əlavə edin.",

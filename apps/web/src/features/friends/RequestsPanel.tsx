@@ -1,5 +1,6 @@
 import type { FriendRequest } from "@grade9/shared";
 import { useLanguage } from "../../lib/i18n";
+import { fill } from "./fill";
 import { PersonLabel } from "./PersonLabel";
 
 /**
@@ -39,9 +40,12 @@ export function RequestsPanel({
                 <PersonLabel person={request} />
 
                 <div className="friends-request-actions">
+                  {/* Named after the person too: a screen reader's list of
+                      buttons otherwise reads "Accept, Decline, Accept...". */}
                   <button
                     type="button"
                     className="primary-button"
+                    aria-label={fill(t("friends.acceptAria"), { name: request.fullName })}
                     disabled={busyId !== null}
                     onClick={() => onAccept(request.requestId)}
                   >
@@ -50,6 +54,7 @@ export function RequestsPanel({
                   <button
                     type="button"
                     className="ghost-button"
+                    aria-label={fill(t("friends.declineAria"), { name: request.fullName })}
                     disabled={busyId !== null}
                     onClick={() => onDecline(request.requestId)}
                   >
@@ -75,6 +80,7 @@ export function RequestsPanel({
                   <button
                     type="button"
                     className="ghost-button"
+                    aria-label={fill(t("friends.cancelAria"), { name: request.fullName })}
                     disabled={busyId !== null}
                     onClick={() => onCancel(request.requestId)}
                   >

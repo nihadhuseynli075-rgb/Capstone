@@ -133,7 +133,13 @@ function FriendCard({
         </div>
       ) : (
         <div className="friend-card-foot">
-          <button type="button" className="danger-button" disabled={busy} onClick={() => setConfirming(true)}>
+          <button
+            type="button"
+            className="danger-button"
+            aria-label={fill(t("friends.removeAria"), { name: friend.fullName })}
+            disabled={busy}
+            onClick={() => setConfirming(true)}
+          >
             {t("friends.remove")}
           </button>
         </div>
