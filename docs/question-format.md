@@ -8,7 +8,7 @@ imported in one paste, rather than typed into the form question by question.
 | Column           | Required | Notes                                                       |
 | ---------------- | -------- | ----------------------------------------------------------- |
 | `subject`        | yes      | `math`, `english` or `russian`, or the name the site shows (`Mathematics`). Anything else is reported as a bad row. |
-| `topic`          | yes      | Free text, e.g. `algebra`. Spaces become dashes.            |
+| `topic`          | yes      | Free text, e.g. `algebra`. A topic's name as the site shows it (`Reading Comprehension`) is that topic; anything else becomes a new topic, with spaces turned into dashes. |
 | `difficulty`     | no       | `easy`, `medium` or `hard`. Defaults to `medium` if blank.  |
 | `type`           | no       | `multiple-choice`, `short-answer`, or `open-ended` for a written answer marked by the AI marker (put its marking guide in `correct_answer`). Worked out from whether options are filled in if blank. |
 | `question`       | yes      | The question text, exactly as on the paper.                 |

@@ -417,6 +417,24 @@ describe("importQuestionsFromCsv fifth option", () => {
   });
 });
 
+describe("importQuestionsFromCsv topics", () => {
+  test("a topic's name is that topic, and anything else becomes a new one", () => {
+    const csv = [
+      "subject,topic,question,correct_answer",
+      "english,Reading Comprehension,Q1,a",
+      "math,Functions and Graphs,Q2,1",
+      "math,Quadratic Equations,Q3,1"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(
+      drafts.map((draft) => draft.topicId),
+      ["reading", "functions", "quadratic-equations"]
+    );
+  });
+});
+
 describe("importQuestionsFromCsv subjects", () => {
   test("a subject that is not one of ours is reported against its row, not saved", () => {
     const csv = ["subject,topic,question,correct_answer", "history,wars,When?,1914", "Maths,algebra,1 + 1,2"].join("\n");

@@ -1,5 +1,5 @@
 import type { Difficulty, QuestionDraft, QuestionTranslation, QuestionTranslations, QuestionType } from "@grade9/shared";
-import { markLimits, paperYearLimits, repeatedOption, subjects } from "@grade9/shared";
+import { markLimits, paperYearLimits, repeatedOption, subjects, topicIdFor } from "@grade9/shared";
 import { languageNames, translationProblems } from "./questionTranslations";
 
 /**
@@ -393,7 +393,12 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       return;
     }
 
-    const topicId = cell(row, "topicId").toLowerCase().replace(/\s+/g, "-");
+    // The topic's name is that topic, as it is in the admin form: "Reading
+    // Comprehension" is `reading`. Turned into a slug on its own it became
+    // `reading-comprehension`, a second topic with the same name that the
+    // builder showed beside the first, with the questions split between them.
+    const knownTopics = subjects.find((subject) => subject.id === subjectId)?.topics ?? [];
+    const topicId = topicIdFor(cell(row, "topicId"), knownTopics);
     if (topicId.length === 0) {
       errors.push({ row: rowNumber, message: "Topic is empty." });
       return;

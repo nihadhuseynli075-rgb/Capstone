@@ -943,6 +943,18 @@ async function main() {
     JSON.stringify(inchImport.body).slice(0, 300)
   );
 
+  // A topic written by its name became a second topic of the same name.
+  const topicNameImport = await call("/api/admin/questions/import", {
+    method: "POST",
+    token,
+    body: { csv: "subject,topic,question,correct_answer\nenglish,Reading Comprehension,A topic given by its name,a" }
+  });
+  check(
+    "an import files a topic given by its name under that topic",
+    topicNameImport.body.questions?.[0]?.topicId === "reading",
+    JSON.stringify(topicNameImport.body.questions?.map((question) => question.topicId))
+  );
+
   const subjectCatalog = await call("/api/catalog");
   check(
     "so the catalog shows no subject the bank should not have",
