@@ -29,10 +29,42 @@ export interface ImportResult {
  * else is the comma-separated format this has always read.
  */
 function detectDelimiter(text: string): "," | "\t" {
-  const headerLine = text.split("\n", 1)[0];
+  // The first line with anything on it: blank rows above the header are
+  // skipped when the rows are read, so they must not decide this either.
+  const headerLine = text.split("\n").find((line) => line.trim().length > 0) ?? "";
   const tabs = headerLine.split("\t").length - 1;
   const commas = headerLine.split(",").length - 1;
   return tabs > 0 && tabs >= commas ? "\t" : ",";
+}
+
+/** One row of the sheet, with the number the spreadsheet shows beside it. */
+export interface SheetRow {
+  row: number;
+  cells: string[];
+}
+
+/** Whether a row has nothing in it, as an empty line or a row of empty cells. */
+function isBlank(cells: string[]): boolean {
+  return !cells.some((value) => value.trim().length > 0);
+}
+
+/**
+ * The sheet's rows with their spreadsheet row numbers, blank rows left out.
+ *
+ * Each record is one spreadsheet row, however many lines a quoted cell spans,
+ * so the number is the record's position. It is taken before the blank rows
+ * go: numbering what was left once they had gone reported every row after a
+ * gap in the sheet one row too early, pointing at the wrong question.
+ */
+export function readSheetRows(input: string): SheetRow[] {
+  return readRecords(input)
+    .map((cells, index) => ({ row: index + 1, cells }))
+    .filter((entry) => !isBlank(entry.cells));
+}
+
+/** The sheet's rows without their numbers, blank rows left out. */
+export function parseCsv(input: string): string[][] {
+  return readSheetRows(input).map((entry) => entry.cells);
 }
 
 /**
@@ -41,9 +73,10 @@ function detectDelimiter(text: string): "," | "\t" {
  * Handles quoted fields, escaped quotes, commas and newlines inside quotes, and
  * both LF and CRLF line endings. Written out rather than pulled from a package
  * so the whole import path stays readable in one file. A tab-separated sheet is
- * read the same way, with tabs where the commas would be.
+ * read the same way, with tabs where the commas would be. Blank rows are kept,
+ * so each record's position is its spreadsheet row.
  */
-export function parseCsv(input: string): string[][] {
+function readRecords(input: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -109,7 +142,7 @@ export function parseCsv(input: string): string[][] {
     rows.push(row);
   }
 
-  return rows.filter((entry) => entry.some((value) => value.trim().length > 0));
+  return rows;
 }
 
 /** Header names we accept for each field, so the sheet does not have to be exact. */
@@ -286,7 +319,7 @@ export function resolveCorrectAnswer(raw: string, options: string[]): string | n
 }
 
 export function importQuestionsFromCsv(csv: string): ImportResult {
-  const rows = parseCsv(csv);
+  const rows = readSheetRows(csv);
   const drafts: QuestionDraft[] = [];
   const errors: ImportRowError[] = [];
 
@@ -294,7 +327,8 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     return { drafts, errors: [{ row: 0, message: "The pasted text was empty." }] };
   }
 
-  const mapping = mapHeaders(rows[0]);
+  const [headerRow, ...dataRows] = rows;
+  const mapping = mapHeaders(headerRow.cells);
 
   const missing = ["subjectId", "topicId", "prompt", "correctAnswer"].filter(
     (field) => mapping[field] === undefined
@@ -310,7 +344,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       drafts,
       errors: [
         {
-          row: 1,
+          row: headerRow.row,
           message: `Missing column(s): ${columns.join(", ")}. The header row needs at least subject, topic, question and correct_answer.`
         }
       ]
@@ -323,10 +357,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     return (row[columnIndex] ?? "").trim();
   };
 
-  rows.slice(1).forEach((row, offset) => {
-    // Row number as the person sees it in the spreadsheet: header is row 1.
-    const rowNumber = offset + 2;
-
+  dataRows.forEach(({ row: rowNumber, cells: row }) => {
     const prompt = cell(row, "prompt");
     if (prompt.length === 0) {
       errors.push({ row: rowNumber, message: "Question text is empty." });

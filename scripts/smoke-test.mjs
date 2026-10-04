@@ -917,6 +917,18 @@ async function main() {
     JSON.stringify(fiveImport.body).slice(0, 300)
   );
 
+  // Row numbers were counted after blank rows had been dropped, so every row
+  // below a gap in the sheet was reported one row too early.
+  const gapCsv = ["subject,topic,question,correct_answer", "math,import-gaps,A row before the gap,1", ",,,", "math,import-gaps,,1"].join(
+    "\r\n"
+  );
+  const gapImport = await call("/api/admin/questions/import", { method: "POST", token, body: { csv: gapCsv } });
+  check(
+    "a bad row below a blank one is reported by its spreadsheet row",
+    gapImport.body.errors?.length === 1 && gapImport.body.errors[0].row === 4,
+    JSON.stringify(gapImport.body.errors)
+  );
+
   const subjectCatalog = await call("/api/catalog");
   check(
     "so the catalog shows no subject the bank should not have",
