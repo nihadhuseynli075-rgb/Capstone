@@ -1,6 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { isGuestKeyClaimed, markGuestKeyClaimed, peekGuestKey } from "../../lib/studentKey";
-import { claimGuestHistory, isPassingClaimFailure } from "../../services/testsApi";
+import {
+  claimGuestHistory,
+  claimedHistoryVersion,
+  isPassingClaimFailure,
+  subscribeToClaimedHistory
+} from "../../services/testsApi";
 import { useAuth } from "./AuthContext";
 
 /**
@@ -66,6 +71,17 @@ export function useHistoryClaim(): void {
       window.clearTimeout(retryTimer);
     };
   }, [userId]);
+}
+
+/**
+ * A number that goes up each time a claim moves guest tests onto the account.
+ *
+ * Pages that read history or an attempt put it in their effect's dependencies,
+ * so a claim that lands after they asked (a slow one, or a retry) makes them
+ * ask again instead of leaving the guest's tests missing from the screen.
+ */
+export function useClaimedHistoryVersion(): number {
+  return useSyncExternalStore(subscribeToClaimedHistory, claimedHistoryVersion);
 }
 
 /** Further claims after the quick retries have failed: a little over three minutes in all. */

@@ -83,6 +83,35 @@ async function afterClaim(): Promise<void> {
 }
 
 /**
+ * How many claims in this tab have moved guest tests onto the account.
+ *
+ * Requests stop waiting for a claim after CLAIM_WAIT_MS, and a claim that
+ * failed can land later still, on a retry. History read in the meantime came
+ * back without the guest's tests and stayed that way on screen until the page
+ * was left and opened again. Pages that show history read this count (through
+ * useClaimedHistoryVersion) and ask again when it goes up.
+ */
+let claimedHistoryCount = 0;
+const claimedHistoryListeners = new Set<() => void>();
+
+function announceClaimedHistory(): void {
+  claimedHistoryCount += 1;
+  for (const listener of claimedHistoryListeners) listener();
+}
+
+/** Calls `listener` whenever a claim has moved tests; returns the unsubscribe. */
+export function subscribeToClaimedHistory(listener: () => void): () => void {
+  claimedHistoryListeners.add(listener);
+  return () => {
+    claimedHistoryListeners.delete(listener);
+  };
+}
+
+export function claimedHistoryVersion(): number {
+  return claimedHistoryCount;
+}
+
+/**
  * Sends a request as the current student: their key, the token backing it, and
  * only once any claim of guest history in flight has finished.
  *
@@ -227,9 +256,16 @@ export function claimGuestHistory(guestKey: string): Promise<{ claimed: number }
   })();
 
   // Waiters only need to know it has finished; a failed claim is the caller's
-  // to report, and leaves the history where it was.
+  // to report, and leaves the history where it was. A claim that moved
+  // something is announced, for the pages that may have read history before
+  // it landed (see subscribeToClaimedHistory).
   const settled: Promise<void> = claim
-    .then(() => undefined, () => undefined)
+    .then(
+      (result) => {
+        if (result.claimed > 0) announceClaimedHistory();
+      },
+      () => undefined
+    )
     .finally(() => {
       if (claimInFlight === settled) claimInFlight = null;
     });
