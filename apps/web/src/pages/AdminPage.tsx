@@ -291,6 +291,9 @@ export function AdminPage() {
     setImporting(true);
     setError(null);
     setImportResult(null);
+    // "Loaded the file, check it, then press Import" has been done once Import
+    // is pressed; left up, it sat over the result and then over an empty box.
+    setSheetNote(null);
 
     try {
       const result = await importQuestions(csv);
@@ -591,7 +594,11 @@ export function AdminPage() {
             <textarea
               rows={10}
               value={csv}
-              onChange={(event) => setCsv(event.target.value)}
+              onChange={(event) => {
+                setCsv(event.target.value);
+                // Typing or pasting over a loaded file means the note about that file no longer applies.
+                setSheetNote(null);
+              }}
               placeholder={CSV_TEMPLATE}
               spellCheck={false}
             />

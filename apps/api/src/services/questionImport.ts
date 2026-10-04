@@ -283,12 +283,17 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
   );
 
   if (missing.length > 0) {
+    // Named as the sheet names them (the first of each field's aliases), not
+    // by the field names inside this file: "subjectId, topicId" meant nothing
+    // to someone looking at a spreadsheet.
+    const columns = missing.map((field) => headerAliases[field][0]);
+
     return {
       drafts,
       errors: [
         {
           row: 1,
-          message: `Missing required column(s): ${missing.join(", ")}. Expected a header row containing at least subject, topic, question and correct_answer.`
+          message: `Missing column(s): ${columns.join(", ")}. The header row needs at least subject, topic, question and correct_answer.`
         }
       ]
     };

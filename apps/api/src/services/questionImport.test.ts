@@ -115,7 +115,15 @@ describe("importQuestionsFromCsv", () => {
     const { drafts, errors } = importQuestionsFromCsv("subject,question,answer\nmath,1+1,2");
     assert.deepEqual(drafts, []);
     assert.equal(errors.length, 1);
-    assert.match(errors[0].message, /Missing required column\(s\): topicId/);
+    assert.match(errors[0].message, /^Missing column\(s\): topic\. /);
+  });
+
+  test("missing columns are named as the sheet names them, not by internal field names", () => {
+    const { errors } = importQuestionsFromCsv("subj,question,answer\nmath,1+1,2");
+    assert.equal(
+      errors[0].message,
+      "Missing column(s): subject, topic. The header row needs at least subject, topic, question and correct_answer."
+    );
   });
 
   test("bad rows are reported by spreadsheet row number while good rows still import", () => {
