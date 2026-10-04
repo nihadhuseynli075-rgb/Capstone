@@ -45,7 +45,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
     privacy: {
       title: "Privacy",
       intro:
-        "ExamPeak is a practice site for Grade 9 students. This page says, in plain words, what we keep about you, who can see it, and how to delete it.",
+        "Exampeak is a practice site for Grade 9 students. This page says, in plain words, what we keep about you, who can see it, and how to delete it.",
       sections: [
         {
           heading: "What we keep",
@@ -68,7 +68,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
             "You can see everything about your own account, on your profile and in your test history.",
             "Friends you accept can see your name, username and photo, and your test figures: how many tests you have taken, your best score, your average and when you last took a test. They cannot see your answers or your email address.",
             "When you send someone a friend request, or someone sends you one, they see your name, username and photo.",
-            "The people who run ExamPeak can see the stored data, to keep the site working."
+            "The people who run Exampeak can see the stored data, to keep the site working."
           ]
         },
         {
@@ -92,10 +92,10 @@ export const legalTexts: Record<Language, LegalTexts> = {
     },
     terms: {
       title: "Terms of use",
-      intro: "The rules for using ExamPeak. They are short on purpose.",
+      intro: "The rules for using Exampeak. They are short on purpose.",
       sections: [
         {
-          heading: "What ExamPeak is",
+          heading: "What Exampeak is",
           paragraphs: [
             "A practice site for Grade 9 students getting ready for their final exams. The questions come from past papers.",
             "Scores here are for practice. They do not predict or change your real exam result."
@@ -141,7 +141,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
     privacy: {
       title: "Конфиденциальность",
       intro:
-        "ExamPeak — сайт для подготовки к экзаменам 9 класса. Здесь простыми словами написано, что мы о вас храним, кто это видит и как всё удалить.",
+        "Exampeak — сайт для подготовки к экзаменам 9 класса. Здесь простыми словами написано, что мы о вас храним, кто это видит и как всё удалить.",
       sections: [
         {
           heading: "Что мы храним",
@@ -164,7 +164,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
             "Всё о своём аккаунте вы видите сами: в профиле и в истории тестов.",
             "Друзья, которых вы приняли, видят ваше имя, имя пользователя и фото, а также показатели по тестам: сколько тестов вы прошли, ваш лучший и средний результат и когда был последний тест. Ваших ответов и адреса почты они не видят.",
             "Когда вы отправляете кому-то запрос в друзья или кто-то отправляет его вам, этот человек видит ваше имя, имя пользователя и фото.",
-            "Люди, которые ведут ExamPeak, могут видеть сохранённые данные, чтобы сайт работал."
+            "Люди, которые ведут Exampeak, могут видеть сохранённые данные, чтобы сайт работал."
           ]
         },
         {
@@ -188,10 +188,10 @@ export const legalTexts: Record<Language, LegalTexts> = {
     },
     terms: {
       title: "Условия использования",
-      intro: "Правила пользования ExamPeak. Они нарочно короткие.",
+      intro: "Правила пользования Exampeak. Они нарочно короткие.",
       sections: [
         {
-          heading: "Что такое ExamPeak",
+          heading: "Что такое Exampeak",
           paragraphs: [
             "Сайт для девятиклассников, которые готовятся к выпускным экзаменам. Задания взяты из экзаменов прошлых лет.",
             "Баллы здесь тренировочные. Они не предсказывают и не меняют ваш настоящий результат на экзамене."
@@ -237,7 +237,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
     privacy: {
       title: "Məxfilik",
       intro:
-        "ExamPeak 9-cu sinif şagirdlərinin imtahanlara hazırlaşması üçün saytdır. Bu səhifədə sadə sözlərlə sizin haqqınızda nəyi saxladığımız, bunu kimin gördüyü və hamısını necə silmək olduğu yazılıb.",
+        "Exampeak 9-cu sinif şagirdlərinin imtahanlara hazırlaşması üçün saytdır. Bu səhifədə sadə sözlərlə sizin haqqınızda nəyi saxladığımız, bunu kimin gördüyü və hamısını necə silmək olduğu yazılıb.",
       sections: [
         {
           heading: "Nəyi saxlayırıq",
@@ -260,7 +260,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
             "Öz hesabınız haqqında hər şeyi profilinizdə və test tarixçənizdə görürsünüz.",
             "Qəbul etdiyiniz dostlar adınızı, istifadəçi adınızı, şəklinizi və test göstəricilərinizi görür: neçə test həll etdiyinizi, ən yaxşı və orta nəticənizi və sonuncu testi nə vaxt həll etdiyinizi. Onlar cavablarınızı və e-poçt ünvanınızı görmür.",
             "Kiməsə dostluq sorğusu göndərəndə və ya kimsə sizə göndərəndə, həmin şəxs adınızı, istifadəçi adınızı və şəklinizi görür.",
-            "ExamPeak-i idarə edənlər saytın işləməsi üçün saxlanılan məlumatları görə bilər."
+            "Exampeak-i idarə edənlər saytın işləməsi üçün saxlanılan məlumatları görə bilər."
           ]
         },
         {
@@ -284,10 +284,10 @@ export const legalTexts: Record<Language, LegalTexts> = {
     },
     terms: {
       title: "İstifadə şərtləri",
-      intro: "ExamPeak-dən istifadə qaydaları. Onlar bilərəkdən qısadır.",
+      intro: "Exampeak-dən istifadə qaydaları. Onlar bilərəkdən qısadır.",
       sections: [
         {
-          heading: "ExamPeak nədir",
+          heading: "Exampeak nədir",
           paragraphs: [
             "Buraxılış imtahanlarına hazırlaşan 9-cu sinif şagirdləri üçün məşq saytı. Suallar keçmiş illərin imtahanlarından götürülüb.",
             "Buradakı ballar məşq üçündür. Onlar əsl imtahan nəticənizi nə proqnozlaşdırır, nə də dəyişir."
