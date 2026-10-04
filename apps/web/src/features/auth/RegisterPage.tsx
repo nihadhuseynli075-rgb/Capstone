@@ -76,7 +76,8 @@ export function RegisterPage() {
       const { needsEmailConfirmation } = await signUp({
         fullName,
         email: email.trim(),
-        password
+        password,
+        returnTo
       });
 
       if (needsEmailConfirmation) {

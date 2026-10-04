@@ -12,6 +12,7 @@ import {
   forgetAuthRedirect,
   isGoogleSignInEnabled,
   rememberAuthRedirect,
+  signUpRedirectUrl,
   type AuthRedirectResult
 } from "./oauthRedirect";
 
@@ -46,7 +47,16 @@ interface AuthContextValue {
   /** How the last trip to Google, or email link, ended: for the page it landed on to report. */
   redirectResult: AuthRedirectResult | null;
   clearRedirectResult: () => void;
-  signUp: (input: { fullName: string; email: string; password: string }) => Promise<{ needsEmailConfirmation: boolean }>;
+  /**
+   * Makes an account. With email confirmation on, the link in the email comes
+   * back to `returnTo` (home if left out), the page that asked for the sign-up.
+   */
+  signUp: (input: {
+    fullName: string;
+    email: string;
+    password: string;
+    returnTo?: string;
+  }) => Promise<{ needsEmailConfirmation: boolean }>;
   signIn: (input: { email: string; password: string }) => Promise<void>;
   /**
    * Leaves for Google, coming back to `returnTo` (home if left out). Resolves
@@ -233,13 +243,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearRedirectResult = useCallback(() => setRedirectResult(null), []);
 
-  const signUp = useCallback<AuthContextValue["signUp"]>(async ({ fullName, email, password }) => {
+  const signUp = useCallback<AuthContextValue["signUp"]>(async ({ fullName, email, password, returnTo }) => {
     if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
 
+    // Without a redirect of its own the confirmation link went to the
+    // project's Site URL, the home page, whichever page the student had
+    // pressed Sign up on (see signUpRedirectUrl).
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: cleanName(fullName) } }
+      options: { data: { full_name: cleanName(fullName) }, emailRedirectTo: signUpRedirectUrl(returnTo) }
     });
 
     if (error) throw authActionError(error);

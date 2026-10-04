@@ -1540,6 +1540,55 @@ async function main() {
         (await request(standin.url, "/auth/v1/token?grant_type=password", { method: "POST", body: { email: "fern@standin.test", password: "forgotten1" } })).status === 400
     );
 
+    section("Confirming a new account");
+    // With "Confirm email" on, the web app sends the page the student was
+    // signing up for along in the link's redirect, as "?next=". The stand-in
+    // has to hand that address back intact, code added, for the app to use it.
+    await control("mail", { confirmSignUp: true });
+    const signUpVerifier = randomUUID() + randomUUID();
+    const signUpRedirect = "http://app.test/?next=" + encodeURIComponent("/build?subject=math");
+    const signedUp = await request(standin.url, "/auth/v1/signup?redirect_to=" + encodeURIComponent(signUpRedirect), {
+      method: "POST",
+      body: {
+        email: "hazel@standin.test",
+        password: "confirmme1",
+        data: { full_name: "Hazel" },
+        code_challenge: createHash("sha256").update(signUpVerifier).digest("base64url"),
+        code_challenge_method: "s256"
+      }
+    });
+    check(
+      "a sign-up waiting for its email gets an account but no session",
+      signedUp.status === 200 && Boolean(signedUp.body.id) && !signedUp.body.access_token && !signedUp.body.email_confirmed_at,
+      JSON.stringify(signedUp.body).slice(0, 200)
+    );
+    check(
+      "and cannot sign in until the link is opened",
+      (await signInWith("hazel@standin.test", "confirmme1")).body.error_code === "email_not_confirmed"
+    );
+
+    const signUpMail = (await control("emails")).body.emails.find((mail) => mail.kind === "signup" && mail.to === "hazel@standin.test");
+    const confirmed = await fetch(signUpMail?.link ?? "http://127.0.0.1:9", { redirect: "manual" });
+    const confirmedLanding = new URL(confirmed.headers.get("location") ?? "http://invalid.test/");
+    check(
+      "opening the link comes back to the address the app gave, with a one-time code",
+      confirmed.status === 302 &&
+        confirmedLanding.searchParams.get("next") === "/build?subject=math" &&
+        Boolean(confirmedLanding.searchParams.get("code")),
+      `${confirmed.status} ${confirmedLanding}`
+    );
+    const signUpSession = await request(standin.url, "/auth/v1/token?grant_type=pkce", {
+      method: "POST",
+      body: { auth_code: confirmedLanding.searchParams.get("code"), code_verifier: signUpVerifier }
+    });
+    check(
+      "which the browser that signed up swaps for a session",
+      signUpSession.status === 200 && Boolean(signUpSession.body.user?.email_confirmed_at),
+      JSON.stringify(signUpSession.body).slice(0, 200)
+    );
+    check("and the account now signs in", (await signInWith("hazel@standin.test", "confirmme1")).status === 200);
+    await control("mail", { confirmSignUp: false });
+
     section("Changing the password");
     const erin = (await control("users", { email: "erin@standin.test", fullName: "Erin", password: "oldpass123" })).body;
     const erinToken = erin.session.access_token;

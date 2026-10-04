@@ -49,9 +49,10 @@
  * GET /emails lists the mail the project would have sent, POST
  * /confirm-email-change { userId } opens the link in a pending email change,
  * and POST /mail { confirmEmailChange: false } switches "Confirm email" off so
- * an email change applies at once. A password reset email ("recovery") carries
- * its link, which is opened by simply following it: GET /auth/v1/verify, as on
- * Supabase.
+ * an email change applies at once, while { confirmSignUp: true } makes a new
+ * account wait for the link in its sign-up email. A password reset email
+ * ("recovery") and a sign-up email ("signup") carry their links, which are
+ * opened by simply following them: GET /auth/v1/verify, as on Supabase.
  */
 
 import http from "node:http";
@@ -871,12 +872,12 @@ function createAuth(db) {
       aud: "authenticated",
       role: "authenticated",
       email: user.email,
-      email_confirmed_at: user.createdAt,
+      email_confirmed_at: user.confirmedAt,
       // Set while an email change waits for its link to be opened. The
       // account's own email stays as it was until then.
       ...(user.newEmail ? { new_email: user.newEmail, email_change_sent_at: user.emailChangeSentAt } : {}),
       phone: "",
-      confirmed_at: user.createdAt,
+      confirmed_at: user.confirmedAt,
       last_sign_in_at: nowIso(),
       app_metadata: appMetadata(user),
       user_metadata: { ...user.metadata },
@@ -926,7 +927,7 @@ function createAuth(db) {
    * Makes an account. `provider` is how it signed up: "email", or "google",
    * whose metadata carries the Google name and photo the way Supabase's does.
    */
-  function createUser({ email, password, metadata = {}, provider = "email" }) {
+  function createUser({ email, password, metadata = {}, provider = "email", confirmed = true }) {
     const normalized = String(email ?? "").trim().toLowerCase();
     if ([...users.values()].some((user) => user.email === normalized)) {
       throw new PgError(422, "user_already_exists", "User already registered");
@@ -943,8 +944,12 @@ function createAuth(db) {
       newEmail: null,
       emailChangeSentAt: null,
       createdAt: nowIso(),
-      updatedAt: nowIso()
+      updatedAt: nowIso(),
+      // Null until the link in the sign-up email is opened, when the project
+      // has "Confirm email" on (see mail.confirmSignUp).
+      confirmedAt: null
     };
+    if (confirmed) user.confirmedAt = user.createdAt;
     user.identities.push(newIdentity(user, provider, normalized));
     users.set(user.id, user);
 
@@ -1066,8 +1071,14 @@ function createAuth(db) {
    */
   const PASSWORD_MIN_LENGTH = 6;
 
-  /** The mail the project would have sent, and whether an email change needs its link opened. */
-  const mail = { confirmEmailChange: true, sent: [] };
+  /**
+   * The mail the project would have sent, and the project's two "Confirm
+   * email" switches: whether an email change needs its link opened, and
+   * whether a new account does. Real projects start with sign-up confirmation
+   * on; here it starts off, so the checks that only need an account get one
+   * signed in straight away.
+   */
+  const mail = { confirmEmailChange: true, confirmSignUp: false, sent: [] };
 
   function setPassword(user, password) {
     // GoTrue checks "same as the old one" before it checks strength.
@@ -1177,6 +1188,45 @@ function createAuth(db) {
     return user ? { user, challenge: pending.challenge } : null;
   }
 
+  /** Links confirming a new account, by token: one use each, each with its pkce challenge. */
+  const signUpTokens = new Map();
+
+  /**
+   * A sign-up with "Confirm email" on, as POST /auth/v1/signup does it: the
+   * account is made but not confirmed, no session is issued, and a link is
+   * mailed that comes back to `redirectTo`. Without one, GoTrue would use the
+   * project's Site URL; the stand-in has none, so the link is left without one
+   * and opening it says so.
+   */
+  function signUpUnconfirmed({ email, password, metadata, redirectTo, challenge, baseUrl }) {
+    const user = createUser({ email, password, metadata, confirmed: false });
+    user.confirmationSentAt = nowIso();
+
+    const token = randomUUID();
+    signUpTokens.set(token, { userId: user.id, challenge: challenge ?? null });
+
+    const link = new URL(`${baseUrl}/auth/v1/verify`);
+    link.searchParams.set("token", token);
+    link.searchParams.set("type", "signup");
+    if (redirectTo) link.searchParams.set("redirect_to", redirectTo);
+
+    mail.sent.push({ to: user.email, kind: "signup", userId: user.id, link: link.toString(), redirectTo: redirectTo ?? null });
+    return user;
+  }
+
+  /** Opening a sign-up link: the account is confirmed and the token used up. Null for one already used. */
+  function takeSignUpConfirmation(token) {
+    const pending = signUpTokens.get(token ?? "") ?? null;
+    signUpTokens.delete(token ?? "");
+    if (!pending) return null;
+
+    const user = users.get(pending.userId);
+    if (!user) return null;
+
+    user.confirmedAt = nowIso();
+    return { user, challenge: pending.challenge };
+  }
+
   /** Opening the link sent to the new address. */
   function confirmEmailChange(userId) {
     const user = users.get(userId);
@@ -1211,6 +1261,8 @@ function createAuth(db) {
     confirmEmailChange,
     requestRecovery,
     takeRecovery,
+    signUpUnconfirmed,
+    takeSignUpConfirmation,
     mail,
     deleteUser,
     signInWithGoogle,
@@ -1220,6 +1272,7 @@ function createAuth(db) {
       const normalized = String(email ?? "").trim().toLowerCase();
       const user = [...users.values()].find((item) => item.email === normalized);
       if (!user || user.password === null || user.password !== password) return null;
+      if (user.confirmedAt === null) return "email_not_confirmed";
       return issueSession(user);
     },
     refresh(refreshToken) {
@@ -1427,6 +1480,20 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
     if (route === "signup" && request.method === "POST") {
       const body = (await readBody(request)) ?? {};
       try {
+        // With confirmation on, GoTrue answers with the bare user and no
+        // session, which is how the client knows to wait for the email.
+        if (auth.mail.confirmSignUp) {
+          const user = auth.signUpUnconfirmed({
+            email: body.email,
+            password: body.password,
+            metadata: body.data ?? {},
+            redirectTo: url.searchParams.get("redirect_to"),
+            challenge: body.code_challenge,
+            baseUrl: `http://${request.headers.host}`
+          });
+          return send(response, 200, { ...auth.publicUser(user), confirmation_sent_at: user.confirmationSentAt });
+        }
+
         const user = auth.createUser({ email: body.email, password: body.password, metadata: body.data ?? {} });
         return send(response, 200, auth.issueSession(user));
       } catch (error) {
@@ -1443,6 +1510,9 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
 
       if (grant === "password") {
         const session = auth.signIn(body.email, body.password);
+        if (session === "email_not_confirmed") {
+          return sendAuthError(response, 400, "email_not_confirmed", "Email not confirmed");
+        }
         return session
           ? send(response, 200, session)
           : sendAuthError(response, 400, "invalid_credentials", "Invalid login credentials");
@@ -1522,13 +1592,17 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
       return send(response, 200, {});
     }
 
-    // Opening the link in a recovery email. It signs the student in and goes
-    // back to the app, which then asks for the new password.
+    // Opening the link in a recovery email, or in a sign-up confirmation. It
+    // signs the student in and goes back to the app, which then asks for the
+    // new password, or carries on to wherever the sign-up was for.
     if (route === "verify" && request.method === "GET") {
       const redirectTo = url.searchParams.get("redirect_to");
       if (!redirectTo) return sendAuthError(response, 400, "validation_failed", "The stand-in needs a redirect_to");
 
-      const pending = url.searchParams.get("type") === "recovery" ? auth.takeRecovery(url.searchParams.get("token")) : null;
+      const type = url.searchParams.get("type");
+      const token = url.searchParams.get("token");
+      const pending =
+        type === "recovery" ? auth.takeRecovery(token) : type === "signup" ? auth.takeSignUpConfirmation(token) : null;
       if (!pending) {
         return redirectWithError(response, redirectTo, {
           error: "access_denied",
@@ -1537,7 +1611,7 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
         });
       }
 
-      return redirectSignedIn(response, redirectTo, pending.user, pending.challenge, "recovery");
+      return redirectSignedIn(response, redirectTo, pending.user, pending.challenge, type);
     }
 
     if (route === "logout" && request.method === "POST") {
@@ -1549,7 +1623,7 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
       return send(response, 200, {
         external: { email: true, google: state.google.enabled },
         disable_signup: false,
-        mailer_autoconfirm: true
+        mailer_autoconfirm: !auth.mail.confirmSignUp
       });
     }
 
@@ -1914,10 +1988,18 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
     }
 
     // How the project is set up: { confirmEmailChange } is the "Confirm email"
-    // switch, which when off lets an email change apply at once.
+    // switch, which when off lets an email change apply at once, and
+    // { confirmSignUp } the one that, when on, makes a new account wait for
+    // the link in its sign-up email.
     if (area === "mail" && request.method === "POST") {
-      Object.assign(auth.mail, { confirmEmailChange: body.confirmEmailChange ?? auth.mail.confirmEmailChange });
-      return send(response, 200, { confirmEmailChange: auth.mail.confirmEmailChange });
+      Object.assign(auth.mail, {
+        confirmEmailChange: body.confirmEmailChange ?? auth.mail.confirmEmailChange,
+        confirmSignUp: body.confirmSignUp ?? auth.mail.confirmSignUp
+      });
+      return send(response, 200, {
+        confirmEmailChange: auth.mail.confirmEmailChange,
+        confirmSignUp: auth.mail.confirmSignUp
+      });
     }
 
     if (area === "expire-sessions" && request.method === "POST") {

@@ -101,6 +101,32 @@ export function authRedirectUrl(): string {
   return `${window.location.origin}${window.location.pathname}`;
 }
 
+/** The query parameter a sign-up confirmation link carries its page in. */
+const NEXT_PARAMETER = "next";
+
+/**
+ * Where the link in a sign-up confirmation email comes back to: this page,
+ * with the page that asked for the sign-up as "?next=".
+ *
+ * Nothing can be noted in the tab beforehand, as it is for Google: the link is
+ * opened later, often in a new tab or another browser. So the page rides in
+ * the link itself, and in the query rather than the hash. A link that fails
+ * comes back with its reason written over the hash, and a route there would
+ * be lost with it (see the note at the top).
+ *
+ * The address has to be allowed by the project, as every other trip's is: any
+ * page on the Site URL's host is, and so is one matching a Redirect URL like
+ * "http://localhost:5173/**". One that is not lands on the Site URL instead,
+ * on the home page as before.
+ */
+export function signUpRedirectUrl(returnTo?: string): string {
+  const next = safeReturnPath(returnTo);
+  return next === "/" ? authRedirectUrl() : `${authRedirectUrl()}?${NEXT_PARAMETER}=${encodeURIComponent(next)}`;
+}
+
+/** The page a sign-up confirmation link was carrying, read before anything tidies the address. */
+const signUpNext = new URLSearchParams(window.location.search).get(NEXT_PARAMETER);
+
 /** Notes, before leaving for Google, what the trip is for and where it should end. */
 export function rememberAuthRedirect(intent: PendingRedirect["intent"], returnTo?: string): void {
   try {
@@ -142,28 +168,44 @@ function takePendingRedirect(): PendingRedirect | null {
  *
  * Returns how it went, for the page they land on to report, or null when
  * there is nothing to report: the page was not opened by a redirect, or it
- * was an email link that worked, which lands on the home page as it always has.
+ * was an email link that worked. A sign-up confirmation goes on to the page
+ * that asked for the sign-up; any other email link lands where it pointed.
  */
 export function finishAuthRedirect(outcome: {
   signedIn: boolean;
   error: AuthError | null;
 }): AuthRedirectResult | null {
-  if (!openedByRedirect) return null;
+  if (!openedByRedirect) {
+    // A sign-up confirmation opened in another browser than the one that
+    // signed up. Supabase has confirmed the address, but the code it sent back
+    // can only be swapped by the browser that asked for it, so this one is not
+    // signed in. The student still ends up where they were going, by way of
+    // the sign-in page, and the unusable code leaves the address.
+    if (signUpNext !== null) {
+      replaceRoute(outcome.signedIn ? safeReturnPath(signUpNext) : signInRoute("login", signUpNext));
+    }
+    return null;
+  }
   openedByRedirect = false;
 
   const pending = takePendingRedirect();
   const intent: AuthRedirectIntent = pending?.intent ?? "email-link";
+  // A trip to Google noted where it should end; an email link carries it.
+  const returnTo = pending ? pending.returnTo : (signUpNext ?? undefined);
 
   if (outcome.error || !outcome.signedIn) {
     // Whoever is still signed in hears about it on their profile: connecting
     // Google starts there, and sending a signed-in student to the sign-in page
     // only bounces them off it again, taking the message with them. Someone
     // signed out goes back to the sign-in page, still knowing where it leads.
-    replaceRoute(outcome.signedIn ? "/profile" : signInRoute("login", pending?.returnTo));
+    replaceRoute(outcome.signedIn ? "/profile" : signInRoute("login", returnTo));
     return { intent, error: redirectErrorMessage(outcome.error, intent), errorCode: redirectErrorCode(outcome.error) };
   }
 
-  if (!pending) return null;
+  if (!pending) {
+    if (signUpNext !== null) replaceRoute(safeReturnPath(signUpNext));
+    return null;
+  }
 
   // Connecting Google ends on the profile it was started from, where the newly
   // connected account now shows. Signing in ends where the student asked to
