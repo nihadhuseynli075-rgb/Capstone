@@ -259,6 +259,26 @@ export function AdminPage() {
   }, [notice]);
 
   /*
+   * Deleting a question takes its row, and the Delete button that had focus,
+   * off the page; importing clears the box and disables Import. Either way
+   * focus fell to the body, so a keyboard user started again from the top
+   * and a screen reader heard nothing. The message that says what happened
+   * takes focus instead, but only when focus has nowhere else to be.
+   */
+  const listNoticeRef = useRef<HTMLParagraphElement>(null);
+  const listErrorRef = useRef<HTMLParagraphElement>(null);
+  const importResultRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const lost = document.activeElement === null || document.activeElement === document.body;
+    if (!lost) return;
+    const message = listErrorRef.current ?? importResultRef.current ?? listNoticeRef.current;
+    message?.focus();
+    // The list too: the deleted row, and its button, go only once the list
+    // has been read again after the message is already up.
+  }, [notice, error, importResult, questions]);
+
+  /*
    * Editing a question from the list, and coming back to it.
    *
    * Edit used to leave the page where it was, deep in a long list, so the form
@@ -523,8 +543,18 @@ export function AdminPage() {
         </div>
 
         {/* On the form's tab both sit beside its button instead: see below. */}
-        {tab !== "add" && notice && <p className="success-banner">{notice}</p>}
-        {tab !== "add" && error && <p className="error-banner">{error}</p>}
+        {/* A status and an alert, so they are read out, and focusable by
+            script: see the effect that hands them focus. */}
+        {tab !== "add" && notice && (
+          <p className="success-banner" role="status" ref={listNoticeRef} tabIndex={-1}>
+            {notice}
+          </p>
+        )}
+        {tab !== "add" && error && (
+          <p className="error-banner" role="alert" ref={listErrorRef} tabIndex={-1}>
+            {error}
+          </p>
+        )}
 
         {tab === "add" && (
           <section
@@ -703,7 +733,13 @@ export function AdminPage() {
             </div>
 
             {sheetNote && (
-              <p className={sheetNote.kind === "success" ? "success-banner" : "error-banner"}>{sheetNote.text}</p>
+              // Read out like the other messages: a file that loaded, or one that could not be.
+              <p
+                className={sheetNote.kind === "success" ? "success-banner" : "error-banner"}
+                role={sheetNote.kind === "success" ? "status" : "alert"}
+              >
+                {sheetNote.text}
+              </p>
             )}
 
             <label>
@@ -730,8 +766,10 @@ export function AdminPage() {
               {importing ? "Importing..." : "Import questions"}
             </button>
 
+            {/* Read out as a status, and focusable by script so it can take the
+                focus the disabled Import button lets go of. */}
             {importResult && (
-              <div className="import-result">
+              <div className="import-result" role="status" ref={importResultRef} tabIndex={-1}>
                 <p className={importResult.importedCount > 0 ? "success-banner" : "warning-banner"}>
                   Imported {importResult.importedCount} question
                   {importResult.importedCount === 1 ? "" : "s"}
