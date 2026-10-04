@@ -6,6 +6,7 @@ import {
   resolveSettings,
   siteLanguages,
   studentKeyLimits,
+  testScopeLimits,
   writtenAnswerMaxLength
 } from "@grade9/shared";
 import {
@@ -47,8 +48,13 @@ const alreadySubmitted = {
 const generateSchema = z
   .object({
     studentKey: studentKeySchema,
-    subjectId: z.string().min(1),
-    topicIds: z.array(z.string().min(1)).min(1, "Choose at least one topic."),
+    // Bounded because both end up in the query string of the read that draws
+    // the paper (see testScopeLimits).
+    subjectId: z.string().min(1).max(testScopeLimits.maxIdLength),
+    topicIds: z
+      .array(z.string().min(1).max(testScopeLimits.maxIdLength))
+      .min(1, "Choose at least one topic.")
+      .max(testScopeLimits.maxTopics, `Choose at most ${testScopeLimits.maxTopics} topics.`),
     difficultyMode: z.enum(["easy", "medium", "hard", "custom"]),
     // The language the student has the site in. It is fixed for the paper: the
     // questions are copied onto the attempt in it, so changing the site language
