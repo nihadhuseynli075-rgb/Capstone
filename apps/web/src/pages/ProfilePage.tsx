@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useAuth } from "../features/auth/AuthContext";
-import { PasswordField } from "../features/auth/AuthLayout";
+import { PasswordField, focusFirstError } from "../features/auth/AuthLayout";
 import { passwordProblem } from "../features/auth/authValidation";
 import { signInRoute } from "../features/auth/returnPath";
 import { DeleteAccountPanel } from "../features/profile/DeleteAccountPanel";
@@ -172,7 +172,10 @@ function PasswordPanel({
     setErrors({ password: passwordError, confirm: confirmError });
     setFormError(null);
     setSaved(false);
-    if (passwordError || confirmError) return;
+    if (passwordError || confirmError) {
+      focusFirstError(passwordError && "profile-password", confirmError && "profile-password-confirm");
+      return;
+    }
 
     setSaving(true);
     try {

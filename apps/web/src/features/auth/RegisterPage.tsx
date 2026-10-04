@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { navigate, useRouteParam } from "../../app/router";
 import { useAuth } from "./AuthContext";
-import { AuthDivider, AuthLayout, Field, PasswordField } from "./AuthLayout";
+import { AuthDivider, AuthLayout, Field, PasswordField, focusFirstError } from "./AuthLayout";
 import { GoogleButton } from "./GoogleButton";
 import { passwordStrength, validateEmail, validateName, validatePassword } from "./authValidation";
 import { safeReturnPath, signInRoute } from "./returnPath";
@@ -43,7 +43,10 @@ export function RegisterPage() {
       password: passwordError ?? undefined
     });
 
-    if (nameError || emailError || passwordError) return;
+    if (nameError || emailError || passwordError) {
+      focusFirstError(nameError && "register-name", emailError && "register-email", passwordError && "register-password");
+      return;
+    }
 
     setSubmitting(true);
     setFormError(null);

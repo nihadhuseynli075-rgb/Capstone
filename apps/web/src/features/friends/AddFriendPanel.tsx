@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import type { SentFriendRequest } from "@grade9/shared";
 import { useLanguage } from "../../lib/i18n";
-import { Field } from "../auth/AuthLayout";
+import { Field, focusFirstError } from "../auth/AuthLayout";
 import { fill } from "./fill";
 
 /**
@@ -29,6 +29,7 @@ export function AddFriendPanel({
 
     if (typed.trim().length === 0) {
       setError(t("friends.error.invalidLookup"));
+      focusFirstError("friend-lookup");
       return;
     }
 
@@ -43,6 +44,7 @@ export function AddFriendPanel({
       setTyped("");
     } catch (cause) {
       setError(explain(cause));
+      focusFirstError("friend-lookup");
     } finally {
       setSending(false);
     }

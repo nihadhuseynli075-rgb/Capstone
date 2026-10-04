@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Field } from "../auth/AuthLayout";
+import { Field, focusFirstError } from "../auth/AuthLayout";
 import { useLanguage } from "../../lib/i18n";
 import { errorText } from "./profileText";
 import { useProfile } from "./ProfileContext";
@@ -42,6 +42,7 @@ export function DeleteAccountPanel({
 
     if (!matches) {
       setError(t("profile.deleteMismatch"));
+      focusFirstError("delete-confirm");
       return;
     }
 
@@ -54,6 +55,7 @@ export function DeleteAccountPanel({
     } catch (cause) {
       setError(errorText(cause, t));
       setDeleting(false);
+      focusFirstError("delete-confirm");
     }
   }
 

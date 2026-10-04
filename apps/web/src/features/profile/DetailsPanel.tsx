@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import { normalizeUsername, usernameProblem } from "@grade9/shared";
 import { useLanguage } from "../../lib/i18n";
 import { ApiError } from "../../services/apiClient";
-import { Field } from "../auth/AuthLayout";
+import { Field, focusFirstError } from "../auth/AuthLayout";
 import { nameProblem } from "../auth/authValidation";
 import { errorText, nameProblemText, usernameProblemText } from "./profileText";
 import { useProfile } from "./ProfileContext";
@@ -64,7 +64,10 @@ export function DetailsPanel({
 
     setNameError(nameIssue ? nameProblemText(nameIssue, t) : null);
     setUsernameError(usernameIssue ? usernameProblemText(usernameIssue, t) : null);
-    if (nameIssue || usernameIssue) return;
+    if (nameIssue || usernameIssue) {
+      focusFirstError(nameIssue && "profile-name", usernameIssue && "profile-username");
+      return;
+    }
 
     const changes: { fullName?: string; username?: string } = {};
     if (nameChanged) changes.fullName = name;
@@ -79,9 +82,15 @@ export function DetailsPanel({
     } catch (cause) {
       const text = errorText(cause, t);
 
-      if (cause instanceof ApiError && cause.code?.startsWith("username-")) setUsernameError(text);
-      else if (cause instanceof ApiError && cause.code === "name-invalid") setNameError(text);
-      else setFormError(text);
+      if (cause instanceof ApiError && cause.code?.startsWith("username-")) {
+        setUsernameError(text);
+        focusFirstError("profile-username");
+      } else if (cause instanceof ApiError && cause.code === "name-invalid") {
+        setNameError(text);
+        focusFirstError("profile-name");
+      } else {
+        setFormError(text);
+      }
     } finally {
       setSaving(false);
     }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { navigate, useRouteParam } from "../../app/router";
 import { useAuth } from "./AuthContext";
-import { AuthDivider, AuthLayout, Field, PasswordField } from "./AuthLayout";
+import { AuthDivider, AuthLayout, Field, PasswordField, focusFirstError } from "./AuthLayout";
 import { GoogleButton } from "./GoogleButton";
 import { validateEmail } from "./authValidation";
 import { safeReturnPath, signInRoute } from "./returnPath";
@@ -42,7 +42,10 @@ export function LoginPage() {
     const passwordError = password.length === 0 ? "Enter your password." : undefined;
 
     setFieldErrors({ email: emailError ?? undefined, password: passwordError });
-    if (emailError || passwordError) return;
+    if (emailError || passwordError) {
+      focusFirstError(emailError && "login-email", passwordError && "login-password");
+      return;
+    }
 
     setSubmitting(true);
     setFormError(null);
