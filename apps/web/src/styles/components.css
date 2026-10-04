@@ -1124,3 +1124,13 @@
   font-size: 0.85rem;
   text-align: center;
 }
+
+/* "Forgot password?", under the password field and lined up with its right edge. */
+.auth-forgot {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: -10px;
+  font-size: 0.9rem;
+}

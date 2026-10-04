@@ -191,6 +191,21 @@ Supabase counting an email way in that nobody can use, which in turn lets
 Google be disconnected and locks the student out. Setting a password first
 turns the panel on.
 
+### A forgotten password
+
+"Forgot password?" on the sign-in page leads to `#/reset-password`, which asks
+for the email address and has Supabase send a reset link. The page says the
+same thing whether or not the address has an account. The link signs the
+student in and comes back to `#/reset-password` to choose the new password.
+It has to be opened in the browser that asked for it, and the page says so.
+
+It uses the same dashboard settings as changing the email: the **Redirect
+URLs** above (`http://localhost:*/**` covers the reset page; list the deployed
+address with `/**` too) and a real SMTP sender. A redirect address that is not
+listed sends the link to the Site URL instead. The app still takes the student
+to the reset page from there, because Supabase reports the sign-in as a
+password recovery.
+
 ## The two sides of the app
 
 **Students** (`/`) pick a subject, topics, and either a difficulty or their own

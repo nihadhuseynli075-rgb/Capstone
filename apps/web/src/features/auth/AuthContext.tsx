@@ -61,6 +61,20 @@ interface AuthContextValue {
   updateEmail: (email: string) => Promise<{ applied: boolean }>;
   /** Re-reads the account from Supabase, to notice an email change confirmed elsewhere. */
   refreshUser: () => Promise<void>;
+  /**
+   * Emails a link for choosing a new password. Resolves the same way whether
+   * or not the address has an account; Supabase does not say, and nor should
+   * the page.
+   */
+  requestPasswordReset: (email: string) => Promise<void>;
+  /**
+   * True once a password reset link has signed this tab in, until a new
+   * password is saved or the student signs out. The app sends the student to
+   * the reset page when it turns true, wherever the link landed.
+   */
+  passwordRecovery: boolean;
+  /** Called once the new password is saved. */
+  clearPasswordRecovery: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -117,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [ready, setReady] = useState(!isSupabaseConfigured);
   const [redirectResult, setRedirectResult] = useState<AuthRedirectResult | null>(null);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   // Who the last session was for. Undefined until the first one is applied, so
   // the first page load settles what the tab holds as well as a later change.
@@ -169,9 +184,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Fires on sign-in, sign-out, token refresh and password change, including
     // in another tab, so the header never shows a stale account.
-    const { data: subscription } = client.auth.onAuthStateChange((_event, session) => {
+    const { data: subscription } = client.auth.onAuthStateChange((event, session) => {
       if (!active) return;
       applySession(session);
+
+      // A password reset link signs the tab in with this event instead of
+      // SIGNED_IN. Whoever opened it is here to choose a new password.
+      if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
+      if (!session) setPasswordRecovery(false);
     });
 
     return () => {
@@ -298,6 +318,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw authActionError(error);
   }, []);
 
+  const requestPasswordReset = useCallback(async (email: string) => {
+    if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
+
+    // The link comes back to the reset page. With pkce the code arrives in the
+    // query ("?code=...#/reset-password"), so the route survives the trip. A
+    // project that does not allow this address sends the link to its Site URL
+    // instead, and the PASSWORD_RECOVERY event above still finds the page.
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${authRedirectUrl()}#/reset-password`
+    });
+    if (error) throw authActionError(error);
+  }, []);
+
+  const clearPasswordRecovery = useCallback(() => setPasswordRecovery(false), []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       ready,
@@ -313,7 +348,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       updatePassword,
       updateEmail,
-      refreshUser
+      refreshUser,
+      requestPasswordReset,
+      passwordRecovery,
+      clearPasswordRecovery
     }),
     [
       ready,
@@ -328,7 +366,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       updatePassword,
       updateEmail,
-      refreshUser
+      refreshUser,
+      requestPasswordReset,
+      passwordRecovery,
+      clearPasswordRecovery
     ]
   );
 

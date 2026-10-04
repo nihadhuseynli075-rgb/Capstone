@@ -389,6 +389,20 @@ const en = {
   "legal.termsInline": "terms of use",
   "legal.privacyInline": "privacy page",
 
+  // Forgotten password
+  "auth.forgotPassword": "Forgot password?",
+  "auth.resetTitle": "Reset your password",
+  "auth.resetSubtitle": "Enter the email you signed up with, and we will send you a link to choose a new password.",
+  "auth.resetSend": "Send the link",
+  "auth.resetSending": "Sending...",
+  "auth.resetSent":
+    "If that email has an account, a link is on its way. Open it in this browser to choose a new password. It may take a minute, so check your spam folder too.",
+  "auth.rememberedIt": "Remembered it?",
+  "auth.newPasswordTitle": "Choose a new password",
+  "auth.newPasswordSubtitle": "This is the password you will sign in with from now on.",
+  "auth.newPasswordSaved": "Your password has been changed, and you are signed in.",
+  "auth.goToDashboard": "Go to your dashboard",
+
   "common.saving": "Saving...",
   "common.back": "Back"
 } as const;
@@ -763,6 +777,20 @@ const ru: Dictionary = {
   "legal.termsInline": "условия использования",
   "legal.privacyInline": "о конфиденциальности",
 
+  // Forgotten password
+  "auth.forgotPassword": "Забыли пароль?",
+  "auth.resetTitle": "Сброс пароля",
+  "auth.resetSubtitle": "Введите почту, с которой вы регистрировались, и мы пришлём ссылку, чтобы задать новый пароль.",
+  "auth.resetSend": "Отправить ссылку",
+  "auth.resetSending": "Отправляем...",
+  "auth.resetSent":
+    "Если с этой почтой есть аккаунт, ссылка уже в пути. Откройте её в этом браузере, чтобы задать новый пароль. Письмо может прийти не сразу, проверьте и папку «Спам».",
+  "auth.rememberedIt": "Вспомнили пароль?",
+  "auth.newPasswordTitle": "Задайте новый пароль",
+  "auth.newPasswordSubtitle": "С этим паролем вы будете входить с этого момента.",
+  "auth.newPasswordSaved": "Пароль изменён, и вы вошли в аккаунт.",
+  "auth.goToDashboard": "Перейти на главную",
+
   "common.saving": "Сохранение...",
   "common.back": "Назад"
 };
@@ -1132,6 +1160,20 @@ const az: Dictionary = {
     "Hesab yaratmaqla {terms} qəbul edirsiniz. Nəyi saxladığımız və onu necə silmək olduğu {privacy} yazılıb.",
   "legal.termsInline": "istifadə şərtlərini",
   "legal.privacyInline": "məxfilik səhifəsində",
+
+  // Forgotten password
+  "auth.forgotPassword": "Şifrəni unutmusunuz?",
+  "auth.resetTitle": "Şifrəni sıfırlayın",
+  "auth.resetSubtitle": "Qeydiyyatdan keçdiyiniz e-poçtu daxil edin, yeni şifrə seçmək üçün sizə link göndərək.",
+  "auth.resetSend": "Linki göndər",
+  "auth.resetSending": "Göndərilir...",
+  "auth.resetSent":
+    "Bu e-poçtla hesab varsa, link yoldadır. Yeni şifrə seçmək üçün onu bu brauzerdə açın. Məktub bir az gecikə bilər, «Spam» qovluğunu da yoxlayın.",
+  "auth.rememberedIt": "Yadınıza düşdü?",
+  "auth.newPasswordTitle": "Yeni şifrə seçin",
+  "auth.newPasswordSubtitle": "Bundan sonra bu şifrə ilə daxil olacaqsınız.",
+  "auth.newPasswordSaved": "Şifrəniz dəyişdirildi və siz hesabınıza daxil oldunuz.",
+  "auth.goToDashboard": "Ana səhifəyə keçin",
 
   "common.saving": "Yadda saxlanılır...",
   "common.back": "Geri"

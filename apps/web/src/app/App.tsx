@@ -8,6 +8,7 @@ import { useLanguage, type TranslationKey } from "../lib/i18n";
 import { AuthProvider, useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
+import { ResetPasswordPage } from "../features/auth/ResetPasswordPage";
 import { useHistoryClaim } from "../features/auth/useHistoryClaim";
 
 import { Avatar } from "../features/profile/Avatar";
@@ -25,7 +26,7 @@ import { ResultsPage } from "../pages/ResultsPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { TestBuilderPage } from "../pages/TestBuilderPage";
 
-import { navigate, useRoute } from "./router";
+import { navigate, replaceRoute, useRoute } from "./router";
 
 
 /**
@@ -257,7 +258,8 @@ function Shell() {
 
   const {
     ready,
-    user
+    user,
+    passwordRecovery
   } = useAuth();
 
   const [theme] = useTheme();
@@ -272,6 +274,17 @@ function Shell() {
 
 
   useHistoryClaim();
+
+
+  // A password reset link has just signed this tab in. It should land on the
+  // reset page already, but a project that does not allow that address sends
+  // it to the home page instead, so it is sent on from wherever it landed.
+  // Only when it turns true: a student who then leaves the page is let go.
+  useEffect(() => {
+    if (passwordRecovery && window.location.hash.split("?")[0] !== "#/reset-password") {
+      replaceRoute("/reset-password");
+    }
+  }, [passwordRecovery]);
 
 
   useEffect(() => {
@@ -344,6 +357,11 @@ function Shell() {
 
   if (path === "/register") {
     return <RegisterPage />;
+  }
+
+
+  if (path === "/reset-password") {
+    return <ResetPasswordPage />;
   }
 
 

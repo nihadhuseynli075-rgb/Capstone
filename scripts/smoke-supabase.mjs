@@ -17,7 +17,7 @@
 
 import { spawn } from "node:child_process";
 import http from "node:http";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1463,6 +1463,62 @@ async function main() {
       JSON.stringify(applied.body)
     );
     await control("mail", { confirmEmailChange: true });
+
+    section("A forgotten password");
+    // The stand-in plays the reset email the way GoTrue sends it, so the page's
+    // trip can be followed end to end: ask, open the link, swap the code,
+    // set the new password, sign in with it.
+    const fern = (await control("users", { email: "fern@standin.test", fullName: "Fern", password: "forgotten1" })).body;
+    const mailBefore = (await control("emails")).body.emails.length;
+    const unknownReset = await request(standin.url, "/auth/v1/recover?redirect_to=" + encodeURIComponent("http://app.test/#/reset-password"), {
+      method: "POST",
+      body: { email: "nobody-here@standin.test" }
+    });
+    check(
+      "asking for an address with no account answers the same, and sends nothing",
+      unknownReset.status === 200 && (await control("emails")).body.emails.length === mailBefore,
+      `${unknownReset.status} ${JSON.stringify(unknownReset.body)}`
+    );
+
+    const verifier = randomUUID() + randomUUID();
+    const challenge = createHash("sha256").update(verifier).digest("base64url");
+    const fernReset = await request(standin.url, "/auth/v1/recover?redirect_to=" + encodeURIComponent("http://app.test/#/reset-password"), {
+      method: "POST",
+      body: { email: "Fern@standin.test", code_challenge: challenge, code_challenge_method: "s256" }
+    });
+    const resetMail = (await control("emails")).body.emails.find((mail) => mail.kind === "recovery" && mail.userId === fern.user.id);
+    check("an account's address gets a reset link in the inbox", fernReset.status === 200 && Boolean(resetMail?.link), JSON.stringify(resetMail));
+
+    const opened = await fetch(resetMail?.link ?? "http://127.0.0.1:9", { redirect: "manual" });
+    const landing = new URL(opened.headers.get("location") ?? "http://invalid.test/");
+    check(
+      "opening it goes back to the reset page with a one-time code",
+      opened.status === 302 && landing.hash === "#/reset-password" && Boolean(landing.searchParams.get("code")),
+      `${opened.status} ${landing}`
+    );
+    const reused = await fetch(resetMail?.link ?? "http://127.0.0.1:9", { redirect: "manual" });
+    check(
+      "and works only once",
+      /otp_expired/.test(reused.headers.get("location") ?? ""),
+      reused.headers.get("location")
+    );
+
+    const recoverySession = await request(standin.url, "/auth/v1/token?grant_type=pkce", {
+      method: "POST",
+      body: { auth_code: landing.searchParams.get("code"), code_verifier: verifier }
+    });
+    check("the code is swapped for a session by the browser that asked", recoverySession.status === 200, JSON.stringify(recoverySession.body));
+    const newPassword = await request(standin.url, "/auth/v1/user", {
+      method: "PUT",
+      token: recoverySession.body.access_token,
+      body: { password: "remembered2" }
+    });
+    check("which can set the new password", newPassword.status === 200, JSON.stringify(newPassword.body));
+    check(
+      "that then signs in, where the forgotten one no longer does",
+      (await request(standin.url, "/auth/v1/token?grant_type=password", { method: "POST", body: { email: "fern@standin.test", password: "remembered2" } })).status === 200 &&
+        (await request(standin.url, "/auth/v1/token?grant_type=password", { method: "POST", body: { email: "fern@standin.test", password: "forgotten1" } })).status === 400
+    );
 
     section("Changing the password");
     const erin = (await control("users", { email: "erin@standin.test", fullName: "Erin", password: "oldpass123" })).body;

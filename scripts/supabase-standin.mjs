@@ -49,7 +49,9 @@
  * GET /emails lists the mail the project would have sent, POST
  * /confirm-email-change { userId } opens the link in a pending email change,
  * and POST /mail { confirmEmailChange: false } switches "Confirm email" off so
- * an email change applies at once.
+ * an email change applies at once. A password reset email ("recovery") carries
+ * its link, which is opened by simply following it: GET /auth/v1/verify, as on
+ * Supabase.
  */
 
 import http from "node:http";
@@ -1115,6 +1117,45 @@ function createAuth(db) {
     userUpdated(user, previous);
   }
 
+  /**
+   * Links for choosing a new password, by the token in each. One use each, as
+   * GoTrue's are, and each remembers the pkce challenge the browser sent so the
+   * code it leads to can only be swapped by that browser.
+   */
+  const recoveryTokens = new Map();
+
+  /**
+   * Asking for a password reset link, as POST /auth/v1/recover does it. An
+   * address with no account gets nothing, and the caller is not told: GoTrue
+   * answers the same either way, so that nobody can test which addresses have
+   * accounts.
+   */
+  function requestRecovery(requested, { redirectTo, challenge, baseUrl }) {
+    const email = String(requested ?? "").trim().toLowerCase();
+    const user = [...users.values()].find((item) => item.email === email);
+    if (!user) return;
+
+    const token = randomUUID();
+    recoveryTokens.set(token, { userId: user.id, challenge: challenge ?? null });
+
+    const link = new URL(`${baseUrl}/auth/v1/verify`);
+    link.searchParams.set("token", token);
+    link.searchParams.set("type", "recovery");
+    if (redirectTo) link.searchParams.set("redirect_to", redirectTo);
+
+    mail.sent.push({ to: user.email, kind: "recovery", userId: user.id, link: link.toString() });
+  }
+
+  /** The account a recovery link is for, used up by reading it. Null for one already used or never sent. */
+  function takeRecovery(token) {
+    const pending = recoveryTokens.get(token ?? "") ?? null;
+    recoveryTokens.delete(token ?? "");
+    if (!pending) return null;
+
+    const user = users.get(pending.userId);
+    return user ? { user, challenge: pending.challenge } : null;
+  }
+
   /** Opening the link sent to the new address. */
   function confirmEmailChange(userId) {
     const user = users.get(userId);
@@ -1147,6 +1188,8 @@ function createAuth(db) {
     setPassword,
     requestEmailChange,
     confirmEmailChange,
+    requestRecovery,
+    takeRecovery,
     mail,
     deleteUser,
     signInWithGoogle,
@@ -1446,6 +1489,36 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
       }
     }
 
+    // A forgotten password: POST /recover { email, code_challenge } with
+    // ?redirect_to=. The answer is the same whether or not there is an account.
+    if (route === "recover" && request.method === "POST") {
+      const body = (await readBody(request)) ?? {};
+      auth.requestRecovery(body.email, {
+        redirectTo: url.searchParams.get("redirect_to"),
+        challenge: body.code_challenge,
+        baseUrl: `http://${request.headers.host}`
+      });
+      return send(response, 200, {});
+    }
+
+    // Opening the link in a recovery email. It signs the student in and goes
+    // back to the app, which then asks for the new password.
+    if (route === "verify" && request.method === "GET") {
+      const redirectTo = url.searchParams.get("redirect_to");
+      if (!redirectTo) return sendAuthError(response, 400, "validation_failed", "The stand-in needs a redirect_to");
+
+      const pending = url.searchParams.get("type") === "recovery" ? auth.takeRecovery(url.searchParams.get("token")) : null;
+      if (!pending) {
+        return redirectWithError(response, redirectTo, {
+          error: "access_denied",
+          code: "otp_expired",
+          description: "Email link is invalid or has expired"
+        });
+      }
+
+      return redirectSignedIn(response, redirectTo, pending.user, pending.challenge, "recovery");
+    }
+
     if (route === "logout" && request.method === "POST") {
       auth.signOut(bearer(request), url.searchParams.get("scope") ?? "global");
       return send(response, 204);
@@ -1516,17 +1589,19 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
    * themselves. Both are here so the stand-in keeps matching the app if that
    * setting ever changes.
    */
-  function redirectSignedIn(response, redirectTo, user, challenge) {
+  function redirectSignedIn(response, redirectTo, user, challenge, type) {
     return challenge
       ? redirectWithCode(response, redirectTo, user, challenge)
-      : redirectWithSession(response, redirectTo, auth.issueSession(user));
+      : redirectWithSession(response, redirectTo, auth.issueSession(user), type);
   }
 
   /**
    * Back to the app with a session, the way GoTrue's implicit flow does it: the
-   * tokens joined onto the address after a "#", by plain string joining.
+   * tokens joined onto the address after a "#", by plain string joining. A
+   * recovery link says so with type=recovery, which is how the client knows to
+   * report PASSWORD_RECOVERY rather than SIGNED_IN.
    */
-  function redirectWithSession(response, redirectTo, session) {
+  function redirectWithSession(response, redirectTo, session, type) {
     const fragment = new URLSearchParams({
       access_token: session.access_token,
       expires_at: String(session.expires_at),
@@ -1534,7 +1609,8 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
       provider_token: "standin-google-token",
       refresh_token: session.refresh_token,
       sb: "",
-      token_type: "bearer"
+      token_type: "bearer",
+      ...(type ? { type } : {})
     });
 
     response.writeHead(302, { Location: `${redirectTo}#${fragment.toString()}` });

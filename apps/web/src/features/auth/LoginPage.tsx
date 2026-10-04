@@ -110,6 +110,14 @@ export function LoginPage() {
           onChange={(event) => setPassword(event.target.value)}
         />
 
+        {/* Without this a student with an email account who forgot the
+            password was locked out of it for good. */}
+        {configured && (
+          <a href="#/reset-password" className="auth-forgot">
+            {t("auth.forgotPassword")}
+          </a>
+        )}
+
         <button type="submit" className="primary-button auth-submit" disabled={submitting || !configured}>
           {submitting ? t("auth.signingIn") : t("nav.signIn")}
         </button>
