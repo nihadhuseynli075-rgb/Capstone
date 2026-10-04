@@ -1,4 +1,4 @@
-import type { MockTest, TestResult } from "@grade9/shared";
+import type { AttemptComparison, MockTest, TestResult } from "@grade9/shared";
 import { recordOwner, storedRecordFate } from "@grade9/shared";
 import { peekIdentity } from "./studentKey";
 
@@ -181,8 +181,10 @@ export function clearActiveTest(): void {
  * resolvable within a subject. Carrying it here is what lets the results screen
  * say "Functions and Graphs" rather than falling back to the tidied-up id.
  */
-export interface StoredResult extends TestResult {
+export interface StoredResult extends Omit<TestResult, "comparison"> {
   subjectId?: string;
+  /** Null when the stored line could not be trusted (see readComparison). */
+  comparison: AttemptComparison | null;
 }
 
 export function saveLastResult(result: StoredResult): void {
@@ -208,25 +210,74 @@ function isReview(value: unknown): boolean {
   );
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+/**
+ * The line comparing this result with the best before it, or null when what is
+ * stored is not one. The results screen reads the earlier best's subject and
+ * marks straight into the page, so a subject that was not a string threw and
+ * blanked it. The line is a nicety: one that cannot be trusted is left out
+ * rather than costing the whole result.
+ */
+function readComparison(value: unknown): AttemptComparison | null {
+  if (!isRecord(value) || typeof value.isPersonalBest !== "boolean") return null;
+
+  const best = value.previousBest;
+  if (best === null || best === undefined) return { ...(value as unknown as AttemptComparison), previousBest: null };
+
+  if (
+    !isRecord(best) ||
+    !isFiniteNumber(best.score) ||
+    !isFiniteNumber(best.totalMarks) ||
+    typeof best.difficultyMode !== "string" ||
+    !(best.subjectId === undefined || typeof best.subjectId === "string")
+  ) {
+    return null;
+  }
+
+  return value as unknown as AttemptComparison;
+}
+
 /**
  * A stored result, checked before the results screen trusts it, for the same
  * reason as readActiveTest: a missing field there blanked the page instead of
  * falling back to the history list.
+ *
+ * The headline figures are drawn straight into the page as well, so they are
+ * required to be numbers: an object there made React throw and left the tab
+ * blank, with no header to leave by, on every reload. The subject and the
+ * comparison only add to the page, so a bad one is dropped instead.
  */
 function readLastResult(value: unknown): StoredResult | null {
   if (
     !isRecord(value) ||
     typeof value.attemptId !== "string" ||
+    !isFiniteNumber(value.score) ||
+    !isFiniteNumber(value.totalMarks) ||
+    !isFiniteNumber(value.totalQuestions) ||
+    !isFiniteNumber(value.percentage) ||
+    !isFiniteNumber(value.timeTakenSeconds) ||
     !Array.isArray(value.reviews) ||
     !value.reviews.every(isReview) ||
     !Array.isArray(value.topicBreakdown) ||
-    !value.topicBreakdown.every((topic) => isRecord(topic) && typeof topic.topicId === "string") ||
-    !(value.comparison === undefined || value.comparison === null || isRecord(value.comparison))
+    !value.topicBreakdown.every(
+      (topic) =>
+        isRecord(topic) &&
+        typeof topic.topicId === "string" &&
+        isFiniteNumber(topic.score) &&
+        isFiniteNumber(topic.marks)
+    )
   ) {
     return null;
   }
 
-  return value as unknown as StoredResult;
+  return {
+    ...(value as unknown as StoredResult),
+    subjectId: typeof value.subjectId === "string" ? value.subjectId : undefined,
+    comparison: readComparison(value.comparison)
+  };
 }
 
 export function loadLastResult(): StoredResult | null {
