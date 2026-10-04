@@ -1,13 +1,37 @@
 import { useEffect, useState } from "react";
 
-/** One or two letters for someone with no photo: "Nihad Huseynli" is "NH", "Nihad" is "NI". */
+/** Letters and digits, in any script, matched whole rather than as UTF-16 halves. */
+const LETTERS = /[\p{L}\p{N}]/gu;
+
+/** The first character a reader would see, an emoji or a flag included. */
+function firstGrapheme(text: string): string {
+  for (const { segment } of new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)) {
+    return segment;
+  }
+  return "";
+}
+
+/**
+ * One or two letters for someone with no photo: "Nihad Huseynli" is "NH",
+ * "Nihad" is "NI".
+ *
+ * Built from each word's letters, never from string positions: indexing a
+ * name that starts with an emoji or a flag took half of the emoji and drew a
+ * broken-character box. A word with no letters in it ("😀", "🇦🇿") is passed
+ * over, so "😀 Ali" is "AL"; a name with no letters at all shows its first
+ * emoji whole.
+ */
 export function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.match(LETTERS) ?? [])
+    .filter((letters) => letters.length > 0);
 
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  if (words.length >= 2) return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+  if (words.length === 1) return words[0].slice(0, 2).join("").toUpperCase();
 
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return firstGrapheme(name.trim()) || "?";
 }
 
 /**
