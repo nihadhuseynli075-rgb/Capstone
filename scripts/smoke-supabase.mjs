@@ -2114,10 +2114,12 @@ async function main() {
     // Supabase stops a single read at 1,000 rows, and the catalog used to count
     // the bank from one read, so everything past the first thousand vanished
     // from the builder's figures without any error.
-    const bulkSubject = `bulk-${Date.now()}`;
+    // A topic of its own in a real subject, since an import refuses a subject
+    // that is not one of the three.
+    const bulkTopic = `bulk-${Date.now()}`;
     const bulkRows = ["subject,topic,difficulty,question,correct_answer"];
     for (let index = 0; index < 1005; index += 1) {
-      bulkRows.push(`${bulkSubject},counting,easy,"Bulk question ${index}",${index}`);
+      bulkRows.push(`math,${bulkTopic},easy,"Bulk question ${index}",${index}`);
     }
     const bulk = await call("/api/admin/questions/import", {
       method: "POST",
@@ -2127,7 +2129,9 @@ async function main() {
     check("1,005 questions import", bulk.body.importedCount === 1005, `imported ${bulk.body.importedCount}`);
     const catalogLogStart = (await control("requests")).body.requests.length;
     const bulkCatalog = await call("/api/catalog");
-    const counted = bulkCatalog.body.subjects?.find((subject) => subject.id === bulkSubject)?.total;
+    const counted = bulkCatalog.body.subjects
+      ?.find((subject) => subject.id === "math")
+      ?.topics?.find((topic) => topic.id === bulkTopic)?.total;
     check("the catalog counts every one of them", counted === 1005, `counted ${counted}`);
     const catalogPages = (await control("requests")).body.requests
       .slice(catalogLogStart)
