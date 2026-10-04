@@ -111,10 +111,19 @@ function LoginScreen({
             onChange={(event) => setPassword(event.target.value)}
             autoFocus
             autoComplete="current-password"
+            // Tied to the refusal below, so returning to the field says why.
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "admin-login-error" : undefined}
           />
         </label>
 
-        {error && <p className="error-banner">{error}</p>}
+        {/* An alert: a wrong password was only painted, and a screen reader
+            heard nothing after pressing Enter. */}
+        {error && (
+          <p className="error-banner" role="alert" id="admin-login-error">
+            {error}
+          </p>
+        )}
 
         <button type="submit" className="primary-button" disabled={busy || password.length === 0}>
           {busy ? "Signing in..." : "Sign in"}
