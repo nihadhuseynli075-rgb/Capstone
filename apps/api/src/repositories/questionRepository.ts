@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { BankQuestion, Difficulty, QuestionDraft, QuestionStatus, QuestionType } from "@grade9/shared";
 import { isUuid } from "../lib/ids";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
+import { statusAfterSave } from "../services/questionStatus";
 import { readTranslations } from "../services/questionTranslations";
 
 export interface QuestionFilter {
@@ -67,7 +68,7 @@ function toQuestion(row: QuestionRow): BankQuestion {
   };
 }
 
-function toRow(draft: QuestionDraft) {
+function toRow(draft: QuestionDraft, status: QuestionStatus = "ready") {
   return {
     subject_id: draft.subjectId,
     topic_id: draft.topicId,
@@ -83,9 +84,9 @@ function toRow(draft: QuestionDraft) {
     source: draft.source,
     translations: draft.translations,
     // Only ever written from the admin form or an import, both of which check
-    // the question is complete first. Saving an unfinished one there is what
-    // finishes it.
-    status: "ready" as QuestionStatus
+    // the question is complete first, so it is ready unless it is still
+    // waiting for its picture (see statusAfterSave).
+    status
   };
 }
 
@@ -211,7 +212,7 @@ export async function createQuestions(drafts: QuestionDraft[]): Promise<BankQues
     });
   }
 
-  const { data, error } = await supabaseAdmin.from("questions").insert(drafts.map(toRow)).select("*");
+  const { data, error } = await supabaseAdmin.from("questions").insert(drafts.map((draft) => toRow(draft))).select("*");
   if (error) throw new Error(`Failed to save questions: ${error.message}`);
 
   return (data as QuestionRow[]).map(toQuestion);
@@ -221,7 +222,12 @@ export async function updateQuestion(id: string, draft: QuestionDraft): Promise<
   if (!supabaseAdmin) {
     const existing = memoryQuestions.get(id);
     if (!existing) return null;
-    const updated: BankQuestion = { ...existing, ...draft, status: "ready", updatedAt: new Date().toISOString() };
+    const updated: BankQuestion = {
+      ...existing,
+      ...draft,
+      status: statusAfterSave(existing.status, draft),
+      updatedAt: new Date().toISOString()
+    };
     memoryQuestions.set(id, updated);
     return updated;
   }
@@ -229,9 +235,22 @@ export async function updateQuestion(id: string, draft: QuestionDraft): Promise<
   // Not a uuid, so not a question: a 404, rather than Postgres rejecting it.
   if (!isUuid(id)) return null;
 
+  // The status it has now decides the one it is saved with: a question still
+  // waiting for its picture must not be made ready by an edit without one.
+  const { data: current, error: readError } = await supabaseAdmin
+    .from("questions")
+    .select("status")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (readError) throw new Error(`Failed to update question: ${readError.message}`);
+  if (!current) return null;
+
+  const status = statusAfterSave(((current as { status: string | null }).status ?? "ready") as QuestionStatus, draft);
+
   const { data, error } = await supabaseAdmin
     .from("questions")
-    .update(toRow(draft))
+    .update(toRow(draft, status))
     .eq("id", id)
     .select("*")
     .maybeSingle();

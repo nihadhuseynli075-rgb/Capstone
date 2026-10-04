@@ -267,23 +267,56 @@ async function main() {
       `got ${readyTooSoon.status}: ${JSON.stringify(readyTooSoon.body)}`
     );
 
-    // Filling in the options through the admin form is what finishes it.
-    const finished = await call(`/api/admin/questions/${stagedId}`, {
-      method: "PUT",
-      token: adminToken,
-      body: {
-        subjectId: "math",
-        topicId: stagedTopic,
-        difficulty: "easy",
-        type: "multiple-choice",
-        prompt: "What is 2 + 5?",
-        options: ["6", "7", "8"],
-        correctAnswer: "7",
-        explanation: ""
-      }
-    });
-    check("saving it complete through the form makes it ready", finished.body.question?.status === "ready", JSON.stringify(finished.body));
+    const completeStaged = (overrides = {}) =>
+      call(`/api/admin/questions/${stagedId}`, {
+        method: "PUT",
+        token: adminToken,
+        body: {
+          subjectId: "math",
+          topicId: stagedTopic,
+          difficulty: "easy",
+          type: "multiple-choice",
+          prompt: "What is 2 + 5?",
+          options: ["6", "7", "8"],
+          correctAnswer: "7",
+          explanation: "",
+          ...overrides
+        }
+      });
+
+    // The form asks for the answer, not for a picture, so filling the answer
+    // in used to mark the question ready and send it out without its diagram.
+    const stillWaiting = await completeStaged();
+    check(
+      "saving it through the form without its picture keeps it waiting for one",
+      stillWaiting.status === 200 && stillWaiting.body.question?.status === "image-pending",
+      JSON.stringify(stillWaiting.body)
+    );
+    check("so it is still not counted", (await stagedCount()) === 0);
+    const waitingTest = await generateStaged();
+    check(
+      "and still never put in a test",
+      waitingTest.status === 409 && !(waitingTest.body.test?.questions ?? []).some((question) => question.id === stagedId),
+      `got ${waitingTest.status}: ${JSON.stringify(waitingTest.body)}`
+    );
+
+    // Adding the picture through the admin form is what finishes it.
+    const finished = await completeStaged({ imageUrl: "https://example.test/diagram.png" });
+    check("saving it with its picture makes it ready", finished.body.question?.status === "ready", JSON.stringify(finished.body));
     check("once ready it is counted again", (await stagedCount()) === 1);
+
+    // A draft has its options and answer missing, and saving it complete
+    // through the form is what finishes it, picture or not.
+    await request(standin.url, `/__standin/rows/questions/${stagedId}`, {
+      method: "PATCH",
+      body: { status: "draft" }
+    });
+    const draftFinished = await completeStaged();
+    check(
+      "a draft saved complete through the form is ready",
+      draftFinished.body.question?.status === "ready",
+      JSON.stringify(draftFinished.body)
+    );
 
     const readyTest = await generateStaged();
     check(
