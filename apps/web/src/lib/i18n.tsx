@@ -441,7 +441,8 @@ const en = {
   // A topic card counts what the difficulty chosen below can draw on.
   "builder.topicCountAt": "{questions} ({difficulty})",
   "builder.topicNoneAt": "no questions on {difficulty}",
-  "builder.lastScore": "Last score {n}%",
+  // {n} is the percentage with its sign, written by formatPercent.
+  "builder.lastScore": "Last score {n}",
   "builder.notTried": "Not tried yet",
   "builder.difficulty": "Difficulty",
   "builder.difficultyHint":
@@ -967,7 +968,7 @@ const ru: Dictionary = {
   "builder.noQuestions": "вопросов пока нет",
   "builder.topicCountAt": "{questions} ({difficulty})",
   "builder.topicNoneAt": "нет вопросов уровня «{difficulty}»",
-  "builder.lastScore": "Последний результат: {n}%",
+  "builder.lastScore": "Последний результат: {n}",
   "builder.notTried": "Ещё не проходили",
   "builder.difficulty": "Сложность",
   "builder.difficultyHint":
@@ -1487,7 +1488,7 @@ const az: Dictionary = {
   "builder.noQuestions": "hələ sual yoxdur",
   "builder.topicCountAt": "{questions} ({difficulty})",
   "builder.topicNoneAt": "«{difficulty}» səviyyəsində sual yoxdur",
-  "builder.lastScore": "Son nəticə: {n}%",
+  "builder.lastScore": "Son nəticə: {n}",
   "builder.notTried": "Hələ cəhd edilməyib",
   "builder.difficulty": "Çətinlik",
   "builder.difficultyHint":

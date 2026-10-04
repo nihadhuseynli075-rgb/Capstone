@@ -3,7 +3,7 @@ import type { AttemptSummary } from "@grade9/shared";
 import { attemptScoreValue } from "@grade9/shared";
 import { navigate } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
-import { formatDayTime, useLanguage } from "../lib/i18n";
+import { formatDayTime, formatPercent, useLanguage } from "../lib/i18n";
 import { difficultyLabel, subjectLabel, testErrorText } from "../lib/testText";
 import { fetchHistory } from "../services/testsApi";
 
@@ -84,7 +84,7 @@ export function HistoryPage() {
         <p className="eyebrow">{t("history.best")}</p>
         <p className="best-score">
           {best.score}/{best.totalMarks}
-          <span className="best-percent">{best.percentage}%</span>
+          <span className="best-percent">{formatPercent(best.percentage, language)}</span>
         </p>
         <p className="best-meta">
           {subjectLabel(t, best.subjectId)} - {difficultyLabel(t, best.difficultyMode)} -{" "}
@@ -113,7 +113,7 @@ export function HistoryPage() {
                 <span className="attempt-score">
                   {attempt.score}/{attempt.totalMarks}
                 </span>
-                <span className="attempt-percent">{attempt.percentage}%</span>
+                <span className="attempt-percent">{formatPercent(attempt.percentage, language)}</span>
               </button>
             </li>
           ))}
