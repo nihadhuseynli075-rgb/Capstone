@@ -65,9 +65,15 @@
   box-shadow: 0 6px 18px rgba(10, 58, 88, 0.06);
 }
 
+/*
+ * The words and fills here use #0a70ad, a step darker than the logo's
+ * #0c82c8: white on the logo blue, and the logo blue on white or its pale
+ * tints, only reach 3.5-4.2:1, under the 4.5:1 small text needs. The logo
+ * blue stays in the artwork and the hero circle, which carry no small text.
+ */
 .landing-signup {
-  border: 1px solid #0c82c8;
-  background: #0c82c8;
+  border: 1px solid #0a70ad;
+  background: #0a70ad;
   color: #ffffff;
   box-shadow: 0 7px 18px rgba(12, 130, 200, 0.2);
 }
@@ -194,7 +200,7 @@
   border: none;
   border-radius: 999px;
   background: #ffffff;
-  color: #0c82c8;
+  color: #0a70ad;
   font: inherit;
   font-weight: 800;
   cursor: pointer;
@@ -254,7 +260,7 @@
 .landing-subjects .subject-glyph,
 .landing-subjects .subject-card:hover:not(:disabled) .subject-glyph {
   background: #e6f4fd;
-  color: #0c82c8;
+  color: #0a70ad;
 }
 
 .landing-subjects .subject-count {
@@ -418,7 +424,7 @@
   height: 38px;
   border-radius: 50%;
   background: #e7f5fe;
-  color: #0c82c8;
+  color: #0a70ad;
   font-size: 12px;
   font-weight: 900;
 }
@@ -461,7 +467,7 @@
 }
 
 .landing-bottom span {
-  color: #0c82c8;
+  color: #0a70ad;
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.16em;

@@ -471,6 +471,7 @@ const en = {
   "exam.palette": "Jump to question",
   "exam.dotAnswered": "Question {n}, answered",
   "exam.dotUnanswered": "Question {n}, not answered",
+  "exam.questionNumber": "Question {n} of {total}.",
   "exam.diagram": "Question diagram",
   "exam.yourAnswer": "Your answer",
   "exam.writtenPlaceholder": "Write your answer here. A teacher-style marker will read it when you submit.",
@@ -995,6 +996,7 @@ const ru: Dictionary = {
   "exam.palette": "Перейти к вопросу",
   "exam.dotAnswered": "Вопрос {n}, есть ответ",
   "exam.dotUnanswered": "Вопрос {n}, нет ответа",
+  "exam.questionNumber": "Вопрос {n} из {total}.",
   "exam.diagram": "Рисунок к вопросу",
   "exam.yourAnswer": "Ваш ответ",
   "exam.writtenPlaceholder":
@@ -1515,6 +1517,7 @@ const az: Dictionary = {
   "exam.palette": "Suala keç",
   "exam.dotAnswered": "Sual {n}, cavablanıb",
   "exam.dotUnanswered": "Sual {n}, cavabsız",
+  "exam.questionNumber": "Sual {n} / {total}.",
   "exam.diagram": "Sualın şəkli",
   "exam.yourAnswer": "Cavabınız",
   "exam.writtenPlaceholder":
@@ -1725,13 +1728,17 @@ interface LanguageContextValue {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
+/** The language a pinned page has put on <html>, while it is on screen. */
+let documentPin: Language | null = null;
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => getStoredLanguage());
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, language);
-    // Screen readers and browser translation both key off this.
-    document.documentElement.lang = language;
+    // Screen readers and browser translation both key off this. A page pinned
+    // to one language keeps its own (see usePinnedLanguage).
+    document.documentElement.lang = documentPin ?? language;
   }, [language]);
 
   const setLanguage = useCallback((next: Language) => setLanguageState(next), []);
@@ -1750,6 +1757,24 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 export function usePinnedLanguage(pinned: Language | null): LanguageContextValue {
   const site = useLanguage();
   const fixed = useLanguageValue(pinned ?? site.language, site.setLanguage);
+
+  /*
+   * The document says which language the page is in, not the site. The
+   * admin dashboard is English through and through, yet <html lang> kept
+   * saying "ru" or "az", so a screen reader read its English with Russian or
+   * Azerbaijani pronunciation. The pin is kept in a module variable because
+   * the provider's own effect runs after this one on the first render and
+   * would otherwise put the site's language back.
+   */
+  useEffect(() => {
+    documentPin = pinned;
+    document.documentElement.lang = pinned ?? site.language;
+    return () => {
+      documentPin = null;
+      document.documentElement.lang = site.language;
+    };
+  }, [pinned, site.language]);
+
   return pinned === null ? site : fixed;
 }
 

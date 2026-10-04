@@ -41,7 +41,8 @@ export function HistoryPage() {
     return (
       <div className="stack">
         <h1>{t("main.history")}</h1>
-        <p className="error-banner">{testErrorText(error, t)}</p>
+        {/* An alert, so a failed load is said out loud and not only painted. */}
+        <p className="error-banner" role="alert">{testErrorText(error, t)}</p>
       </div>
     );
   }
@@ -50,7 +51,8 @@ export function HistoryPage() {
     return (
       <div className="stack">
         <h1>{t("main.history")}</h1>
-        <p>{t("history.loading")}</p>
+        {/* A status, so a screen reader says the list is on its way. */}
+        <p role="status">{t("history.loading")}</p>
       </div>
     );
   }

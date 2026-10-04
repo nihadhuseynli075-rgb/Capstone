@@ -19,14 +19,21 @@
   --surface: #ffffff;
   --surface-alt: #e8f2fa;
   --text: #0a3a58;
-  --muted: #5a7893;
+  /*
+   * Text colours a step darker than the logo's: the logo blue (#0C82C8) as
+   * text or as a button behind white text reached only 4.2:1 on white and
+   * 3.5:1 on the pale brand tint, and the old muted (#5A7893) and success
+   * (#1C8A5B) fell to 3.9:1 and 4.3:1, under the 4.5:1 small text needs.
+   * These clear 4.5:1 on every light surface the app uses.
+   */
+  --muted: #4f6d88;
   --border: #d1e2ef;
-  --brand: #0c82c8;
+  --brand: #0a70ad;
   --brand-strong: #0a3a58;
   --brand-soft: #e0eefa;
   /* The wordmark navy, as the edge a primary button stands on. */
   --brand-edge: #0a3a58;
-  --success: #1c8a5b;
+  --success: #177a50;
   --success-soft: #e2f5ec;
   --danger: #c0392b;
   --danger-soft: #fdeceb;
@@ -375,6 +382,32 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
+/*
+ * A heading that has been handed focus after a route change (see
+ * useRouteFocus). It is where reading starts rather than something to press,
+ * so it is not ringed like a control.
+ */
+.route-focus:focus {
+  outline: none;
+}
+
+/*
+ * Words for screen readers only, such as the question's number read out
+ * before its text. Clipped rather than display: none, which would hide them
+ * from screen readers too.
+ */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
@@ -565,8 +598,15 @@ button:focus-visible {
   font-size: 0.82rem;
 }
 
+/*
+ * A topic with nothing to draw at this difficulty. It used to be faded to
+ * 60% opacity, which took its words down to 2.3:1 in light mode and 3.1:1 in
+ * dark, below what anyone with low vision can read, on a box that is still a
+ * working checkbox. A dashed edge says "empty" and leaves the text at full
+ * strength.
+ */
 .topic-option.empty {
-  opacity: 0.6;
+  border-style: dashed;
 }
 
 .topic-last.weak,
@@ -1704,6 +1744,38 @@ button:focus-visible {
   .difficulty-card,
   .topic-option {
     font-size: 0.92rem;
+  }
+}
+
+/* ------------------------------------------------------------ forced colours
+ *
+ * Windows High Contrast and other forced-colour modes replace every
+ * background with one system colour, and the chosen subject, difficulty and
+ * theme, the answered questions in the palette and the page the bar is on
+ * were shown by background alone, so they looked exactly like the rest.
+ * Here they take the system's own colours for a selection.
+ */
+
+@media (forced-colors: active) {
+  .chip.selected,
+  .difficulty-card.selected,
+  .segmented button.selected,
+  .palette-dot.answered,
+  .app-nav [aria-current="page"] {
+    /* Kept as written, with system colours only: left to the browser, the
+       text gets a dark backplate that hides it on the Highlight fill. Marked
+       important because that also lets the app's own, more specific colour
+       rules for these states back in, and they must not win here. */
+    forced-color-adjust: none;
+    background: Highlight !important;
+    color: HighlightText !important;
+    border-color: Highlight !important;
+  }
+
+  .chip.selected *,
+  .difficulty-card.selected * {
+    background: transparent !important;
+    color: HighlightText !important;
   }
 }
 

@@ -64,6 +64,24 @@ export function ExamPage() {
   const paletteRef = useRef<HTMLDivElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
 
+  /*
+   * The question's own heading, and whether the student has just asked for a
+   * different question. Next, Previous and the palette used to swap the
+   * question under a focus that stayed on the button, so a screen reader said
+   * nothing at all and the student had to go back up to find out what was
+   * now being asked. Only a move the student makes counts: resuming a paper
+   * after a refresh restores the question without taking focus.
+   */
+  const promptRef = useRef<HTMLHeadingElement>(null);
+  const movedRef = useRef(false);
+
+  useEffect(() => {
+    if (!movedRef.current) return;
+    movedRef.current = false;
+    promptRef.current?.focus({ preventScroll: true });
+    promptRef.current?.scrollIntoView({ block: "nearest" });
+  }, [currentIndex]);
+
   // The countdown fires once when it reaches zero and then leaves it alone.
   // Without this the timer retries the same failing request on every tick, so a
   // test the server will not accept turns into a request a second, for as long
@@ -276,7 +294,8 @@ export function ExamPage() {
   }, [error]);
 
   if (!active) {
-    return <p>{t("exam.loading")}</p>;
+    // A status, like every other loading line, so it is read out.
+    return <p role="status">{t("exam.loading")}</p>;
   }
 
   const questions = active.test.questions;
@@ -285,7 +304,10 @@ export function ExamPage() {
   const isLast = currentIndex === questions.length - 1;
 
   function goToQuestion(index: number) {
-    setCurrentIndex(Math.max(0, Math.min(index, questions.length - 1)));
+    const next = Math.max(0, Math.min(index, questions.length - 1));
+    if (next === currentIndex) return;
+    movedRef.current = true;
+    setCurrentIndex(next);
   }
 
   // A paper the server has refused is closed: its answers can no longer
@@ -380,7 +402,14 @@ export function ExamPage() {
         {/* The question itself is never translated here. The API has already
             put maths into the site language where a translation exists, and an
             English or Russian question stays in the language it is testing. */}
-        <h2 className="question-prompt">{question.prompt}</h2>
+        {/* Focusable by script only (see promptRef), and read with the
+            question's number first, so moving to it says where the student is. */}
+        <h2 className="question-prompt route-focus" ref={promptRef} tabIndex={-1}>
+          <span className="visually-hidden">
+            {fill(t("exam.questionNumber"), { n: String(currentIndex + 1), total: String(questions.length) })}
+          </span>
+          {question.prompt}
+        </h2>
 
         {question.imageUrl && (
           <img className="question-image" src={question.imageUrl} alt={t("exam.diagram")} />
