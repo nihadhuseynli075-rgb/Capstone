@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 
 import { IconMoon, IconSun } from "../components/icons";
 import { Wordmark } from "../lib/brand";
@@ -14,7 +14,6 @@ import { useHistoryClaim } from "../features/auth/useHistoryClaim";
 import { Avatar } from "../features/profile/Avatar";
 import { ProfileProvider, useProfile } from "../features/profile/ProfileContext";
 
-import { AdminPage } from "../pages/AdminPage";
 import { FriendsPage } from "../pages/FriendsPage";
 import { ExamPage } from "../pages/ExamPage";
 import { HistoryPage } from "../pages/HistoryPage";
@@ -27,6 +26,13 @@ import { SettingsPage } from "../pages/SettingsPage";
 import { TestBuilderPage } from "../pages/TestBuilderPage";
 
 import { navigate, useRoute } from "./router";
+
+/*
+ * The admin dashboard, with its question form, is the largest page and no
+ * student ever opens it, so it is its own file, fetched the first time
+ * #/admin is visited rather than with every page of the app.
+ */
+const AdminPage = lazy(() => import("../pages/AdminPage").then((module) => ({ default: module.AdminPage })));
 
 
 /**
@@ -523,7 +529,11 @@ function Shell() {
     }
 
     if (path === "/admin") {
-      return <AdminPage />;
+      return (
+        <Suspense fallback={<p className="panel-hint" role="status">Loading the admin dashboard...</p>}>
+          <AdminPage />
+        </Suspense>
+      );
     }
 
     return <MainPage />;
