@@ -203,9 +203,12 @@ export function TestBuilderPage() {
     <div className="stack">
       <section>
         <h1>Create a mock test</h1>
+        {/* No question has an explanation yet, so this promises the score and
+            the right answers, which every question has. An explanation still
+            shows on the results page wherever a question has one. */}
         <p className="lede">
-          Pick what you want to practise. Results, mistakes and explanations are shown at the end,
-          the same way a real exam works.
+          Pick what you want to practise. Your score and your mistakes, with the right answers, are
+          shown at the end, the same way a real exam works.
         </p>
       </section>
 

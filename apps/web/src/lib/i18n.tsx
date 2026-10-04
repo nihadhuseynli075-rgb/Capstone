@@ -44,7 +44,7 @@ const en = {
   "main.noAccountNeeded": "No account needed",
   "main.subjectsTitle": "Jump straight into a subject",
   "main.lede":
-    "Build a mock test from past-paper questions, sit it start to finish, and get your score, your mistakes and the reason behind every one of them at the end.",
+    "Build a mock test from past-paper questions, sit it start to finish, and see your score and every mistake, with the right answer, at the end.",
   "main.createTest": "Create a mock test",
   "main.createTestBody":
     "Pick a subject and topics, choose a difficulty or set your own length and timer.",
@@ -370,7 +370,7 @@ const en = {
   "auth.continueGoogle": "Continue with Google",
   "auth.asideTitle": "Practise the real exam, then find out exactly what to fix.",
   "auth.asidePoint1": "Mock tests built from real past-paper questions",
-  "auth.asidePoint2": "Marked instantly, with the reason behind every mistake",
+  "auth.asidePoint2": "Marked instantly, with the right answer to every mistake",
   "auth.asidePoint3": "Your history and best result, saved to your account",
   "auth.errWrongPassword": "That email and password do not match. Check them and try again.",
   "auth.errNotConfirmed": "Confirm your email address first. Check your inbox for the link we sent.",
@@ -440,7 +440,7 @@ const ru: Dictionary = {
   "main.noAccountNeeded": "Аккаунт не нужен",
   "main.subjectsTitle": "Сразу к предмету",
   "main.lede":
-    "Составьте пробный тест из заданий прошлых лет, пройдите его целиком и в конце получите свой балл, свои ошибки и объяснение каждой из них.",
+    "Составьте пробный тест из заданий прошлых лет, пройдите его целиком и в конце увидите свой балл и все ошибки с правильными ответами.",
   "main.createTest": "Создать пробный тест",
   "main.createTestBody":
     "Выберите предмет и темы, уровень сложности или задайте свою длину и таймер.",
@@ -766,7 +766,7 @@ const ru: Dictionary = {
   "auth.continueGoogle": "Продолжить с Google",
   "auth.asideTitle": "Тренируйтесь в формате настоящего экзамена и узнайте, что именно нужно подтянуть.",
   "auth.asidePoint1": "Пробные тесты из настоящих заданий прошлых лет",
-  "auth.asidePoint2": "Мгновенная проверка с объяснением каждой ошибки",
+  "auth.asidePoint2": "Мгновенная проверка и правильный ответ к каждой ошибке",
   "auth.asidePoint3": "История и лучший результат сохраняются в вашем аккаунте",
   "auth.errWrongPassword": "Почта и пароль не совпадают. Проверьте их и попробуйте снова.",
   "auth.errNotConfirmed": "Сначала подтвердите адрес электронной почты: ссылка в письме, которое мы отправили.",
@@ -833,7 +833,7 @@ const az: Dictionary = {
   "main.noAccountNeeded": "Hesab tələb olunmur",
   "main.subjectsTitle": "Birbaşa fənnə keçin",
   "main.lede":
-    "Keçmiş illərin suallarından sınaq testi qurun, əvvəldən sona qədər həll edin və sonda balınızı, səhvlərinizi və hər birinin səbəbini görün.",
+    "Keçmiş illərin suallarından sınaq testi qurun, əvvəldən sona qədər həll edin və sonda balınızı və bütün səhvlərinizi düzgün cavabları ilə görün.",
   "main.createTest": "Sınaq testi yarat",
   "main.createTestBody":
     "Fənn və mövzuları seçin, çətinlik dərəcəsini seçin və ya öz uzunluğunuzu və taymerinizi təyin edin.",
@@ -1159,7 +1159,7 @@ const az: Dictionary = {
   "auth.continueGoogle": "Google ilə davam edin",
   "auth.asideTitle": "Əsl imtahan formatında məşq edin, sonra nəyi düzəltməli olduğunuzu dəqiq öyrənin.",
   "auth.asidePoint1": "Keçmiş illərin real suallarından qurulan sınaq testləri",
-  "auth.asidePoint2": "Dərhal yoxlanılır, hər səhvin səbəbi ilə",
+  "auth.asidePoint2": "Dərhal yoxlanılır, hər səhvin düzgün cavabı ilə",
   "auth.asidePoint3": "Tarixçəniz və ən yaxşı nəticəniz hesabınızda saxlanılır",
   "auth.errWrongPassword": "E-poçt və şifrə uyğun gəlmir. Yoxlayıb yenidən cəhd edin.",
   "auth.errNotConfirmed": "Əvvəlcə e-poçt ünvanınızı təsdiq edin: link göndərdiyimiz məktubdadır.",
