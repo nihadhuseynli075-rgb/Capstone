@@ -39,7 +39,8 @@ dashboard shows a banner, so this is never a silent surprise.
    [`supabase/run-all.sql`](supabase/run-all.sql), and run it. The script applies
    every migration from `0001` on, in order, and is safe to rerun when an older
    project already has some of them. (Usernames are `0012`, which makes a
-   username for every student who already has an account.) If `0001`-`0006` are already in, running
+   username for every student who already has an account. `0013` leaves
+   friendships to the API alone, so no student can write one directly.) If `0001`-`0006` are already in, running
    [`0007_profiles_and_google.sql`](supabase/migrations/0007_profiles_and_google.sql)
    on its own is enough: it adds profile photos and the `avatars` storage bucket.
 6. Under **Authentication → Providers**, make sure Email is enabled. Google is
