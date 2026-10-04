@@ -1735,7 +1735,31 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [language]);
 
   const setLanguage = useCallback((next: Language) => setLanguageState(next), []);
+  const value = useLanguageValue(language, setLanguage);
 
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
+}
+
+/**
+ * The site's words, or, while `pinned` is set, one language's whatever the
+ * site is set to. Choosing a language still changes the site's own.
+ *
+ * For a page that is in one language only, like the admin dashboard, and the
+ * header and footer drawn around it. Pass the result to LanguageScope.
+ */
+export function usePinnedLanguage(pinned: Language | null): LanguageContextValue {
+  const site = useLanguage();
+  const fixed = useLanguageValue(pinned ?? site.language, site.setLanguage);
+  return pinned === null ? site : fixed;
+}
+
+/** Hands everything inside it the words from usePinnedLanguage. */
+export function LanguageScope({ value, children }: { value: LanguageContextValue; children: ReactNode }) {
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
+}
+
+/** The lookups for one language, shared by the site's provider and a pinned one. */
+function useLanguageValue(language: Language, setLanguage: (language: Language) => void): LanguageContextValue {
   const t = useCallback((key: TranslationKey) => dictionaries[language][key] ?? en[key], [language]);
 
   const tn = useCallback(
@@ -1752,9 +1776,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     [language, t]
   );
 
-  const value = useMemo(() => ({ language, setLanguage, t, tn }), [language, setLanguage, t, tn]);
-
-  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
+  return useMemo(() => ({ language, setLanguage, t, tn }), [language, setLanguage, t, tn]);
 }
 
 export function useLanguage(): LanguageContextValue {

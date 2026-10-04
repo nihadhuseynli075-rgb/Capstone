@@ -3,7 +3,7 @@ import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { LanguageSelect, ThemeToggle } from "../components/SiteControls";
 import { Wordmark } from "../lib/brand";
 import { applyTheme, useTheme } from "../lib/theme";
-import { useLanguage, type TranslationKey } from "../lib/i18n";
+import { LanguageScope, useLanguage, usePinnedLanguage, type TranslationKey } from "../lib/i18n";
 
 import { AuthProvider, useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
@@ -318,7 +318,17 @@ function titleKeyFor(path: string, signedIn: boolean): TranslationKey {
 function Shell() {
   const path = useRoute();
 
-  const { t } = useLanguage();
+  /*
+   * The admin dashboard is in English whatever the site language (see
+   * adminText), and so is everything drawn around it: the header, the
+   * account menu, the footer and the tab title. They used to follow the site
+   * language, so a Russian site put "Главная" and "Конфиденциальность" around
+   * English headings. The language picker is left out there, since choosing
+   * a language would change nothing on that page.
+   */
+  const adminPage = path === "/admin";
+  const pageLanguage = usePinnedLanguage(adminPage ? "en" : null);
+  const { t } = pageLanguage;
 
   const {
     ready,
@@ -532,8 +542,10 @@ function Shell() {
   }
 
 
-  return (
-    <div className="app-shell">
+  // The page says which language it is in, for screen readers and browser
+  // translation, where the document still names the site's.
+  const shell = (
+    <div className="app-shell" lang={adminPage ? "en" : undefined}>
       <header
         className="app-header"
         ref={headerRef}
@@ -639,7 +651,7 @@ function Shell() {
           <div className="footer-links">
             {/* For everyone, signed in or not: the language is the one setting
                 a guest needs before they can read anything else. */}
-            <LanguageSelect />
+            {!adminPage && <LanguageSelect />}
 
             <a href="#/privacy">{t("legal.privacy")}</a>
             <a href="#/terms">{t("legal.terms")}</a>
@@ -652,6 +664,8 @@ function Shell() {
       )}
     </div>
   );
+
+  return <LanguageScope value={pageLanguage}>{shell}</LanguageScope>;
 }
 
 
