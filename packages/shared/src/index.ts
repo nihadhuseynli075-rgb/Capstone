@@ -523,6 +523,10 @@ export interface SentFriendRequest {
  * Topics are still being confirmed against the real past papers, so the API
  * merges these with whatever topics actually exist in the question bank. New
  * topics then appear in the UI as soon as they are entered, with no code change.
+ *
+ * A topic missing from here still works, but its name is made from its id, and
+ * "sets-logic" reads as "Sets Logic". So every topic the seeded bank uses is
+ * named here (services/topics.test.ts in the API checks it against the seed).
  */
 export const subjects: Subject[] = [
   {
@@ -532,7 +536,11 @@ export const subjects: Subject[] = [
       { id: "algebra", name: "Algebra" },
       { id: "geometry", name: "Geometry" },
       { id: "functions", name: "Functions and Graphs" },
-      { id: "probability", name: "Probability and Statistics" }
+      { id: "probability", name: "Probability and Statistics" },
+      { id: "arithmetic", name: "Arithmetic" },
+      { id: "number-theory", name: "Number Theory" },
+      { id: "sets-logic", name: "Sets and Logic" },
+      { id: "coordinate-geometry", name: "Coordinate Geometry" }
     ]
   },
   {
@@ -552,7 +560,10 @@ export const subjects: Subject[] = [
       { id: "grammar", name: "Grammar" },
       { id: "spelling", name: "Spelling" },
       { id: "punctuation", name: "Punctuation" },
-      { id: "reading", name: "Reading Comprehension" }
+      { id: "reading", name: "Reading Comprehension" },
+      { id: "phonetics", name: "Phonetics" },
+      { id: "vocabulary", name: "Vocabulary" },
+      { id: "writing", name: "Writing" }
     ]
   }
 ];
