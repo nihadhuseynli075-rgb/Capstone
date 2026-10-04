@@ -36,17 +36,26 @@ export function EmailPanel({ email, googleOnly }: { email: string; googleOnly: b
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  // Read by the focus check, which must not start while a request it could
+  // collide with is under way.
+  const savingRef = useRef(false);
 
   // While a change is waiting, the student is off reading their inbox. Coming
   // back to this tab asks Supabase whether the link has been opened since, so
-  // a link opened in another browser or on a phone shows up here without a reload.
+  // a link opened in another browser or on a phone shows up here without a
+  // reload. It also asks once as the panel opens: the stored session still
+  // says "waiting" after a reload, however long ago the link was opened.
+  // The auth calls run one at a time (see AuthContext), and the check is
+  // skipped while this panel's own request is out.
   useEffect(() => {
     if (!pending) return;
 
     function check() {
-      if (document.visibilityState === "visible") void refreshUser().catch(() => undefined);
+      if (document.visibilityState !== "visible" || savingRef.current) return;
+      void refreshUser().catch(() => undefined);
     }
 
+    check();
     window.addEventListener("focus", check);
     document.addEventListener("visibilitychange", check);
     return () => {
@@ -95,7 +104,9 @@ export function EmailPanel({ email, googleOnly }: { email: string; googleOnly: b
 
     setError(null);
     setSaving(true);
+    savingRef.current = true;
     const result = await request(address);
+    savingRef.current = false;
     setSaving(false);
 
     if (typeof result === "string") {
@@ -119,7 +130,9 @@ export function EmailPanel({ email, googleOnly }: { email: string; googleOnly: b
 
     setNotice(null);
     setSaving(true);
+    savingRef.current = true;
     const result = await request(pending);
+    savingRef.current = false;
     setSaving(false);
 
     setNotice(
@@ -143,7 +156,10 @@ export function EmailPanel({ email, googleOnly }: { email: string; googleOnly: b
 
       {pending && (
         <div className="warning-banner notice-block" role="status">
-          <p>{fill(t("profile.emailPending"), { email: pending, current: email })}</p>
+          {/* The account's address, not the profile's: the profile row follows
+              the change the moment it is confirmed, while the address still
+              to sign in with is the account's until this tab hears of it. */}
+          <p>{fill(t("profile.emailPending"), { email: pending, current: user?.email || email })}</p>
           <p>{t("profile.emailPendingNote")}</p>
           <button type="button" className="link-button" onClick={handleResend} disabled={saving}>
             {t("profile.emailResend")}

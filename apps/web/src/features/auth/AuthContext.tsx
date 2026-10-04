@@ -117,6 +117,28 @@ async function requireGoogle(): Promise<void> {
 }
 
 /**
+ * The account calls that read the session and save a new one, run one at a time.
+ *
+ * supabase-js (2.112) does not hold a lock across them. Each reads the stored
+ * session, talks to the server, and saves what came back, so two that overlap
+ * each save the copy they started from. A token refresh uses up the refresh
+ * token and stores the next one; an updateUser that began before it finished
+ * then stored the old one back. That token is refused from then on: the tab
+ * never noticed a confirmed email change, and signed the student out when the
+ * access token ran out. It happened whenever "Send the link again" was pressed
+ * just as the tab came back into focus, which is how a student returns from
+ * their inbox. Each call here now waits for the one before it to finish.
+ */
+let accountCalls: Promise<unknown> = Promise.resolve();
+
+function oneAtATime<T>(task: () => Promise<T>): Promise<T> {
+  const run = accountCalls.then(task);
+  // The next call waits for this one to finish, whether or not it worked.
+  accountCalls = run.catch(() => undefined);
+  return run;
+}
+
+/**
  * The options for every trip to Google.
  *
  * `select_account` shows Google's account picker every time, so someone on a
@@ -253,22 +275,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const unlinkGoogle = useCallback(async () => {
-    if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
+  const unlinkGoogle = useCallback(
+    () =>
+      oneAtATime(async () => {
+        if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
 
-    const { data, error } = await supabase.auth.getUserIdentities();
-    if (error) throw authActionError(error);
+        const { data, error } = await supabase.auth.getUserIdentities();
+        if (error) throw authActionError(error);
 
-    const google = data.identities.find((identity) => identity.provider === "google");
-    if (!google) return;
+        const google = data.identities.find((identity) => identity.provider === "google");
+        if (!google) return;
 
-    const { error: unlinkError } = await supabase.auth.unlinkIdentity(google);
-    if (unlinkError) throw authActionError(unlinkError);
+        const { error: unlinkError } = await supabase.auth.unlinkIdentity(google);
+        if (unlinkError) throw authActionError(unlinkError);
 
-    // The session still lists Google until it is refreshed, and the refresh
-    // is what tells the rest of the app.
-    await supabase.auth.refreshSession();
-  }, []);
+        // The session still lists Google until it is refreshed, and the refresh
+        // is what tells the rest of the app.
+        await supabase.auth.refreshSession();
+      }),
+    []
+  );
 
   const signOut = useCallback(async () => {
     if (!supabase) return;
@@ -287,36 +313,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // browser has forgotten.
   }, []);
 
-  const updatePassword = useCallback(async (password: string) => {
-    if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
+  const updatePassword = useCallback(
+    (password: string) =>
+      oneAtATime(async () => {
+        if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
 
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) throw authActionError(error);
-  }, []);
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw authActionError(error);
+      }),
+    []
+  );
 
-  const updateEmail = useCallback<AuthContextValue["updateEmail"]>(async (email) => {
-    if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
+  const updateEmail = useCallback<AuthContextValue["updateEmail"]>(
+    (email) =>
+      oneAtATime(async () => {
+        if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
 
-    // The link in the email comes back to the site's bare address, like every
-    // other trip away from the app (see oauthRedirect), so that address has to
-    // be one of the project's Redirect URLs.
-    const { data, error } = await supabase.auth.updateUser({ email }, { emailRedirectTo: authRedirectUrl() });
-    if (error) throw authActionError(error);
+        // The link in the email comes back to the site's bare address, like every
+        // other trip away from the app (see oauthRedirect), so that address has to
+        // be one of the project's Redirect URLs.
+        const { data, error } = await supabase.auth.updateUser({ email }, { emailRedirectTo: authRedirectUrl() });
+        if (error) throw authActionError(error);
 
-    // Nothing left waiting means the project applied the change at once.
-    return { applied: !data.user?.new_email };
-  }, []);
+        // Nothing left waiting means the project applied the change at once.
+        return { applied: !data.user?.new_email };
+      }),
+    []
+  );
 
-  const refreshUser = useCallback(async () => {
-    if (!supabase) return;
+  const refreshUser = useCallback(
+    () =>
+      oneAtATime(async () => {
+        if (!supabase) return;
 
-    // The session holds a copy of the account from the last time it was
-    // refreshed. Opening the link in another browser or tab does not touch
-    // this one, so ask again: a refresh brings back the account as it is now
-    // and tells the rest of the app through onAuthStateChange.
-    const { error } = await supabase.auth.refreshSession();
-    if (error) throw authActionError(error);
-  }, []);
+        // The session holds a copy of the account from the last time it was
+        // refreshed. Opening the link in another browser or tab does not touch
+        // this one, so ask the server who the account is now. That read changes
+        // nothing; only when the address has actually moved is the session
+        // refreshed, which brings the new account into it and tells the rest of
+        // the app through onAuthStateChange. A refresh uses up the refresh
+        // token, so it is not spent on every return to the tab.
+        const { data: stored } = await supabase.auth.getSession();
+        if (!stored.session) return;
+
+        const { data, error } = await supabase.auth.getUser();
+        if (error) throw authActionError(error);
+
+        const before = stored.session.user;
+        const moved =
+          data.user.email !== before.email || (data.user.new_email ?? null) !== (before.new_email ?? null);
+        if (!moved) return;
+
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) throw authActionError(refreshError);
+      }),
+    []
+  );
 
   const requestPasswordReset = useCallback(async (email: string) => {
     if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
