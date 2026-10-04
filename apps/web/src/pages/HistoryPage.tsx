@@ -50,7 +50,8 @@ export function HistoryPage() {
     return (
       <div className="stack">
         <h1>{t("main.history")}</h1>
-        <p>{t("history.loading")}</p>
+        {/* A status, so a screen reader says the list is on its way. */}
+        <p role="status">{t("history.loading")}</p>
       </div>
     );
   }

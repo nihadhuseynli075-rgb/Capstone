@@ -183,7 +183,16 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
     );
   }
 
-  if (!view) return <p>{t("results.loading")}</p>;
+  // A heading and a status line while the result is fetched: a bare
+  // paragraph was never read out, and left the page with no h1 to land on.
+  if (!view) {
+    return (
+      <div className="stack">
+        <h1>{t("results.title")}</h1>
+        <p role="status">{t("results.loading")}</p>
+      </div>
+    );
+  }
 
   const mistakeCount = view.reviews.filter(isMistake).length;
 

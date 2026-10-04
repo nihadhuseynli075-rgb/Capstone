@@ -294,7 +294,8 @@ export function ExamPage() {
   }, [error]);
 
   if (!active) {
-    return <p>{t("exam.loading")}</p>;
+    // A status, like every other loading line, so it is read out.
+    return <p role="status">{t("exam.loading")}</p>;
   }
 
   const questions = active.test.questions;

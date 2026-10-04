@@ -448,7 +448,8 @@ function Shell() {
 
   if (!ready) {
     return (
-      <div className="landing-loading">
+      // A status, so a screen reader hears why the page is still blank.
+      <div className="landing-loading" role="status">
         {t("app.loading")}
       </div>
     );
