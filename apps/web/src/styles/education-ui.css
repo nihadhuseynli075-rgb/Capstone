@@ -471,17 +471,24 @@ textarea:focus-visible {
   gap: 18px;
 }
 
-.auth-mobile-brand {
+/*
+ * The way home, at every width. It was hidden beside the brand panel on a wide
+ * screen, but that panel is a picture, not a link, so a desktop visitor had
+ * no way back to the home page or to a test without an account.
+ */
+.auth-home-link {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
   text-decoration: none;
 }
 
-@media (min-width: 900px) {
-  .auth-mobile-brand {
-    display: none;
-  }
+/* Under the card's own footer, for anyone who came here and would rather not sign up. */
+.auth-guest-link {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  text-align: center;
 }
 
 .auth-aside-title {

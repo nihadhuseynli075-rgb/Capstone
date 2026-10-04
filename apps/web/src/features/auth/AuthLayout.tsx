@@ -10,7 +10,9 @@ import { useLanguage } from "../../lib/i18n";
  * Two columns on a wide screen: the brand panel on the left carries the reason
  * to sign up, the form sits on the right. Below 900px the brand panel is hidden
  * outright rather than stacked, because on a phone it would push the form -- the
- * only thing anyone came here to use -- below the fold.
+ * only thing anyone came here to use -- below the fold. The brand panel is a
+ * picture, so the way home and the way to a test without an account are
+ * links in the form's column, at every width.
  */
 export function AuthLayout({
   title,
@@ -39,8 +41,7 @@ export function AuthLayout({
 
       <main className="auth-panel">
         <div className="auth-topbar">
-          {/* The brand panel is hidden on a phone, so this is the way home there. */}
-          <a href="#/" className="auth-mobile-brand">
+          <a href="#/" className="auth-home-link">
             <Wordmark size={28} />
           </a>
 
@@ -62,6 +63,10 @@ export function AuthLayout({
 
           <footer className="auth-card-foot">{footer}</footer>
         </div>
+
+        <p className="auth-guest-link">
+          <a href="#/build">{t("auth.guestTest")}</a>
+        </p>
       </main>
     </div>
   );

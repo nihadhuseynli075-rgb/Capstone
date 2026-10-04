@@ -1059,6 +1059,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  /* Still at the right-hand end when the home link beside it is hidden. */
+  /* At the right-hand end, even when the row wraps on a narrow phone. */
   margin-left: auto;
 }
