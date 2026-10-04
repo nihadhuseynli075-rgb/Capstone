@@ -990,6 +990,25 @@ async function main() {
     JSON.stringify(topicNameImport.body.questions?.map((question) => question.topicId))
   );
 
+  // One import shares one timestamp. Memory listed it in sheet order and
+  // Supabase by id, so the two stores showed the same import differently.
+  const orderCsv = ["subject,topic,question,correct_answer"]
+    .concat(Array.from({ length: 6 }, (_, index) => `math,import-order,Import order check ${index + 1},1`))
+    .join("\n");
+  await call("/api/admin/questions/import", { method: "POST", token, body: { csv: orderCsv } });
+  const orderList = (await call(`/api/admin/questions?search=${encodeURIComponent("Import order check")}`, { token })).body
+    .questions ?? [];
+  const inListOrder = orderList.every((question, index) => {
+    const next = orderList[index + 1];
+    if (!next) return true;
+    return question.createdAt > next.createdAt || (question.createdAt === next.createdAt && question.id < next.id);
+  });
+  check(
+    "the list is newest first, then by id, in either store",
+    orderList.length === 6 && inListOrder,
+    JSON.stringify(orderList.map((question) => [question.createdAt, question.id.slice(0, 8)]))
+  );
+
   const subjectCatalog = await call("/api/catalog");
   check(
     "so the catalog shows no subject the bank should not have",
