@@ -760,7 +760,6 @@ button:focus-visible {
   margin: 0 0 8px;
   color: var(--muted);
   font-size: 0.8rem;
-  text-transform: capitalize;
 }
 
 .question-prompt {
@@ -903,8 +902,6 @@ button:focus-visible {
 .question-marks {
   font-weight: 600;
   color: var(--brand);
-  /* The meta line capitalises topic and difficulty; "3 Marks" is not a name. */
-  text-transform: none;
 }
 
 .score-percent {
@@ -945,7 +942,6 @@ button:focus-visible {
   justify-content: space-between;
   font-size: 0.9rem;
   margin-bottom: 4px;
-  text-transform: capitalize;
 }
 
 .topic-bar-track {
@@ -1105,7 +1101,6 @@ button:focus-visible {
 .best-meta {
   margin: 0;
   color: var(--muted);
-  text-transform: capitalize;
 }
 
 .attempt-list {
@@ -1187,7 +1182,6 @@ button:focus-visible {
 .attempt-mode,
 .attempt-date {
   color: var(--muted);
-  text-transform: capitalize;
 }
 
 .attempt-score {

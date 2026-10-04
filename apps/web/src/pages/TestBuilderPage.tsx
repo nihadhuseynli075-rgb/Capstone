@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { AttemptSummary, Difficulty, DifficultyMode } from "@grade9/shared";
 import { customLimits, difficultyPresets } from "@grade9/shared";
 import { navigate, useRouteParam } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
+import { fill } from "../features/friends/fill";
 import { saveActiveTest } from "../lib/examSession";
-import { useLanguage } from "../lib/i18n";
+import { useLanguage, type TranslationKey } from "../lib/i18n";
+import { difficultyLabel, subjectLabel, testErrorText, topicLabel } from "../lib/testText";
 import {
   fetchCatalog,
   fetchHistory,
@@ -12,12 +14,7 @@ import {
   type CatalogSubject
 } from "../services/testsApi";
 
-const difficultyOptions: Array<{ mode: DifficultyMode; label: string; detail: string }> = [
-  { mode: "easy", label: "Easy", detail: difficultyPresets.easy.description },
-  { mode: "medium", label: "Medium", detail: difficultyPresets.medium.description },
-  { mode: "hard", label: "Hard", detail: difficultyPresets.hard.description },
-  { mode: "custom", label: "Custom", detail: "Choose the length and timer yourself" }
-];
+const difficultyModes: DifficultyMode[] = ["easy", "medium", "hard", "custom"];
 
 /** The same bands as the topic bars on the results screen. */
 function scoreBand(percent: number): "weak" | "ok" | "strong" {
@@ -26,30 +23,81 @@ function scoreBand(percent: number): "weak" | "ok" | "strong" {
   return "strong";
 }
 
+/**
+ * The number a custom box stands for: what it says, pulled into range, or the
+ * last number it settled on while it holds no number at all.
+ *
+ * The box itself is left as typed until it loses focus. Clamping on every key
+ * turned a 2 on the way to 20 into a 5, and the 0 then made it 50.
+ */
+function boxValue(text: string, settled: number, min: number, max: number): number {
+  if (!/^\d+$/.test(text)) return settled;
+  return Math.min(max, Math.max(min, Number(text)));
+}
+
+/** A custom number box: what is typed, and the number it last settled on. */
+function useNumberBox(initial: number, min: number, max: number) {
+  const [text, setText] = useState(String(initial));
+  const [settled, setSettled] = useState(initial);
+  const value = boxValue(text, settled, min, max);
+
+  return {
+    text,
+    value,
+    // Digits only, so the box can be emptied and refilled but never holds
+    // something that is not a number on its way to the request.
+    change: (next: string) => setText(next.replace(/\D/g, "")),
+    // Shows the student the number the test will use, once they are done typing.
+    settle: () => {
+      setSettled(value);
+      setText(String(value));
+      return value;
+    }
+  };
+}
+
+/** Bold on the number in a sentence like "12 questions ready", wherever the language puts it. */
+function withBoldNumber(text: string, count: number) {
+  const at = text.indexOf(String(count));
+  if (at === -1) return text;
+
+  return (
+    <>
+      {text.slice(0, at)}
+      <strong>{count}</strong>
+      {text.slice(at + String(count).length)}
+    </>
+  );
+}
+
 export function TestBuilderPage() {
   const { ready, user } = useAuth();
-  const { language } = useLanguage();
+  const { language, t, tn } = useLanguage();
   const [catalog, setCatalog] = useState<CatalogSubject[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<unknown>(null);
   const [history, setHistory] = useState<AttemptSummary[] | null>(null);
 
   const [subjectId, setSubjectId] = useState("math");
   const [topicIds, setTopicIds] = useState<string[]>([]);
   const [difficultyMode, setDifficultyMode] = useState<DifficultyMode>("easy");
 
-  const [customCount, setCustomCount] = useState(10);
-  const [customMinutes, setCustomMinutes] = useState(20);
+  const countBox = useNumberBox(10, customLimits.minQuestions, customLimits.maxQuestions);
+  const minutesBox = useNumberBox(20, customLimits.minMinutes, customLimits.maxMinutes);
   const [untimed, setUntimed] = useState(false);
+  const countHintId = useId();
+  const minutesHintId = useId();
 
   const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // What went wrong rather than its sentence, so switching the site language
+  // while it is on screen says it again in the new language.
+  const [error, setError] = useState<{ key: TranslationKey } | { cause: unknown } | null>(null);
 
   const requestedSubject = useRouteParam("subject");
 
   useEffect(() => {
     fetchCatalog()
       .then(setCatalog)
-      .catch((cause: Error) => setLoadError(cause.message));
+      .catch((cause: unknown) => setLoadError(cause));
   }, []);
 
   // A subject shortcut arrives as ?subject=, whether the builder is opening or
@@ -130,8 +178,10 @@ export function TestBuilderPage() {
       }, 0);
   }, [subject, topicIds, difficultyMode]);
 
+  // The count the test will be asked for: the custom box as it would settle
+  // now, so the line below never promises a number that starting would change.
   const requestedCount =
-    difficultyMode === "custom" ? customCount : difficultyPresets[difficultyMode].questionCount;
+    difficultyMode === "custom" ? countBox.value : difficultyPresets[difficultyMode].questionCount;
 
   function toggleTopic(topicId: string) {
     setTopicIds((current) =>
@@ -144,8 +194,13 @@ export function TestBuilderPage() {
   async function handleGenerate() {
     setError(null);
 
+    // Settled here as well as on blur: pressing Enter, or a tap that does not
+    // move focus, can start the test with a box still mid-edit.
+    const questionCount = countBox.settle();
+    const minutes = minutesBox.settle();
+
     if (topicIds.length === 0) {
-      setError("Choose at least one topic.");
+      setError({ key: "builder.noTopic" });
       return;
     }
 
@@ -156,8 +211,8 @@ export function TestBuilderPage() {
         subjectId,
         topicIds,
         difficultyMode,
-        questionCount: difficultyMode === "custom" ? customCount : undefined,
-        timeLimitMinutes: difficultyMode === "custom" ? (untimed ? null : customMinutes) : undefined,
+        questionCount: difficultyMode === "custom" ? questionCount : undefined,
+        timeLimitMinutes: difficultyMode === "custom" ? (untimed ? null : minutes) : undefined,
         language
       });
 
@@ -172,17 +227,17 @@ export function TestBuilderPage() {
 
       navigate("/exam");
     } catch (cause) {
-      setError((cause as Error).message);
+      setError({ cause });
     } finally {
       setGenerating(false);
     }
   }
 
-  if (loadError) {
+  if (loadError !== null) {
     return (
       <div className="stack">
-        <h1>Create a mock test</h1>
-        <p className="error-banner">{loadError}</p>
+        <h1>{t("builder.title")}</h1>
+        <p className="error-banner">{testErrorText(loadError, t)}</p>
       </div>
     );
   }
@@ -190,33 +245,34 @@ export function TestBuilderPage() {
   if (!catalog || !subject) {
     return (
       <div className="stack">
-        <h1>Create a mock test</h1>
-        <p>Loading subjects...</p>
+        <h1>{t("builder.title")}</h1>
+        <p>{t("builder.loading")}</p>
       </div>
     );
   }
 
   const bankIsEmpty = catalog.every((item) => item.total === 0);
 
+  // The link sits wherever the language puts it in the sentence.
+  const [bankEmptyBefore, bankEmptyAfter = ""] = t("builder.bankEmpty").split("{link}");
+
   return (
     <div className="stack">
       <section>
-        <h1>Create a mock test</h1>
-        <p className="lede">
-          Pick what you want to practise. Results, mistakes and explanations are shown at the end,
-          the same way a real exam works.
-        </p>
+        <h1>{t("builder.title")}</h1>
+        <p className="lede">{t("builder.lede")}</p>
       </section>
 
       {bankIsEmpty && (
         <p className="warning-banner">
-          There are no questions in the bank yet. Add some from the{" "}
-          <a href="#/admin">admin dashboard</a> first.
+          {bankEmptyBefore}
+          <a href="#/admin">{t("builder.bankEmptyLink")}</a>
+          {bankEmptyAfter}
         </p>
       )}
 
       <section className="panel">
-        <h2>Subject</h2>
+        <h2>{t("builder.subject")}</h2>
         <div className="chip-row">
           {catalog.map((item) => (
             <button
@@ -228,7 +284,7 @@ export function TestBuilderPage() {
                 setTopicIds(item.topics.filter((topic) => topic.total > 0).map((topic) => topic.id));
               }}
             >
-              {item.name}
+              {subjectLabel(t, item.id, item.name)}
               <span className="chip-count">{item.total}</span>
             </button>
           ))}
@@ -236,7 +292,7 @@ export function TestBuilderPage() {
       </section>
 
       <section className="panel">
-        <h2>Topics</h2>
+        <h2>{t("builder.topics")}</h2>
         <div className="topic-grid">
           {subject.topics.map((topic) => {
             const selected = topicIds.includes(topic.id);
@@ -251,19 +307,20 @@ export function TestBuilderPage() {
                 }`}
               >
                 <input type="checkbox" checked={selected} onChange={() => toggleTopic(topic.id)} />
-                <span className="topic-name">{topic.name}</span>
+                <span className="topic-name">{topicLabel(t, subject.id, topic.id, topic.name)}</span>
                 <span className="topic-count">
-                  {topic.total === 0
-                    ? "no questions yet"
-                    : `${topic.total} question${topic.total === 1 ? "" : "s"}`}
+                  {topic.total === 0 ? t("builder.noQuestions") : tn("count.questions", topic.total)}
                   {/* "Not tried yet" only once something in this subject has
                       been: on a first visit it would be on every tile and say
                       nothing. Nor on a topic with no questions to try. */}
                   {last !== undefined ? (
-                    <span className={`topic-last ${band}`}> · Last score {last}%</span>
+                    <span className={`topic-last ${band}`}>
+                      {" · "}
+                      {fill(t("builder.lastScore"), { n: String(last) })}
+                    </span>
                   ) : (
                     lastScores.size > 0 &&
-                    topic.total > 0 && <span className="topic-last"> · Not tried yet</span>
+                    topic.total > 0 && <span className="topic-last"> · {t("builder.notTried")}</span>
                   )}
                 </span>
                 {last !== undefined && (
@@ -278,63 +335,74 @@ export function TestBuilderPage() {
       </section>
 
       <section className="panel">
-        <h2>Difficulty</h2>
-        <p className="panel-hint">
-          Easy, medium and hard set the number of questions and the timer for you. Choose custom to
-          set them yourself.
-        </p>
+        <h2>{t("builder.difficulty")}</h2>
+        <p className="panel-hint">{t("builder.difficultyHint")}</p>
         <div className="difficulty-grid">
-          {difficultyOptions.map((option) => (
+          {difficultyModes.map((mode) => (
             <button
-              key={option.mode}
+              key={mode}
               type="button"
-              className={`difficulty-card ${option.mode === difficultyMode ? "selected" : ""}`}
-              onClick={() => setDifficultyMode(option.mode)}
-              aria-pressed={option.mode === difficultyMode}
+              className={`difficulty-card ${mode === difficultyMode ? "selected" : ""}`}
+              onClick={() => setDifficultyMode(mode)}
+              aria-pressed={mode === difficultyMode}
             >
-              <span className="difficulty-label">{option.label}</span>
-              <span className="difficulty-detail">{option.detail}</span>
+              <span className="difficulty-label">{difficultyLabel(t, mode)}</span>
+              <span className="difficulty-detail">
+                {/* Built from the preset's own numbers, so retuning a preset
+                    in the shared package retunes this line in every language. */}
+                {mode === "custom"
+                  ? t("builder.customDetail")
+                  : fill(t("builder.presetDetail"), {
+                      questions: tn("count.questions", difficultyPresets[mode].questionCount),
+                      minutes: tn("count.minutes", difficultyPresets[mode].timeLimitMinutes)
+                    })}
+              </span>
             </button>
           ))}
         </div>
 
         {difficultyMode === "custom" && (
           <div className="custom-settings">
+            {/* Text boxes rather than number ones, which clamp, round and
+                swallow an empty value on their own terms in each browser.
+                inputMode still brings up the number pad on a phone. */}
             <label>
-              Number of questions
+              {t("builder.countLabel")}
               <input
-                type="number"
-                min={customLimits.minQuestions}
-                max={customLimits.maxQuestions}
-                value={customCount}
-                onChange={(event) =>
-                  setCustomCount(
-                    Math.min(
-                      customLimits.maxQuestions,
-                      Math.max(customLimits.minQuestions, Number(event.target.value) || 0)
-                    )
-                  )
-                }
+                type="text"
+                inputMode="numeric"
+                maxLength={3}
+                value={countBox.text}
+                aria-describedby={countHintId}
+                onChange={(event) => countBox.change(event.target.value)}
+                onBlur={() => countBox.settle()}
               />
+              <span className="field-hint" id={countHintId}>
+                {fill(t("builder.countRange"), {
+                  min: String(customLimits.minQuestions),
+                  max: String(customLimits.maxQuestions)
+                })}
+              </span>
             </label>
 
             <label>
-              Time limit (minutes)
+              {t("builder.minutesLabel")}
               <input
-                type="number"
-                min={customLimits.minMinutes}
-                max={customLimits.maxMinutes}
-                value={customMinutes}
+                type="text"
+                inputMode="numeric"
+                maxLength={3}
+                value={minutesBox.text}
                 disabled={untimed}
-                onChange={(event) =>
-                  setCustomMinutes(
-                    Math.min(
-                      customLimits.maxMinutes,
-                      Math.max(customLimits.minMinutes, Number(event.target.value) || 0)
-                    )
-                  )
-                }
+                aria-describedby={minutesHintId}
+                onChange={(event) => minutesBox.change(event.target.value)}
+                onBlur={() => minutesBox.settle()}
               />
+              <span className="field-hint" id={minutesHintId}>
+                {fill(t("builder.minutesRange"), {
+                  min: String(customLimits.minMinutes),
+                  max: String(customLimits.maxMinutes)
+                })}
+              </span>
             </label>
 
             <label className="checkbox-row">
@@ -343,7 +411,7 @@ export function TestBuilderPage() {
                 checked={untimed}
                 onChange={(event) => setUntimed(event.target.checked)}
               />
-              No timer - take as long as I need
+              {t("builder.untimed")}
             </label>
           </div>
         )}
@@ -351,18 +419,26 @@ export function TestBuilderPage() {
 
       <section className="panel summary-panel">
         <div>
-          <strong>{Math.min(requestedCount, availableCount)}</strong> question
-          {Math.min(requestedCount, availableCount) === 1 ? "" : "s"} ready
+          {withBoldNumber(
+            tn("builder.ready", Math.min(requestedCount, availableCount)),
+            Math.min(requestedCount, availableCount)
+          )}
           {availableCount < requestedCount && (
             <span className="summary-warning">
               {" "}
-              - you asked for {requestedCount}, but the bank only has {availableCount} for this
-              selection
+              {fill(t("builder.short"), {
+                requested: String(requestedCount),
+                available: String(availableCount)
+              })}
             </span>
           )}
         </div>
 
-        {error && <p className="error-banner">{error}</p>}
+        {error && (
+          <p className="error-banner">
+            {"key" in error ? t(error.key) : testErrorText(error.cause, t, "test.errNoQuestions")}
+          </p>
+        )}
 
         <button
           type="button"
@@ -370,7 +446,7 @@ export function TestBuilderPage() {
           onClick={handleGenerate}
           disabled={generating || availableCount === 0}
         >
-          {generating ? "Building your test..." : "Start mock test"}
+          {generating ? t("builder.building") : t("builder.start")}
         </button>
       </section>
     </div>
