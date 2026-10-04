@@ -541,6 +541,7 @@ const en = {
 
   // Page titles, shown in the tab and the history as "<page> - Exampeak"
   "title.home": "Grade 9 mock tests",
+  "title.description": "Exampeak generates Grade 9 mock tests from past-paper questions, marks them, and shows the right answer to every mistake.",
   "title.dashboard": "Dashboard",
   "title.signIn": "Sign in",
   "title.register": "Create account",
@@ -1065,6 +1066,7 @@ const ru: Dictionary = {
 
   // Page titles
   "title.home": "Пробные тесты для 9 класса",
+  "title.description": "Exampeak составляет пробные тесты для 9 класса из вопросов прошлых лет, проверяет их и показывает верный ответ на каждую ошибку.",
   "title.dashboard": "Главная",
   "title.signIn": "Вход",
   "title.register": "Создать аккаунт",
@@ -1584,6 +1586,7 @@ const az: Dictionary = {
 
   // Page titles
   "title.home": "9-cu sinif üçün sınaq testləri",
+  "title.description": "Exampeak keçmiş illərin suallarından 9-cu sinif üçün sınaq testləri qurur, onları yoxlayır və hər səhvin düzgün cavabını göstərir.",
   "title.dashboard": "Ana səhifə",
   "title.signIn": "Daxil ol",
   "title.register": "Hesab yarat",
