@@ -1018,3 +1018,47 @@
   background: var(--surface-alt);
   color: var(--muted);
 }
+
+/* ---------------------------------------------------------- site controls */
+
+/*
+ * The small language picker (components/SiteControls). It looks like the
+ * other form controls but sizes to its words, rather than filling its row the
+ * way a form field does.
+ */
+.language-select {
+  width: auto;
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+/* The footer's right-hand end: the language, then the quieter links. */
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/*
+ * The row above the sign-in and sign-up card: the way home on the left, the
+ * language and the theme on the right. As wide as the card, so the two line up.
+ */
+.auth-topbar {
+  width: min(460px, 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.auth-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Still at the right-hand end when the home link beside it is hidden. */
+  margin-left: auto;
+}

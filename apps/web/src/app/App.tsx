@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { IconMoon, IconSun } from "../components/icons";
+import { LanguageSelect, ThemeToggle } from "../components/SiteControls";
 import { Wordmark } from "../lib/brand";
 import { applyTheme, useTheme } from "../lib/theme";
 import { useLanguage, type TranslationKey } from "../lib/i18n";
@@ -40,44 +40,6 @@ function HamburgerIcon({ open }: { open: boolean }) {
         <path d="M4 7h16M4 12h16M4 17h16" />
       )}
     </svg>
-  );
-}
-
-
-/**
- * Light and dark mode in one tap, from the header bar rather than from inside
- * the collapsible menu or the Settings page (which keeps its own control).
- *
- * The icon is the theme the page is in now, a sun while it is light and a moon
- * while it is dark. The label says what a tap does, so it names the other
- * theme. If the icon should show where a tap leads instead, swap the two icons
- * below; the label is already right for that.
- */
-function ThemeToggle() {
-  const { t } = useLanguage();
-
-  const [theme, setTheme] = useTheme();
-
-  const next =
-    theme === "light"
-      ? "dark"
-      : "light";
-
-  const label =
-    next === "dark"
-      ? t("nav.themeToDark")
-      : t("nav.themeToLight");
-
-  return (
-    <button
-      type="button"
-      className="ghost-button icon-button theme-toggle"
-      aria-label={label}
-      title={label}
-      onClick={() => setTheme(next)}
-    >
-      {theme === "light" ? <IconSun /> : <IconMoon />}
-    </button>
   );
 }
 
@@ -541,9 +503,15 @@ function Shell() {
             {t("footer.tagline")}
           </span>
 
-          <a href="#/admin" className="footer-admin-link">
-            {t("nav.admin")}
-          </a>
+          <div className="footer-links">
+            {/* For everyone, signed in or not: the language is the one setting
+                a guest needs before they can read anything else. */}
+            <LanguageSelect />
+
+            <a href="#/admin" className="footer-admin-link">
+              {t("nav.admin")}
+            </a>
+          </div>
         </footer>
       )}
     </div>

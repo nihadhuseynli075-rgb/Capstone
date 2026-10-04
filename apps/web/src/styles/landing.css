@@ -21,6 +21,24 @@
   color: #0a3a58;
 }
 
+/*
+ * The language and theme, then Log In and Sign Up. On a narrow phone the group
+ * wraps onto two rows, at the right, rather than pushing the page sideways.
+ */
+.landing-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.landing-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .landing-nav {
   display: flex;
   align-items: center;

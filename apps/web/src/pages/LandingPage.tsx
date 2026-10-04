@@ -1,4 +1,5 @@
 import { navigate } from "../app/router";
+import { LanguageSelect, ThemeToggle } from "../components/SiteControls";
 import { SubjectShortcuts } from "../components/SubjectShortcuts";
 import { useAuth } from "../features/auth/AuthContext";
 import { Wordmark } from "../lib/brand";
@@ -14,28 +15,37 @@ export function LandingPage() {
       <header className="landing-header">
         <Wordmark size={34} />
 
-        {/* Without Supabase both of these lead to a form that cannot be sent,
-            so they are only offered when accounts are switched on. The practice
-            test below works either way. */}
-        {configured && (
-          <nav className="landing-nav">
-            <button
-              type="button"
-              className="landing-login"
-              onClick={() => navigate("/login")}
-            >
-              {t("landing.logIn")}
-            </button>
+        <div className="landing-actions">
+          {/* The first screen a visitor sees, so the language and the theme
+              are chosen here rather than behind a page they cannot read yet. */}
+          <div className="landing-controls">
+            <LanguageSelect />
+            <ThemeToggle />
+          </div>
 
-            <button
-              type="button"
-              className="landing-signup"
-              onClick={() => navigate("/register")}
-            >
-              {t("landing.signUp")}
-            </button>
-          </nav>
-        )}
+          {/* Without Supabase both of these lead to a form that cannot be sent,
+              so they are only offered when accounts are switched on. The practice
+              test below works either way. */}
+          {configured && (
+            <nav className="landing-nav">
+              <button
+                type="button"
+                className="landing-login"
+                onClick={() => navigate("/login")}
+              >
+                {t("landing.logIn")}
+              </button>
+
+              <button
+                type="button"
+                className="landing-signup"
+                onClick={() => navigate("/register")}
+              >
+                {t("landing.signUp")}
+              </button>
+            </nav>
+          )}
+        </div>
       </header>
 
       <main>

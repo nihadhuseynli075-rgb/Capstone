@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { LanguageSelect, ThemeToggle } from "../../components/SiteControls";
 import { LogoStacked, Wordmark } from "../../lib/brand";
 import { useLanguage } from "../../lib/i18n";
 
@@ -37,10 +38,19 @@ export function AuthLayout({
       </aside>
 
       <main className="auth-panel">
-        {/* The brand panel is hidden on a phone, so this is the way home there. */}
-        <a href="#/" className="auth-mobile-brand">
-          <Wordmark size={28} />
-        </a>
+        <div className="auth-topbar">
+          {/* The brand panel is hidden on a phone, so this is the way home there. */}
+          <a href="#/" className="auth-mobile-brand">
+            <Wordmark size={28} />
+          </a>
+
+          {/* These pages have no header bar, and a student may arrive here
+              first: the language and the theme are chosen here too. */}
+          <div className="auth-controls">
+            <LanguageSelect />
+            <ThemeToggle />
+          </div>
+        </div>
 
         <div className="auth-card">
           <header className="auth-card-head">
