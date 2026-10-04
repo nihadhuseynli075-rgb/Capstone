@@ -1,12 +1,13 @@
 import { Fragment, useEffect, useState, type ReactNode } from "react";
-import { replaceRoute } from "../../app/router";
+import { replaceRoute, useRouteParam } from "../../app/router";
 import { fill, useLanguage } from "../../lib/i18n";
 import { emailProblemText, errorText, nameProblemText, passwordProblemText } from "../profile/profileText";
 import { useAuth } from "./AuthContext";
-import { AuthDivider, AuthLayout, Field, PasswordField } from "./AuthLayout";
+import { AuthDivider, AuthLayout, Field, PasswordField, focusFirstError } from "./AuthLayout";
 import { GoogleButton } from "./GoogleButton";
 import { strengthText } from "./authText";
 import { emailProblem, nameProblem, passwordProblem, passwordStrength } from "./authValidation";
+import { safeReturnPath, signInRoute } from "./returnPath";
 
 /** A sentence from the dictionary with links put in its {placeholders}, wherever each language has them. */
 function fillLinks(template: string, links: Record<string, ReactNode>): ReactNode[] {
@@ -20,6 +21,9 @@ export function RegisterPage() {
   const { t } = useLanguage();
   const { signUp, user, configured } = useAuth();
 
+  // The page that sent the student to sign in, carried over from there.
+  const returnTo = safeReturnPath(useRouteParam("next"));
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,11 +36,11 @@ export function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
 
-  // Signed in: the form's step in the history becomes the home page, so Back
-  // goes to wherever the student was before it (see LoginPage).
+  // Signed in: the form's step in the history becomes the page that asked for
+  // the sign-in, so Back goes to wherever the student was before it (see LoginPage).
   useEffect(() => {
-    if (user) replaceRoute("/");
-  }, [user]);
+    if (user) replaceRoute(returnTo);
+  }, [user, returnTo]);
 
   const strength = passwordStrength(password);
 
@@ -56,7 +60,14 @@ export function RegisterPage() {
     };
 
     setFieldErrors(errors);
-    if (errors.fullName || errors.email || errors.password) return;
+    if (errors.fullName || errors.email || errors.password) {
+      focusFirstError(
+        errors.fullName && "register-name",
+        errors.email && "register-email",
+        errors.password && "register-password"
+      );
+      return;
+    }
 
     setSubmitting(true);
     setFormError(null);
@@ -74,7 +85,7 @@ export function RegisterPage() {
         return;
       }
 
-      replaceRoute("/");
+      replaceRoute(returnTo);
     } catch (cause) {
       setFormError(errorText(cause, t));
       setSubmitting(false);
@@ -90,7 +101,8 @@ export function RegisterPage() {
         subtitle={fill(t("auth.checkEmailBody"), { email: email.trim() })}
         footer={
           <>
-            <span>{t("auth.alreadyConfirmed")}</span> <a href="#/login">{t("nav.signIn")}</a>
+            <span>{t("auth.alreadyConfirmed")}</span>{" "}
+            <a href={`#${signInRoute("login", returnTo)}`}>{t("nav.signIn")}</a>
           </>
         }
       >
@@ -107,7 +119,8 @@ export function RegisterPage() {
       subtitle={t("auth.registerSubtitle")}
       footer={
         <>
-          <span>{t("auth.haveAccount")}</span> <a href="#/login">{t("nav.signIn")}</a>
+          <span>{t("auth.haveAccount")}</span>{" "}
+          <a href={`#${signInRoute("login", returnTo)}`}>{t("nav.signIn")}</a>
         </>
       }
     >
@@ -123,7 +136,7 @@ export function RegisterPage() {
         </p>
       )}
 
-      <GoogleButton disabled={submitting || !configured} onError={setFormError} />
+      <GoogleButton disabled={submitting || !configured} onError={setFormError} returnTo={returnTo} />
 
       <AuthDivider label={t("auth.orEmailSignUp")} />
 

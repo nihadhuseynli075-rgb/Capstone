@@ -7,8 +7,8 @@ import type {
   QuestionTranslations,
   QuestionType
 } from "@grade9/shared";
-import { followsSiteLanguage, markLimits, subjects, topicIdFor } from "@grade9/shared";
-import { languages, useLanguage } from "../lib/i18n";
+import { followsSiteLanguage, markLimits, repeatedOption, subjects, topicIdFor } from "@grade9/shared";
+import { adminLanguageNames, adminText } from "./adminText";
 import { uploadQuestionImage } from "../services/adminApi";
 
 /**
@@ -28,6 +28,9 @@ function paddedOptions(options: readonly string[]): string[] {
 function emptyOptions(): string[] {
   return paddedOptions([]);
 }
+
+/** The largest diagram the API stores, so a bigger one is turned away before it is sent. */
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
 /**
  * The languages the form offers a translation in. Azerbaijani has none yet, so
@@ -78,7 +81,7 @@ function translationInputs(saved: QuestionTranslations): TranslationInputs {
 }
 
 function languageLabel(language: TranslationLanguage): string {
-  return languages.find((item) => item.id === language)?.label ?? language;
+  return adminLanguageNames[language];
 }
 
 /**
@@ -158,7 +161,6 @@ export function QuestionForm({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const { t } = useLanguage();
 
   const knownTopics = subjects.find((subject) => subject.id === subjectId)?.topics ?? [];
 
@@ -201,9 +203,9 @@ export function QuestionForm({
 
       if (prompt.length === 0 && explanation.length === 0 && correctAnswer.length === 0 && !hasOptions) continue;
 
-      if (prompt.length === 0) return `${languageLabel(language)}: ${t("translations.errorNoPrompt")}`;
+      if (prompt.length === 0) return `${languageLabel(language)}: ${adminText.translationErrorNoPrompt}`;
       if (hasOptions && translatedOptions.some((option) => option.length === 0)) {
-        return `${languageLabel(language)}: ${t("translations.errorOptions")}`;
+        return `${languageLabel(language)}: ${adminText.translationErrorOptions}`;
       }
 
       const translation: QuestionTranslation = { prompt };
@@ -219,8 +221,23 @@ export function QuestionForm({
   async function handleImageChange(file: File | undefined) {
     if (!file) return;
 
-    setUploading(true);
     setUploadError(null);
+
+    // Checked here, before anything is sent: a file over the limit used to
+    // come back as a bare "request entity too large", and one that is not a
+    // picture as "That upload is not valid.". The API checks both again,
+    // and what the file really is.
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Only image files are supported. Choose a PNG, JPG or WebP picture.");
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_BYTES) {
+      setUploadError("Images must be 2 MB or smaller.");
+      return;
+    }
+
+    setUploading(true);
 
     try {
       setImageUrl(await uploadQuestionImage(file));
@@ -255,6 +272,12 @@ export function QuestionForm({
     if (type === "multiple-choice") {
       if (filledOptions.length < 2) {
         setFormError("Fill in at least two options.");
+        return;
+      }
+      // Marked by the text picked, so both copies would count as correct.
+      const repeated = repeatedOption(filledOptions);
+      if (repeated !== null) {
+        setFormError(`Two options are the same ("${repeated}"). Each option has to be different.`);
         return;
       }
       // The correct answer is stored by text, so a gap in the option list must
@@ -374,17 +397,26 @@ export function QuestionForm({
           <legend>Options - select the correct one</legend>
           {options.map((option, index) => (
             <div key={index} className="option-input-row">
-              <input
-                type="radio"
-                name="correct-option"
-                checked={correctIndex === index}
-                onChange={() => setCorrectIndex(index)}
-                aria-label={`Option ${String.fromCharCode(65 + index)} is correct`}
-              />
-              <span className="option-letter">{String.fromCharCode(65 + index)}</span>
+              {/* The radio and its letter are one label, so the whole 44px
+                  square around them picks the answer, not just a 13px dot. */}
+              <label className="option-correct">
+                <input
+                  type="radio"
+                  name="correct-option"
+                  checked={correctIndex === index}
+                  onChange={() => setCorrectIndex(index)}
+                  aria-label={`Option ${String.fromCharCode(65 + index)} is correct`}
+                />
+                <span className="option-letter" aria-hidden="true">
+                  {String.fromCharCode(65 + index)}
+                </span>
+              </label>
+              {/* Named for a screen reader, which otherwise heard only
+                  "Required" or "Optional", the placeholder. */}
               <input
                 type="text"
                 value={option}
+                aria-label={`Option ${String.fromCharCode(65 + index)}`}
                 onChange={(event) => setOption(index, event.target.value)}
                 placeholder={index < 2 ? "Required" : "Optional"}
               />
@@ -440,10 +472,10 @@ export function QuestionForm({
           open={Object.keys(initial?.translations ?? {}).length > 0}
         >
           <summary>
-            {t("translations.title")} <span className="field-hint">({t("translations.optional")})</span>
+            {adminText.translationsTitle} <span className="field-hint">({adminText.translationsOptional})</span>
           </summary>
 
-          <p className="panel-hint">{t("translations.intro")}</p>
+          <p className="panel-hint">{adminText.translationsIntro}</p>
 
           {translationLanguages.map((language) => (
             <TranslationBlock
@@ -557,7 +589,6 @@ function TranslationBlock({
   value: TranslationInput;
   onChange: (changes: Partial<TranslationInput>) => void;
 }) {
-  const { t } = useLanguage();
   const label = languageLabel(language);
   const filledSlots = baseOptions.flatMap((option, slot) => (option.trim().length > 0 ? [slot] : []));
 
@@ -566,15 +597,15 @@ function TranslationBlock({
       <legend>{label}</legend>
 
       <label>
-        {t("translations.prompt")}
+        {adminText.translationPrompt}
         <textarea rows={2} value={value.prompt} onChange={(event) => onChange({ prompt: event.target.value })} />
       </label>
 
       {type === "multiple-choice" && (
         <fieldset className="options-fieldset">
-          <legend>{t("translations.options")}</legend>
+          <legend>{adminText.translationOptions}</legend>
 
-          {filledSlots.length === 0 && <p className="field-hint">{t("translations.addOptionsFirst")}</p>}
+          {filledSlots.length === 0 && <p className="field-hint">{adminText.translationAddOptionsFirst}</p>}
 
           {filledSlots.map((slot) => (
             <div key={slot} className="translation-option-row">
@@ -582,7 +613,7 @@ function TranslationBlock({
               <input
                 type="text"
                 value={value.options[slot] ?? ""}
-                aria-label={`${label}, ${t("translations.optionFor")} ${String.fromCharCode(65 + slot)}`}
+                aria-label={`${label}, ${adminText.translationOptionFor} ${String.fromCharCode(65 + slot)}`}
                 onChange={(event) => {
                   const options = [...value.options];
                   while (options.length <= slot) options.push("");
@@ -591,9 +622,9 @@ function TranslationBlock({
                 }}
               />
               <span className="field-hint translation-option-base">
-                {t("translations.optionFor")} {baseOptions[slot].trim()}
+                {adminText.translationOptionFor} {baseOptions[slot].trim()}
                 {slot === correctIndex && (
-                  <strong className="translation-correct"> - {t("translations.correctOption")}</strong>
+                  <strong className="translation-correct"> - {adminText.translationCorrectOption}</strong>
                 )}
               </span>
             </div>
@@ -603,18 +634,18 @@ function TranslationBlock({
 
       {type === "short-answer" && (
         <label>
-          {t("translations.answer")}
+          {adminText.translationAnswer}
           <input
             type="text"
             value={value.correctAnswer}
             onChange={(event) => onChange({ correctAnswer: event.target.value })}
           />
-          <span className="field-hint">{t("translations.answerHint")}</span>
+          <span className="field-hint">{adminText.translationAnswerHint}</span>
         </label>
       )}
 
       <label>
-        {t("translations.explanation")}
+        {adminText.translationExplanation}
         <textarea
           rows={2}
           value={value.explanation}

@@ -63,6 +63,36 @@ function isMistake(review: QuestionReview): boolean {
   return !review.isCorrect && review.counted !== false;
 }
 
+/**
+ * The earlier best's score and what kind of test it was: "3/10" and
+ * "Mathematics, Easy". The subject is named because the best can be in a
+ * different one from this test: a 3/10 under an English result was the maths
+ * test before it, and said nothing of the kind.
+ */
+function bestDetails(
+  best: NonNullable<AttemptComparison["previousBest"]>,
+  t: (key: TranslationKey) => string
+): { score: string; difficulty: string } {
+  const what = [best.subjectId ? subjectLabel(t, best.subjectId) : null, difficultyLabel(t, best.difficultyMode)]
+    .filter(Boolean)
+    .join(", ");
+
+  return { score: `${best.score}/${best.totalMarks}`, difficulty: what };
+}
+
+/** The line under the score, in the site language. */
+function comparisonLine(comparison: AttemptComparison, t: (key: TranslationKey) => string): string {
+  const best = comparison.previousBest;
+  if (!best) return t("results.firstTest");
+
+  const { score, difficulty } = bestDetails(best, t);
+
+  if (comparison.isPersonalBest) return fill(t("results.newBest"), { score: `${score} (${difficulty})` });
+  // A tie is not a new best: the same 5/5 twice used to be announced as one.
+  if (comparison.matchedBest) return fill(t("results.matchedBest"), { score, difficulty });
+  return fill(t("results.bestSoFar"), { score, difficulty });
+}
+
 export function ResultsPage({ attemptId }: { attemptId?: string }) {
   const [view, setView] = useState<ResultView | null>(null);
   // The failure rather than its sentence, so it is shown in the current language.
@@ -156,7 +186,6 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
   if (!view) return <p>{t("results.loading")}</p>;
 
   const mistakeCount = view.reviews.filter(isMistake).length;
-  const previousBest = view.comparison?.previousBest ?? null;
 
   return (
     <div className="stack">
@@ -185,16 +214,12 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
           </p>
 
           {view.comparison && (
-            <p className={`comparison ${view.comparison.isPersonalBest ? "best" : ""}`}>
-              {view.comparison.isPersonalBest
-                ? previousBest
-                  ? fill(t("results.newBest"), { score: `${previousBest.score}/${previousBest.totalMarks}` })
-                  : t("results.firstTest")
-                : previousBest &&
-                  fill(t("results.bestSoFar"), {
-                    score: `${previousBest.score}/${previousBest.totalMarks}`,
-                    difficulty: difficultyLabel(t, previousBest.difficultyMode)
-                  })}
+            <p
+              className={`comparison ${
+                view.comparison.isPersonalBest || view.comparison.matchedBest ? "best" : ""
+              }`}
+            >
+              {comparisonLine(view.comparison, t)}
             </p>
           )}
         </div>

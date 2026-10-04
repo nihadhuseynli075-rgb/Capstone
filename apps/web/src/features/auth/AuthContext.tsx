@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import { cleanName, isReadableName } from "@grade9/shared";
 import { isSupabaseConfigured, supabase } from "../../lib/supabaseClient";
 import { clearSessionRecords, settleSessionRecords } from "../../lib/examSession";
 import { setSignedInUserId } from "../../lib/studentKey";
@@ -33,6 +34,8 @@ export interface AuthUser {
    * one to sign in with.
    */
   pendingEmail: string | null;
+  /** When the account was made, as an ISO time; empty if the session did not say. */
+  createdAt: string;
 }
 
 interface AuthContextValue {
@@ -45,8 +48,11 @@ interface AuthContextValue {
   clearRedirectResult: () => void;
   signUp: (input: { fullName: string; email: string; password: string }) => Promise<{ needsEmailConfirmation: boolean }>;
   signIn: (input: { email: string; password: string }) => Promise<void>;
-  /** Leaves for Google. Resolves as the browser goes, and throws if it cannot. */
-  signInWithGoogle: () => Promise<void>;
+  /**
+   * Leaves for Google, coming back to `returnTo` (home if left out). Resolves
+   * as the browser goes, and throws if it cannot.
+   */
+  signInWithGoogle: (returnTo?: string) => Promise<void>;
   /** Connects Google to the signed-in account, by the same trip. */
   linkGoogle: () => Promise<void>;
   /** Disconnects Google, when the account has another way in. */
@@ -81,7 +87,9 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 function toAuthUser(user: User): AuthUser {
   const metadata = user.user_metadata ?? {};
-  const fullName = typeof metadata.full_name === "string" ? metadata.full_name : "";
+  // Cleaned like a profile name, so one made of invisible characters falls
+  // back to the start of the email rather than showing as a blank.
+  const fullName = typeof metadata.full_name === "string" ? cleanName(metadata.full_name) : "";
 
   // Identities are the accurate list. A session saved before they were read
   // may not carry them, and the provider list in the app metadata says the
@@ -94,10 +102,11 @@ function toAuthUser(user: User): AuthUser {
   return {
     id: user.id,
     email: user.email ?? "",
-    fullName: fullName.trim().length > 0 ? fullName.trim() : (user.email ?? "").split("@")[0],
+    fullName: isReadableName(fullName) ? fullName : (user.email ?? "").split("@")[0],
     providers: [...new Set(providers)],
     googleEmail: typeof google?.identity_data?.email === "string" ? google.identity_data.email : null,
-    pendingEmail: typeof user.new_email === "string" && user.new_email.length > 0 ? user.new_email : null
+    pendingEmail: typeof user.new_email === "string" && user.new_email.length > 0 ? user.new_email : null,
+    createdAt: typeof user.created_at === "string" ? user.created_at : ""
   };
 }
 
@@ -230,7 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName.trim() } }
+      options: { data: { full_name: cleanName(fullName) } }
     });
 
     if (error) throw authActionError(error);
@@ -247,13 +256,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw authActionError(error);
   }, []);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (returnTo?: string) => {
     if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
     await requireGoogle();
 
     // Google creates the account if there is none yet, so this is signing up
     // as well as signing in.
-    rememberAuthRedirect("sign-in");
+    rememberAuthRedirect("sign-in", returnTo);
     const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: googleTripOptions() });
 
     if (error) {

@@ -100,6 +100,25 @@ export const difficultyPresets: Record<Difficulty, DifficultyPreset> = {
 };
 
 /**
+ * How a difficulty and a question type are written for people: the builder's
+ * own words. Printing the ids and leaving the stylesheet to capitalise them
+ * also capitalised every word around them, so "Probability and Statistics"
+ * came out as "Probability And Statistics".
+ */
+export const difficultyNames: Record<DifficultyMode, string> = {
+  easy: "Easy",
+  medium: "Medium",
+  hard: "Hard",
+  custom: "Custom"
+};
+
+export const questionTypeNames: Record<QuestionType, string> = {
+  "multiple-choice": "Multiple choice",
+  "short-answer": "Short answer",
+  "open-ended": "Written answer"
+};
+
+/**
  * What a single question may be worth.
  *
  * Shared rather than written out in each place that checks it. The admin form
@@ -157,6 +176,29 @@ export const profileLimits = {
   nameMax: 60,
   photoMaxBytes: 2 * 1024 * 1024
 } as const;
+
+/**
+ * Characters that draw nothing: format characters (zero-width spaces and
+ * joiners, direction marks, soft hyphens) and the Hangul fillers, which
+ * Unicode counts as letters although they are blank. trim() keeps all of
+ * them, so a name made only of these was saved and showed as nothing in the
+ * header and on a friend's list.
+ */
+const INVISIBLE_IN_NAMES = /[\p{Cf}ᅟᅠㅤﾠ]/gu;
+
+/**
+ * A name as it is kept and shown: invisible characters taken out, any run of
+ * spaces, tabs or line breaks made one space, and the ends trimmed. The form,
+ * the API and the friends list all clean a name this way, so they agree.
+ */
+export function cleanName(value: string): string {
+  return value.replace(INVISIBLE_IN_NAMES, "").replace(/\s+/g, " ").trim();
+}
+
+/** Whether a cleaned name has anything to read in it: at least one letter or digit. */
+export function isReadableName(value: string): boolean {
+  return /[\p{L}\p{N}]/u.test(value);
+}
 
 export * from "./usernames";
 export * from "./sessionOwner";
@@ -375,7 +417,13 @@ export interface TopicPerformance {
 
 /** How this attempt compares to the previous best. */
 export interface AttemptComparison {
+  /** Better than every earlier attempt, or the first one. A tie is not a new best. */
   isPersonalBest: boolean;
+  /**
+   * Exactly level with the best earlier attempt. Optional because a result
+   * saved in the browser before this existed does not have it.
+   */
+  matchedBest?: boolean;
   previousBest: {
     score: number;
     totalMarks: number;
@@ -383,6 +431,8 @@ export interface AttemptComparison {
     percentage: number;
     difficultyMode: DifficultyMode;
     takenAt: string;
+    /** The best can be in another subject; optional for the same reason as matchedBest. */
+    subjectId?: string;
   } | null;
 }
 
@@ -523,6 +573,10 @@ export interface SentFriendRequest {
  * Topics are still being confirmed against the real past papers, so the API
  * merges these with whatever topics actually exist in the question bank. New
  * topics then appear in the UI as soon as they are entered, with no code change.
+ *
+ * A topic missing from here still works, but its name is made from its id, and
+ * "sets-logic" reads as "Sets Logic". So every topic the seeded bank uses is
+ * named here (services/topics.test.ts in the API checks it against the seed).
  */
 export const subjects: Subject[] = [
   {
@@ -532,7 +586,11 @@ export const subjects: Subject[] = [
       { id: "algebra", name: "Algebra" },
       { id: "geometry", name: "Geometry" },
       { id: "functions", name: "Functions and Graphs" },
-      { id: "probability", name: "Probability and Statistics" }
+      { id: "probability", name: "Probability and Statistics" },
+      { id: "arithmetic", name: "Arithmetic" },
+      { id: "number-theory", name: "Number Theory" },
+      { id: "sets-logic", name: "Sets and Logic" },
+      { id: "coordinate-geometry", name: "Coordinate Geometry" }
     ]
   },
   {
@@ -552,7 +610,10 @@ export const subjects: Subject[] = [
       { id: "grammar", name: "Grammar" },
       { id: "spelling", name: "Spelling" },
       { id: "punctuation", name: "Punctuation" },
-      { id: "reading", name: "Reading Comprehension" }
+      { id: "reading", name: "Reading Comprehension" },
+      { id: "phonetics", name: "Phonetics" },
+      { id: "vocabulary", name: "Vocabulary" },
+      { id: "writing", name: "Writing" }
     ]
   }
 ];
@@ -567,6 +628,28 @@ export function topicName(subjectId: string, topicId: string): string {
   if (topic) return topic.name;
   // Topic came from the bank rather than the starter list; make the id readable.
   return topicId.replace(/[-_]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+/**
+ * The first option a multiple choice question has twice, or null.
+ *
+ * Marking compares the text of the option picked, so two options that read
+ * the same are both marked correct, or both wrong. The admin form, the API
+ * and the spreadsheet import all refuse such a question for this reason.
+ * Compared as written, apart from the ends: "x" and "X" can be different
+ * answers in a maths question.
+ */
+export function repeatedOption(options: readonly string[]): string | null {
+  const seen = new Set<string>();
+
+  for (const option of options) {
+    const text = option.trim();
+    if (text.length === 0) continue;
+    if (seen.has(text)) return text;
+    seen.add(text);
+  }
+
+  return null;
 }
 
 /** Short-answer marking is lenient about case and spacing, nothing more. */

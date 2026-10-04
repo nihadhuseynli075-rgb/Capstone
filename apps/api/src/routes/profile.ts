@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { normalizeUsername, profileLimits } from "@grade9/shared";
+import { cleanName, isReadableName, normalizeUsername, profileLimits } from "@grade9/shared";
 import { accountOf, requireAccount, signInAgain } from "../modules/student/requireAccount";
 import { liveAccount } from "../modules/student/studentAuth";
 import { deleteAttemptsFor } from "../repositories/attemptRepository";
@@ -53,13 +53,21 @@ profileRouter.get("/", async (_request, response, next) => {
 const nameField = z
   .string({ invalid_type_error: "That name is not valid." })
   // Runs of spaces, tabs or line breaks become one space, so a name pasted
-  // in from elsewhere cannot bring its layout onto the leaderboard.
-  .transform((value) => value.trim().replace(/\s+/g, " "))
+  // in from elsewhere cannot bring its layout onto the leaderboard, and
+  // characters that draw nothing are taken out (see cleanName). What is left
+  // has to have a letter or a digit in it: three zero-width spaces used to be
+  // saved, and showed as a blank name in the header and on friends' lists.
+  .transform(cleanName)
   .pipe(
     z
       .string()
-      .min(profileLimits.nameMin, "That name is too short.")
-      .max(profileLimits.nameMax, "That name is too long.")
+      .refine(isReadableName, "Enter your name.")
+      .pipe(
+        z
+          .string()
+          .min(profileLimits.nameMin, "That name is too short.")
+          .max(profileLimits.nameMax, "That name is too long.")
+      )
   );
 
 /**

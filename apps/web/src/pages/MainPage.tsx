@@ -38,6 +38,9 @@ const destinations: Array<{
   { path: "/profile", tone: "profile", icon: <IconProfile />, title: "nav.profile", body: "main.profileBody" }
 ];
 
+/** How long an account counts as new, for the greeting. */
+const NEW_ACCOUNT_MS = 24 * 60 * 60 * 1000;
+
 /**
  * The signed-in landing page. A guest gets the landing page instead (see App).
  *
@@ -85,13 +88,20 @@ export function MainPage() {
   // App only shows this page to a signed-in student.
   if (!user) return null;
 
+  // "Welcome back" straight after making an account greets someone who has
+  // never been here before. An account from the last day is greeted as new.
+  // Judged from the session, which is there at once, rather than from the
+  // history, which arrives later and would change the heading under them.
+  const createdAt = Date.parse(user.createdAt);
+  const isNewAccount = Number.isFinite(createdAt) && Date.now() - createdAt < NEW_ACCOUNT_MS;
+
   return (
     <div className="stack dashboard">
       <section className="main-greeting">
         <div>
           <p className="eyebrow">{t("main.eyebrow")}</p>
 
-          <h1>{`${t("main.greeting")}, ${profile?.fullName ?? user.fullName}.`}</h1>
+          <h1>{`${t(isNewAccount ? "main.greetingNew" : "main.greeting")}, ${profile?.fullName ?? user.fullName}.`}</h1>
         </div>
       </section>
 

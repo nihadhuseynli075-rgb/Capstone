@@ -82,6 +82,35 @@ export function AuthDivider({ label }: { label: string }) {
   return <p className="auth-divider">{label}</p>;
 }
 
+/**
+ * Moves focus to the first field with an error, once the page has drawn the
+ * message under it.
+ *
+ * A form that only painted its errors left focus on the submit button: a
+ * screen reader said nothing, and on a phone the first error could be above
+ * the fold. Focused, the field is scrolled into view and read out with its
+ * error, which Field links to it through aria-describedby. Pass the id of
+ * every field in form order, or a falsy value for one without an error.
+ *
+ * A field is often disabled while its form is sending, and a disabled field
+ * cannot take focus, so this waits a few frames for it to be enabled again.
+ */
+export function focusFirstError(...fieldIds: Array<string | false | null | undefined>): void {
+  const id = fieldIds.find((fieldId): fieldId is string => typeof fieldId === "string" && fieldId.length > 0);
+  if (!id) return;
+
+  let framesLeft = 10;
+
+  function attempt() {
+    const field = document.getElementById(id as string) as HTMLInputElement | null;
+
+    if (field && !field.disabled) field.focus();
+    else if ((framesLeft -= 1) > 0) window.requestAnimationFrame(attempt);
+  }
+
+  window.requestAnimationFrame(attempt);
+}
+
 /** A labelled input that shows its error underneath and links the two for screen readers. */
 export function Field({
   id,
@@ -95,7 +124,8 @@ export function Field({
   error?: string | null;
   hint?: string;
 } & React.InputHTMLAttributes<HTMLInputElement>) {
-  const describedBy = [error ? `${id}-error` : null, hint ? `${id}-hint` : null]
+  // The hint is only drawn while there is no error, so it is only named then.
+  const describedBy = [error ? `${id}-error` : null, hint && !error ? `${id}-hint` : null]
     .filter(Boolean)
     .join(" ");
 
@@ -160,7 +190,8 @@ export function PasswordField({
     showAria: t("profile.showPasswordAria"),
     hideAria: t("profile.hidePasswordAria")
   };
-  const describedBy = [error ? `${id}-error` : null, hint ? `${id}-hint` : null]
+  // The hint is only drawn while there is no error, so it is only named then.
+  const describedBy = [error ? `${id}-error` : null, hint && !error ? `${id}-hint` : null]
     .filter(Boolean)
     .join(" ");
 

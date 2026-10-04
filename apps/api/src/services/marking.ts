@@ -202,28 +202,37 @@ export function markAttempt(
  *
  * "Best" is not raw percentage: a 10/10 easy test should not outrank 45/50 hard,
  * so attempts are ranked by percentage weighted for difficulty and test length.
+ *
+ * Only beating the best is a new personal best. Equalling it used to count,
+ * so a second identical 5/5 announced "New personal best. Your previous best
+ * was 5/5." A tie is reported as `matchedBest` instead.
  */
 export function compareToPrevious(
   current: { percentage: number; totalQuestions: number; difficultyMode: AttemptSummary["difficultyMode"] },
   history: AttemptSummary[]
 ): AttemptComparison {
   if (history.length === 0) {
-    return { isPersonalBest: true, previousBest: null };
+    return { isPersonalBest: true, matchedBest: false, previousBest: null };
   }
 
   const best = history.reduce((leader, attempt) =>
     attemptScoreValue(attempt) > attemptScoreValue(leader) ? attempt : leader
   );
 
+  const value = attemptScoreValue(current);
+  const bestValue = attemptScoreValue(best);
+
   return {
-    isPersonalBest: attemptScoreValue(current) >= attemptScoreValue(best),
+    isPersonalBest: value > bestValue,
+    matchedBest: value === bestValue,
     previousBest: {
       score: best.score,
       totalMarks: best.totalMarks,
       totalQuestions: best.totalQuestions,
       percentage: best.percentage,
       difficultyMode: best.difficultyMode,
-      takenAt: best.submittedAt
+      takenAt: best.submittedAt,
+      subjectId: best.subjectId
     }
   };
 }

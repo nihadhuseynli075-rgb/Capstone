@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useAuth } from "../features/auth/AuthContext";
-import { PasswordField } from "../features/auth/AuthLayout";
+import { PasswordField, focusFirstError } from "../features/auth/AuthLayout";
 import { passwordProblem } from "../features/auth/authValidation";
+import { signInRoute } from "../features/auth/returnPath";
 import { DeleteAccountPanel } from "../features/profile/DeleteAccountPanel";
 import { DetailsPanel } from "../features/profile/DetailsPanel";
 import { EmailPanel } from "../features/profile/EmailPanel";
@@ -19,8 +20,8 @@ import { formatDay, useLanguage } from "../lib/i18n";
  * Read: the photo, name, username, email and when the account was made.
  * Update: the name, the username, the photo, the email, the password, and
  * whether Google is connected.
- * Delete: the photo, or the whole account. Signing in with Google lands here,
- * so a new student sees straight away the name and photo Google gave them, and
+ * Delete: the photo, or the whole account. Connecting Google lands back here,
+ * so the student sees straight away the name and photo Google gave them, and
  * where to change them.
  *
  * The name, the username, the photo and deleting the account go through the API. The email,
@@ -75,7 +76,7 @@ export function ProfilePage() {
           <p className="panel-hint">{configured ? t("profile.signedOut") : t("settings.notConfigured")}</p>
           {configured && (
             <div className="settings-actions">
-              <a className="primary-button" href="#/login">
+              <a className="primary-button" href={`#${signInRoute("login", "/profile")}`}>
                 {t("nav.signIn")}
               </a>
             </div>
@@ -178,7 +179,10 @@ function PasswordPanel({
     setErrors({ password: passwordError, confirm: confirmError });
     setFormError(null);
     setSaved(false);
-    if (passwordError || confirmError) return;
+    if (passwordError || confirmError) {
+      focusFirstError(passwordError && "profile-password", confirmError && "profile-password-confirm");
+      return;
+    }
 
     setSaving(true);
     try {

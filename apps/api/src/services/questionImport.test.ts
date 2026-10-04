@@ -115,7 +115,15 @@ describe("importQuestionsFromCsv", () => {
     const { drafts, errors } = importQuestionsFromCsv("subject,question,answer\nmath,1+1,2");
     assert.deepEqual(drafts, []);
     assert.equal(errors.length, 1);
-    assert.match(errors[0].message, /Missing required column\(s\): topicId/);
+    assert.match(errors[0].message, /^Missing column\(s\): topic\. /);
+  });
+
+  test("missing columns are named as the sheet names them, not by internal field names", () => {
+    const { errors } = importQuestionsFromCsv("subj,question,answer\nmath,1+1,2");
+    assert.equal(
+      errors[0].message,
+      "Missing column(s): subject, topic. The header row needs at least subject, topic, question and correct_answer."
+    );
   });
 
   test("bad rows are reported by spreadsheet row number while good rows still import", () => {
@@ -142,6 +150,16 @@ describe("importQuestionsFromCsv", () => {
       { row: 6, message: "Multiple choice needs at least two options in option_a / option_b." },
       { row: 7, message: 'Correct answer "Z" does not match any of the options.' }
     ]);
+  });
+
+  test("a row with two options that read the same is reported, not saved with both marked right", () => {
+    const csv = [header, "math,algebra,Pick one,same,same ,other,,B", "math,algebra,Case counts,x,X,,,B"].join("\n");
+
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(errors, [{ row: 2, message: 'Two options are the same ("same"). Each option has to be different.' }]);
+    assert.equal(drafts.length, 1);
+    assert.equal(drafts[0].prompt, "Case counts");
   });
 
   test("rejects a difficulty that is not easy, medium or hard", () => {

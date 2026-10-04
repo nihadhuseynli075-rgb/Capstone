@@ -1,16 +1,20 @@
 import { useEffect, useState } from "react";
-import { replaceRoute } from "../../app/router";
+import { replaceRoute, useRouteParam } from "../../app/router";
 import { useLanguage } from "../../lib/i18n";
 import { emailProblemText, errorText } from "../profile/profileText";
 import { useAuth } from "./AuthContext";
-import { AuthDivider, AuthLayout, Field, PasswordField } from "./AuthLayout";
+import { AuthDivider, AuthLayout, Field, PasswordField, focusFirstError } from "./AuthLayout";
 import { GoogleButton } from "./GoogleButton";
 import { signInRedirectErrorText } from "./authText";
 import { emailProblem } from "./authValidation";
+import { safeReturnPath, signInRoute } from "./returnPath";
 
 export function LoginPage() {
   const { t } = useLanguage();
   const { signIn, user, configured, redirectResult, clearRedirectResult } = useAuth();
+
+  // The page that sent the student here, to go back to once signed in.
+  const returnTo = safeReturnPath(useRouteParam("next"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,11 +23,12 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // Already signed in, or signed in from another tab: nothing to do here. The
-  // form's own step in the history is swapped for the home page rather than
-  // added to, or Back would land here again and be sent straight forward.
+  // form's own step in the history is swapped for the page that asked for the
+  // sign-in (home if none did) rather than added to, or Back would land here
+  // again and be sent straight forward.
   useEffect(() => {
-    if (user) replaceRoute("/");
-  }, [user]);
+    if (user) replaceRoute(returnTo);
+  }, [user, returnTo]);
 
   // A trip to Google, or an email link, that did not sign in comes back here
   // with the reason. Anything that failed while still signed in is shown on
@@ -45,14 +50,17 @@ export function LoginPage() {
     const passwordError = password.length === 0 ? t("auth.enterPassword") : undefined;
 
     setFieldErrors({ email: emailError, password: passwordError });
-    if (emailError || passwordError) return;
+    if (emailError || passwordError) {
+      focusFirstError(emailError && "login-email", passwordError && "login-password");
+      return;
+    }
 
     setSubmitting(true);
     setFormError(null);
 
     try {
       await signIn({ email: email.trim(), password });
-      replaceRoute("/");
+      replaceRoute(returnTo);
     } catch (cause) {
       setFormError(errorText(cause, t));
       setSubmitting(false);
@@ -65,7 +73,8 @@ export function LoginPage() {
       subtitle={t("auth.loginSubtitle")}
       footer={
         <>
-          <span>{t("auth.newHere")}</span> <a href="#/register">{t("auth.createAccountLink")}</a>
+          <span>{t("auth.newHere")}</span>{" "}
+          <a href={`#${signInRoute("register", returnTo)}`}>{t("auth.createAccountLink")}</a>
         </>
       }
     >
@@ -81,7 +90,7 @@ export function LoginPage() {
         </p>
       )}
 
-      <GoogleButton disabled={submitting || !configured} onError={setFormError} />
+      <GoogleButton disabled={submitting || !configured} onError={setFormError} returnTo={returnTo} />
 
       <AuthDivider label={t("auth.orEmailSignIn")} />
 

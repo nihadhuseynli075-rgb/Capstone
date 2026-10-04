@@ -52,6 +52,8 @@
   font: inherit;
   font-size: 14px;
   font-weight: 750;
+  /* "Create account" broke over two lines on a 320px phone. */
+  white-space: nowrap;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
@@ -298,7 +300,8 @@
   top: 30px;
   left: 30px;
   color: #8aa5b8;
-  font-size: 11px;
+  /* 12px is the smallest text anywhere on the site. */
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.18em;
 }
@@ -416,7 +419,7 @@
   border-radius: 50%;
   background: #e7f5fe;
   color: #0c82c8;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
 }
 
@@ -459,7 +462,7 @@
 
 .landing-bottom span {
   color: #0c82c8;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.16em;
 }
@@ -570,12 +573,20 @@
     min-height: 74px;
   }
 
+  /* Hidden from view but still read out: the mark beside it is decoration
+     (an empty alt), so this is what names the brand on a phone. */
   .landing-header .wordmark-text {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 
+  /* Still a 44px tap target on a phone, the floor the app header keeps too. */
   .landing-nav button {
-    min-height: 40px;
+    min-height: 44px;
     padding: 0 14px;
   }
 
@@ -637,5 +648,20 @@
   /* Stacked under the closing line, so no longer pushed to the far side. */
   .landing-bottom .landing-legal {
     margin-left: 0;
+  }
+}
+
+/* The smallest phones: both buttons and the mark on one row, each still 44px tall. */
+@media (max-width: 360px) {
+  .landing-header {
+    gap: 10px;
+  }
+
+  .landing-nav {
+    gap: 6px;
+  }
+
+  .landing-nav button {
+    padding: 0 10px;
   }
 }

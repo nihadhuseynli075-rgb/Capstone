@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Friend, FriendProgress } from "@grade9/shared";
-import { formatDay, useLanguage } from "../../lib/i18n";
+import { formatDay, formatPercent, useLanguage } from "../../lib/i18n";
 import { fill } from "./fill";
 import { PersonLabel } from "./PersonLabel";
 
@@ -66,10 +66,13 @@ function FriendCard({
   }
 
   const day = (iso: string | null) => (iso ? formatDay(iso, language) : NONE);
+  // Percentages are written the way the site language writes numbers.
   const best = (progress: FriendProgress) =>
-    progress.best ? `${progress.best.score}/${progress.best.totalMarks} (${progress.best.percentage}%)` : NONE;
+    progress.best
+      ? `${progress.best.score}/${progress.best.totalMarks} (${formatPercent(progress.best.percentage, language)})`
+      : NONE;
   const average = (progress: FriendProgress) =>
-    progress.averagePercentage === null ? NONE : `${progress.averagePercentage}%`;
+    progress.averagePercentage === null ? NONE : formatPercent(progress.averagePercentage, language);
 
   const rows: Array<{ label: string; mine: string; theirs: string }> = [
     { label: t("friends.testsTaken"), mine: String(me.testsTaken), theirs: String(friend.progress.testsTaken) },
@@ -130,7 +133,13 @@ function FriendCard({
         </div>
       ) : (
         <div className="friend-card-foot">
-          <button type="button" className="danger-button" disabled={busy} onClick={() => setConfirming(true)}>
+          <button
+            type="button"
+            className="danger-button"
+            aria-label={fill(t("friends.removeAria"), { name: friend.fullName })}
+            disabled={busy}
+            onClick={() => setConfirming(true)}
+          >
             {t("friends.remove")}
           </button>
         </div>

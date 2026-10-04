@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 
 import { LanguageSelect, ThemeToggle } from "../components/SiteControls";
 import { Wordmark } from "../lib/brand";
@@ -9,24 +9,32 @@ import { AuthProvider, useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
 import { ResetPasswordPage } from "../features/auth/ResetPasswordPage";
+import { currentRoute, signInRoute } from "../features/auth/returnPath";
 import { useHistoryClaim } from "../features/auth/useHistoryClaim";
 
 import { Avatar } from "../features/profile/Avatar";
 import { ProfileProvider, useProfile } from "../features/profile/ProfileContext";
 
-import { AdminPage } from "../pages/AdminPage";
 import { FriendsPage } from "../pages/FriendsPage";
 import { ExamPage } from "../pages/ExamPage";
 import { HistoryPage } from "../pages/HistoryPage";
 import { LandingPage } from "../pages/LandingPage";
 import { LegalPage } from "../pages/LegalPage";
 import { MainPage } from "../pages/MainPage";
+import { NotFoundPage } from "../pages/NotFoundPage";
 import { ProfilePage } from "../pages/ProfilePage";
 import { ResultsPage } from "../pages/ResultsPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { TestBuilderPage } from "../pages/TestBuilderPage";
 
 import { navigate, navigateAway, replaceRoute, useRoute } from "./router";
+
+/*
+ * The admin dashboard, with its question form, is the largest page and no
+ * student ever opens it, so it is its own file, fetched the first time
+ * #/admin is visited rather than with every page of the app.
+ */
+const AdminPage = lazy(() => import("../pages/AdminPage").then((module) => ({ default: module.AdminPage })));
 
 
 /**
@@ -66,6 +74,9 @@ function AccountMenu() {
   const menuRef =
     useRef<HTMLDivElement>(null);
 
+  const triggerRef =
+    useRef<HTMLButtonElement>(null);
+
 
   useEffect(() => {
     if (!open) return;
@@ -81,9 +92,18 @@ function AccountMenu() {
       }
     }
 
+    /*
+     * Escape closes the list and puts focus back on the button that opened
+     * it; left where it was, focus fell to the page itself and a keyboard
+     * user had to start again from the top. Listened for while capturing, so
+     * it is heard before the phone menu's own Escape, and marked as handled
+     * so that menu stays open: one press closes one thing.
+     */
     function handleKey(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        event.preventDefault();
         setOpen(false);
+        triggerRef.current?.focus();
       }
     }
 
@@ -94,7 +114,8 @@ function AccountMenu() {
 
     document.addEventListener(
       "keydown",
-      handleKey
+      handleKey,
+      true
     );
 
     return () => {
@@ -105,7 +126,8 @@ function AccountMenu() {
 
       document.removeEventListener(
         "keydown",
-        handleKey
+        handleKey,
+        true
       );
     };
   }, [open]);
@@ -116,7 +138,7 @@ function AccountMenu() {
       <button
         type="button"
         className="ghost-button"
-        onClick={() => navigate("/login")}
+        onClick={() => navigate(signInRoute("login", currentRoute()))}
       >
         {t("nav.signIn")}
       </button>
@@ -128,21 +150,36 @@ function AccountMenu() {
     profile?.fullName ?? user.fullName;
 
 
+  /*
+   * A disclosure rather than an ARIA menu: a button that shows a short list of
+   * ordinary buttons, reached with Tab like everything else on the page. A
+   * role="menu" promises arrow-key movement, and this list never had it.
+   *
+   * Tabbing out of the list closes it. Left open, it sat over the page while
+   * focus moved on underneath it. Only a move to somewhere else counts: a
+   * click on the name or email in the list moves focus to nowhere, and the
+   * list should stay.
+   */
   return (
     <div
       className="account-menu"
       ref={menuRef}
+      onBlur={(event) => {
+        const next = event.relatedTarget as Node | null;
+        if (open && next && !event.currentTarget.contains(next)) setOpen(false);
+      }}
     >
       <button
         type="button"
         className="account-trigger"
+        ref={triggerRef}
         onClick={() =>
           setOpen(
             (current) => !current
           )
         }
         aria-expanded={open}
-        aria-haspopup="menu"
+        aria-controls="account-dropdown"
       >
         <Avatar
           name={name}
@@ -158,7 +195,7 @@ function AccountMenu() {
       {open && (
         <div
           className="account-dropdown"
-          role="menu"
+          id="account-dropdown"
         >
           <div className="account-dropdown-head">
             <strong>
@@ -173,7 +210,6 @@ function AccountMenu() {
           <button
             type="button"
             className="account-item"
-            role="menuitem"
             onClick={() => {
               setOpen(false);
               navigate("/profile");
@@ -186,7 +222,6 @@ function AccountMenu() {
           <button
             type="button"
             className="account-item"
-            role="menuitem"
             onClick={() => {
               setOpen(false);
               navigate("/friends");
@@ -198,7 +233,6 @@ function AccountMenu() {
           <button
             type="button"
             className="account-item"
-            role="menuitem"
             onClick={() => {
               setOpen(false);
               navigate("/settings");
@@ -210,7 +244,6 @@ function AccountMenu() {
           <button
             type="button"
             className="account-item danger"
-            role="menuitem"
             onClick={async () => {
               setOpen(false);
 
@@ -229,12 +262,16 @@ function AccountMenu() {
 
 
 /*
- * Страницы приложения.
- * Всё остальное — главная.
+ * Every address the app has a page for. Anything else gets "Page not found"
+ * rather than the landing page or the dashboard, which used to hide a
+ * mistyped link behind a page that looked like it had worked.
  */
-function isAppPage(path: string): boolean {
+function isKnownRoute(path: string): boolean {
   return (
     [
+      "/",
+      "/login",
+      "/register",
       "/build",
       "/exam",
       "/history",
@@ -242,12 +279,39 @@ function isAppPage(path: string): boolean {
       "/profile",
       "/settings",
       "/admin",
+      "/results",
       // Open to everyone, signed in or not: the sign-up form links here.
       "/privacy",
-      "/terms"
+      "/terms",
+      "/reset-password"
     ].includes(path) ||
-    path.startsWith("/results")
+    /^\/results\/[^/]+$/.test(path)
   );
+}
+
+
+/** The page's name for the tab title, from its route. */
+function titleKeyFor(path: string, signedIn: boolean): TranslationKey {
+  if (!isKnownRoute(path)) return "title.notFound";
+  if (path === "/") return signedIn ? "title.dashboard" : "title.home";
+  if (path.startsWith("/results")) return "title.results";
+
+  const titles: Record<string, TranslationKey> = {
+    "/login": "title.signIn",
+    "/register": "title.register",
+    "/build": "title.build",
+    "/exam": "title.exam",
+    "/history": "title.history",
+    "/friends": "title.friends",
+    "/profile": "title.profile",
+    "/settings": "title.settings",
+    "/admin": "title.admin",
+    "/privacy": "title.privacy",
+    "/terms": "title.terms",
+    "/reset-password": "title.resetPassword"
+  };
+
+  return titles[path] ?? "title.home";
 }
 
 
@@ -272,6 +336,9 @@ function Shell() {
   const headerRef =
     useRef<HTMLElement>(null);
 
+  const navToggleRef =
+    useRef<HTMLButtonElement>(null);
+
 
   useHistoryClaim();
 
@@ -292,6 +359,16 @@ function Shell() {
   }, [theme]);
 
 
+  /*
+   * Each page names itself in the tab, the browser history and a screen
+   * reader's announcement of the page. With one title for the whole site,
+   * every tab and every step back read "Exampeak - Grade 9 mock tests".
+   */
+  useEffect(() => {
+    document.title = `${t(titleKeyFor(path, user !== null))} - Exampeak`;
+  }, [path, user, t]);
+
+
   useEffect(() => {
     setNavOpen(false);
   }, [path]);
@@ -300,10 +377,23 @@ function Shell() {
   useEffect(() => {
     if (!navOpen) return;
 
+    /*
+     * Escape folds the menu and gives focus back to the button that opened
+     * it, as long as focus was in the header to begin with; otherwise it would
+     * drop to the page and a keyboard user would start again from the top.
+     * An Escape the account list has already used (see AccountMenu) is left
+     * alone, so the menu around it stays open.
+     */
     function handleKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setNavOpen(false);
-      }
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+
+      const focused = document.activeElement;
+      const focusWasHere =
+        focused === document.body ||
+        (headerRef.current?.contains(focused) ?? false);
+
+      setNavOpen(false);
+      if (focusWasHere) navToggleRef.current?.focus();
     }
 
     function handlePointer(event: MouseEvent) {
@@ -365,7 +455,9 @@ function Shell() {
   }
 
 
-  if (!user && !isAppPage(path)) {
+  // Home is the landing page for a visitor and the dashboard for a student.
+  // Every other page, and "Page not found", is the same for both.
+  if (!user && path === "/") {
     return <LandingPage />;
   }
 
@@ -376,11 +468,19 @@ function Shell() {
   const navItems: Array<{ path: string; label: TranslationKey; active: boolean }> = [
     { path: "/", label: user ? "nav.dashboard" : "nav.home", active: path === "/" },
     { path: "/build", label: "nav.newTest", active: path === "/build" },
-    { path: "/history", label: "nav.history", active: path === "/history" || path.startsWith("/results") }
+    {
+      path: "/history",
+      label: "nav.history",
+      active: isKnownRoute(path) && (path === "/history" || path.startsWith("/results"))
+    }
   ];
 
 
   function renderPage() {
+    if (!isKnownRoute(path)) {
+      return <NotFoundPage />;
+    }
+
     if (path === "/build") {
       return <TestBuilderPage />;
     }
@@ -417,7 +517,11 @@ function Shell() {
     }
 
     if (path === "/admin") {
-      return <AdminPage />;
+      return (
+        <Suspense fallback={<p className="panel-hint" role="status">Loading the admin dashboard...</p>}>
+          <AdminPage />
+        </Suspense>
+      );
     }
 
     if (path === "/privacy" || path === "/terms") {
@@ -434,9 +538,12 @@ function Shell() {
         className="app-header"
         ref={headerRef}
       >
+        {/* Named outright: below 760px the written name is hidden and the
+            mark beside it is decoration, which would leave the link unnamed. */}
         <a
           href="#/"
           className="brand-link"
+          aria-label="Exampeak"
           onClick={(event) => {
             // During a test the exam page's guard asks first (see
             // setLeaveGuard), before the address changes, so "stay" leaves
@@ -452,33 +559,31 @@ function Shell() {
 
 
         {/*
-          * The icon buttons sit outside the nav so they stay one tap away on a
-          * phone, where the nav folds into the menu. They come before the nav in
-          * the markup so the menu button precedes the menu it opens; the
-          * stylesheet puts them after the links on a wide screen. The theme
+          * The markup runs in the order the bar is read, so Tab moves left to
+          * right: the menu button (phones only) comes just before the menu it
+          * opens, and the theme button comes last, where it is drawn. It used
+          * to sit before the links in the markup and be moved to the end by
+          * the stylesheet, so focus jumped to the far right and back. The theme
           * button stays during an exam too: it changes nothing about the paper.
           */}
-        <div className="header-actions">
-          <ThemeToggle />
-
-          {!isExam && (
-            <button
-              type="button"
-              className="ghost-button icon-button nav-toggle"
-              aria-expanded={navOpen}
-              aria-controls="app-nav"
-              aria-label={t("nav.menu")}
-              title={t("nav.menu")}
-              onClick={() =>
-                setNavOpen(
-                  (current) => !current
-                )
-              }
-            >
-              <HamburgerIcon open={navOpen} />
-            </button>
-          )}
-        </div>
+        {!isExam && (
+          <button
+            type="button"
+            className="ghost-button icon-button nav-toggle"
+            ref={navToggleRef}
+            aria-expanded={navOpen}
+            aria-controls="app-nav"
+            aria-label={t("nav.menu")}
+            title={t("nav.menu")}
+            onClick={() =>
+              setNavOpen(
+                (current) => !current
+              )
+            }
+          >
+            <HamburgerIcon open={navOpen} />
+          </button>
+        )}
 
 
         {!isExam && (
@@ -514,6 +619,9 @@ function Shell() {
             <AccountMenu />
           </nav>
         )}
+
+
+        <ThemeToggle />
       </header>
 
 

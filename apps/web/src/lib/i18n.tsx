@@ -38,6 +38,8 @@ const en = {
   "footer.tagline": "Exampeak - Grade 9 mock test practice",
 
   "main.greeting": "Welcome back",
+  // For an account made in the last day, which has nothing to come back to.
+  "main.greetingNew": "Welcome",
   "main.greetingGuest": "Welcome to Exampeak",
   "main.eyebrow": "Grade 9 final exam prep",
   "main.startPractice": "Start a practice test",
@@ -61,7 +63,9 @@ const en = {
   "main.bestScore": "Best score",
   "main.noTests": "No tests yet",
 
-  "subject.math": "Maths",
+  // The same words the builder, the results and the history use (subjects in
+  // packages/shared), so a subject has one name wherever it is read.
+  "subject.math": "Mathematics",
   "subject.english": "English",
   "subject.russian": "Russian",
 
@@ -71,15 +75,18 @@ const en = {
   "nav.themeToLight": "Switch to light mode",
   "main.profileBody": "Your name, your photo and the ways you sign in.",
 
-  "landing.logIn": "Log In",
-  "landing.signUp": "Sign Up",
+  // The names every other screen gives these two actions. Daily quizzes are
+  // left out of the intro until they exist: their card already says "Coming
+  // soon". "Practise" is the verb and "practice" the noun, as elsewhere.
+  "landing.logIn": "Sign in",
+  "landing.signUp": "Create account",
   "landing.label": "GRADE 9 EXAM PREPARATION",
   "landing.titleLead": "REACH YOUR",
   "landing.titlePeak": "PEAK.",
   "landing.intro":
-    "ExamPeak helps Grade 9 students prepare for final exams through mock tests, daily quizzes and detailed results.",
+    "Exampeak helps Grade 9 students prepare for final exams through mock tests and detailed results.",
   "landing.introMore":
-    "Practice by subject and difficulty, identify weak topics and track your progress as you improve.",
+    "Practise by subject and difficulty, identify weak topics and track your progress as you improve.",
   "landing.mockTests": "Mock Tests",
   "landing.mockTestsBody":
     "Create practice tests based on subject, topic and difficulty using Grade 9 exam-style questions.",
@@ -176,41 +183,6 @@ const en = {
     "Your profile, your photo and your test history are gone. You can still take tests as a guest whenever you like.",
   "profile.backHome": "Back to the home page",
 
-  // Translations
-  "translations.title": "Translations",
-  "translations.optional": "optional",
-  "translations.intro":
-    "Maths questions are shown in the language a student has chosen for the site. Above is the question as first written. Add other languages here; where there is no translation, students see the text above.",
-  "translations.prompt": "Question text",
-  "translations.options": "Options, in the same order as above",
-  "translations.optionFor": "translation of",
-  "translations.correctOption": "Correct answer",
-  "translations.explanation": "Explanation",
-  "translations.answer": "Correct answer in this language",
-  "translations.answerHint":
-    "Only for short answers that read differently, like 26 cm and 26 см. Leave empty to use the answer above.",
-  "translations.addOptionsFirst":
-    "Fill in the options above first: each translated option is matched to one of them by its position.",
-  "translations.errorNoPrompt": "add the question text, or clear everything for this language.",
-  "translations.errorOptions": "translate every option shown, or none of them.",
-  "translations.listLabel": "Translations",
-  "translations.listNone": "none yet",
-  "import.dropTitle": "Drop a CSV or TSV file here",
-  "import.dropOr": "or",
-  "import.choose": "choose a file",
-  "import.dropActive": "Drop to load this file",
-  "import.loaded": "Loaded",
-  "import.loadedHint": "Check it below, then press Import questions.",
-  "import.notSheet":
-    "That is not a .csv or .tsv file. In Google Sheets choose File, Download, Comma-separated values.",
-  "import.empty": "That file is empty.",
-  "import.tooBig":
-    "That file is over 2 MB, which is far more than a question sheet. Check it is the right one.",
-  "import.unreadable": "That file could not be read.",
-  "import.firstOnly": "Only one file is loaded at a time, so only the first was used.",
-  "import.translationHint":
-    "A translation goes in a column with the same name ending in _ru or _en: question_ru, option_a_ru, explanation_ru. See docs/question-format.md.",
-
   // Friends
   "friends.title": "Friends",
   "friends.subtitle": "Add friends by email or username, and see how your test results compare.",
@@ -224,7 +196,7 @@ const en = {
   "friends.addLabel": "Email or username",
   "friends.addPlaceholder": "Their email or @username",
   "friends.addHint":
-    "They need an ExamPeak account already. They will see your request and can accept or decline it.",
+    "They need an Exampeak account already. They will see your request and can accept or decline it.",
   "friends.send": "Send request",
   "friends.sending": "Sending...",
   "friends.sent": "Request sent to {name}. You will be friends once they accept.",
@@ -232,17 +204,25 @@ const en = {
 
   "friends.error.invalidLookup": "Enter an email address or a username, without spaces.",
   "friends.error.yourself": "That is your own account. Add a friend instead.",
-  "friends.error.noAccount": "No ExamPeak account with that email or username.",
+  "friends.error.noAccount": "No Exampeak account with that email or username.",
   "friends.error.alreadyFriends": "You are already friends.",
   "friends.error.alreadyRequested": "You have already sent them a request. They have not answered yet.",
   "friends.error.blocked": "A request cannot be sent to that account.",
   "friends.error.gone": "That request is no longer there. The list has been refreshed.",
+  // Removing a friendship that has already ended: it was never a request.
+  "friends.error.friendGone": "That friendship has already ended. The list has been refreshed.",
 
   "friends.incomingTitle": "Requests for you",
   "friends.outgoingTitle": "Waiting for an answer",
   "friends.accept": "Accept",
   "friends.decline": "Decline",
   "friends.cancel": "Cancel request",
+  // What a screen reader calls each button: the visible word, then whose it
+  // is, so a list of a dozen "Remove" buttons can be told apart.
+  "friends.acceptAria": "Accept request from {name}",
+  "friends.declineAria": "Decline request from {name}",
+  "friends.cancelAria": "Cancel request to {name}",
+  "friends.removeAria": "Remove {name}",
 
   "friends.listTitle": "Your friends",
   "friends.empty": "No friends yet. Add someone above with their email or username.",
@@ -330,15 +310,6 @@ const en = {
   "profile.usernameSaved": "Username updated.",
   "profile.detailsSaved": "Details updated.",
   "profile.saveDetails": "Save changes",
-
-  // Admin
-  "admin.sessionEnded": "Your admin session has ended, so you need to sign in again.",
-  "admin.sessionEndedDraft":
-    "Your admin session ended before the question was saved. It has been kept: sign in again and it is saved straight away.",
-  "admin.bankCount": "Questions in the bank: {total}.",
-  "admin.bankMatching": "Questions in the bank: {total}. Matching this filter: {count}.",
-  "admin.noMatch":
-    "No question matches this filter. Clear the search or choose all subjects to see the whole bank.",
 
   // Sign-in and sign-up
   "app.loading": "Loading Exampeak...",
@@ -467,6 +438,9 @@ const en = {
   "builder.subject": "Subject",
   "builder.topics": "Topics",
   "builder.noQuestions": "no questions yet",
+  // A topic card counts what the difficulty chosen below can draw on.
+  "builder.topicCountAt": "{questions} ({difficulty})",
+  "builder.topicNoneAt": "no questions on {difficulty}",
   "builder.lastScore": "Last score {n}%",
   "builder.notTried": "Not tried yet",
   "builder.difficulty": "Difficulty",
@@ -524,6 +498,8 @@ const en = {
   "results.newBest": "New personal best. Your previous best was {score}.",
   "results.firstTest": "First test recorded. Everything from here is measured against this one.",
   "results.bestSoFar": "Your best so far: {score} ({difficulty}).",
+  // Level with the best: not a new best, which a tie used to be called.
+  "results.matchedBest": "You matched your best so far: {score} ({difficulty}).",
   "results.byTopic": "How you did by topic",
   "results.everyQuestion": "Every question",
   "results.onlyMistakes": "Show only my mistakes",
@@ -554,7 +530,32 @@ const en = {
   "history.all": "All attempts",
 
   "common.saving": "Saving...",
-  "common.back": "Back"
+  "common.back": "Back",
+
+  // Page not found
+  "notFound.title": "Page not found",
+  "notFound.body":
+    "There is nothing at this address. The link may have a typing mistake in it, or the page may have moved.",
+  "notFound.home": "Go to the home page",
+  "notFound.dashboard": "Go to your dashboard",
+
+  // Page titles, shown in the tab and the history as "<page> - Exampeak"
+  "title.home": "Grade 9 mock tests",
+  "title.dashboard": "Dashboard",
+  "title.signIn": "Sign in",
+  "title.register": "Create account",
+  "title.build": "Create a mock test",
+  "title.exam": "Test in progress",
+  "title.results": "Results",
+  "title.history": "Test history",
+  "title.friends": "Friends",
+  "title.profile": "Your profile",
+  "title.settings": "Settings",
+  "title.admin": "Admin dashboard",
+  "title.notFound": "Page not found",
+  "title.privacy": "Privacy",
+  "title.terms": "Terms of use",
+  "title.resetPassword": "Reset your password"
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -575,6 +576,7 @@ const ru: Dictionary = {
   "footer.tagline": "Exampeak - пробные тесты для 9 класса",
 
   "main.greeting": "С возвращением",
+  "main.greetingNew": "Добро пожаловать",
   "main.greetingGuest": "Добро пожаловать в Exampeak",
   "main.eyebrow": "Подготовка к выпускным экзаменам 9 класса",
   "main.startPractice": "Начать пробный тест",
@@ -608,12 +610,12 @@ const ru: Dictionary = {
   "main.profileBody": "Ваше имя, фото и способы входа.",
 
   "landing.logIn": "Войти",
-  "landing.signUp": "Регистрация",
+  "landing.signUp": "Создать аккаунт",
   "landing.label": "ПОДГОТОВКА К ЭКЗАМЕНАМ 9 КЛАССА",
   "landing.titleLead": "ДОСТИГНИТЕ СВОЕЙ",
   "landing.titlePeak": "ВЕРШИНЫ.",
   "landing.intro":
-    "ExamPeak помогает девятиклассникам готовиться к выпускным экзаменам: пробные тесты, ежедневные викторины и подробные результаты.",
+    "Exampeak помогает девятиклассникам готовиться к выпускным экзаменам: пробные тесты и подробные результаты.",
   "landing.introMore":
     "Тренируйтесь по предметам и уровням сложности, находите слабые темы и следите за своим прогрессом.",
   "landing.mockTests": "Пробные тесты",
@@ -712,41 +714,6 @@ const ru: Dictionary = {
     "Ваш профиль, фото и история тестов удалены. Вы по-прежнему можете проходить тесты как гость.",
   "profile.backHome": "На главную",
 
-  // Translations
-  "translations.title": "Переводы",
-  "translations.optional": "необязательно",
-  "translations.intro":
-    "Задания по математике показываются на языке, который ученик выбрал для сайта. Выше задание в том виде, в каком оно было написано. Добавьте здесь другие языки; если перевода нет, ученик видит текст выше.",
-  "translations.prompt": "Текст задания",
-  "translations.options": "Варианты ответа, в том же порядке, что и выше",
-  "translations.optionFor": "перевод варианта",
-  "translations.correctOption": "Верный ответ",
-  "translations.explanation": "Объяснение",
-  "translations.answer": "Верный ответ на этом языке",
-  "translations.answerHint":
-    "Нужен только для коротких ответов, которые пишутся по-разному, например 26 cm и 26 см. Если оставить пустым, берётся ответ выше.",
-  "translations.addOptionsFirst":
-    "Сначала заполните варианты ответа выше: каждый переведённый вариант сопоставляется с одним из них по порядку.",
-  "translations.errorNoPrompt": "добавьте текст задания или очистите все поля для этого языка.",
-  "translations.errorOptions": "переведите все показанные варианты или ни одного.",
-  "translations.listLabel": "Переводы",
-  "translations.listNone": "пока нет",
-  "import.dropTitle": "Перетащите сюда файл CSV или TSV",
-  "import.dropOr": "или",
-  "import.choose": "выберите файл",
-  "import.dropActive": "Отпустите, чтобы загрузить файл",
-  "import.loaded": "Загружено",
-  "import.loadedHint": "Проверьте текст ниже и нажмите Import questions.",
-  "import.notSheet":
-    "Это не файл .csv или .tsv. В Google Таблицах выберите «Файл», «Скачать», «Значения, разделённые запятыми».",
-  "import.empty": "Этот файл пуст.",
-  "import.tooBig":
-    "Файл больше 2 МБ, а это намного больше, чем таблица с вопросами. Проверьте, тот ли это файл.",
-  "import.unreadable": "Не удалось прочитать этот файл.",
-  "import.firstOnly": "Загружается один файл за раз, поэтому использован только первый.",
-  "import.translationHint":
-    "Перевод добавляется в столбец с тем же названием и окончанием _ru или _en: question_ru, option_a_ru, explanation_ru. Подробности в docs/question-format.md.",
-
   // Friends
   "friends.title": "Друзья",
   "friends.subtitle":
@@ -761,7 +728,7 @@ const ru: Dictionary = {
   "friends.addLabel": "Почта или имя пользователя",
   "friends.addPlaceholder": "Почта или @имя_пользователя",
   "friends.addHint":
-    "У этого человека уже должен быть аккаунт ExamPeak. Он увидит ваш запрос и сможет принять или отклонить его.",
+    "У этого человека уже должен быть аккаунт Exampeak. Он увидит ваш запрос и сможет принять или отклонить его.",
   "friends.send": "Отправить запрос",
   "friends.sending": "Отправляем...",
   "friends.sent": "Запрос отправлен: {name}. Вы станете друзьями, когда его примут.",
@@ -769,17 +736,22 @@ const ru: Dictionary = {
 
   "friends.error.invalidLookup": "Введите адрес электронной почты или имя пользователя без пробелов.",
   "friends.error.yourself": "Это ваш собственный аккаунт. Добавьте кого-нибудь другого.",
-  "friends.error.noAccount": "Нет аккаунта ExamPeak с такой почтой или таким именем пользователя.",
+  "friends.error.noAccount": "Нет аккаунта Exampeak с такой почтой или таким именем пользователя.",
   "friends.error.alreadyFriends": "Вы уже друзья.",
   "friends.error.alreadyRequested": "Вы уже отправили запрос. Ответа пока нет.",
   "friends.error.blocked": "Этому аккаунту нельзя отправить запрос.",
   "friends.error.gone": "Этого запроса больше нет. Список обновлён.",
+  "friends.error.friendGone": "Вы уже не друзья с этим человеком. Список обновлён.",
 
   "friends.incomingTitle": "Запросы к вам",
   "friends.outgoingTitle": "Ждут ответа",
   "friends.accept": "Принять",
   "friends.decline": "Отклонить",
   "friends.cancel": "Отменить запрос",
+  "friends.acceptAria": "Принять запрос: {name}",
+  "friends.declineAria": "Отклонить запрос: {name}",
+  "friends.cancelAria": "Отменить запрос: {name}",
+  "friends.removeAria": "Удалить из друзей: {name}",
 
   "friends.listTitle": "Ваши друзья",
   "friends.empty": "Друзей пока нет. Добавьте кого-нибудь выше по почте или имени пользователя.",
@@ -867,15 +839,6 @@ const ru: Dictionary = {
   "profile.usernameSaved": "Имя пользователя обновлено.",
   "profile.detailsSaved": "Данные обновлены.",
   "profile.saveDetails": "Сохранить изменения",
-
-  // Admin
-  "admin.sessionEnded": "Сеанс администратора завершился. Войдите снова.",
-  "admin.sessionEndedDraft":
-    "Сеанс администратора завершился до того, как вопрос был сохранён. Он не потерян: войдите снова, и он сразу сохранится.",
-  "admin.bankCount": "Вопросов в банке: {total}.",
-  "admin.bankMatching": "Вопросов в банке: {total}. Подходят под фильтр: {count}.",
-  "admin.noMatch":
-    "Ни один вопрос не подходит под этот фильтр. Очистите поиск или выберите все предметы, чтобы увидеть весь банк.",
 
   // Sign-in and sign-up
   "app.loading": "Загружаем Exampeak...",
@@ -1002,6 +965,8 @@ const ru: Dictionary = {
   "builder.subject": "Предмет",
   "builder.topics": "Темы",
   "builder.noQuestions": "вопросов пока нет",
+  "builder.topicCountAt": "{questions} ({difficulty})",
+  "builder.topicNoneAt": "нет вопросов уровня «{difficulty}»",
   "builder.lastScore": "Последний результат: {n}%",
   "builder.notTried": "Ещё не проходили",
   "builder.difficulty": "Сложность",
@@ -1058,6 +1023,7 @@ const ru: Dictionary = {
   "results.newBest": "Новый личный рекорд! Ваш прошлый лучший результат: {score}.",
   "results.firstTest": "Первый тест записан. Все следующие будут сравниваться с ним.",
   "results.bestSoFar": "Ваш лучший результат пока: {score} ({difficulty}).",
+  "results.matchedBest": "Вы повторили свой лучший результат: {score} ({difficulty}).",
   "results.byTopic": "Результаты по темам",
   "results.everyQuestion": "Все вопросы",
   "results.onlyMistakes": "Показывать только ошибки",
@@ -1088,7 +1054,32 @@ const ru: Dictionary = {
   "history.all": "Все попытки",
 
   "common.saving": "Сохранение...",
-  "common.back": "Назад"
+  "common.back": "Назад",
+
+  // Page not found
+  "notFound.title": "Страница не найдена",
+  "notFound.body":
+    "По этому адресу ничего нет. Возможно, в ссылке опечатка или страница переехала.",
+  "notFound.home": "На главную",
+  "notFound.dashboard": "На главную",
+
+  // Page titles
+  "title.home": "Пробные тесты для 9 класса",
+  "title.dashboard": "Главная",
+  "title.signIn": "Вход",
+  "title.register": "Создать аккаунт",
+  "title.build": "Новый пробный тест",
+  "title.exam": "Идёт тест",
+  "title.results": "Результаты",
+  "title.history": "История тестов",
+  "title.friends": "Друзья",
+  "title.profile": "Ваш профиль",
+  "title.settings": "Настройки",
+  "title.admin": "Панель администратора",
+  "title.notFound": "Страница не найдена",
+  "title.privacy": "Конфиденциальность",
+  "title.terms": "Условия использования",
+  "title.resetPassword": "Сброс пароля"
 };
 
 const az: Dictionary = {
@@ -1105,6 +1096,7 @@ const az: Dictionary = {
   "footer.tagline": "Exampeak - 9-cu sinif üçün sınaq testləri",
 
   "main.greeting": "Yenidən xoş gəldiniz",
+  "main.greetingNew": "Xoş gəldiniz",
   "main.greetingGuest": "Exampeak-ə xoş gəldiniz",
   "main.eyebrow": "9-cu sinif buraxılış imtahanlarına hazırlıq",
   "main.startPractice": "Sınaq testinə başla",
@@ -1138,12 +1130,12 @@ const az: Dictionary = {
   "main.profileBody": "Adınız, şəkliniz və giriş üsulları.",
 
   "landing.logIn": "Daxil ol",
-  "landing.signUp": "Qeydiyyat",
+  "landing.signUp": "Hesab yarat",
   "landing.label": "9-CU SİNİF İMTAHANLARINA HAZIRLIQ",
   "landing.titleLead": "ZİRVƏNİZƏ",
   "landing.titlePeak": "ÇATIN.",
   "landing.intro":
-    "ExamPeak 9-cu sinif şagirdlərinə sınaq testləri, gündəlik viktorinalar və ətraflı nəticələrlə buraxılış imtahanlarına hazırlaşmağa kömək edir.",
+    "Exampeak 9-cu sinif şagirdlərinə sınaq testləri və ətraflı nəticələrlə buraxılış imtahanlarına hazırlaşmağa kömək edir.",
   "landing.introMore":
     "Fənn və çətinlik səviyyəsinə görə məşq edin, zəif mövzuları tapın və inkişafınızı izləyin.",
   "landing.mockTests": "Sınaq testləri",
@@ -1242,41 +1234,6 @@ const az: Dictionary = {
     "Profiliniz, şəkliniz və test tarixçəniz silindi. İstədiyiniz vaxt qonaq kimi test həll etməyə davam edə bilərsiniz.",
   "profile.backHome": "Ana səhifəyə qayıt",
 
-  // Translations
-  "translations.title": "Tərcümələr",
-  "translations.optional": "ixtiyari",
-  "translations.intro":
-    "Riyaziyyat tapşırıqları şagirdin sayt üçün seçdiyi dildə göstərilir. Yuxarıda tapşırıq ilkin yazıldığı kimidir. Digər dilləri burada əlavə edin; tərcümə olmayan dildə şagird yuxarıdakı mətni görür.",
-  "translations.prompt": "Tapşırığın mətni",
-  "translations.options": "Cavab variantları, yuxarıdakı ilə eyni sıra ilə",
-  "translations.optionFor": "variantın tərcüməsi",
-  "translations.correctOption": "Düzgün cavab",
-  "translations.explanation": "İzah",
-  "translations.answer": "Bu dildə düzgün cavab",
-  "translations.answerHint":
-    "Yalnız fərqli yazılan qısa cavablar üçündür, məsələn, 26 cm və 26 см. Boş buraxsanız, yuxarıdakı cavab götürülür.",
-  "translations.addOptionsFirst":
-    "Əvvəlcə yuxarıdakı cavab variantlarını doldurun: tərcümə olunmuş hər variant sıra ilə onlardan biri ilə uyğunlaşdırılır.",
-  "translations.errorNoPrompt": "tapşırığın mətnini əlavə edin və ya bu dil üçün bütün sahələri silin.",
-  "translations.errorOptions": "göstərilən bütün variantları tərcümə edin və ya heç birini.",
-  "translations.listLabel": "Tərcümələr",
-  "translations.listNone": "hələ yoxdur",
-  "import.dropTitle": "CSV və ya TSV faylını bura sürüşdürün",
-  "import.dropOr": "və ya",
-  "import.choose": "fayl seçin",
-  "import.dropActive": "Faylı yükləmək üçün buraxın",
-  "import.loaded": "Yükləndi",
-  "import.loadedHint": "Aşağıdakı mətni yoxlayın, sonra Import questions düyməsini basın.",
-  "import.notSheet":
-    ".csv və ya .tsv faylı deyil. Google Cədvəllərdə Fayl, Yüklə, Vergüllə ayrılmış dəyərlər seçin.",
-  "import.empty": "Bu fayl boşdur.",
-  "import.tooBig":
-    "Fayl 2 MB-dan böyükdür, bu isə sual cədvəlindən xeyli böyükdür. Düzgün fayl olduğunu yoxlayın.",
-  "import.unreadable": "Bu faylı oxumaq mümkün olmadı.",
-  "import.firstOnly": "Eyni anda yalnız bir fayl yüklənir, ona görə yalnız birincisi istifadə olundu.",
-  "import.translationHint":
-    "Tərcümə eyni adlı, lakin sonu _ru və ya _en olan sütunda yazılır: question_ru, option_a_ru, explanation_ru. Ətraflı: docs/question-format.md.",
-
   // Friends
   "friends.title": "Dostlar",
   "friends.subtitle":
@@ -1291,7 +1248,7 @@ const az: Dictionary = {
   "friends.addLabel": "E-poçt və ya istifadəçi adı",
   "friends.addPlaceholder": "E-poçt və ya @istifadəçi_adı",
   "friends.addHint":
-    "Onun artıq ExamPeak hesabı olmalıdır. O, sorğunuzu görəcək və qəbul edə və ya rədd edə biləcək.",
+    "Onun artıq Exampeak hesabı olmalıdır. O, sorğunuzu görəcək və qəbul edə və ya rədd edə biləcək.",
   "friends.send": "Sorğu göndər",
   "friends.sending": "Göndərilir...",
   "friends.sent": "Sorğu göndərildi: {name}. Qəbul ediləndə dost olacaqsınız.",
@@ -1299,17 +1256,22 @@ const az: Dictionary = {
 
   "friends.error.invalidLookup": "Boşluqsuz e-poçt ünvanı və ya istifadəçi adı daxil edin.",
   "friends.error.yourself": "Bu sizin öz hesabınızdır. Başqasını əlavə edin.",
-  "friends.error.noAccount": "Bu e-poçt və ya istifadəçi adı ilə ExamPeak hesabı yoxdur.",
+  "friends.error.noAccount": "Bu e-poçt və ya istifadəçi adı ilə Exampeak hesabı yoxdur.",
   "friends.error.alreadyFriends": "Siz artıq dostsunuz.",
   "friends.error.alreadyRequested": "Siz artıq sorğu göndərmisiniz. Hələ cavab verilməyib.",
   "friends.error.blocked": "Bu hesaba sorğu göndərmək mümkün deyil.",
   "friends.error.gone": "Bu sorğu artıq yoxdur. Siyahı yeniləndi.",
+  "friends.error.friendGone": "Bu dostluq artıq bitib. Siyahı yeniləndi.",
 
   "friends.incomingTitle": "Sizə gələn sorğular",
   "friends.outgoingTitle": "Cavab gözləyənlər",
   "friends.accept": "Qəbul et",
   "friends.decline": "Rədd et",
   "friends.cancel": "Sorğunu ləğv et",
+  "friends.acceptAria": "Qəbul et: {name}",
+  "friends.declineAria": "Rədd et: {name}",
+  "friends.cancelAria": "Sorğunu ləğv et: {name}",
+  "friends.removeAria": "Sil: {name}",
 
   "friends.listTitle": "Dostlarınız",
   "friends.empty": "Hələ dostunuz yoxdur. Yuxarıda e-poçt və ya istifadəçi adı ilə kimisə əlavə edin.",
@@ -1397,15 +1359,6 @@ const az: Dictionary = {
   "profile.usernameSaved": "İstifadəçi adı yeniləndi.",
   "profile.detailsSaved": "Məlumatlar yeniləndi.",
   "profile.saveDetails": "Dəyişiklikləri yadda saxla",
-
-  // Admin
-  "admin.sessionEnded": "Admin sessiyanız başa çatdı. Yenidən daxil olun.",
-  "admin.sessionEndedDraft":
-    "Admin sessiyanız sual yadda saxlanmamışdan əvvəl başa çatdı. Sual itməyib: yenidən daxil olun, o dərhal yadda saxlanılacaq.",
-  "admin.bankCount": "Bankdakı suallar: {total}.",
-  "admin.bankMatching": "Bankdakı suallar: {total}. Bu filtrə uyğun gələnlər: {count}.",
-  "admin.noMatch":
-    "Bu filtrə uyğun sual yoxdur. Bütün bankı görmək üçün axtarışı təmizləyin və ya bütün fənləri seçin.",
 
   // Sign-in and sign-up
   "app.loading": "Exampeak yüklənir...",
@@ -1532,6 +1485,8 @@ const az: Dictionary = {
   "builder.subject": "Fənn",
   "builder.topics": "Mövzular",
   "builder.noQuestions": "hələ sual yoxdur",
+  "builder.topicCountAt": "{questions} ({difficulty})",
+  "builder.topicNoneAt": "«{difficulty}» səviyyəsində sual yoxdur",
   "builder.lastScore": "Son nəticə: {n}%",
   "builder.notTried": "Hələ cəhd edilməyib",
   "builder.difficulty": "Çətinlik",
@@ -1587,6 +1542,7 @@ const az: Dictionary = {
   "results.newBest": "Yeni şəxsi rekord! Əvvəlki ən yaxşı nəticəniz: {score}.",
   "results.firstTest": "İlk test qeydə alındı. Bundan sonrakılar onunla müqayisə ediləcək.",
   "results.bestSoFar": "İndiyə qədər ən yaxşı nəticəniz: {score} ({difficulty}).",
+  "results.matchedBest": "Ən yaxşı nəticənizi təkrarladınız: {score} ({difficulty}).",
   "results.byTopic": "Mövzular üzrə nəticələr",
   "results.everyQuestion": "Bütün suallar",
   "results.onlyMistakes": "Yalnız səhvlərimi göstər",
@@ -1617,7 +1573,32 @@ const az: Dictionary = {
   "history.all": "Bütün cəhdlər",
 
   "common.saving": "Yadda saxlanılır...",
-  "common.back": "Geri"
+  "common.back": "Geri",
+
+  // Page not found
+  "notFound.title": "Səhifə tapılmadı",
+  "notFound.body":
+    "Bu ünvanda heç nə yoxdur. Linkdə hərf səhvi ola bilər, ya da səhifə başqa yerə köçüb.",
+  "notFound.home": "Ana səhifəyə qayıt",
+  "notFound.dashboard": "Ana səhifəyə qayıt",
+
+  // Page titles
+  "title.home": "9-cu sinif üçün sınaq testləri",
+  "title.dashboard": "Ana səhifə",
+  "title.signIn": "Daxil ol",
+  "title.register": "Hesab yarat",
+  "title.build": "Yeni sınaq testi",
+  "title.exam": "Test gedir",
+  "title.results": "Nəticələr",
+  "title.history": "Test tarixçəsi",
+  "title.friends": "Dostlar",
+  "title.profile": "Profiliniz",
+  "title.settings": "Tənzimləmələr",
+  "title.admin": "Admin paneli",
+  "title.notFound": "Səhifə tapılmadı",
+  "title.privacy": "Məxfilik",
+  "title.terms": "İstifadə şərtləri",
+  "title.resetPassword": "Şifrəni sıfırlayın"
 };
 
 const dictionaries: Record<Language, Dictionary> = { en, ru, az };
@@ -1656,6 +1637,19 @@ export function fill(template: string, values: Record<string, string | number>):
   return template.replace(/\{(\w+)\}/g, (whole, name: string) =>
     values[name] === undefined ? whole : String(values[name])
   );
+}
+
+/**
+ * A percentage, given out of 100, in the site language: "26.7%", "26,7 %",
+ * "26,7%". It was "26.7%" in every language.
+ *
+ * Chrome has no Azerbaijani number data either and gives the English form,
+ * so that one is built here: a decimal comma, with the sign straight after
+ * the number.
+ */
+export function formatPercent(value: number, language: Language): string {
+  if (language === "az") return `${new Intl.NumberFormat("ru", { maximumFractionDigits: 1 }).format(value)}%`;
+  return new Intl.NumberFormat(language, { style: "percent", maximumFractionDigits: 1 }).format(value / 100);
 }
 
 /**

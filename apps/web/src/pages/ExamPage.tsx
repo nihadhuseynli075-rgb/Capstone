@@ -288,11 +288,18 @@ export function ExamPage() {
     setCurrentIndex(Math.max(0, Math.min(index, questions.length - 1)));
   }
 
+  // A paper the server has refused is closed: its answers can no longer
+  // change, and Finish is gone (see below). It stayed editable, so a student
+  // could keep answering and press Finish, be asked "Submit anyway?", and then
+  // see nothing happen at all.
   function setAnswer(value: string) {
+    if (dead) return;
     setAnswers((current) => ({ ...current, [question.id]: value }));
   }
 
   function confirmAndSubmit() {
+    if (dead) return;
+
     const unanswered = questions.length - answeredCount;
     if (unanswered > 0 && !window.confirm(tn("exam.confirmUnanswered", unanswered))) {
       return;
@@ -393,6 +400,7 @@ export function ExamPage() {
                   type="radio"
                   name={`question-${question.id}`}
                   checked={answers[question.id] === option}
+                  disabled={dead}
                   onChange={() => setAnswer(option)}
                 />
                 <span className="option-letter">{String.fromCharCode(65 + index)}</span>
@@ -405,6 +413,7 @@ export function ExamPage() {
             {t("exam.yourAnswer")}
             <textarea
               value={answers[question.id] ?? ""}
+              disabled={dead}
               onChange={(event) => setAnswer(event.target.value)}
               placeholder={t("exam.writtenPlaceholder")}
               rows={8}
@@ -421,6 +430,7 @@ export function ExamPage() {
             <input
               type="text"
               value={answers[question.id] ?? ""}
+              disabled={dead}
               onChange={(event) => setAnswer(event.target.value)}
               placeholder={t("exam.shortPlaceholder")}
               autoComplete="off"
@@ -459,35 +469,39 @@ export function ExamPage() {
         </div>
       )}
 
-      <div className="exam-actions">
-        <button
-          type="button"
-          className="ghost-button"
-          onClick={() => goToQuestion(currentIndex - 1)}
-          disabled={currentIndex === 0}
-        >
-          {t("exam.previous")}
-        </button>
+      {/* Once the paper is refused for good, the only way on is the pair of
+          buttons in the message above, so the paper's own buttons go. */}
+      {!dead && (
+        <div className="exam-actions">
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => goToQuestion(currentIndex - 1)}
+            disabled={currentIndex === 0}
+          >
+            {t("exam.previous")}
+          </button>
 
-        {isLast ? (
-          <button
-            type="button"
-            className="primary-button"
-            onClick={confirmAndSubmit}
-            disabled={submitting}
-          >
-            {submitting ? t("exam.marking") : t("exam.finish")}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() => goToQuestion(currentIndex + 1)}
-          >
-            {t("exam.next")}
-          </button>
-        )}
-      </div>
+          {isLast ? (
+            <button
+              type="button"
+              className="primary-button"
+              onClick={confirmAndSubmit}
+              disabled={submitting}
+            >
+              {submitting ? t("exam.marking") : t("exam.finish")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => goToQuestion(currentIndex + 1)}
+            >
+              {t("exam.next")}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

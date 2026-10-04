@@ -1,4 +1,5 @@
 import { useAuth } from "../features/auth/AuthContext";
+import { signInRoute } from "../features/auth/returnPath";
 import { languages, useLanguage, type Language } from "../lib/i18n";
 import { useTheme } from "../lib/theme";
 
@@ -33,7 +34,7 @@ export function SettingsPage() {
           </p>
           {(user || configured) && (
             <div className="settings-actions">
-              <a className="primary-button" href={user ? "#/profile" : "#/login"}>
+              <a className="primary-button" href={user ? "#/profile" : `#${signInRoute("login", "/settings")}`}>
                 {user ? t("settings.openProfile") : t("settings.signInCta")}
               </a>
             </div>

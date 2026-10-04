@@ -4,12 +4,24 @@ const STORAGE_KEY = "examPeak.theme";
 
 export type Theme = "light" | "dark";
 
-export function getStoredTheme(): Theme {
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "light" || stored === "dark") return stored;
+const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
 
-  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  return prefersDark ? "dark" : "light";
+/** The theme the student picked on this device, or null if they never have. */
+function storedChoice(): Theme | null {
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    return stored === "light" || stored === "dark" ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+function systemTheme(): Theme {
+  return systemDark.matches ? "dark" : "light";
+}
+
+export function getStoredTheme(): Theme {
+  return storedChoice() ?? systemTheme();
 }
 
 /**
@@ -18,6 +30,12 @@ export function getStoredTheme(): Theme {
  */
 const THEME_COLOURS: Record<Theme, string> = { light: "#f4f8fc", dark: "#07202f" };
 
+/**
+ * Puts a theme on the page. Only that: storing it is left to setTheme, the
+ * one place a student actually chooses. Writing it here as well wrote the
+ * system's setting down on the first visit, and from then on the site kept
+ * that theme however the phone or computer was switched afterwards.
+ */
 export function applyTheme(theme: Theme): void {
   const root = document.documentElement;
   root.dataset.theme = theme;
@@ -28,8 +46,6 @@ export function applyTheme(theme: Theme): void {
   for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
     meta.content = THEME_COLOURS[theme];
   }
-
-  window.localStorage.setItem(STORAGE_KEY, theme);
 }
 
 /**
@@ -58,13 +74,31 @@ function subscribe(listener: () => void): () => void {
   };
 }
 
-export function setTheme(theme: Theme): void {
+function change(theme: Theme): void {
   if (readTheme() === theme) return;
 
   currentTheme = theme;
   applyTheme(theme);
   for (const listener of [...listeners]) listener();
 }
+
+/** A student's own choice, kept on this device from now on. */
+export function setTheme(theme: Theme): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, theme);
+  } catch {
+    // Storage refused: the choice still holds until the page is closed.
+  }
+
+  change(theme);
+}
+
+// Until the student picks a theme, the site follows the system's setting,
+// including when it changes while the page is open (an evening switch to
+// dark mode, say). Once they have picked one, that choice wins.
+systemDark.addEventListener("change", () => {
+  if (storedChoice() === null) change(systemTheme());
+});
 
 /** Reads the current theme and re-renders the caller whenever it changes. */
 export function useTheme(): [Theme, (theme: Theme) => void] {

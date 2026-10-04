@@ -4,7 +4,7 @@ import { replaceRoute } from "../../app/router";
 import { useLanguage } from "../../lib/i18n";
 import { emailProblemText, errorText, passwordProblemText } from "../profile/profileText";
 import { useAuth } from "./AuthContext";
-import { AuthLayout, Field, PasswordField } from "./AuthLayout";
+import { AuthLayout, Field, PasswordField, focusFirstError } from "./AuthLayout";
 import { emailProblem, passwordProblem } from "./authValidation";
 
 /**
@@ -56,7 +56,10 @@ function RequestLinkForm({
 
     const problem = emailProblem(email);
     setFieldError(problem ? emailProblemText(problem, t) : null);
-    if (problem) return;
+    if (problem) {
+      focusFirstError("reset-email");
+      return;
+    }
 
     setSending(true);
     setFormError(null);
@@ -144,7 +147,10 @@ function NewPasswordForm({ onSave }: { onSave: (password: string) => Promise<voi
 
     setErrors({ password: passwordError, confirm: confirmError });
     setFormError(null);
-    if (passwordError || confirmError) return;
+    if (passwordError || confirmError) {
+      focusFirstError(passwordError && "reset-password", confirmError && "reset-password-confirm");
+      return;
+    }
 
     setSaving(true);
 

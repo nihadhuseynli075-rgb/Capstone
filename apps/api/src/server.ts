@@ -58,7 +58,28 @@ app.use((_request, response) => {
   response.status(404).json({ message: "Not found." });
 });
 
-app.use((error: Error, _request: Request, response: Response, _next: NextFunction) => {
+/** What express.json() attaches to a body it turned away. */
+interface BodyError extends Error {
+  type?: string;
+}
+
+app.use((error: BodyError, request: Request, response: Response, _next: NextFunction) => {
+  // A body over the limit above was answered as a 500 reading "request entity
+  // too large": a picture of 4 MB, say, which grows by a third as base64. It
+  // is the sender's to fix, so it is a 413 in words, before any route runs.
+  if (error.type === "entity.too.large") {
+    return response.status(413).json({
+      code: "too-large",
+      message: request.path.endsWith("/questions/image")
+        ? "Images must be 2 MB or smaller."
+        : "That is more than the server takes in one go (5 MB). Send it in smaller parts."
+    });
+  }
+
+  if (error.type === "entity.parse.failed") {
+    return response.status(400).json({ message: "That request was not valid JSON." });
+  }
+
   console.error("[api]", error);
   response.status(500).json({ message: error.message || "Something went wrong on the server." });
 });

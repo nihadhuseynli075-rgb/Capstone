@@ -1,8 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BankQuestion, QuestionDraft, QuestionStatus } from "@grade9/shared";
-import { followsSiteLanguage, markLimits, siteLanguages, subjectName, topicName } from "@grade9/shared";
+import {
+  difficultyNames,
+  followsSiteLanguage,
+  markLimits,
+  questionTypeNames,
+  siteLanguages,
+  subjectName,
+  topicName
+} from "@grade9/shared";
 import { QuestionForm, type QuestionCarryOver } from "../components/QuestionForm";
-import { fill, useLanguage } from "../lib/i18n";
+import { adminText } from "../components/adminText";
+import { fill } from "../features/friends/fill";
 import { ApiError } from "../services/apiClient";
 import {
   adminLogin,
@@ -21,6 +30,13 @@ const CSV_TEMPLATE =
   "subject,topic,difficulty,type,question,option_a,option_b,option_c,option_d,option_e,correct_answer,marks,explanation,paper_year,source";
 
 type Tab = "add" | "list" | "import";
+
+/** The dashboard's tabs, in the order they are shown and stepped through. */
+const TABS: Array<{ id: Tab; label: string }> = [
+  { id: "add", label: "Add question" },
+  { id: "list", label: "All questions" },
+  { id: "import", label: "Bulk import" }
+];
 
 /**
  * The most a dropped sheet may be. A question sheet is a few hundred kilobytes
@@ -51,7 +67,6 @@ function LoginScreen({
   reason: SignInReason;
   onSignedIn: (storageMode: string, isDefault: boolean) => void;
 }) {
-  const { t } = useLanguage();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -83,7 +98,7 @@ function LoginScreen({
           the session ended looked as if it had been saved. */}
       {reason && (
         <p className="warning-banner" role="status">
-          {t(reason === "session-ended-with-draft" ? "admin.sessionEndedDraft" : "admin.sessionEnded")}
+          {reason === "session-ended-with-draft" ? adminText.sessionEndedDraft : adminText.sessionEnded}
         </p>
       )}
 
@@ -110,7 +125,6 @@ function LoginScreen({
 }
 
 export function AdminPage() {
-  const { t } = useLanguage();
   const [token, setToken] = useState<string | null>(() => getAdminToken());
   const [tab, setTab] = useState<Tab>("add");
 
@@ -147,6 +161,10 @@ export function AdminPage() {
   // The form is emptied by giving it a new key, which remounts it. After a
   // question is added the next one starts clean, with what a paper shares kept.
   const [formKey, setFormKey] = useState(0);
+
+  // Where the list was scrolled to when Edit was pressed, to go back to.
+  const listScrollRef = useRef(0);
+  const formPanelRef = useRef<HTMLElement>(null);
   const [carryOver, setCarryOver] = useState<QuestionCarryOver | null>(null);
 
   const [csv, setCsv] = useState("");
@@ -162,6 +180,24 @@ export function AdminPage() {
     setNotice(null);
     setError(null);
     if (next !== "add") setEditing(null);
+  }
+
+  /** Left and Right step through the tabs (wrapping), Home and End jump to the ends. */
+  function handleTabKey(event: React.KeyboardEvent<HTMLDivElement>) {
+    const index = TABS.findIndex((item) => item.id === tab);
+    const moves: Record<string, number> = {
+      ArrowRight: (index + 1) % TABS.length,
+      ArrowLeft: (index - 1 + TABS.length) % TABS.length,
+      Home: 0,
+      End: TABS.length - 1
+    };
+    const nextIndex = moves[event.key];
+    if (nextIndex === undefined) return;
+
+    event.preventDefault();
+    const next = TABS[nextIndex].id;
+    switchTab(next);
+    window.requestAnimationFrame(() => document.getElementById(`admin-tab-${next}`)?.focus());
   }
 
   /** Any 401 means the API restarted or the session expired: show login again, and say why. */
@@ -213,6 +249,34 @@ export function AdminPage() {
     if (notice) noticeRef.current?.scrollIntoView({ block: "nearest" });
   }, [notice]);
 
+  /*
+   * Editing a question from the list, and coming back to it.
+   *
+   * Edit used to leave the page where it was, deep in a long list, so the form
+   * opened scrolled to its end with the question text far above; and Cancel or
+   * Save left an empty "Add a question" form where the list had been. Now the
+   * form opens at its top, and either way out goes back to the list, scrolled
+   * to the row that was edited.
+   */
+  function startEditing(question: BankQuestion) {
+    listScrollRef.current = window.scrollY;
+    // What the list last said does not apply to the form.
+    setNotice(null);
+    setError(null);
+    setEditing(question);
+    setTab("add");
+    window.requestAnimationFrame(() => formPanelRef.current?.scrollIntoView({ block: "start" }));
+  }
+
+  function backToList() {
+    setEditing(null);
+    setTab("list");
+    const position = listScrollRef.current;
+    // Two frames: the list is drawn in the first, and only then is it tall
+    // enough to scroll back down.
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.scrollTo(0, position)));
+  }
+
   /** Signed in, for the first time or again: back to the dashboard, saving anything left waiting. */
   function handleSignedIn(mode: string, isDefault: boolean) {
     setStorageMode(mode);
@@ -243,7 +307,7 @@ export function AdminPage() {
       if (editing) {
         await updateQuestion(editing.id, draft);
         setNotice("Question updated.");
-        setEditing(null);
+        backToList();
       } else {
         await createQuestion(draft);
         setNotice("Question added to the bank. Subject, topic, difficulty, year and source are kept for the next one.");
@@ -279,6 +343,16 @@ export function AdminPage() {
       if (editing?.id === question.id) setEditing(null);
       await refresh();
     } catch (cause) {
+      // Already deleted somewhere else, another tab or another admin: it is
+      // gone either way, which is what was asked for. Saying "Question not
+      // found." and leaving the row in the list until a reload helped nobody.
+      if (cause instanceof ApiError && cause.status === 404) {
+        setNotice("That question had already been deleted. The list has been refreshed.");
+        if (editing?.id === question.id) setEditing(null);
+        await refresh();
+        return;
+      }
+
       handleFailure(cause);
     }
   }
@@ -287,6 +361,9 @@ export function AdminPage() {
     setImporting(true);
     setError(null);
     setImportResult(null);
+    // "Loaded the file, check it, then press Import" has been done once Import
+    // is pressed; left up, it sat over the result and then over an empty box.
+    setSheetNote(null);
 
     try {
       const result = await importQuestions(csv);
@@ -314,17 +391,17 @@ export function AdminPage() {
 
     // Judged by name: a CSV saved on Windows often has no type at all.
     if (!/\.(csv|tsv)$/i.test(file.name)) {
-      setSheetNote({ kind: "error", text: t("import.notSheet") });
+      setSheetNote({ kind: "error", text: adminText.importNotSheet });
       return;
     }
 
     if (file.size === 0) {
-      setSheetNote({ kind: "error", text: t("import.empty") });
+      setSheetNote({ kind: "error", text: adminText.importEmpty });
       return;
     }
 
     if (file.size > MAX_SHEET_BYTES) {
-      setSheetNote({ kind: "error", text: t("import.tooBig") });
+      setSheetNote({ kind: "error", text: adminText.importTooBig });
       return;
     }
 
@@ -332,17 +409,17 @@ export function AdminPage() {
       const text = await file.text();
 
       if (text.trim().length === 0) {
-        setSheetNote({ kind: "error", text: t("import.empty") });
+        setSheetNote({ kind: "error", text: adminText.importEmpty });
         return;
       }
 
       setCsv(text);
       setSheetNote({
         kind: "success",
-        text: `${t("import.loaded")} ${file.name}. ${t("import.loadedHint")}${fileCount > 1 ? ` ${t("import.firstOnly")}` : ""}`
+        text: `${adminText.importLoaded} ${file.name}. ${adminText.importLoadedHint}${fileCount > 1 ? ` ${adminText.importFirstOnly}` : ""}`
       });
     } catch {
-      setSheetNote({ kind: "error", text: t("import.unreadable") });
+      setSheetNote({ kind: "error", text: adminText.importUnreadable });
     }
   }
 
@@ -365,8 +442,8 @@ export function AdminPage() {
             <h1>Admin dashboard</h1>
             <p className="lede">
               {tab === "list" && filtered
-                ? fill(t("admin.bankMatching"), { total: bankTotal, count: questions.length })
-                : fill(t("admin.bankCount"), { total: bankTotal })}
+                ? fill(adminText.bankMatching, { total: String(bankTotal), count: String(questions.length) })
+                : fill(adminText.bankCount, { total: String(bankTotal) })}
             </p>
           </div>
           <button
@@ -412,36 +489,42 @@ export function AdminPage() {
           </p>
         )}
 
-        <nav className="tab-row">
-          <button
-            type="button"
-            className={`tab ${tab === "add" ? "selected" : ""}`}
-            onClick={() => switchTab("add")}
-          >
-            {editing ? "Edit question" : "Add question"}
-          </button>
-          <button
-            type="button"
-            className={`tab ${tab === "list" ? "selected" : ""}`}
-            onClick={() => switchTab("list")}
-          >
-            All questions
-          </button>
-          <button
-            type="button"
-            className={`tab ${tab === "import" ? "selected" : ""}`}
-            onClick={() => switchTab("import")}
-          >
-            Bulk import
-          </button>
-        </nav>
+        {/*
+          * Real tabs, not three buttons told apart only by a class: a screen
+          * reader hears "tab, 2 of 3, selected". As the tabs pattern expects,
+          * Tab reaches only the selected one and the arrow keys move between
+          * them (see handleTabKey).
+          */}
+        <div className="tab-row" role="tablist" aria-label="Admin sections" onKeyDown={handleTabKey}>
+          {TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              id={`admin-tab-${item.id}`}
+              aria-selected={tab === item.id}
+              aria-controls={`admin-panel-${item.id}`}
+              tabIndex={tab === item.id ? 0 : -1}
+              className={`tab ${tab === item.id ? "selected" : ""}`}
+              onClick={() => switchTab(item.id)}
+            >
+              {item.id === "add" && editing ? "Edit question" : item.label}
+            </button>
+          ))}
+        </div>
 
         {/* On the form's tab both sit beside its button instead: see below. */}
         {tab !== "add" && notice && <p className="success-banner">{notice}</p>}
         {tab !== "add" && error && <p className="error-banner">{error}</p>}
 
         {tab === "add" && (
-          <section className="panel">
+          <section
+            className="panel"
+            ref={formPanelRef}
+            role="tabpanel"
+            id="admin-panel-add"
+            aria-labelledby="admin-tab-add"
+          >
             <h2>{editing ? "Edit question" : "Add a question"}</h2>
             {/* Saving does not change this on its own: a question waiting for
                 its picture stays out of tests until one is uploaded below. */}
@@ -454,7 +537,7 @@ export function AdminPage() {
               initial={editing}
               carryOver={carryOver}
               onSubmit={handleSave}
-              onCancel={editing ? () => setEditing(null) : undefined}
+              onCancel={editing ? backToList : undefined}
               submitting={saving}
               error={error}
             />
@@ -467,7 +550,7 @@ export function AdminPage() {
         )}
 
         {tab === "list" && (
-          <section className="panel">
+          <section className="panel" role="tabpanel" id="admin-panel-list" aria-labelledby="admin-tab-list">
             <div className="filter-row">
               <label>
                 Subject
@@ -493,7 +576,7 @@ export function AdminPage() {
             {questions.length === 0 ? (
               <p className="empty-note">
                 {filtered
-                  ? t("admin.noMatch")
+                  ? adminText.noMatch
                   : "No questions yet. Add one above, or paste a spreadsheet export into bulk import."}
               </p>
             ) : (
@@ -509,21 +592,21 @@ export function AdminPage() {
                       <p className="question-row-prompt">{question.prompt}</p>
                       <p className="question-row-meta">
                         {subjectName(question.subjectId)} - {topicName(question.subjectId, question.topicId)}{" "}
-                        - {question.difficulty} - {question.type}
+                        - {difficultyNames[question.difficulty]} - {questionTypeNames[question.type]}
                         {question.paperYear ? ` - ${question.paperYear}` : ""}
                         {question.subtopic ? ` - ${question.subtopic}` : ""}
                       </p>
                       <p className="question-row-answer">Answer: {question.correctAnswer || "not entered yet"}</p>
                       {followsSiteLanguage(question.subjectId) && (
                         <p className="question-row-translations">
-                          {t("translations.listLabel")}:{" "}
+                          {adminText.translationsListLabel}:{" "}
                           {siteLanguages.filter((language) => question.translations?.[language]).map((language) => (
                             <span key={language} className="translation-chip">
                               {language.toUpperCase()}
                             </span>
                           ))}
                           {!siteLanguages.some((language) => question.translations?.[language]) && (
-                            <span className="translation-none">{t("translations.listNone")}</span>
+                            <span className="translation-none">{adminText.translationsListNone}</span>
                           )}
                         </p>
                       )}
@@ -533,13 +616,7 @@ export function AdminPage() {
                       <button
                         type="button"
                         className="ghost-button"
-                        onClick={() => {
-                          // What the list last said does not apply to the form.
-                          setNotice(null);
-                          setError(null);
-                          setEditing(question);
-                          setTab("add");
-                        }}
+                        onClick={() => startEditing(question)}
                       >
                         Edit
                       </button>
@@ -559,7 +636,7 @@ export function AdminPage() {
         )}
 
         {tab === "import" && (
-          <section className="panel">
+          <section className="panel" role="tabpanel" id="admin-panel-import" aria-labelledby="admin-tab-import">
             <h2>Bulk import from a spreadsheet</h2>
             <p className="panel-hint">
               In Google Sheets choose File, Download, Comma-separated values, then open the file and
@@ -582,7 +659,7 @@ export function AdminPage() {
               {markLimits.max}. Leave it blank and the question counts for one.
             </p>
 
-            <p className="panel-hint">{t("import.translationHint")}</p>
+            <p className="panel-hint">{adminText.importTranslationHint}</p>
 
             {/* A file dropped here fills the box below; nothing is imported until the button is pressed. */}
             <div
@@ -601,9 +678,9 @@ export function AdminPage() {
                 void loadSheet(event.dataTransfer.files);
               }}
             >
-              <strong>{dragging ? t("import.dropActive") : t("import.dropTitle")}</strong>
+              <strong>{dragging ? adminText.importDropActive : adminText.importDropTitle}</strong>
               <label className="drop-zone-pick">
-                {t("import.dropOr")} {t("import.choose")}
+                {adminText.importDropOr} {adminText.importChoose}
                 <input
                   type="file"
                   accept=".csv,.tsv,text/csv,text/tab-separated-values"
@@ -625,7 +702,11 @@ export function AdminPage() {
               <textarea
                 rows={10}
                 value={csv}
-                onChange={(event) => setCsv(event.target.value)}
+                onChange={(event) => {
+                  setCsv(event.target.value);
+                  // Typing or pasting over a loaded file means the note about that file no longer applies.
+                  setSheetNote(null);
+                }}
                 placeholder={CSV_TEMPLATE}
                 spellCheck={false}
               />

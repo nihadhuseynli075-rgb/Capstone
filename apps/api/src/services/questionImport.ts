@@ -1,5 +1,5 @@
 import type { Difficulty, QuestionDraft, QuestionTranslation, QuestionTranslations, QuestionType } from "@grade9/shared";
-import { markLimits, paperYearLimits } from "@grade9/shared";
+import { markLimits, paperYearLimits, repeatedOption } from "@grade9/shared";
 import { languageNames, translationProblems } from "./questionTranslations";
 
 /**
@@ -283,12 +283,17 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
   );
 
   if (missing.length > 0) {
+    // Named as the sheet names them (the first of each field's aliases), not
+    // by the field names inside this file: "subjectId, topicId" meant nothing
+    // to someone looking at a spreadsheet.
+    const columns = missing.map((field) => headerAliases[field][0]);
+
     return {
       drafts,
       errors: [
         {
           row: 1,
-          message: `Missing required column(s): ${missing.join(", ")}. Expected a header row containing at least subject, topic, question and correct_answer.`
+          message: `Missing column(s): ${columns.join(", ")}. The header row needs at least subject, topic, question and correct_answer.`
         }
       ]
     };
@@ -342,6 +347,14 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
         row: rowNumber,
         message: "Multiple choice needs at least two options in option_a / option_b."
       });
+      return;
+    }
+
+    // Held to the same rule as the admin form: two options reading the same
+    // would both be marked right, or both wrong.
+    const repeated = type === "multiple-choice" ? repeatedOption(options) : null;
+    if (repeated !== null) {
+      errors.push({ row: rowNumber, message: `Two options are the same ("${repeated}"). Each option has to be different.` });
       return;
     }
 

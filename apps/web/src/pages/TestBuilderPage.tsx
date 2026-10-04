@@ -17,6 +17,37 @@ import {
 
 const difficultyModes: DifficultyMode[] = ["easy", "medium", "hard", "custom"];
 
+type CatalogTopic = CatalogSubject["topics"][number];
+
+/**
+ * How many questions a topic can supply at this difficulty. A preset draws
+ * only questions of its own difficulty; custom draws from all three.
+ */
+function questionsAt(topic: CatalogTopic, mode: DifficultyMode): number {
+  return mode === "custom" ? topic.total : topic.counts[mode];
+}
+
+/**
+ * The count on a topic's card, for the difficulty chosen below. It used to
+ * count every difficulty, so a topic reading "3 questions" could give none on
+ * Easy while the summary said the bank had nothing for the choice.
+ */
+function topicCountText(
+  topic: CatalogTopic,
+  mode: DifficultyMode,
+  t: (key: TranslationKey) => string,
+  tn: (key: TranslationKey, count: number) => string
+): string {
+  if (topic.total === 0) return t("builder.noQuestions");
+
+  const count = questionsAt(topic, mode);
+  if (mode === "custom") return tn("count.questions", count);
+
+  const difficulty = difficultyLabel(t, mode);
+  if (count === 0) return fill(t("builder.topicNoneAt"), { difficulty });
+  return fill(t("builder.topicCountAt"), { questions: tn("count.questions", count), difficulty });
+}
+
 /** Why a difficulty cannot be chosen: nothing of that difficulty in the topics picked. */
 const noQuestionsYet: Record<Difficulty, TranslationKey> = {
   easy: "builder.noneEasy",
@@ -36,7 +67,7 @@ function drawableCount(subject: CatalogSubject | null, topicIds: string[], mode:
 
   return subject.topics
     .filter((topic) => topicIds.includes(topic.id))
-    .reduce((total, topic) => total + (mode === "custom" ? topic.total : topic.counts[mode]), 0);
+    .reduce((total, topic) => total + questionsAt(topic, mode), 0);
 }
 
 /**
@@ -385,14 +416,14 @@ export function TestBuilderPage() {
             return (
               <label
                 key={topic.id}
-                className={`topic-option ${topic.total === 0 ? "empty" : ""} ${
+                className={`topic-option ${questionsAt(topic, difficultyMode) === 0 ? "empty" : ""} ${
                   selected ? "selected" : ""
                 }`}
               >
                 <input type="checkbox" checked={selected} onChange={() => toggleTopic(topic.id)} />
                 <span className="topic-name">{topicLabel(t, subject.id, topic.id, topic.name)}</span>
                 <span className="topic-count">
-                  {topic.total === 0 ? t("builder.noQuestions") : tn("count.questions", topic.total)}
+                  {topicCountText(topic, difficultyMode, t, tn)}
                   {/* "Not tried yet" only once something in this subject has
                       been: on a first visit it would be on every tile and say
                       nothing. Nor on a topic with no questions to try. */}
@@ -522,21 +553,31 @@ export function TestBuilderPage() {
       </section>
 
       <section className="panel summary-panel">
-        <div>
-          {withBoldNumber(
-            tn("builder.ready", Math.min(requestedCount, availableCount)),
-            Math.min(requestedCount, availableCount)
-          )}
-          {availableCount < requestedCount && (
-            <span className="summary-warning">
-              {" "}
-              {fill(t("builder.short"), {
-                requested: String(requestedCount),
-                available: String(availableCount)
-              })}
-            </span>
-          )}
-        </div>
+        {/* With nothing ticked the real problem is the topics, not the size of
+            the bank: "the bank only has 0" sent students looking for missing
+            questions, and the button it disabled kept the right message from
+            ever showing. */}
+        {topicIds.length === 0 ? (
+          <div className="summary-warning" role="status">
+            {t("builder.noTopic")}
+          </div>
+        ) : (
+          <div>
+            {withBoldNumber(
+              tn("builder.ready", Math.min(requestedCount, availableCount)),
+              Math.min(requestedCount, availableCount)
+            )}
+            {availableCount < requestedCount && (
+              <span className="summary-warning">
+                {" "}
+                {fill(t("builder.short"), {
+                  requested: String(requestedCount),
+                  available: String(availableCount)
+                })}
+              </span>
+            )}
+          </div>
+        )}
 
         {error && (
           <p className="error-banner">

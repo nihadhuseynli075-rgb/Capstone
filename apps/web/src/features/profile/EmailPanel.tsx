@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useLanguage } from "../../lib/i18n";
 import { useAuth } from "../auth/AuthContext";
-import { Field } from "../auth/AuthLayout";
+import { Field, focusFirstError } from "../auth/AuthLayout";
 import { emailProblem } from "../auth/authValidation";
 import { emailProblemText, errorText, fill } from "./profileText";
 import { useProfile } from "./ProfileContext";
@@ -94,11 +94,13 @@ export function EmailPanel({ email, googleOnly }: { email: string; googleOnly: b
     const problem = emailProblem(address);
     if (problem) {
       setError(emailProblemText(problem, t));
+      focusFirstError("profile-new-email");
       return;
     }
 
     if (user && address.toLowerCase() === user.email.toLowerCase()) {
       setError(t("profile.emailSame"));
+      focusFirstError("profile-new-email");
       return;
     }
 
@@ -111,6 +113,7 @@ export function EmailPanel({ email, googleOnly }: { email: string; googleOnly: b
 
     if (typeof result === "string") {
       setError(result);
+      focusFirstError("profile-new-email");
       return;
     }
 

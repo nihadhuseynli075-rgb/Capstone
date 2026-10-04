@@ -56,7 +56,7 @@ const refusals: Record<Extract<SendOutcome, { refused: string }>["refused"], { s
   // A plain answer rather than a vague one. Anyone signed in can ask, and for
   // an app this size being told whether an account exists beats a student
   // wondering whether the request went anywhere.
-  "no-account": { status: 404, message: "No ExamPeak account with that email or username." },
+  "no-account": { status: 404, message: "No Exampeak account with that email or username." },
   "already-friends": { status: 409, message: "You are already friends." },
   "already-requested": { status: 409, message: "You have already sent them a request. They have not answered yet." },
   blocked: { status: 403, message: "A request cannot be sent to that account." }

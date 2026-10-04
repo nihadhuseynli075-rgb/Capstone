@@ -193,6 +193,12 @@
   text-align: center;
 }
 
+/* "Create an account" and "Sign in" were 20px tall: padded out to a 44px tap target. */
+.auth-card-foot a {
+  display: inline-block;
+  padding: 12px 4px;
+}
+
 .strength {
   display: flex;
   align-items: center;
@@ -257,6 +263,12 @@
   background: var(--brand-soft);
 }
 
+/*
+ * Initials on the strong brand colour, in the surface colour: navy and white
+ * in the light theme, light blue and dark blue in the dark one. White on the
+ * plain brand blue was 4.2:1 in light and 2.7:1 in dark, both under the 4.5:1
+ * small text needs. The friends page already did this; now every avatar does.
+ */
 .avatar {
   display: inline-flex;
   align-items: center;
@@ -264,8 +276,8 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: var(--brand);
-  color: #ffffff;
+  background: var(--brand-strong);
+  color: var(--surface);
   font-size: 0.8rem;
   font-weight: 800;
   flex: none;
@@ -483,7 +495,8 @@
   color: var(--muted);
   border-radius: 999px;
   padding: 2px 10px;
-  font-size: 0.72rem;
+  /* 12px, the smallest text on the site. */
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -638,9 +651,11 @@
   font-size: 0.85rem;
 }
 
-/* "@nihad", under the name: what friends find this student by. */
+/* "@nihad", under the name: what friends find this student by. The brand blue
+   is taken a quarter of the way to the text colour, which keeps it blue and
+   lifts it from 4.2:1 to 5.3:1 on white. */
 .profile-identity-text .profile-username {
-  color: var(--brand);
+  color: color-mix(in srgb, var(--brand) 75%, var(--text));
   font-weight: 700;
 }
 
@@ -724,7 +739,9 @@
   border-radius: 999px;
   padding: 4px 10px;
   background: var(--success-soft);
-  color: var(--success);
+  /* Green on its pale green was 3.8:1; a quarter of the text colour in it
+     makes 4.9:1, and the dark theme only gets lighter on its dark ground. */
+  color: color-mix(in srgb, var(--success) 75%, var(--text));
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -826,6 +843,13 @@
     min-height: 44px;
   }
 
+  /* The password Show/Hide button, on the sign-in pages and the profile. It
+     sits inside a 46px field, so 44px still fits. */
+  .auth-password-toggle {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
   .stat-row {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -860,6 +884,16 @@
   color: inherit;
 }
 
+/*
+ * The panel's headline and points read from its left edge, so the lockup
+ * starts there too. Stretched across the panel and centred, the logo sat in
+ * the middle of an 800px column with the copy hugging the left beneath it.
+ */
+.auth-aside .wordmark-stacked {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
 /* A note under an admin form field, e.g. what "marks" means. */
 .field-hint {
   font-weight: 400;
@@ -880,8 +914,9 @@
   font-weight: 600;
 }
 
+/* The text colour, not the muted one, which was 3.9:1 on this pale blue. */
 .question-status-draft {
-  color: var(--muted);
+  color: var(--text);
   background: var(--brand-soft);
 }
 

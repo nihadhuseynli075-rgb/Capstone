@@ -89,6 +89,18 @@ async function main() {
     JSON.stringify(mismatched.body)
   );
 
+  // Marked by the text picked, so both copies would count as the right answer.
+  const repeatedOptions = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ options: ["same", "same", "other"], correctAnswer: "same" })
+  });
+  check(
+    "two options that read the same are refused, and the refusal says so",
+    repeatedOptions.status === 400 && /Two options are the same/.test(repeatedOptions.body.message ?? ""),
+    JSON.stringify(repeatedOptions.body).slice(0, 200)
+  );
+
   const tooFewOptions = await call("/api/admin/questions", {
     method: "POST",
     token,
@@ -176,6 +188,43 @@ async function main() {
     JSON.stringify(five.body.question?.options) === JSON.stringify(fiveOptions) &&
       five.body.question?.correctAnswer === "x = 5",
     JSON.stringify(five.body.question)
+  );
+
+  section("Searching the bank");
+  // Postgres's ILIKE reads "%" as any run of characters and "_" as any one, so
+  // a search for either used to list every question in the bank.
+  const percentQuestion = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ prompt: "A price rises by 54% (search check)" })
+  });
+  const underscoreQuestion = await call("/api/admin/questions", {
+    method: "POST",
+    token,
+    body: mcq({ prompt: "Name the variable x_1 (search check)" })
+  });
+  check(
+    "the two questions to search for save",
+    percentQuestion.status === 201 && underscoreQuestion.status === 201,
+    JSON.stringify([percentQuestion.body, underscoreQuestion.body]).slice(0, 200)
+  );
+  for (const [character, expected] of [
+    ["%", "A price rises by 54% (search check)"],
+    ["_", "Name the variable x_1 (search check)"]
+  ]) {
+    const found = await call(`/api/admin/questions?search=${encodeURIComponent(character)}`, { token });
+    const prompts = (found.body.questions ?? []).map((question) => question.prompt);
+    check(
+      `searching for "${character}" finds only questions with that character in them`,
+      found.status === 200 && prompts.includes(expected) && prompts.every((prompt) => prompt.includes(character)),
+      JSON.stringify(prompts.filter((prompt) => !prompt.includes(character)).slice(0, 3))
+    );
+  }
+  const backslash = await call(`/api/admin/questions?search=${encodeURIComponent("\\")}`, { token });
+  check(
+    "a backslash is searched for as itself",
+    backslash.status === 200 && (backslash.body.questions ?? []).every((question) => question.prompt.includes("\\")),
+    `${backslash.status} ${(backslash.body.questions ?? []).length} found`
   );
 
   section("Editing and deleting");
@@ -483,6 +532,34 @@ async function main() {
     JSON.stringify(rightResult.body.comparison)
   );
 
+  // The same paper settings, all right again: level with the best, which is
+  // a match and not a second "new personal best".
+  const third = await call("/api/tests/generate", {
+    method: "POST",
+    body: { studentKey, subjectId: "math", topicIds: ["algebra"], difficultyMode: "easy" }
+  });
+  const tieResult = await call(`/api/tests/${third.body.test.id}/submit`, {
+    method: "POST",
+    body: {
+      studentKey,
+      answers: third.body.test.questions.map((question) => ({
+        questionId: question.id,
+        answer: answerFor.get(question.id) ?? ""
+      })),
+      timeTakenSeconds: 30
+    }
+  });
+  check(
+    "equalling the best is a match, not a new personal best",
+    tieResult.body.comparison?.isPersonalBest === false && tieResult.body.comparison?.matchedBest === true,
+    JSON.stringify(tieResult.body.comparison)
+  );
+  check(
+    "the previous best names its subject",
+    tieResult.body.comparison?.previousBest?.subjectId === "math",
+    JSON.stringify(tieResult.body.comparison?.previousBest)
+  );
+
   section("Marks");
   // A question worth three, sat alongside one worth one. Getting the big one
   // right and the small one wrong has to beat the other way round, which a
@@ -569,7 +646,8 @@ async function main() {
   section("History");
   const history = await call(`/api/tests/history?studentKey=${encodeURIComponent(studentKey)}`);
   check("history responds 200", history.status === 200);
-  check("every attempt is listed", history.body.attempts?.length === 3, `${history.body.attempts?.length}`);
+  // All wrong, all right, the tie with it, and the marks paper.
+  check("every attempt is listed", history.body.attempts?.length === 4, `${history.body.attempts?.length}`);
   check(
     "history rows carry the marks available",
     history.body.attempts?.every((attempt) => typeof attempt.totalMarks === "number" && attempt.totalMarks > 0),
@@ -791,6 +869,51 @@ async function main() {
   );
   const yearless = edges.body.questions?.find((question) => question.prompt === "A year nobody wrote down");
   check("a blank year is stored as unknown", yearless !== undefined && yearless.paperYear === null, JSON.stringify(yearless));
+
+  section("Question diagrams");
+  // A 1x1 PNG, the smallest real picture there is.
+  const tinyPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+  const upload = (body) => call("/api/admin/questions/image", { method: "POST", token, body });
+
+  const realPicture = await upload({ fileName: "diagram.png", contentType: "image/png", dataBase64: tinyPng });
+  check(
+    "a real picture is stored",
+    realPicture.status === 200 && typeof realPicture.body.imageUrl === "string",
+    JSON.stringify(realPicture.body).slice(0, 200)
+  );
+  const fakePicture = await upload({
+    fileName: "fake.png",
+    contentType: "image/png",
+    dataBase64: Buffer.from("this is text, not a picture").toString("base64")
+  });
+  check(
+    "a text file named .png is refused for what it really is",
+    fakePicture.status === 400 && /not a PNG, JPG or WebP/.test(fakePicture.body.message ?? ""),
+    JSON.stringify(fakePicture.body)
+  );
+  const notAnImage = await upload({ fileName: "notes.txt", contentType: "text/plain", dataBase64: tinyPng });
+  check(
+    "a non-image upload says why, not just \"not valid\"",
+    notAnImage.status === 400 && notAnImage.body.message === "Only image files are supported.",
+    JSON.stringify(notAnImage.body)
+  );
+  // Over the 5 MB body limit, as a 4.5 MB picture is once base64 encoded.
+  const hugePicture = await upload({ fileName: "huge.png", contentType: "image/png", dataBase64: "A".repeat(6 * 1024 * 1024) });
+  check(
+    "a picture over the body limit is a 413 that says the size, not a 500",
+    hugePicture.status === 413 && hugePicture.body.message === "Images must be 2 MB or smaller.",
+    `${hugePicture.status} ${JSON.stringify(hugePicture.body).slice(0, 200)}`
+  );
+  const hugePaste = await call("/api/admin/questions/import", {
+    method: "POST",
+    token,
+    body: { csv: `subject,topic,question,correct_answer\n${"x".repeat(6 * 1024 * 1024)}` }
+  });
+  check(
+    "so is a paste over the limit",
+    hugePaste.status === 413 && hugePaste.body.code === "too-large",
+    `${hugePaste.status} ${JSON.stringify(hugePaste.body).slice(0, 200)}`
+  );
 
   section("Written answers");
   // Its own topic, so the checks below see only this question.
