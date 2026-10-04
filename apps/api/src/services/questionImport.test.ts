@@ -361,6 +361,30 @@ describe("translation columns", () => {
   });
 });
 
+describe("importQuestionsFromCsv fifth option", () => {
+  const fiveHeader = "subject,topic,question,option_a,option_b,option_c,option_d,option_e,correct_answer";
+
+  test("option_e is read, and E names it", () => {
+    const { drafts, errors } = importQuestionsFromCsv(`${fiveHeader}\nmath,algebra,Pick,1,2,3,4,5,E`);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(drafts[0].options, ["1", "2", "3", "4", "5"]);
+    assert.equal(drafts[0].correctAnswer, "5");
+  });
+
+  test("a fifth option is kept when the answer is another letter, with its translation", () => {
+    const csv = [
+      `${fiveHeader},question_ru,option_a_ru,option_b_ru,option_c_ru,option_d_ru,option_e_ru`,
+      "math,algebra,Pick,1,2,3,4,5,B,Выбери,1р,2р,3р,4р,5р"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(drafts[0].options, ["1", "2", "3", "4", "5"]);
+    assert.deepEqual(drafts[0].translations.ru?.options, ["1р", "2р", "3р", "4р", "5р"]);
+  });
+});
+
 describe("importQuestionsFromCsv subjects", () => {
   test("a subject that is not one of ours is reported against its row, not saved", () => {
     const csv = ["subject,topic,question,correct_answer", "history,wars,When?,1914", "Maths,algebra,1 + 1,2"].join("\n");

@@ -123,6 +123,11 @@ const headerAliases: Record<string, string[]> = {
   optionB: ["option_b", "b", "optionb", "answer_b"],
   optionC: ["option_c", "c", "optionc", "answer_c"],
   optionD: ["option_d", "d", "optiond", "answer_d"],
+  // DIM papers have five options, A to E, and the admin form offers five. The
+  // dashboard's column list names option_e too, so a sheet that followed it
+  // lost its fifth option without a word, and a correct answer of "E" was
+  // refused as matching none of the options.
+  optionE: ["option_e", "e", "optione", "answer_e"],
   correctAnswer: ["correct_answer", "answer", "correct", "correctanswer"],
   marks: ["marks", "mark", "points", "point", "weight"],
   explanation: ["explanation", "reason", "why"],
@@ -142,6 +147,7 @@ const translatedFields = [
   "optionB",
   "optionC",
   "optionD",
+  "optionE",
   "correctAnswer",
   "explanation"
 ] as const;
@@ -267,7 +273,7 @@ export function resolveCorrectAnswer(raw: string, options: string[]): string | n
   const exact = filled.find((option) => option === value);
   if (exact) return exact;
 
-  const letterMatch = /^\(?([a-dA-D])\)?[.)]?$/.exec(value);
+  const letterMatch = /^\(?([a-eA-E])\)?[.)]?$/.exec(value);
   if (letterMatch) {
     const chosen = options[letterMatch[1].toUpperCase().charCodeAt(0) - 65] ?? "";
     return chosen.length > 0 ? chosen : null;
@@ -361,7 +367,8 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       cell(row, "optionA"),
       cell(row, "optionB"),
       cell(row, "optionC"),
-      cell(row, "optionD")
+      cell(row, "optionD"),
+      cell(row, "optionE")
     ];
     const options = optionCells.filter((option) => option.length > 0);
 
@@ -449,7 +456,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
 
     for (const language of importLanguages) {
       const translatedPrompt = cell(row, translatedField("prompt", language.id));
-      const translatedOptions = (["optionA", "optionB", "optionC", "optionD"] as const)
+      const translatedOptions = (["optionA", "optionB", "optionC", "optionD", "optionE"] as const)
         .map((field) => cell(row, translatedField(field, language.id)))
         .filter((option) => option.length > 0);
       const translatedExplanation = cell(row, translatedField("explanation", language.id));

@@ -904,6 +904,19 @@ async function main() {
     subjectImport.body.questions?.[0]?.subjectId === "math",
     JSON.stringify(subjectImport.body.questions?.map((question) => question.subjectId))
   );
+  // The dashboard's column list names option_e, and the form has five
+  // options, but the import used to drop the fifth and refuse an answer of E.
+  const fiveCsv = [
+    "subject,topic,question,option_a,option_b,option_c,option_d,option_e,correct_answer",
+    "math,import-five,Which is the fifth option?,1,2,3,4,5,E"
+  ].join("\n");
+  const fiveImport = await call("/api/admin/questions/import", { method: "POST", token, body: { csv: fiveCsv } });
+  check(
+    "an import reads option_e, and an answer of E names it",
+    fiveImport.body.questions?.[0]?.options?.length === 5 && fiveImport.body.questions[0].correctAnswer === "5",
+    JSON.stringify(fiveImport.body).slice(0, 300)
+  );
+
   const subjectCatalog = await call("/api/catalog");
   check(
     "so the catalog shows no subject the bank should not have",
