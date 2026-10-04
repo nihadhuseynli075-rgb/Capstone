@@ -591,8 +591,15 @@ button:focus-visible {
   font-size: 0.82rem;
 }
 
+/*
+ * A topic with nothing to draw at this difficulty. It used to be faded to
+ * 60% opacity, which took its words down to 2.3:1 in light mode and 3.1:1 in
+ * dark, below what anyone with low vision can read, on a box that is still a
+ * working checkbox. A dashed edge says "empty" and leaves the text at full
+ * strength.
+ */
 .topic-option.empty {
-  opacity: 0.6;
+  border-style: dashed;
 }
 
 .topic-last.weak,
