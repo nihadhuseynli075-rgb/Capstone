@@ -134,6 +134,12 @@ export function LandingPage() {
           <span>EXAMPEAK</span>
 
           <p>{t("landing.closing")}</p>
+
+          {/* The landing page has no footer, so these stand in for the app's. */}
+          <nav className="landing-legal">
+            <a href="#/privacy">{t("legal.privacy")}</a>
+            <a href="#/terms">{t("legal.terms")}</a>
+          </nav>
         </section>
       </main>
     </div>

@@ -18,6 +18,7 @@ import { FriendsPage } from "../pages/FriendsPage";
 import { ExamPage } from "../pages/ExamPage";
 import { HistoryPage } from "../pages/HistoryPage";
 import { LandingPage } from "../pages/LandingPage";
+import { LegalPage } from "../pages/LegalPage";
 import { MainPage } from "../pages/MainPage";
 import { ProfilePage } from "../pages/ProfilePage";
 import { ResultsPage } from "../pages/ResultsPage";
@@ -239,7 +240,10 @@ function isAppPage(path: string): boolean {
       "/friends",
       "/profile",
       "/settings",
-      "/admin"
+      "/admin",
+      // Open to everyone, signed in or not: the sign-up form links here.
+      "/privacy",
+      "/terms"
     ].includes(path) ||
     path.startsWith("/results")
   );
@@ -398,6 +402,10 @@ function Shell() {
       return <AdminPage />;
     }
 
+    if (path === "/privacy" || path === "/terms") {
+      return <LegalPage kind={path === "/privacy" ? "privacy" : "terms"} />;
+    }
+
     return <MainPage />;
   }
 
@@ -507,6 +515,9 @@ function Shell() {
             {/* For everyone, signed in or not: the language is the one setting
                 a guest needs before they can read anything else. */}
             <LanguageSelect />
+
+            <a href="#/privacy">{t("legal.privacy")}</a>
+            <a href="#/terms">{t("legal.terms")}</a>
 
             <a href="#/admin" className="footer-admin-link">
               {t("nav.admin")}

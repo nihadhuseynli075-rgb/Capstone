@@ -446,7 +446,15 @@
   padding: 24px 4px 46px;
   display: flex;
   align-items: flex-start;
+  /* The privacy and terms links take a line of their own when the row is full. */
+  flex-wrap: wrap;
   gap: 22px;
+}
+
+/* At the right-hand end on a wide screen; at the start once the row wraps. */
+.landing-bottom .landing-legal {
+  margin-left: auto;
+  justify-content: flex-start;
 }
 
 .landing-bottom span {
@@ -624,5 +632,10 @@
   .landing-bottom {
     flex-direction: column;
     gap: 8px;
+  }
+
+  /* Stacked under the closing line, so no longer pushed to the far side. */
+  .landing-bottom .landing-legal {
+    margin-left: 0;
   }
 }

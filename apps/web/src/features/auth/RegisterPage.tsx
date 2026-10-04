@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { replaceRoute } from "../../app/router";
 import { fill, useLanguage } from "../../lib/i18n";
 import { emailProblemText, errorText, nameProblemText, passwordProblemText } from "../profile/profileText";
@@ -7,6 +7,14 @@ import { AuthDivider, AuthLayout, Field, PasswordField } from "./AuthLayout";
 import { GoogleButton } from "./GoogleButton";
 import { strengthText } from "./authText";
 import { emailProblem, nameProblem, passwordProblem, passwordStrength } from "./authValidation";
+
+/** A sentence from the dictionary with links put in its {placeholders}, wherever each language has them. */
+function fillLinks(template: string, links: Record<string, ReactNode>): ReactNode[] {
+  return template.split(/(\{\w+\})/).map((part, index) => {
+    const name = /^\{(\w+)\}$/.exec(part)?.[1];
+    return <Fragment key={index}>{name && links[name] !== undefined ? links[name] : part}</Fragment>;
+  });
+}
 
 export function RegisterPage() {
   const { t } = useLanguage();
@@ -172,6 +180,15 @@ export function RegisterPage() {
         <button type="submit" className="primary-button auth-submit" disabled={submitting || !configured}>
           {submitting ? t("auth.creatingAccount") : t("auth.createAccount")}
         </button>
+
+        {/* Said where the account is made, not only in the footer: the
+            accounts are Grade 9 students'. */}
+        <p className="auth-legal-notice">
+          {fillLinks(t("legal.signUpNotice"), {
+            terms: <a href="#/terms">{t("legal.termsInline")}</a>,
+            privacy: <a href="#/privacy">{t("legal.privacyInline")}</a>
+          })}
+        </p>
       </form>
     </AuthLayout>
   );

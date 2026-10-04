@@ -1062,3 +1062,65 @@
   /* At the right-hand end, even when the row wraps on a narrow phone. */
   margin-left: auto;
 }
+
+/* Privacy, terms and the admin link: there for whoever looks, not calling out. */
+.footer-links a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.footer-links a:hover {
+  color: var(--brand);
+  text-decoration: underline;
+}
+
+/* ------------------------------------------------------- privacy and terms */
+
+.legal-updated {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.legal-section p {
+  margin: 0 0 10px;
+}
+
+.legal-section p:last-child {
+  margin-bottom: 0;
+}
+
+/* The contact address still to come: marked, so it cannot pass for a real one. */
+.legal-placeholder {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-weight: 700;
+}
+
+/* Under the sign-in and sign-up card, and under the landing page's closing line. */
+.auth-legal,
+.landing-legal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  font-size: 0.9rem;
+}
+
+.auth-legal a,
+.landing-legal a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--muted);
+}
+
+/* Under the Create account button: what accepting it means, and where to read more. */
+.auth-legal-notice {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+}

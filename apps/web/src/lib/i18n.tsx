@@ -382,6 +382,13 @@ const en = {
     "That link has expired or has already been used. Sign in, or sign up again to be sent a new one.",
   "auth.errNotFinished": "Signing in did not finish. Try again.",
 
+  // Privacy and terms
+  "legal.privacy": "Privacy",
+  "legal.terms": "Terms of use",
+  "legal.signUpNotice": "By creating an account you accept the {terms}. The {privacy} says what we keep and how to delete it.",
+  "legal.termsInline": "terms of use",
+  "legal.privacyInline": "privacy page",
+
   "common.saving": "Saving...",
   "common.back": "Back"
 } as const;
@@ -748,6 +755,14 @@ const ru: Dictionary = {
     "Срок действия ссылки истёк, или она уже использована. Войдите или зарегистрируйтесь снова, чтобы получить новую.",
   "auth.errNotFinished": "Вход не завершился. Попробуйте снова.",
 
+  // Privacy and terms
+  "legal.privacy": "Конфиденциальность",
+  "legal.terms": "Условия использования",
+  "legal.signUpNotice":
+    "Создавая аккаунт, вы принимаете {terms}. На странице {privacy} написано, что мы храним и как это удалить.",
+  "legal.termsInline": "условия использования",
+  "legal.privacyInline": "о конфиденциальности",
+
   "common.saving": "Сохранение...",
   "common.back": "Назад"
 };
@@ -1109,6 +1124,14 @@ const az: Dictionary = {
   "auth.errSignInLinkExpired":
     "Linkin müddəti bitib və ya o artıq istifadə olunub. Daxil olun və ya yeni link almaq üçün yenidən qeydiyyatdan keçin.",
   "auth.errNotFinished": "Giriş başa çatmadı. Yenidən cəhd edin.",
+
+  // Privacy and terms
+  "legal.privacy": "Məxfilik",
+  "legal.terms": "İstifadə şərtləri",
+  "legal.signUpNotice":
+    "Hesab yaratmaqla {terms} qəbul edirsiniz. Nəyi saxladığımız və onu necə silmək olduğu {privacy} yazılıb.",
+  "legal.termsInline": "istifadə şərtlərini",
+  "legal.privacyInline": "məxfilik səhifəsində",
 
   "common.saving": "Yadda saxlanılır...",
   "common.back": "Geri"

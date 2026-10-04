@@ -67,6 +67,11 @@ export function AuthLayout({
         <p className="auth-guest-link">
           <a href="#/build">{t("auth.guestTest")}</a>
         </p>
+
+        <nav className="auth-legal">
+          <a href="#/privacy">{t("legal.privacy")}</a>
+          <a href="#/terms">{t("legal.terms")}</a>
+        </nav>
       </main>
     </div>
   );
