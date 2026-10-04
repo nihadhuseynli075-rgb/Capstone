@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { isGuestKeyClaimed, markGuestKeyClaimed, peekGuestKey } from "../../lib/studentKey";
-import { claimGuestHistory } from "../../services/testsApi";
+import { claimGuestHistory, isPassingClaimFailure } from "../../services/testsApi";
 import { useAuth } from "./AuthContext";
 
 /**
@@ -19,30 +19,54 @@ import { useAuth } from "./AuthContext";
  * browser once before.
  *
  * It is deliberately quiet: if the claim fails, the tests are still there under
- * the guest key and the next sign-in tries again.
+ * the guest key. A failure that may pass on its own (no connection, a server
+ * error) is tried again a few more times while the same account stays signed
+ * in, since the tab has already treated a paper sat as a guest as the
+ * account's; anything else is left for the next sign-in.
  */
 export function useHistoryClaim(): void {
   const { user } = useAuth();
   const running = useRef(false);
+  const userId = user?.id ?? null;
 
   useEffect(() => {
-    if (!user || running.current) return;
+    if (!userId) return;
 
-    // No key means no test was ever taken here as a guest.
-    const guestKey = peekGuestKey();
-    if (!guestKey || guestKey === user.id || isGuestKeyClaimed(guestKey)) return;
+    let stopped = false;
+    let retryTimer: number | undefined;
 
-    running.current = true;
+    const attempt = (retriesUsed: number) => {
+      if (stopped || running.current) return;
 
-    claimGuestHistory(guestKey)
-      .then(() => {
-        markGuestKeyClaimed(guestKey);
-      })
-      .catch(() => {
-        // Left for the next sign-in to retry.
-      })
-      .finally(() => {
-        running.current = false;
-      });
-  }, [user]);
+      // No key means no test was ever taken here as a guest.
+      const guestKey = peekGuestKey();
+      if (!guestKey || guestKey === userId || isGuestKeyClaimed(guestKey)) return;
+
+      running.current = true;
+
+      claimGuestHistory(guestKey)
+        .then(() => {
+          markGuestKeyClaimed(guestKey);
+        })
+        .catch((cause: unknown) => {
+          // claimGuestHistory has already retried briefly. A longer outage gets
+          // a few more goes, further apart, as long as nobody else has signed in.
+          if (stopped || !isPassingClaimFailure(cause) || retriesUsed >= LATER_RETRY_DELAYS_MS.length) return;
+          retryTimer = window.setTimeout(() => attempt(retriesUsed + 1), LATER_RETRY_DELAYS_MS[retriesUsed]);
+        })
+        .finally(() => {
+          running.current = false;
+        });
+    };
+
+    attempt(0);
+
+    return () => {
+      stopped = true;
+      window.clearTimeout(retryTimer);
+    };
+  }, [userId]);
 }
+
+/** Further claims after the quick retries have failed: a little over three minutes in all. */
+const LATER_RETRY_DELAYS_MS = [10_000, 30_000, 60_000, 120_000];

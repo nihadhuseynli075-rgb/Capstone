@@ -9,7 +9,7 @@ import type {
   TestResult,
   TestSettings
 } from "@grade9/shared";
-import { apiRequest } from "./apiClient";
+import { ApiError, apiRequest } from "./apiClient";
 import { resolveStudentIdentity, type StudentIdentity } from "../lib/studentKey";
 
 export interface CatalogTopic {
@@ -173,19 +173,58 @@ export function fetchAttempt(attemptId: string): Promise<PastAttempt> {
 }
 
 /**
+ * How long to wait before each retry of a claim that failed on the way.
+ *
+ * A claim that failed once used to be left for the next sign-in. Meanwhile the
+ * tab had already handed a paper sat as a guest over to the account (see
+ * settleSessionRecords), so handing it in was refused as another account's
+ * test and the paper was thrown away, and the history page showed none of the
+ * tests taken as a guest. The retries fit inside CLAIM_WAIT_MS, so a request
+ * waiting on the claim usually sees the retry land rather than the failure.
+ */
+const CLAIM_RETRY_DELAYS_MS = [700, 2000];
+
+/**
+ * Whether a failed claim is worth sending again straight away.
+ *
+ * No answer at all, a server error or being asked to slow down can pass on
+ * their own. A refusal (signed out, or a key that is an account's) will only
+ * be refused again.
+ */
+export function isPassingClaimFailure(cause: unknown): boolean {
+  if (!(cause instanceof ApiError)) return false;
+  return cause.status === 0 || cause.status === 429 || cause.status >= 500;
+}
+
+/** One claim request, as whoever is signed in right now. */
+async function sendClaim(guestKey: string): Promise<{ claimed: number }> {
+  const { studentKey, token } = await resolveStudentIdentity();
+  return apiRequest<{ claimed: number }>("/api/tests/claim", {
+    method: "POST",
+    body: { studentKey, guestKey },
+    token
+  });
+}
+
+/**
  * Moves attempts taken as a guest onto the signed-in account.
  *
  * The signed-in key is filled in by `resolveStudentIdentity`, so this only has
- * to say which guest key to pull across.
+ * to say which guest key to pull across. A failure that may pass on its own is
+ * tried again a couple of times before it is reported; replaying a claim is
+ * harmless, since only attempts still under the guest key move.
  */
 export function claimGuestHistory(guestKey: string): Promise<{ claimed: number }> {
-  const claim = resolveStudentIdentity().then(({ studentKey, token }) =>
-    apiRequest<{ claimed: number }>("/api/tests/claim", {
-      method: "POST",
-      body: { studentKey, guestKey },
-      token
-    })
-  );
+  const claim = (async () => {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await sendClaim(guestKey);
+      } catch (cause) {
+        if (attempt >= CLAIM_RETRY_DELAYS_MS.length || !isPassingClaimFailure(cause)) throw cause;
+        await new Promise((resolve) => window.setTimeout(resolve, CLAIM_RETRY_DELAYS_MS[attempt]));
+      }
+    }
+  })();
 
   // Waiters only need to know it has finished; a failed claim is the caller's
   // to report, and leaves the history where it was.
