@@ -477,6 +477,8 @@ describe("subjects and topics are the site's own", () => {
     const { drafts, errors } = importQuestionsFromCsv([header, rowFor("math", "Word Problems")].join("\n"));
     assert.deepEqual(errors, []);
     assert.equal(drafts[0].topicId, "word-problems");
+  });
+});
 
 describe("quotes inside cells", () => {
   const tsvHeader = header.replaceAll(",", "\t");
