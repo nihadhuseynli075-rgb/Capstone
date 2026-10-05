@@ -44,10 +44,28 @@ function detectDelimiter(text: string): "," | "\t" {
  * read the same way, with tabs where the commas would be.
  */
 export function parseCsv(input: string): string[][] {
+  return parseCsvChecked(input).rows;
+}
+
+/**
+ * The same reader, but it also says where a quote was opened and never closed.
+ *
+ * A quote only opens a quoted field when it is the first character of the
+ * field. That is what both formats mean by it: a CSV writer quotes the whole
+ * cell, and Google Sheets does the same in a tab-separated download, where it
+ * quotes only the cells that hold a newline, a tab or a quote and leaves every
+ * other cell bare. A quote in the middle of a bare cell (`Choose the "right"
+ * word`, `He is 6' 2" tall`) is just text. If the text ends inside a quote, the
+ * rows from the one where that quote opened are left out and its number is
+ * returned, instead of the quote swallowing every row after it.
+ */
+export function parseCsvChecked(input: string): { rows: string[][]; unterminatedRow?: number } {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
   let inQuotes = false;
+  let atFieldStart = true;
+  let openedAtRow = 0;
   let index = 0;
 
   // A leading byte order mark survives most spreadsheet exports.
@@ -73,8 +91,10 @@ export function parseCsv(input: string): string[][] {
       continue;
     }
 
-    if (char === '"') {
+    if (char === '"' && atFieldStart) {
       inQuotes = true;
+      atFieldStart = false;
+      openedAtRow = rows.filter(hasContent).length + 1;
       index += 1;
       continue;
     }
@@ -82,6 +102,7 @@ export function parseCsv(input: string): string[][] {
     if (char === delimiter) {
       row.push(field);
       field = "";
+      atFieldStart = true;
       index += 1;
       continue;
     }
@@ -96,12 +117,18 @@ export function parseCsv(input: string): string[][] {
       rows.push(row);
       row = [];
       field = "";
+      atFieldStart = true;
       index += 1;
       continue;
     }
 
     field += char;
+    atFieldStart = false;
     index += 1;
+  }
+
+  if (inQuotes) {
+    return { rows: rows.filter(hasContent), unterminatedRow: openedAtRow };
   }
 
   if (field.length > 0 || row.length > 0) {
@@ -109,8 +136,10 @@ export function parseCsv(input: string): string[][] {
     rows.push(row);
   }
 
-  return rows.filter((entry) => entry.some((value) => value.trim().length > 0));
+  return { rows: rows.filter(hasContent) };
 }
+
+const hasContent = (entry: string[]) => entry.some((value) => value.trim().length > 0);
 
 /** Header names we accept for each field, so the sheet does not have to be exact. */
 const headerAliases: Record<string, string[]> = {
@@ -289,11 +318,19 @@ export function resolveCorrectAnswer(raw: string, options: string[]): string | n
 }
 
 export function importQuestionsFromCsv(csv: string): ImportResult {
-  const rows = parseCsv(csv);
+  const { rows, unterminatedRow } = parseCsvChecked(csv);
   const drafts: QuestionDraft[] = [];
   const errors: ImportRowError[] = [];
 
+  if (unterminatedRow !== undefined) {
+    errors.push({
+      row: unterminatedRow,
+      message: `A quote opened in this row is never closed, so this row and the ones after it were not read. Close the quote, or remove it if it is part of the text.`
+    });
+  }
+
   if (rows.length === 0) {
+    if (errors.length > 0) return { drafts, errors };
     return { drafts, errors: [{ row: 0, message: "The pasted text was empty." }] };
   }
 

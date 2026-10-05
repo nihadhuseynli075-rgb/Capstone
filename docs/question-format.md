@@ -146,6 +146,12 @@ answer itself in `correct_answer`.
 Rows that do not validate are reported back with their spreadsheet row number and
 skipped. The rest still import, so one bad cell does not block the other forty.
 
+Quotes inside a cell are fine: `The word "happy" means?` or `He is 6' 2" tall`
+import exactly as typed. A cell is only treated as quoted when it starts with a
+quote, which is how Google Sheets writes cells that hold a comma, tab or line
+break. If a file ends inside an unclosed quote, the import says which row the
+quote opened on instead of quietly merging the rows after it.
+
 ## Pictures
 
 Questions with diagrams are the fiddly ones. Two options:
