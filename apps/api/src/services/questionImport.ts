@@ -1,5 +1,5 @@
 import type { Difficulty, QuestionDraft, QuestionTranslation, QuestionTranslations, QuestionType } from "@grade9/shared";
-import { markLimits, paperYearLimits, repeatedOption } from "@grade9/shared";
+import { markLimits, paperYearLimits, repeatedOption, subjects, topicIdFor } from "@grade9/shared";
 import { languageNames, translationProblems } from "./questionTranslations";
 
 /**
@@ -207,6 +207,25 @@ function mapHeaders(headerRow: string[]): Record<string, number> {
   return mapping;
 }
 
+/** Other ways a sheet writes each subject, besides its id and display name. */
+const subjectAliases: Record<string, string[]> = {
+  math: ["maths", "mathematics", "математика", "riyaziyyat"],
+  english: ["english language", "английский язык", "ingilis dili", "\u0130ngilis dili".toLowerCase()],
+  russian: ["russian language", "русский язык", "rus dili"]
+};
+
+/** The known subject id a cell means, matched without regard to case, or null. */
+function resolveSubject(value: string): string | null {
+  const typed = value.trim().toLowerCase().replace(/\s+/g, " ");
+  const match = subjects.find(
+    (subject) =>
+      subject.id === typed ||
+      subject.name.toLowerCase() === typed ||
+      subjectAliases[subject.id]?.includes(typed)
+  );
+  return match?.id ?? null;
+}
+
 const difficulties: Difficulty[] = ["easy", "medium", "hard"];
 
 function parseDifficulty(value: string): Difficulty | null {
@@ -322,17 +341,32 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     // builder filters on both, so it sits in the bank unreachable and uncounted.
     // Saying so is the difference between a row that failed and a row that
     // vanished.
-    const subjectId = cell(row, "subjectId").toLowerCase();
-    if (subjectId.length === 0) {
+    const rawSubject = cell(row, "subjectId");
+    if (rawSubject.length === 0) {
       errors.push({ row: rowNumber, message: "Subject is empty." });
       return;
     }
 
-    const topicId = cell(row, "topicId").toLowerCase().replace(/\s+/g, "-");
-    if (topicId.length === 0) {
+    // Only the subjects the site has. Any other text used to be stored as a
+    // subject of its own, which put "Maths 1" and "Physics 1" chips beside the
+    // real ones in the test builder with no admin filter that could reach them.
+    const subjectId = resolveSubject(rawSubject);
+    if (subjectId === null) {
+      errors.push({
+        row: rowNumber,
+        message: `Subject "${rawSubject}" is not one of ${subjects.map((subject) => subject.id).join(", ")}.`
+      });
+      return;
+    }
+
+    const rawTopic = cell(row, "topicId");
+    if (rawTopic.length === 0) {
       errors.push({ row: rowNumber, message: "Topic is empty." });
       return;
     }
+    // A topic's name means the topic: "Functions and Graphs" is `functions`.
+    // Only a topic the subject does not have becomes a new id.
+    const topicId = topicIdFor(rawTopic, subjects.find((subject) => subject.id === subjectId)?.topics ?? []);
 
     const optionCells = [
       cell(row, "optionA"),

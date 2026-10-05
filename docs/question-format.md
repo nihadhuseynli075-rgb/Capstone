@@ -7,8 +7,8 @@ imported in one paste, rather than typed into the form question by question.
 
 | Column           | Required | Notes                                                       |
 | ---------------- | -------- | ----------------------------------------------------------- |
-| `subject`        | yes      | `math`, `english` or `russian`                              |
-| `topic`          | yes      | Free text, e.g. `algebra`. Spaces become dashes.            |
+| `subject`        | yes      | `math`, `english` or `russian` (see below)                  |
+| `topic`          | yes      | A topic's id or name, e.g. `functions` or `Functions and Graphs`. Anything new becomes a new topic, with spaces turned into dashes. |
 | `difficulty`     | no       | `easy`, `medium` or `hard`. Defaults to `medium` if blank.  |
 | `type`           | no       | `multiple-choice`, `short-answer`, or `open-ended` for a written answer marked by the AI marker (put its marking guide in `correct_answer`). Worked out from whether options are filled in if blank. |
 | `question`       | yes      | The question text, exactly as on the paper.                 |
@@ -27,6 +27,26 @@ imported in one paste, rather than typed into the form question by question.
 Header names are matched loosely, so `Question`, `question` and `question_text`
 all work, as do `A` for `option_a`, `answer` for `correct_answer`, and `points`
 for `marks`. Column order does not matter.
+
+## Subjects and topics
+
+Only the site's three subjects can be imported. The cell is matched without
+regard to case, by id or by name, and these spellings are accepted too:
+
+| Subject   | Accepted                                                               |
+| --------- | ---------------------------------------------------------------------- |
+| `math`    | `Mathematics`, `Maths`, `Математика`, `Riyaziyyat`                     |
+| `english` | `English`, `English Language`, `Английский язык`, `İngilis dili`       |
+| `russian` | `Russian`, `Russian Language`, `Русский язык`, `Rus dili`              |
+
+Any other subject (`physics`, say) skips that row with an error naming the row
+and the value. It is not stored as a subject of its own, because that would put
+a stray subject in the student's test builder that no admin filter reaches.
+
+A topic that matches one of the subject's topics by name or id is stored under
+that topic's id: `Functions and Graphs` and `functions` are both `functions`.
+A topic the subject does not have yet is still accepted and becomes a new topic
+(`Word Problems` is `word-problems`).
 
 ## Marks
 
