@@ -45,7 +45,9 @@ export function emailProblem(value: string): EmailProblem | null {
 export function passwordProblem(value: string): PasswordProblem | null {
   if (value.length === 0) return "empty";
   if (value.length < MIN_PASSWORD_LENGTH) return "too-short";
-  if (!/[a-zA-Z]/.test(value) || !/[0-9]/.test(value)) return "needs-letter-and-number";
+  // Any alphabet counts as a letter: a Cyrillic or Azerbaijani password is as
+  // good as a Latin one, and refusing it only pushed students to weaker ones.
+  if (!/\p{L}/u.test(value) || !/\p{Nd}/u.test(value)) return "needs-letter-and-number";
   return null;
 }
 
@@ -64,9 +66,9 @@ export function passwordStrength(value: string): { level: PasswordStrength; perc
   let score = 0;
   if (value.length >= MIN_PASSWORD_LENGTH) score += 1;
   if (value.length >= 12) score += 1;
-  if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score += 1;
-  if (/[0-9]/.test(value)) score += 1;
-  if (/[^a-zA-Z0-9]/.test(value)) score += 1;
+  if (/\p{Ll}/u.test(value) && /\p{Lu}/u.test(value)) score += 1;
+  if (/\p{Nd}/u.test(value)) score += 1;
+  if (/[^\p{L}\p{Nd}]/u.test(value)) score += 1;
 
   if (score <= 2) return { level: "weak", percent: 33 };
   if (score <= 3) return { level: "fair", percent: 66 };
