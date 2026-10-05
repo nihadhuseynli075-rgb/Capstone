@@ -360,3 +360,122 @@ describe("translation columns", () => {
     });
   });
 });
+
+describe("five options (DIM papers run A to E)", () => {
+  const header = "subject,topic,question,option_a,option_b,option_c,option_d,option_e,correct_answer";
+
+  test("a row answered E keeps all five options", () => {
+    const { drafts, errors } = importQuestionsFromCsv([header, "math,algebra,Pick,1,2,3,4,5,E"].join("\n"));
+    assert.deepEqual(errors, []);
+    assert.deepEqual(drafts[0].options, ["1", "2", "3", "4", "5"]);
+    assert.equal(drafts[0].correctAnswer, "5");
+  });
+
+  test("a lowercase e and option E's own text both name option E", () => {
+    const csv = [header, "math,algebra,Pick,1,2,3,4,five,e", "math,algebra,Pick,1,2,3,4,five,five"].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+    assert.deepEqual(errors, []);
+    assert.deepEqual(drafts.map((draft) => draft.correctAnswer), ["five", "five"]);
+  });
+
+  test("a row answered A no longer drops option E", () => {
+    const { drafts } = importQuestionsFromCsv([header, "math,algebra,Pick,1,2,3,4,5,A"].join("\n"));
+    assert.deepEqual(drafts[0].options, ["1", "2", "3", "4", "5"]);
+    assert.equal(drafts[0].correctAnswer, "1");
+  });
+
+  test("a tab-separated sheet reads option E the same way", () => {
+    const tsv = [header, "math,algebra,Pick,1,2,3,4,5,E"].join("\n").replaceAll(",", "\t");
+    const { drafts, errors } = importQuestionsFromCsv(tsv);
+    assert.deepEqual(errors, []);
+    assert.deepEqual(drafts[0].options, ["1", "2", "3", "4", "5"]);
+    assert.equal(drafts[0].correctAnswer, "5");
+  });
+
+  test("option_e_ru is the translation of option E", () => {
+    const csv = [
+      `${header},question_ru,option_a_ru,option_b_ru,option_c_ru,option_d_ru,option_e_ru`,
+      "math,algebra,Pick,a,b,c,d,e,E,Выберите,а,б,в,г,д"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+    assert.deepEqual(errors, []);
+    assert.equal(drafts[0].correctAnswer, "e");
+    assert.deepEqual(drafts[0].translations.ru?.options, ["а", "б", "в", "г", "д"]);
+  });
+
+  test("a translation with four options for five is refused", () => {
+    const csv = [
+      `${header},question_ru,option_a_ru,option_b_ru,option_c_ru,option_d_ru`,
+      "math,algebra,Pick,a,b,c,d,e,E,Выберите,а,б,в,г"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+    assert.equal(drafts.length, 0);
+    assert.equal(errors.length, 1);
+  });
+
+  test("a four-option sheet is unchanged, and E is not an answer there", () => {
+    const csv = [
+      "subject,topic,question,option_a,option_b,option_c,option_d,correct_answer",
+      "math,algebra,Pick,1,2,3,4,D",
+      "math,algebra,Pick,1,2,3,4,E"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+    assert.equal(drafts.length, 1);
+    assert.deepEqual(drafts[0].options, ["1", "2", "3", "4"]);
+    assert.equal(drafts[0].correctAnswer, "4");
+    assert.equal(errors[0].row, 3);
+  });
+});
+
+describe("subjects and topics are the site's own", () => {
+  const header = "subject,topic,question,option_a,option_b,correct_answer";
+  const rowFor = (subject: string, topic = "algebra") => `${subject},${topic},Pick,x,y,A`;
+
+  test("every alias resolves to its subject, whatever the case", () => {
+    const expected: Record<string, string> = {
+      math: "math",
+      Mathematics: "math",
+      Maths: "math",
+      MATHS: "math",
+      "Математика": "math",
+      Riyaziyyat: "math",
+      english: "english",
+      English: "english",
+      "English Language": "english",
+      "Английский язык": "english",
+      "İngilis dili": "english",
+      russian: "russian",
+      Russian: "russian",
+      "Russian Language": "russian",
+      "Русский язык": "russian",
+      "Rus dili": "russian"
+    };
+    for (const [typed, id] of Object.entries(expected)) {
+      const { drafts, errors } = importQuestionsFromCsv([header, rowFor(typed, "grammar")].join("\n"));
+      assert.deepEqual(errors, [], typed);
+      assert.equal(drafts[0].subjectId, id, typed);
+    }
+  });
+
+  test("an unknown subject is that row's error and the other rows still import", () => {
+    const csv = [header, rowFor("math"), rowFor("physics"), rowFor("Maths")].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+    assert.equal(drafts.length, 2);
+    assert.deepEqual(drafts.map((draft) => draft.subjectId), ["math", "math"]);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].row, 3);
+    assert.equal(errors[0].message, 'Subject "physics" is not one of math, english, russian.');
+  });
+
+  test("a topic given by name becomes the known topic's id", () => {
+    const csv = [header, rowFor("math", "Functions and Graphs"), rowFor("math", "functions")].join("\n");
+    const { drafts } = importQuestionsFromCsv(csv);
+    assert.deepEqual(drafts.map((draft) => draft.topicId), ["functions", "functions"]);
+  });
+
+  test("an unknown topic is still allowed and slugified as before", () => {
+    const { drafts, errors } = importQuestionsFromCsv([header, rowFor("math", "Word Problems")].join("\n"));
+    assert.deepEqual(errors, []);
+    assert.equal(drafts[0].topicId, "word-problems");
+  });
+});
