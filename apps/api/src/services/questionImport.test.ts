@@ -360,3 +360,98 @@ describe("translation columns", () => {
     });
   });
 });
+
+describe("quotes inside cells", () => {
+  const tsvHeader = header.replaceAll(",", "\t");
+  const tsvRow = (...cells: string[]) => cells.join("\t");
+  const csvRow = (...cells: string[]) => cells.join(",");
+
+  test("TSV: a quote in the middle of a cell is plain text and later rows survive", () => {
+    const tsv = [
+      tsvHeader,
+      tsvRow("english", "grammar", 'Choose the word in "quotes" here', "a", "b", "c", "d", "A"),
+      tsvRow("english", "grammar", "Second", "a", "b", "c", "d", "B"),
+      tsvRow("english", "grammar", "Third", "a", "b", "c", "d", "C")
+    ].join("\n");
+    const rows = parseCsv(tsv);
+    assert.equal(rows.length, 4);
+    assert.equal(rows[1][2], 'Choose the word in "quotes" here');
+    const { drafts, errors } = importQuestionsFromCsv(tsv);
+    assert.deepEqual(errors, []);
+    assert.equal(drafts.length, 3);
+  });
+
+  test("TSV: an inch mark is kept", () => {
+    const tsv = [
+      tsvHeader,
+      tsvRow("english", "grammar", `He is 6' 2" tall`, "yes", "no", "", "", "A"),
+      tsvRow("english", "grammar", "Next", "yes", "no", "", "", "B")
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(tsv);
+    assert.deepEqual(errors, []);
+    assert.equal(drafts.length, 2);
+    assert.equal(drafts[0].prompt, `He is 6' 2" tall`);
+  });
+
+  test("TSV: a properly quoted multi-line cell is one cell", () => {
+    const tsv = [
+      tsvHeader,
+      tsvRow("english", "grammar", '"line one\nline ""two"""', "a", "b", "c", "d", "A"),
+      tsvRow("english", "grammar", "Next", "a", "b", "c", "d", "B")
+    ].join("\n");
+    const rows = parseCsv(tsv);
+    assert.equal(rows.length, 3);
+    assert.equal(rows[1][2], 'line one\nline "two"');
+  });
+
+  test("TSV: an unterminated quote is an error naming its row, not lost rows", () => {
+    const tsv = [
+      tsvHeader,
+      tsvRow("english", "grammar", "Fine", "a", "b", "c", "d", "A"),
+      tsvRow("english", "grammar", '"never closed', "a", "b", "c", "d", "A"),
+      tsvRow("english", "grammar", "Swallowed", "a", "b", "c", "d", "B")
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(tsv);
+    assert.equal(drafts.length, 1);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].row, 3);
+  });
+
+  test("CSV: a quote in the middle of a cell is plain text", () => {
+    const csv = [
+      header,
+      csvRow("english", "grammar", 'Choose the word in "quotes" here', "a", "b", "c", "d", "A"),
+      csvRow("english", "grammar", "Second", "a", "b", "c", "d", "B")
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+    assert.deepEqual(errors, []);
+    assert.equal(drafts[0].prompt, 'Choose the word in "quotes" here');
+    assert.equal(drafts.length, 2);
+  });
+
+  test("CSV: an inch mark is kept", () => {
+    const csv = [header, csvRow("english", "grammar", `He is 6' 2" tall`, "yes", "no", "", "", "A")].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+    assert.deepEqual(errors, []);
+    assert.equal(drafts[0].prompt, `He is 6' 2" tall`);
+  });
+
+  test("CSV: a quoted multi-line cell with commas and escaped quotes still works", () => {
+    const csv = [header, csvRow("english", "grammar", '"one, ""two""\nthree"', "a", "b", "c", "d", "A")].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+    assert.deepEqual(errors, []);
+    assert.equal(drafts[0].prompt, 'one, "two"\nthree');
+  });
+
+  test("CSV: an unterminated quote is an error naming its row", () => {
+    const csv = [
+      header,
+      csvRow("english", "grammar", "Fine", "a", "b", "c", "d", "A"),
+      csvRow("english", "grammar", '"open', "a", "b", "c", "d", "A"),
+      csvRow("english", "grammar", "Gone", "a", "b", "c", "d", "B")
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+    assert.equal(drafts.length, 1);
+    assert.deepEqual(errors.map((e) => e.row), [3]);
+  });
+});
