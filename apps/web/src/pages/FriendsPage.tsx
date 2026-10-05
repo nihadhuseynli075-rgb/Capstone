@@ -101,6 +101,7 @@ export function FriendsPage() {
         : friends.explain(actionError.cause);
   // A session that has ended fails the action and the read after it alike, and
   // the same sentence twice said nothing more.
+  const showLoad = status === "error" || (status === "ready" && error !== null);
   const showAction = actionText !== null && !((status === "error" || status === "ready") && actionText === loadText);
 
   return (
@@ -119,7 +120,7 @@ export function FriendsPage() {
         </p>
       )}
 
-      {(status === "error" || (status === "ready" && error !== null)) && (
+      {showLoad && (
         <p className="error-banner" role="alert">
           {loadText}{" "}
           {needsSignInAgain(error) ? (
@@ -140,7 +141,14 @@ export function FriendsPage() {
 
       {overview && (
         <>
-          <AddFriendPanel onSend={send} explain={friends.explain} resetSignal={actionCount} />
+          <AddFriendPanel
+            onSend={send}
+            explain={friends.explain}
+            resetSignal={actionCount}
+            // The field shows its own failure, but not one the page already
+            // says in a banner above it.
+            bannerText={showLoad ? loadText : showAction ? actionText : null}
+          />
 
           <RequestsPanel
             incoming={overview.incoming}

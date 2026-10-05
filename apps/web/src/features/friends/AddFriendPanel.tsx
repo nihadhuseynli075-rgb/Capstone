@@ -12,12 +12,15 @@ import { fill } from "./fill";
 export function AddFriendPanel({
   onSend,
   explain,
-  resetSignal
+  resetSignal,
+  bannerText = null
 }: {
   onSend: (emailOrUsername: string) => Promise<SentFriendRequest>;
   explain: (cause: unknown) => string;
   /** Changes whenever something else is done on the page (see FriendsPage). */
   resetSignal: number;
+  /** What the page already says in a banner, so the field does not say it again. */
+  bannerText?: string | null;
 }) {
   const { t } = useLanguage();
   const [typed, setTyped] = useState("");
@@ -88,7 +91,7 @@ export function AddFriendPanel({
           placeholder={t("friends.addPlaceholder")}
           hint={t("friends.addHint")}
           value={typed}
-          error={error}
+          error={error !== null && error === bannerText ? null : error}
           disabled={sending}
           onChange={(event) => {
             setTyped(event.target.value);
