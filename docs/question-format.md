@@ -16,7 +16,8 @@ imported in one paste, rather than typed into the form question by question.
 | `option_b`       | for MCQ  | Second option. At least two options are needed.             |
 | `option_c`       | no       | Third option.                                               |
 | `option_d`       | no       | Fourth option.                                              |
-| `correct_answer` | yes      | The letter (`A`, `B`, `C`, `D`) or the full answer text.    |
+| `option_e`       | no       | Fifth option. DİM papers have five (A to E), so leave it in for them. |
+| `correct_answer` | yes      | The letter (`A` to `E`, in capitals or not) or the full answer text.    |
 | `marks`          | no       | What the question is worth, e.g. `3`. A whole number from 1 to 100. Defaults to `1` if blank. |
 | `explanation`    | no       | Why the answer is right. Shown to the student after the test. |
 | `image_url`      | no       | Link to a diagram. Leave blank and attach the picture through the admin form instead. |
@@ -58,7 +59,7 @@ no translation.
 | Column                                         | Notes                                                                 |
 | ---------------------------------------------- | --------------------------------------------------------------------- |
 | `question_ru` / `question_en`                  | The question text in that language. Required if any other column for that language is filled in. |
-| `option_a_ru` ... `option_d_ru` (and `_en`)    | The options in that language, **in the same order as `option_a` ... `option_d`**. |
+| `option_a_ru` ... `option_e_ru` (and `_en`)    | The options in that language, **in the same order as `option_a` ... `option_e`**. |
 | `explanation_ru` / `explanation_en`            | The explanation in that language.                                     |
 | `correct_answer_ru` / `correct_answer_en`      | Short answers only, and only when the answer reads differently (`26 cm` and `26 см`). Ignored on multiple choice. |
 
