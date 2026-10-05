@@ -1285,3 +1285,16 @@
     opacity: 0.55;
   }
 }
+
+/* The list-tab confirmation floats at the bottom of the viewport, where the
+   admin is looking after Save returns them to the edited row. */
+.admin-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 50;
+  width: max-content;
+  max-width: min(520px, calc(100vw - 32px));
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+}

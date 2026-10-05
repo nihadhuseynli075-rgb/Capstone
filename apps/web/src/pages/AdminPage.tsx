@@ -249,6 +249,13 @@ export function AdminPage() {
     if (notice) noticeRef.current?.scrollIntoView({ block: "nearest" });
   }, [notice]);
 
+  // The toast on the list tab has done its job after a few seconds.
+  useEffect(() => {
+    if (!notice || tab === "add") return;
+    const timer = window.setTimeout(() => setNotice(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [notice, tab]);
+
   /*
    * Editing a question from the list, and coming back to it.
    *
@@ -514,7 +521,13 @@ export function AdminPage() {
         </div>
 
         {/* On the form's tab both sit beside its button instead: see below. */}
-        {tab !== "add" && notice && <p className="success-banner">{notice}</p>}
+        {/* Fixed to the viewport: after Save the list is scrolled to the edited
+            row, thousands of pixels below a banner placed at the top. */}
+        {tab !== "add" && notice && (
+          <p className="success-banner admin-toast" role="status">
+            {notice}
+          </p>
+        )}
         {tab !== "add" && error && <p className="error-banner">{error}</p>}
 
         {tab === "add" && (
