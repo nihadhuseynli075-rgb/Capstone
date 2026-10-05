@@ -1196,7 +1196,16 @@
   margin: 0;
   color: var(--muted);
   font-size: 0.85rem;
+  line-height: 1.6;
   text-align: center;
+}
+
+/* The links sit inside a sentence, so they can't grow taller without pushing the
+   lines apart. Padding widens the tap area to 44px and the matching negative
+   margin keeps the text exactly where it was. */
+.auth-legal-notice a {
+  padding: 13px 6px;
+  margin: -13px -6px;
 }
 
 /* "Forgot password?", under the password field and lined up with its right edge. */
