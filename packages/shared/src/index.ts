@@ -164,6 +164,21 @@ export const customLimits = {
 } as const;
 
 /**
+ * How much of the catalog one test may ask for.
+ *
+ * The subject and topic ids go into the query string of the read that draws
+ * the paper, so with no limit a request could name ten thousand topics, or one
+ * a megabyte long, and the read failed as a server error with Supabase while
+ * the in-memory store simply found nothing. The longest starter id is under
+ * twenty characters and a subject has a handful of topics, so these leave
+ * plenty of room for topics added to the bank.
+ */
+export const testScopeLimits = {
+  maxIdLength: 100,
+  maxTopics: 60
+} as const;
+
+/**
  * What a profile may hold.
  *
  * Shared so the profile form and the API refuse the same names. The photo

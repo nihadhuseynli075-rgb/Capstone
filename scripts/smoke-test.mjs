@@ -414,6 +414,20 @@ async function main() {
   });
   check("generating with no topics is rejected", badSettings.status === 400, `got ${badSettings.status}`);
 
+  // The ids go into the query string of the read that draws the paper. With
+  // no limit these were a 500 with Supabase and a 409 in memory.
+  const scopeRequest = (overrides) =>
+    call("/api/tests/generate", {
+      method: "POST",
+      body: { studentKey, subjectId: "math", topicIds: ["algebra"], difficultyMode: "easy", ...overrides }
+    });
+  const tooManyTopics = await scopeRequest({ topicIds: Array.from({ length: 10000 }, (_, index) => `topic-${index}`) });
+  check("ten thousand topics are a 400", tooManyTopics.status === 400, `${tooManyTopics.status} ${JSON.stringify(tooManyTopics.body).slice(0, 200)}`);
+  const hugeTopic = await scopeRequest({ topicIds: ["t".repeat(1024 * 1024)] });
+  check("a megabyte-long topic id is a 400", hugeTopic.status === 400, `got ${hugeTopic.status}`);
+  const hugeSubject = await scopeRequest({ subjectId: "m".repeat(1024 * 1024) });
+  check("a megabyte-long subject id is a 400", hugeSubject.status === 400, `got ${hugeSubject.status}`);
+
   const generated = await call("/api/tests/generate", {
     method: "POST",
     body: {
