@@ -9,6 +9,12 @@ import { testsRouter } from "./routes/tests";
 
 const app = express();
 
+// Behind a host's proxy, read the student's own address from X-Forwarded-For
+// so the per-address limits count students, not the proxy (see env.ts).
+if (env.trustProxyHops > 0) {
+  app.set("trust proxy", env.trustProxyHops);
+}
+
 // Vite asks for port 5173 but silently moves to 5174, 5175 and so on when
 // something else already holds it, so pinning CORS to one exact origin breaks
 // the app on a machine that happens to have 5173 busy. In development any

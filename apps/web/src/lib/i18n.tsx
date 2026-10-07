@@ -423,6 +423,7 @@ const en = {
 
   "test.errInvalid": "Those test settings were not accepted. Refresh the page and try again.",
   "test.errNotFound": "That test could not be found.",
+  "test.errTooMany": "Too many tests were started from this connection. Wait a few minutes, then try again.",
   "test.errNotYours": "That test belongs to a different account.",
   "test.errNotSubmitted": "That test has not been handed in yet.",
   "test.errTimeExpired":
@@ -951,6 +952,7 @@ const ru: Dictionary = {
 
   "test.errInvalid": "Эти настройки теста не приняты. Обновите страницу и попробуйте снова.",
   "test.errNotFound": "Этот тест не найден.",
+  "test.errTooMany": "С этого подключения начато слишком много тестов. Подождите несколько минут и попробуйте снова.",
   "test.errNotYours": "Этот тест принадлежит другому аккаунту.",
   "test.errNotSubmitted": "Этот тест ещё не сдан.",
   "test.errTimeExpired":
@@ -1472,6 +1474,7 @@ const az: Dictionary = {
 
   "test.errInvalid": "Bu test parametrləri qəbul olunmadı. Səhifəni yeniləyib yenidən cəhd edin.",
   "test.errNotFound": "Bu test tapılmadı.",
+  "test.errTooMany": "Bu bağlantıdan çox sayda test başladılıb. Bir neçə dəqiqə gözləyin və yenidən cəhd edin.",
   "test.errNotYours": "Bu test başqa hesaba aiddir.",
   "test.errNotSubmitted": "Bu test hələ təhvil verilməyib.",
   "test.errTimeExpired":

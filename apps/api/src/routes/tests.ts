@@ -17,6 +17,7 @@ import {
 } from "../repositories/attemptRepository";
 import { compareToPrevious, markAttempt, resolveAnswers } from "../services/marking";
 import { generateMockTest, toAttemptQuestion, toExamQuestion } from "../services/mockTestGenerator";
+import { createRateLimiter } from "../services/rateLimiter";
 import { markWrittenAnswers } from "../services/writtenMarking";
 import {
   canClaimFrom,
@@ -81,7 +82,30 @@ const generateSchema = z
     }
   });
 
+/**
+ * Tests one address may generate in ten minutes.
+ *
+ * Generating needs no account and writes the attempt plus a row for every
+ * question served, so this keeps a script from filling the database. A school
+ * computer room shares one address: 30 students starting a test each minute
+ * would be 300, so the limit sits at twice that. Behind a host's proxy the
+ * address is only the student's own once TRUST_PROXY is set (see env.ts).
+ */
+const generateLimiter = createRateLimiter({ maxRequests: 600, windowMs: 10 * 60 * 1000 });
+
 testsRouter.post("/generate", async (request, response, next) => {
+  const waitMs = generateLimiter.take(request.ip ?? request.socket.remoteAddress ?? "unknown");
+
+  if (waitMs > 0) {
+    const seconds = Math.ceil(waitMs / 1000);
+    response.setHeader("Retry-After", String(seconds));
+    return response.status(429).json({
+      code: "too-many-tests",
+      retryAfterSeconds: seconds,
+      message: "Too many tests were started from this connection. Wait a few minutes, then try again."
+    });
+  }
+
   const parsed = generateSchema.safeParse(request.body);
 
   if (!parsed.success) {

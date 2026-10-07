@@ -296,6 +296,13 @@ docs/                 Product notes, action list, spreadsheet format
 scripts/              End-to-end smoke test
 ```
 
+## Hosting
+
+Starting a test (600 per address in ten minutes) and admin sign-in are limited
+per address. Most hosts put a proxy in front of the API, and then every request
+looks like it comes from the proxy: set `TRUST_PROXY=1` in the API's settings
+there (the number of proxies in front of it). Leave it at `0` locally.
+
 ## Where things stand
 
 Built and working:
