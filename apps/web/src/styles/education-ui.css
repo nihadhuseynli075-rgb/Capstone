@@ -35,8 +35,6 @@ body {
   background: color-mix(in srgb, var(--surface) 94%, transparent);
   box-shadow: var(--ui-shadow-card);
   backdrop-filter: blur(14px);
-  /* backdrop-filter makes the header its own stacking context, so the account
-     dropdown inside it can only rise above the page if the header does. */
   position: relative;
   z-index: 30;
 }
@@ -73,12 +71,7 @@ body {
   background: var(--brand-soft);
 }
 
-/*
- * The phone header's menu button. The doubled class matters: .ghost-button's
- * padding further down would otherwise squeeze the icon.
- */
 .ghost-button.icon-button {
-  /* No display here: .nav-toggle decides when the button shows at all. */
   align-items: center;
   justify-content: center;
   width: 44px;
@@ -91,17 +84,10 @@ body {
   flex: none;
 }
 
-/*
- * The bar is laid out in the order of its markup, which is also the order Tab
- * takes: logo, the links, then the theme button at the end. Nothing here
- * reorders it, so what is focused next is always what is drawn next.
- */
 .app-header .app-nav {
-  /* Takes the spare width, so the links and the theme button sit together on the right. */
   margin-left: auto;
 }
 
-/* Quiet like the links beside it; a phone gives it the menu button's outline. */
 .theme-toggle {
   display: inline-flex;
   border-color: transparent;
@@ -113,14 +99,6 @@ body {
   background: var(--brand-soft);
 }
 
-/*
- * Phone and small tablet: the mark alone. The name is the widest thing in the
- * bar, and the space is better spent on a button that is one tap away than on a
- * word the logo already says. It goes at 760px rather than at the phone
- * breakpoint because from 641px the links are back in the bar, and beside them
- * the name and the theme button no longer fit one row. The link is named by its
- * own aria-label, since the mark beside the name is decoration (empty alt).
- */
 @media (max-width: 760px) {
   .app-header .wordmark-text {
     display: none;
@@ -128,17 +106,18 @@ body {
 }
 
 @media (max-width: 640px) {
-  /*
-   * The menu folds back under the bar instead of sitting beside the buttons,
-   * which leaves the menu button and the theme button side by side on the
-   * right of the first row, in their markup order.
-   */
   .app-header {
     column-gap: 8px;
   }
 
-  .app-header .nav-toggle {
+  .app-header .theme-toggle {
+    order: 1;
     margin-left: auto;
+  }
+
+  .app-header .nav-toggle {
+    order: 2;
+    margin-left: 0;
   }
 
   .app-header .app-nav {
@@ -160,7 +139,6 @@ body {
   }
 }
 
-/* The page you are on. */
 .app-nav .ghost-button[aria-current="page"] {
   background: var(--brand-soft);
   color: var(--brand-strong);
@@ -172,7 +150,6 @@ body {
   color: var(--brand-strong);
 }
 
-/* Reachable for whoever runs the question bank, without calling out to students. */
 .app-footer .footer-admin-link {
   color: var(--muted);
   text-decoration: none;
@@ -191,7 +168,6 @@ body {
 .app-footer {
   width: min(1120px, calc(100% - 32px));
   margin: 0 auto;
-  /* The admin link is 44px tall on a phone; without this the tagline sat at the top of that. */
   align-items: center;
   padding: 22px 0 30px;
   border-top-color: color-mix(in srgb, var(--border) 70%, transparent);
@@ -235,8 +211,6 @@ body {
   box-shadow: 0 4px 0 var(--brand-edge), 0 8px 18px rgba(12, 130, 200, 0.14);
 }
 
-/* A link dressed as a button (Settings, Profile) keeps the button's look: no
-   link underline, and the label centred in the 44px height. */
 a.primary-button,
 a.ghost-button,
 a.danger-button {
@@ -340,8 +314,6 @@ textarea:focus-visible {
 .subject-card {
   min-height: 116px;
   padding: 18px;
-  /* Glyph and count share the top row, the name runs underneath. The count sits
-     in the flow, so however long it is it can only push, never overlap. */
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-areas:
@@ -368,7 +340,6 @@ textarea:focus-visible {
   transform: translateY(0);
 }
 
-/* Not offered yet: readable, just quieter, rather than faded to near nothing. */
 .subject-card:disabled {
   opacity: 1;
   background: color-mix(in srgb, var(--surface) 70%, var(--surface-alt));
@@ -390,8 +361,6 @@ textarea:focus-visible {
   grid-area: glyph;
 }
 
-/* components.css turns the disc white on hover, which on these white cards
-   makes it vanish. */
 .subject-card:hover:not(:disabled) .subject-glyph {
   background: var(--brand-soft);
 }
@@ -475,11 +444,6 @@ textarea:focus-visible {
   gap: 18px;
 }
 
-/*
- * The way home, at every width. It was hidden beside the brand panel on a wide
- * screen, but that panel is a picture, not a link, so a desktop visitor had
- * no way back to the home page or to a test without an account.
- */
 .auth-home-link {
   display: inline-flex;
   align-items: center;
@@ -487,7 +451,6 @@ textarea:focus-visible {
   text-decoration: none;
 }
 
-/* Under the card's own footer, for anyone who came here and would rather not sign up. */
 .auth-guest-link {
   margin: 0;
   color: var(--muted);
@@ -495,7 +458,6 @@ textarea:focus-visible {
   text-align: center;
 }
 
-/* A link on its own line, so it can be a full 44px tap target like "Forgot password?". */
 .auth-guest-link a {
   display: inline-flex;
   align-items: center;
@@ -554,7 +516,6 @@ textarea:focus-visible {
   border-radius: 12px;
 }
 
-/* Rounded on top only: the selected tab joins the line under the row. */
 .tab-row .tab {
   border-radius: 12px 12px 0 0;
 }
@@ -616,7 +577,6 @@ textarea:focus-visible {
 
 /* --------------------------------------------------------------- responsive */
 
-/* Tablet: the whole nav still fits on one row beside the brand if it tightens. */
 @media (min-width: 641px) and (max-width: 900px) {
   .app-header {
     flex-wrap: nowrap;
@@ -665,14 +625,12 @@ textarea:focus-visible {
 }
 
 @media (max-width: 640px) {
-  /* The sticky exam bar reaches out to the page edge; the gutter here is 12px. */
   .exam-actions {
     margin: 0 -12px -16px;
     padding-left: 12px;
     padding-right: 12px;
   }
 
-  /* One column of menu rows reads down the left edge, like the account row. */
   .app-nav .ghost-button {
     justify-content: flex-start;
     text-align: left;
@@ -711,6 +669,7 @@ textarea:focus-visible {
     padding: 16px;
   }
 }
+
 /* ------------------------------------------------ dashboard small polish */
 
 [data-theme="light"] .main-greeting {
