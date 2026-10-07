@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { importQuestionsFromCsv, parseCsv, resolveCorrectAnswer } from "./questionImport";
+import { importQuestionsFromCsv, parseCsv, resolveCorrectAnswer, withoutDuplicates } from "./questionImport";
 
 const header = "subject,topic,question,option_a,option_b,option_c,option_d,correct_answer";
 
@@ -669,5 +669,39 @@ describe("quotes inside cells", () => {
     const { drafts, errors } = importQuestionsFromCsv(csv);
     assert.equal(drafts.length, 1);
     assert.deepEqual(errors.map((e) => e.row), [3]);
+  });
+});
+
+describe("withoutDuplicates", () => {
+  const sheet = [
+    header,
+    "math,algebra,Solve 2x = 4,1,2,3,4,B",
+    "math,algebra,Solve 3x = 9,1,2,3,4,C",
+    "math,algebra,  solve   2X = 4 ,1,2,3,4,B"
+  ].join("\n");
+
+  test("each draft keeps the spreadsheet row it came from", () => {
+    assert.deepEqual(importQuestionsFromCsv(sheet).draftRows, [2, 3, 4]);
+  });
+
+  test("a row repeating an earlier one, ignoring capitals and spaces, is left out by row", () => {
+    const { drafts, duplicateRows } = withoutDuplicates(importQuestionsFromCsv(sheet), []);
+    assert.deepEqual(drafts.map((d) => d.prompt), ["Solve 2x = 4", "Solve 3x = 9"]);
+    assert.deepEqual(duplicateRows, [4]);
+  });
+
+  test("pasting the same sheet again imports nothing twice", () => {
+    const first = withoutDuplicates(importQuestionsFromCsv(sheet), []);
+    const again = withoutDuplicates(importQuestionsFromCsv(sheet), first.drafts);
+    assert.deepEqual(again.drafts, []);
+    assert.deepEqual(again.duplicateRows, [2, 3, 4]);
+  });
+
+  test("the same text under another topic or with other options is a different question", () => {
+    const bank = importQuestionsFromCsv(sheet).drafts;
+    const other = importQuestionsFromCsv(
+      [header, "math,geometry,Solve 2x = 4,1,2,3,4,B", "math,algebra,Solve 2x = 4,1,2,3,5,B"].join("\n")
+    );
+    assert.equal(withoutDuplicates(other, bank).drafts.length, 2);
   });
 });

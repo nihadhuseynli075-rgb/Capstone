@@ -37,6 +37,10 @@ export const adminText = {
   importLoadedHint: "Check it below, then press Import questions.",
   importNotSheet: "That is not a .csv or .tsv file. In Google Sheets choose File, Download, Comma-separated values.",
   importEmpty: "That file is empty.",
+  importDuplicatesOne: "Row {rows} is already in the bank, so it was left out.",
+  importDuplicatesMany: "Rows {rows} are already in the bank, so they were left out.",
+  importFixAndRetry:
+    "Your paste is still in the box. Fix the rows below and press Import questions again: rows already in the bank are left out, so nothing goes in twice.",
   importTooBig: "That file is over 2 MB, which is far more than a question sheet. Check it is the right one.",
   importUnreadable: "That file could not be read.",
   importFirstOnly: "Only one file is loaded at a time, so only the first was used.",

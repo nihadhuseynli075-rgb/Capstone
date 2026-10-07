@@ -90,6 +90,8 @@ export interface ImportResponse {
   importedCount: number;
   skippedCount: number;
   errors: Array<{ row: number; message: string }>;
+  /** Rows left out because the question is already in the bank (or earlier in the paste). */
+  duplicateRows?: number[];
   questions: BankQuestion[];
 }
 

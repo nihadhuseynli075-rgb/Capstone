@@ -17,6 +17,8 @@ export interface ImportRowError {
 
 export interface ImportResult {
   drafts: QuestionDraft[];
+  /** The spreadsheet row each draft came from, in the same order as `drafts`. */
+  draftRows: number[];
   errors: ImportRowError[];
 }
 
@@ -376,6 +378,7 @@ function parseWholeNumber(raw: string): number {
 export function importQuestionsFromCsv(csv: string): ImportResult {
   const { rows, unterminatedRow } = readSheetRows(csv);
   const drafts: QuestionDraft[] = [];
+  const draftRows: number[] = [];
   const errors: ImportRowError[] = [];
 
   if (unterminatedRow !== undefined) {
@@ -386,8 +389,8 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
   }
 
   if (rows.length === 0) {
-    if (errors.length > 0) return { drafts, errors };
-    return { drafts, errors: [{ row: 0, message: "The pasted text was empty." }] };
+    if (errors.length > 0) return { drafts, draftRows, errors };
+    return { drafts, draftRows, errors: [{ row: 0, message: "The pasted text was empty." }] };
   }
 
   const [headerRow, ...dataRows] = rows;
@@ -405,6 +408,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
 
     return {
       drafts,
+      draftRows,
       errors: [
         {
           row: headerRow.row,
@@ -608,6 +612,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       return;
     }
 
+    draftRows.push(rowNumber);
     drafts.push({
       subjectId,
       topicId,
@@ -625,5 +630,44 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     });
   });
 
-  return { drafts, errors };
+  return { drafts, draftRows, errors };
+}
+
+/**
+ * What makes two questions the same question: subject, topic, type, the text
+ * and the options, ignoring capitals and runs of spaces.
+ *
+ * Pasting a sheet a second time, after fixing the rows that failed the first
+ * time, used to import every good row again. Difficulty, marks and the answer
+ * are left out on purpose: a row that differs only there is the same question
+ * typed twice, and the copy in the bank is the one to edit.
+ */
+export function questionKey(question: Pick<QuestionDraft, "subjectId" | "topicId" | "type" | "prompt" | "options">): string {
+  const tidy = (text: string) => text.trim().replace(/\s+/g, " ").toLowerCase();
+  return JSON.stringify([question.subjectId, question.topicId, question.type, tidy(question.prompt), question.options.map(tidy)]);
+}
+
+/**
+ * The drafts that are not already in the bank, and the rows of the ones that
+ * were left out because they are (or repeat an earlier row of the same paste).
+ */
+export function withoutDuplicates(
+  result: Pick<ImportResult, "drafts" | "draftRows">,
+  bank: Array<Parameters<typeof questionKey>[0]>
+): { drafts: QuestionDraft[]; duplicateRows: number[] } {
+  const seen = new Set(bank.map(questionKey));
+  const drafts: QuestionDraft[] = [];
+  const duplicateRows: number[] = [];
+
+  result.drafts.forEach((draft, index) => {
+    const key = questionKey(draft);
+    if (seen.has(key)) {
+      duplicateRows.push(result.draftRows[index]);
+      return;
+    }
+    seen.add(key);
+    drafts.push(draft);
+  });
+
+  return { drafts, duplicateRows };
 }

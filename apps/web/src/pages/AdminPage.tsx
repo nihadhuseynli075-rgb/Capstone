@@ -50,7 +50,9 @@ const MAX_SHEET_BYTES = 2 * 1024 * 1024;
  * makes it ready; a question waiting for its picture needs the picture too.
  */
 const statusLabel: Record<Exclude<QuestionStatus, "ready">, string> = {
-  draft: "Draft - not in tests until its options and answer are added",
+  // Most drafts arrive complete and are waiting to be checked, not filled in,
+  // so the label says what publishes one rather than what it might lack.
+  draft: "Draft - not in tests yet. Open it with Edit, check it, and Save changes to put it in tests",
   "image-pending": "Image coming soon - not in tests until its picture is added"
 };
 
@@ -406,7 +408,10 @@ export function AdminPage() {
     try {
       const result = await importQuestions(csv);
       setImportResult(result);
-      if (result.importedCount > 0) setCsv("");
+      // Emptied only when nothing is left to fix. After a partial import the
+      // paste stays, so the rows named below can be corrected in place and the
+      // whole sheet imported again: rows already in the bank are left out.
+      if (result.importedCount > 0 && result.errors.length === 0) setCsv("");
       await refresh();
     } catch (cause) {
       handleFailure(cause);
@@ -789,6 +794,21 @@ export function AdminPage() {
                   {importResult.importedCount === 1 ? "" : "s"}
                   {importResult.skippedCount > 0 ? `, skipped ${importResult.skippedCount}` : ""}.
                 </p>
+
+                {(importResult.duplicateRows?.length ?? 0) > 0 && (
+                  <p className="panel-hint">
+                    {fill(
+                      importResult.duplicateRows!.length === 1
+                        ? adminText.importDuplicatesOne
+                        : adminText.importDuplicatesMany,
+                      { rows: importResult.duplicateRows!.join(", ") }
+                    )}
+                  </p>
+                )}
+
+                {importResult.errors.length > 0 && (
+                  <p className="panel-hint">{adminText.importFixAndRetry}</p>
+                )}
 
                 {importResult.errors.length > 0 && (
                   <ul className="import-errors">

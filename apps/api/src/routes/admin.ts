@@ -16,7 +16,7 @@ import {
 } from "../repositories/questionRepository";
 import { createLoginLimiter } from "../services/loginLimiter";
 import { photoTypeOf } from "../services/profilePhotos";
-import { importQuestionsFromCsv } from "../services/questionImport";
+import { importQuestionsFromCsv, withoutDuplicates } from "../services/questionImport";
 import { translationProblems } from "../services/questionTranslations";
 
 export const adminRouter = Router();
@@ -287,6 +287,9 @@ adminRouter.delete("/questions/:id", requireAdmin, async (request, response, nex
  * Rows that fail validation are reported back with their spreadsheet row number
  * and skipped; the valid rows still import. Partial success beats rejecting a
  * fifty-row paste over one bad cell.
+ *
+ * Rows already in the bank are left out and listed, so the whole sheet can be
+ * pasted again once the bad rows are fixed without the good ones going in twice.
  */
 adminRouter.post("/questions/import", requireAdmin, async (request, response, next) => {
   const parsed = z.object({ csv: z.string().min(1) }).safeParse(request.body);
@@ -296,13 +299,18 @@ adminRouter.post("/questions/import", requireAdmin, async (request, response, ne
   }
 
   try {
-    const { drafts, errors } = importQuestionsFromCsv(parsed.data.csv);
+    const imported = importQuestionsFromCsv(parsed.data.csv);
+    const { drafts, duplicateRows } =
+      imported.drafts.length > 0
+        ? withoutDuplicates(imported, await listQuestions())
+        : { drafts: [], duplicateRows: [] };
     const created = drafts.length > 0 ? await createQuestions(drafts) : [];
 
     response.json({
       importedCount: created.length,
-      skippedCount: errors.length,
-      errors,
+      skippedCount: imported.errors.length,
+      errors: imported.errors,
+      duplicateRows,
       questions: created
     });
   } catch (error) {
