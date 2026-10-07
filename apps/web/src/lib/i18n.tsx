@@ -62,6 +62,11 @@ const en = {
   "main.testsTaken": "Tests taken",
   "main.bestScore": "Best score",
   "main.noTests": "No tests yet",
+  "main.climb": "Your climb",
+  "main.climbEmpty": "Your first test sets base camp. Every test after it is measured against it.",
+  "main.lastTest": "Last test",
+  "main.practiseNext": "Practise next",
+  "main.seeHistory": "See every test",
 
   // The same words the builder, the results and the history use (subjects in
   // packages/shared), so a subject has one name wherever it is read.
@@ -94,6 +99,9 @@ const en = {
   "landing.dailyQuizzesBody":
     "Complete new daily challenges designed to become progressively more difficult.",
   "landing.trackProgress": "Track Progress",
+  "landing.stepBuild": "Build a test from past-paper questions",
+  "landing.stepSit": "Sit it start to finish",
+  "landing.stepReview": "See every mistake, with the right answer",
   "landing.trackProgressBody":
     "Review your scores, test history and mistakes to understand where you can improve.",
   "landing.closing":
@@ -538,6 +546,9 @@ const en = {
     "Your best result is highlighted. It accounts for difficulty and test length, not just the percentage.",
   "history.best": "Best test so far",
   "history.all": "All attempts",
+  "history.climb": "Your climb",
+  "history.climbNote": "Each point is a test, oldest on the left. The higher the point, the better the score, and the flag marks your best test.",
+  "history.allSubjects": "All subjects",
 
   "common.saving": "Saving...",
   "common.back": "Back",
@@ -610,6 +621,11 @@ const ru: Dictionary = {
   "main.testsTaken": "Пройдено тестов",
   "main.bestScore": "Лучший результат",
   "main.noTests": "Пока нет тестов",
+  "main.climb": "Ваш подъём",
+  "main.climbEmpty": "Первый тест — ваш базовый лагерь. С ним сравнивается каждый следующий.",
+  "main.lastTest": "Последний тест",
+  "main.practiseNext": "Что повторить",
+  "main.seeHistory": "Все тесты",
 
   "subject.math": "Математика",
   "subject.english": "Английский язык",
@@ -636,6 +652,9 @@ const ru: Dictionary = {
   "landing.dailyQuizzesBody":
     "Проходите новые задания каждый день: с каждым разом они становятся сложнее.",
   "landing.trackProgress": "Ваш прогресс",
+  "landing.stepBuild": "Составьте тест из заданий прошлых лет",
+  "landing.stepSit": "Пройдите его целиком",
+  "landing.stepReview": "Разберите каждую ошибку с правильным ответом",
   "landing.trackProgressBody":
     "Смотрите свои баллы, историю тестов и ошибки, чтобы понять, над чем ещё стоит поработать.",
   "landing.closing":
@@ -1070,6 +1089,9 @@ const ru: Dictionary = {
     "Лучший результат выделен. Он учитывает сложность и длину теста, а не только процент.",
   "history.best": "Лучший тест",
   "history.all": "Все попытки",
+  "history.climb": "Ваш подъём",
+  "history.climbNote": "Каждая точка — это тест, самые ранние слева. Чем выше точка, тем лучше результат, а флаг отмечает ваш лучший тест.",
+  "history.allSubjects": "Все предметы",
 
   "common.saving": "Сохранение...",
   "common.back": "Назад",
@@ -1138,6 +1160,11 @@ const az: Dictionary = {
   "main.testsTaken": "Həll edilmiş testlər",
   "main.bestScore": "Ən yaxşı nəticə",
   "main.noTests": "Hələ test yoxdur",
+  "main.climb": "Sizin yüksəlişiniz",
+  "main.climbEmpty": "İlk testiniz baza düşərgənizdir. Sonrakı hər test onunla müqayisə olunur.",
+  "main.lastTest": "Son test",
+  "main.practiseNext": "Növbəti məşq",
+  "main.seeHistory": "Bütün testlər",
 
   "subject.math": "Riyaziyyat",
   "subject.english": "İngilis dili",
@@ -1164,6 +1191,9 @@ const az: Dictionary = {
   "landing.dailyQuizzesBody":
     "Hər gün yeni tapşırıqları yerinə yetirin: onlar getdikcə çətinləşir.",
   "landing.trackProgress": "İnkişafınız",
+  "landing.stepBuild": "Keçmiş illərin suallarından test qurun",
+  "landing.stepSit": "Əvvəldən sona qədər həll edin",
+  "landing.stepReview": "Hər səhvi düzgün cavabı ilə görün",
   "landing.trackProgressBody":
     "Nəyi yaxşılaşdıra biləcəyinizi görmək üçün ballarınıza, test tarixçənizə və səhvlərinizə baxın.",
   "landing.closing":
@@ -1596,6 +1626,9 @@ const az: Dictionary = {
     "Ən yaxşı nəticəniz fərqləndirilib. O, yalnız faizi deyil, çətinliyi və testin uzunluğunu da nəzərə alır.",
   "history.best": "Ən yaxşı test",
   "history.all": "Bütün cəhdlər",
+  "history.climb": "Sizin yüksəlişiniz",
+  "history.climbNote": "Hər nöqtə bir testdir, ən köhnələri soldadır. Nöqtə nə qədər yüksəkdirsə, nəticə o qədər yaxşıdır, bayraq isə ən yaxşı testinizi göstərir.",
+  "history.allSubjects": "Bütün fənlər",
 
   "common.saving": "Yadda saxlanılır...",
   "common.back": "Geri",
