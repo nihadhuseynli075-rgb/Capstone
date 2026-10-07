@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SubmittedAnswer } from "@grade9/shared";
 import { writtenAnswerMaxLength } from "@grade9/shared";
 import { navigate, replaceRoute, setLeaveGuard } from "../app/router";
+import { useAuth } from "../features/auth/AuthContext";
 import { fill } from "../features/friends/fill";
 import {
   clearActiveTest,
@@ -40,6 +41,7 @@ function formatClock(totalSeconds: number): string {
 
 export function ExamPage() {
   const { t, tn } = useLanguage();
+  const { user } = useAuth();
   const [active, setActive] = useState<ActiveTest | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -255,11 +257,16 @@ export function ExamPage() {
   // the paper is open. The paper is kept whatever the answer, and the dashboard
   // and the builder offer to resume it, so the question says that rather than
   // claiming the answers are lost. A timed paper also says its clock goes on:
-  // the time is the server's, counted from when the test was made.
+  // the time is the server's, counted from when the test was made. A guest
+  // has no dashboard (the home page is the landing page), so their question
+  // names only the builder.
+  const timed = active !== null && active.test.settings.timeLimitMinutes !== null;
   const leaveText =
     active === null
       ? null
-      : t(active.test.settings.timeLimitMinutes === null ? "exam.leaveConfirm" : "exam.leaveConfirmTimed");
+      : user
+        ? t(timed ? "exam.leaveConfirmTimed" : "exam.leaveConfirm")
+        : t(timed ? "exam.leaveConfirmGuestTimed" : "exam.leaveConfirmGuest");
 
   useEffect(() => {
     if (leaveText === null) return;
