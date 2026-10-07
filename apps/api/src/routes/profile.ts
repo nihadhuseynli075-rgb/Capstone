@@ -36,7 +36,7 @@ profileRouter.use(
   requireAccount({
     code: "profiles-unavailable",
     message:
-      "Profiles need the API connected to Supabase. Set SUPABASE_SERVICE_ROLE_KEY in .env and restart the API."
+      "Profiles need the API connected to Supabase. Set SUPABASE_SECRET_KEY in .env and restart the API."
   })
 );
 

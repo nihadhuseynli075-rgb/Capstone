@@ -1,15 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.SUPABASE_URL;
+const supabaseKey = import.meta.env.SUPABASE_PUBLISHABLE_KEY;
 
 /**
  * Browser Supabase client, used for authentication only.
  *
- * The anon key is safe to ship: row level security decides what it can reach,
+ * The publishable key is safe to ship: row level security decides what it can reach,
  * and the question bank has no anon policy at all. Everything to do with
  * questions, marking and results still goes through the API, which holds the
- * service role key. This client exists so sign-in does not have to be
+ * secret key. This client exists so sign-in does not have to be
  * reinvented.
  *
  * Null when credentials are absent, which is what keeps the app runnable before
@@ -17,8 +17,8 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
  * rather than assuming a client exists.
  */
 export const supabase =
-  supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey, {
+  supabaseUrl && supabaseKey
+    ? createClient(supabaseUrl, supabaseKey, {
         auth: {
           persistSession: true,
           autoRefreshToken: true,

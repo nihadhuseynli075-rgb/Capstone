@@ -61,7 +61,7 @@ Next session: **Saturday 3 October, 4:30pm Nihad's time (Baku)**, 30 minutes.
       back for their diagrams. Upload them through the admin form or a seed
       that uses Storage. Use Storage rather than data URLs, because the AI
       marker needs a real URL.
-- [ ] Put `SUPABASE_SERVICE_ROLE_KEY` in `.env`. Until it is there, the API runs
+- [ ] Put `SUPABASE_SECRET_KEY` in `.env`. Until it is there, the API runs
       in memory, and profiles and friends answer "unavailable".
 - [ ] For changing an email address (README, "Changing the email address"):
       keep **Secure email change** on, set up a custom SMTP server so mail

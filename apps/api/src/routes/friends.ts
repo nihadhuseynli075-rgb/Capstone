@@ -30,7 +30,7 @@ friendsRouter.use(
   requireAccount({
     code: "friends-unavailable",
     message:
-      "Friends need real accounts, and the API is not connected to Supabase. Set SUPABASE_SERVICE_ROLE_KEY in .env and restart the API."
+      "Friends need real accounts, and the API is not connected to Supabase. Set SUPABASE_SECRET_KEY in .env and restart the API."
   })
 );
 

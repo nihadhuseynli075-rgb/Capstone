@@ -14,9 +14,8 @@
  * profile page can be tried in a browser with no Google project: the trip to
  * Google comes straight back the way Supabase sends it, signed in as the one
  * Google account set through POST /__standin/google. To try the app against
- * it, run the API with SUPABASE_URL pointing here and SUPABASE_SERVICE_ROLE_KEY
- * set to anything, and the web app with VITE_SUPABASE_URL pointing here and
- * VITE_SUPABASE_ANON_KEY set to anything.
+ * it, run the API and the web app with SUPABASE_URL pointing here and
+ * SUPABASE_SECRET_KEY and SUPABASE_PUBLISHABLE_KEY set to anything.
  *
  * It exists because the Supabase code paths otherwise only run against a real
  * project, and there is not always one to hand. So it imitates the Postgres

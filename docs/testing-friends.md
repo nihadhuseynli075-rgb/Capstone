@@ -12,7 +12,7 @@ does not match what it says you should see.
       from it: the friends table, and the usernames column on profiles. If
       either is missing, the Friends page shows a red message that ends with
       "run supabase/run-all.sql in the Supabase SQL editor". That is the cue.
-- [ ] **The API is connected to Supabase.** `SUPABASE_SERVICE_ROLE_KEY` is in
+- [ ] **The API is connected to Supabase.** `SUPABASE_SECRET_KEY` is in
       `.env` and the API has been restarted. Opening
       <http://localhost:4000/health> should say `"storageMode":"supabase"`. If
       it says `memory`, the Friends page will say friends need real accounts,

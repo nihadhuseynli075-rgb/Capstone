@@ -24,13 +24,15 @@ dashboard shows a banner, so this is never a silent surprise.
 ## Connecting Supabase
 
 1. Copy `.env.example` to `.env` at the repository root.
-2. From the Supabase dashboard, **Project settings → API**, copy the project URL
-   and the **service role** key into `SUPABASE_URL` and
-   `SUPABASE_SERVICE_ROLE_KEY`.
-3. Copy the **anon** key into `VITE_SUPABASE_ANON_KEY` and the same project URL
-   into `VITE_SUPABASE_URL`. The browser needs these for sign-in. The anon key
-   is safe to ship; row level security decides what it can reach, and the
-   question bank has no anon policy at all.
+2. From the Supabase dashboard, **Project settings → API keys**, copy the
+   project URL into `SUPABASE_URL` and the **publishable** key into
+   `SUPABASE_PUBLISHABLE_KEY`. The browser uses these two for sign-in, under
+   these same names (`apps/web/vite.config.ts` passes them on). The publishable
+   key is safe to ship; row level security decides what it can reach, and the
+   question bank has no policy for it at all.
+3. Copy the **secret** key into `SUPABASE_SECRET_KEY`. Only the API reads it;
+   it is what lets the API reach the question bank, profiles and accounts. An
+   older `SUPABASE_SERVICE_ROLE_KEY` line still works.
 4. Set `ADMIN_PASSWORD` to something other than the default. Leaving it blank
    in development means the built-in default; in production it means the admin
    dashboard stays shut, because that default is written in the repository for
@@ -48,7 +50,7 @@ dashboard shows a banner, so this is never a silent surprise.
    optional and has its own steps, below.
 7. Restart the API. `GET /health` should now report `"storageMode": "supabase"`.
 
-The service role key bypasses row level security, so it stays on the server.
+The secret key bypasses row level security, so it stays on the server.
 Nothing in `apps/web` ever reads it, which is why every database call goes
 through the API.
 

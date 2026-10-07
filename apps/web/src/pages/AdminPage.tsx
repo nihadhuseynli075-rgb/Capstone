@@ -507,7 +507,7 @@ export function AdminPage() {
         {storageMode === "memory" && (
           <p className="warning-banner">
             Supabase is not connected, so anything added here is kept in the API's memory and
-            disappears when it restarts. Fill in SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in
+            disappears when it restarts. Fill in SUPABASE_URL and SUPABASE_SECRET_KEY in
             <code> .env</code> to store questions for real.
           </p>
         )}

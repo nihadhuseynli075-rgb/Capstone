@@ -214,8 +214,8 @@ export function finishAuthRedirect(outcome: {
   return { intent, error: null, errorCode: null };
 }
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.SUPABASE_URL;
+const supabaseKey = import.meta.env.SUPABASE_PUBLISHABLE_KEY;
 
 let providersRequest: Promise<Record<string, boolean>> | null = null;
 
@@ -229,7 +229,7 @@ let providersRequest: Promise<Record<string, boolean>> | null = null;
  * reaches a page that is already open.
  */
 export async function isGoogleSignInEnabled(): Promise<boolean> {
-  providersRequest ??= fetch(`${supabaseUrl}/auth/v1/settings`, { headers: { apikey: supabaseAnonKey } })
+  providersRequest ??= fetch(`${supabaseUrl}/auth/v1/settings`, { headers: { apikey: supabaseKey ?? "" } })
     .then(async (response) => {
       if (!response.ok) throw unreachableError(response.status);
       const settings = (await response.json()) as { external?: Record<string, boolean> };

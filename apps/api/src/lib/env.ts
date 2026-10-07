@@ -37,7 +37,13 @@ export const env = {
    */
   allowAnyLocalhostOrigin: !isProduction,
   supabaseUrl: optional("SUPABASE_URL"),
-  supabaseServiceRoleKey: optional("SUPABASE_SERVICE_ROLE_KEY"),
+  /**
+   * The project's secret key (Supabase -> Project settings -> API keys), which
+   * lets the API past row level security. Never the publishable key: that one
+   * is public, so the question bank refuses it on purpose. Older projects call
+   * it the service role key, and that name still works.
+   */
+  supabaseServiceRoleKey: optional("SUPABASE_SECRET_KEY") ?? optional("SUPABASE_SERVICE_ROLE_KEY"),
   /**
    * Shared password for the admin dashboard.
    *

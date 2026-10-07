@@ -152,7 +152,7 @@ app.listen(env.port, () => {
       "[api] Supabase is not configured, so questions and results are kept in memory only and are lost when this process restarts."
     );
     console.warn(
-      "[api] Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env to store data for real."
+      "[api] Set SUPABASE_URL and SUPABASE_SECRET_KEY in .env to store data for real."
     );
   }
 
