@@ -29,7 +29,9 @@ export interface ImportResult {
  * else is the comma-separated format this has always read.
  */
 function detectDelimiter(text: string): "," | "\t" {
-  const headerLine = text.split("\n", 1)[0];
+  // The first line with anything on it: blank rows above the header are
+  // skipped when the rows are read, so they must not decide this either.
+  const headerLine = text.split("\n").find((line) => line.trim().length > 0) ?? "";
   const tabs = headerLine.split("\t").length - 1;
   const commas = headerLine.split(",").length - 1;
   return tabs > 0 && tabs >= commas ? "\t" : ",";
@@ -47,6 +49,18 @@ export function parseCsv(input: string): string[][] {
   return parseCsvChecked(input).rows;
 }
 
+/** One row of the sheet, with the number the spreadsheet shows beside it. */
+export interface SheetRow {
+  row: number;
+  cells: string[];
+}
+
+/** The rows readSheetRows finds, without their spreadsheet numbers. */
+export function parseCsvChecked(input: string): { rows: string[][]; unterminatedRow?: number } {
+  const { rows, unterminatedRow } = readSheetRows(input);
+  return { rows: rows.map((entry) => entry.cells), unterminatedRow };
+}
+
 /**
  * The same reader, but it also says where a quote was opened and never closed.
  *
@@ -58,8 +72,13 @@ export function parseCsv(input: string): string[][] {
  * word`, `He is 6' 2" tall`) is just text. If the text ends inside a quote, the
  * rows from the one where that quote opened are left out and its number is
  * returned, instead of the quote swallowing every row after it.
+ *
+ * Each record is one spreadsheet row, however many lines a quoted cell spans,
+ * so a row's number is its record's position. It is taken before blank rows
+ * are left out: numbering what was left once they had gone reported every row
+ * below a gap in the sheet one row too early, pointing at the wrong question.
  */
-export function parseCsvChecked(input: string): { rows: string[][]; unterminatedRow?: number } {
+export function readSheetRows(input: string): { rows: SheetRow[]; unterminatedRow?: number } {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -94,7 +113,7 @@ export function parseCsvChecked(input: string): { rows: string[][]; unterminated
     if (char === '"' && atFieldStart) {
       inQuotes = true;
       atFieldStart = false;
-      openedAtRow = rows.filter(hasContent).length + 1;
+      openedAtRow = rows.length + 1;
       index += 1;
       continue;
     }
@@ -127,8 +146,13 @@ export function parseCsvChecked(input: string): { rows: string[][]; unterminated
     index += 1;
   }
 
+  const numbered = (records: string[][]): SheetRow[] =>
+    records
+      .map((cells, position) => ({ row: position + 1, cells }))
+      .filter((entry) => hasContent(entry.cells));
+
   if (inQuotes) {
-    return { rows: rows.filter(hasContent), unterminatedRow: openedAtRow };
+    return { rows: numbered(rows), unterminatedRow: openedAtRow };
   }
 
   if (field.length > 0 || row.length > 0) {
@@ -136,7 +160,7 @@ export function parseCsvChecked(input: string): { rows: string[][]; unterminated
     rows.push(row);
   }
 
-  return { rows: rows.filter(hasContent) };
+  return { rows: numbered(rows) };
 }
 
 const hasContent = (entry: string[]) => entry.some((value) => value.trim().length > 0);
@@ -350,7 +374,7 @@ function parseWholeNumber(raw: string): number {
 }
 
 export function importQuestionsFromCsv(csv: string): ImportResult {
-  const { rows, unterminatedRow } = parseCsvChecked(csv);
+  const { rows, unterminatedRow } = readSheetRows(csv);
   const drafts: QuestionDraft[] = [];
   const errors: ImportRowError[] = [];
 
@@ -366,7 +390,8 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     return { drafts, errors: [{ row: 0, message: "The pasted text was empty." }] };
   }
 
-  const mapping = mapHeaders(rows[0]);
+  const [headerRow, ...dataRows] = rows;
+  const mapping = mapHeaders(headerRow.cells);
 
   const missing = ["subjectId", "topicId", "prompt", "correctAnswer"].filter(
     (field) => mapping[field] === undefined
@@ -382,7 +407,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       drafts,
       errors: [
         {
-          row: 1,
+          row: headerRow.row,
           message: `Missing column(s): ${columns.join(", ")}. The header row needs at least subject, topic, question and correct_answer.`
         }
       ]
@@ -395,10 +420,8 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     return (row[columnIndex] ?? "").trim();
   };
 
-  rows.slice(1).forEach((row, offset) => {
-    // Row number as the person sees it in the spreadsheet: header is row 1.
-    const rowNumber = offset + 2;
-
+  // Each row carries the number the spreadsheet shows beside it (see readSheetRows).
+  dataRows.forEach(({ row: rowNumber, cells: row }) => {
     const prompt = cell(row, "prompt");
     if (prompt.length === 0) {
       errors.push({ row: rowNumber, message: "Question text is empty." });

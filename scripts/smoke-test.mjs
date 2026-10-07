@@ -943,6 +943,18 @@ async function main() {
   const yearless = edges.body.questions?.find((question) => question.prompt === "A year nobody wrote down");
   check("a blank year is stored as unknown", yearless !== undefined && yearless.paperYear === null, JSON.stringify(yearless));
 
+  // Row numbers were counted after blank rows had been dropped, so every row
+  // below a gap in the sheet was reported one row too early.
+  const gapCsv = ["subject,topic,question,correct_answer", "math,algebra,A row before the gap,1", ",,,", "math,algebra,,1"].join(
+    "\r\n"
+  );
+  const gapImport = await call("/api/admin/questions/import", { method: "POST", token, body: { csv: gapCsv } });
+  check(
+    "a bad row below a blank one is reported by its spreadsheet row",
+    gapImport.body.errors?.length === 1 && gapImport.body.errors[0].row === 4,
+    JSON.stringify(gapImport.body.errors)
+  );
+
   section("Question diagrams");
   // A 1x1 PNG, the smallest real picture there is.
   const tinyPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";

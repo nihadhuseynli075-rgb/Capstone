@@ -212,6 +212,31 @@ describe("importQuestionsFromCsv", () => {
   });
 });
 
+describe("importQuestionsFromCsv row numbers", () => {
+  test("a row after a blank one is reported by its spreadsheet row", () => {
+    // Row 3 is blank in the sheet: an empty line here, a row of commas below.
+    const lines = ["subject,topic,question,correct_answer", "math,algebra,Fine,1", "", "math,algebra,,1"];
+    assert.deepEqual(importQuestionsFromCsv(lines.join("\n")).errors, [{ row: 4, message: "Question text is empty." }]);
+    lines[2] = ",,,";
+    assert.deepEqual(importQuestionsFromCsv(lines.join("\r\n")).errors, [{ row: 4, message: "Question text is empty." }]);
+  });
+
+  test("a quoted cell over two lines is still one row", () => {
+    const csv = ["subject,topic,question,correct_answer", 'math,algebra,"Two\nlines",1', "math,algebra,,1"].join("\n");
+    assert.deepEqual(importQuestionsFromCsv(csv).errors, [{ row: 3, message: "Question text is empty." }]);
+  });
+
+  test("blank rows above the header count, and do not hide a tab-separated header", () => {
+    const tsv = "\n\nsubject\ttopic\tquestion\tcorrect_answer\nmath\talgebra\t\t1";
+    assert.deepEqual(importQuestionsFromCsv(tsv).errors, [{ row: 4, message: "Question text is empty." }]);
+  });
+
+  test("an unclosed quote below a blank row names its real row", () => {
+    const csv = ["subject,topic,question,correct_answer", "math,algebra,Fine,1", ",,,", 'math,algebra,"never closed,1'].join("\n");
+    assert.equal(importQuestionsFromCsv(csv).errors[0].row, 4);
+  });
+});
+
 describe("a letter answer that is also an option's text", () => {
   const sheet = "subject,topic,question,option_a,option_b,option_c,correct_answer";
 
