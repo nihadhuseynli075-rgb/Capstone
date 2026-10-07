@@ -198,6 +198,131 @@
   height: 20px;
 }
 
+/* ------------------------------------------------------------- the climb */
+
+.dash-climb {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* Under the four tiles on a phone, which stay the first screen. */
+  order: 1;
+  grid-column: 1 / -1;
+  padding: 18px 18px 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: var(--ui-radius);
+  background: var(--surface);
+  box-shadow: var(--ui-shadow-card);
+}
+
+.dash-climb-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dash-climb-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.dash-climb-head .link-button {
+  min-height: 44px;
+  color: var(--brand);
+  font-size: 0.9rem;
+}
+
+/* The compact ridge needs headroom for the flag on its highest point. */
+.dash-climb .ascent {
+  margin-top: 14px;
+}
+
+.dash-climb .ascent.is-empty {
+  margin-top: 0;
+}
+
+.dash-climb-loading {
+  height: 110px;
+}
+
+.dash-climb-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.dash-climb-facts dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.dash-climb-facts dd {
+  font-family: var(--font-display);
+  margin: 2px 0 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+/* The subject under the score, small, so the number is what is read. */
+.dash-climb-facts dd span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* One tap to a test on the topic the last paper went worst on. */
+.dash-next {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
+  border-radius: 12px;
+  background: var(--warning-soft);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.dash-next-label {
+  flex: none;
+  color: var(--warning);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dash-next-topic {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.dash-next-score {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.dash-next svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+@media (hover: hover) {
+  .dash-next:hover {
+    border-color: var(--warning);
+  }
+}
+
 /* -------------------------------------------------------------- subjects */
 
 /* Three across, even on a phone: each is a glyph, a name and a count, and all
@@ -292,13 +417,14 @@
     display: block;
   }
 
-  /* The big tile on the left, two rows tall; the other four in a 2x2 beside it. */
+  /* The start tile and the climb share the top row; the other four tiles make
+     the row under them. The start tile used to be two rows tall beside the
+     four, which left most of it empty blue. */
   .dash-tile.is-primary {
     --tile-disc: 72px;
     --tile-glyph: 36px;
 
     grid-column: span 2;
-    grid-row: span 2;
     flex-direction: column;
     align-items: flex-start;
     justify-content: space-between;
@@ -315,6 +441,11 @@
   .dash-tile.is-primary .dash-tile-body {
     font-size: 1rem;
     max-width: 34ch;
+  }
+
+  .dash-climb {
+    order: 0;
+    grid-column: span 2;
   }
 
   .dash-tile.is-primary .dash-tile-go {

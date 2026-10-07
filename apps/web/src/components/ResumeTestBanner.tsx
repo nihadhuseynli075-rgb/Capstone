@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { navigate } from "../app/router";
 import { loadActiveTest } from "../lib/examSession";
-import { fill, useLanguage } from "../lib/i18n";
+import { useLanguage } from "../lib/i18n";
 import { paperTitle } from "../lib/testText";
 
 /**
@@ -29,7 +29,9 @@ export function ResumeTestBanner() {
       <div>
         <strong>{t("exam.resumeTitle")}</strong>
         {/* The paper's name in the site language, as the exam page shows it. */}
-        <p>{fill(t("exam.resumeBody"), { title: paperTitle(paper.test, t, tn), answered, total })}</p>
+        {/* Counted by the paper's length, since the noun after "of" agrees with
+            it in Russian: "из 21 вопроса", "из 25 вопросов". */}
+        <p>{tn("exam.resumeBody", total, { title: paperTitle(paper.test, t, tn), answered })}</p>
       </div>
 
       <button type="button" className="primary-button" onClick={() => navigate("/exam")}>

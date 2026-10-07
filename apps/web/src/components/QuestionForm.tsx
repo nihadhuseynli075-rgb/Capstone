@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   BankQuestion,
   Difficulty,
@@ -7,7 +7,7 @@ import type {
   QuestionTranslations,
   QuestionType
 } from "@grade9/shared";
-import { followsSiteLanguage, markLimits, repeatedOption, subjects, topicIdFor } from "@grade9/shared";
+import { followsSiteLanguage, markLimits, paperYearLimits, repeatedOption, subjects, testScopeLimits, topicIdFor } from "@grade9/shared";
 import { adminLanguageNames, adminText } from "./adminText";
 import { uploadQuestionImage } from "../services/adminApi";
 
@@ -163,6 +163,8 @@ export function QuestionForm({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  // For moving focus to the field a problem is about (see fail).
+  const formRef = useRef<HTMLFormElement>(null);
 
   // A failed check means the last save's notice no longer fits under the button.
   useEffect(() => {
@@ -257,6 +259,25 @@ export function QuestionForm({
     }
   }
 
+  /*
+   * Shows a problem with the form and moves focus to the field it is about
+   * (the nth of that kind, for the option rows), or to the message itself
+   * when no one field is to blame. The message used to appear under the form
+   * while focus stayed on the button, so a screen reader heard nothing and a
+   * keyboard user had to hunt back up for the field. Focus waits a frame for
+   * the message to be drawn.
+   */
+  function fail(message: string, field: string | null, nth = 0) {
+    setFormError(message);
+    window.requestAnimationFrame(() => {
+      const form = formRef.current;
+      const target =
+        (field ? form?.querySelectorAll<HTMLElement>(`[data-field="${field}"]`)[nth] : null) ??
+        form?.querySelector<HTMLElement>("#question-form-error");
+      target?.focus();
+    });
+  }
+
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
@@ -269,43 +290,43 @@ export function QuestionForm({
     const filledOptions = options.map((option) => option.trim()).filter((option) => option.length > 0);
 
     if (topicId.trim().length === 0) {
-      setFormError("Give the question a topic.");
+      fail("Give the question a topic.", "topic");
       return;
     }
 
     if (prompt.trim().length === 0) {
-      setFormError("Type the question text.");
+      fail("Type the question text.", "prompt");
       return;
     }
 
     if (type === "multiple-choice") {
       if (filledOptions.length < 2) {
-        setFormError("Fill in at least two options.");
+        // The first of the two required boxes that is still empty.
+        fail("Fill in at least two options.", "option", options[0].trim() ? 1 : 0);
         return;
       }
       // Marked by the text picked, so both copies would count as correct.
       const repeated = repeatedOption(filledOptions);
       if (repeated !== null) {
-        setFormError(`Two options are the same ("${repeated}"). Each option has to be different.`);
+        const second = options.map((option) => option.trim()).lastIndexOf(repeated);
+        fail(`Two options are the same ("${repeated}"). Each option has to be different.`, "option", second);
         return;
       }
       // The correct answer is stored by text, so a gap in the option list must
       // not silently shift which option is marked correct.
       if ((options[correctIndex] ?? "").trim().length === 0) {
-        setFormError("Mark which option is the correct answer.");
+        fail("Mark which option is the correct answer.", "correct", correctIndex);
         return;
       }
     } else if (shortAnswer.trim().length === 0) {
-      setFormError(type === "open-ended" ? "Write the marking guide." : "Type the correct answer.");
+      fail(type === "open-ended" ? "Write the marking guide." : "Type the correct answer.", "answer");
       return;
     }
 
     const markValue = Number(marks);
 
     if (!Number.isInteger(markValue) || markValue < markLimits.min || markValue > markLimits.max) {
-      setFormError(
-        `Marks has to be a whole number between ${markLimits.min} and ${markLimits.max}.`
-      );
+      fail(`Marks has to be a whole number between ${markLimits.min} and ${markLimits.max}.`, "marks");
       return;
     }
 
@@ -314,7 +335,7 @@ export function QuestionForm({
     const builtTranslations = buildTranslations();
 
     if (typeof builtTranslations === "string") {
-      setFormError(builtTranslations);
+      fail(builtTranslations, null);
       return;
     }
 
@@ -338,7 +359,7 @@ export function QuestionForm({
   }
 
   return (
-    <form className="question-form" onSubmit={handleSubmit} onChange={onEdited}>
+    <form className="question-form" onSubmit={handleSubmit} onChange={onEdited} ref={formRef}>
       <div className="form-row">
         <label>
           Subject
@@ -356,6 +377,8 @@ export function QuestionForm({
           <input
             type="text"
             list="known-topics"
+            data-field="topic"
+            maxLength={testScopeLimits.maxIdLength}
             value={topicId}
             onChange={(event) => setTopicId(event.target.value)}
             placeholder="e.g. algebra"
@@ -395,6 +418,7 @@ export function QuestionForm({
         Question
         <textarea
           rows={3}
+          data-field="prompt"
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
           placeholder="Type the question exactly as it appears on the paper"
@@ -412,6 +436,7 @@ export function QuestionForm({
                 <input
                   type="radio"
                   name="correct-option"
+                  data-field="correct"
                   checked={correctIndex === index}
                   onChange={() => setCorrectIndex(index)}
                   aria-label={`Option ${String.fromCharCode(65 + index)} is correct`}
@@ -424,6 +449,7 @@ export function QuestionForm({
                   "Required" or "Optional", the placeholder. */}
               <input
                 type="text"
+                data-field="option"
                 value={option}
                 aria-label={`Option ${String.fromCharCode(65 + index)}`}
                 onChange={(event) => setOption(index, event.target.value)}
@@ -437,6 +463,7 @@ export function QuestionForm({
           Marking guide
           <textarea
             rows={5}
+            data-field="answer"
             value={shortAnswer}
             onChange={(event) => setShortAnswer(event.target.value)}
             placeholder={
@@ -455,6 +482,7 @@ export function QuestionForm({
           Correct answer
           <input
             type="text"
+            data-field="answer"
             value={shortAnswer}
             onChange={(event) => setShortAnswer(event.target.value)}
             placeholder="Marking ignores capitals and extra spaces"
@@ -507,6 +535,7 @@ export function QuestionForm({
             type="number"
             min={markLimits.min}
             max={markLimits.max}
+            data-field="marks"
             value={marks}
             onChange={(event) => setMarks(event.target.value)}
             placeholder="1"
@@ -518,8 +547,10 @@ export function QuestionForm({
           Paper year
           <input
             type="number"
-            min="1900"
-            max="2100"
+            // The limits the API holds the year to, from the shared package
+            // rather than a copy that could drift from it.
+            min={paperYearLimits.min}
+            max={paperYearLimits.max}
             value={paperYear}
             onChange={(event) => setPaperYear(event.target.value)}
             placeholder="e.g. 2024"
@@ -548,7 +579,11 @@ export function QuestionForm({
         </label>
 
         {uploading && <p className="panel-hint">Uploading...</p>}
-        {uploadError && <p className="error-banner">{uploadError}</p>}
+        {uploadError && (
+          <p className="error-banner" role="alert">
+            {uploadError}
+          </p>
+        )}
 
         {imageUrl && (
           <div className="image-preview">
@@ -560,7 +595,13 @@ export function QuestionForm({
         )}
       </div>
 
-      {(formError || error) && <p className="error-banner">{formError ?? error}</p>}
+      {/* An alert, so a refusal is read out wherever focus is; focusable by
+          script for a problem that belongs to no one field (see fail). */}
+      {(formError || error) && (
+        <p className="error-banner" role="alert" id="question-form-error" tabIndex={-1}>
+          {formError ?? error}
+        </p>
+      )}
 
       <div className="form-actions">
         <button type="submit" className="primary-button" disabled={submitting}>

@@ -6,6 +6,7 @@ import {
   resolveSettings,
   siteLanguages,
   studentKeyLimits,
+  testScopeLimits,
   writtenAnswerMaxLength
 } from "@grade9/shared";
 import {
@@ -17,6 +18,7 @@ import {
 } from "../repositories/attemptRepository";
 import { compareToPrevious, markAttempt, resolveAnswers } from "../services/marking";
 import { generateMockTest, toAttemptQuestion, toExamQuestion } from "../services/mockTestGenerator";
+import { createRateLimiter } from "../services/rateLimiter";
 import { markWrittenAnswers } from "../services/writtenMarking";
 import {
   canClaimFrom,
@@ -47,8 +49,13 @@ const alreadySubmitted = {
 const generateSchema = z
   .object({
     studentKey: studentKeySchema,
-    subjectId: z.string().min(1),
-    topicIds: z.array(z.string().min(1)).min(1, "Choose at least one topic."),
+    // Bounded because both end up in the query string of the read that draws
+    // the paper (see testScopeLimits).
+    subjectId: z.string().min(1).max(testScopeLimits.maxIdLength),
+    topicIds: z
+      .array(z.string().min(1).max(testScopeLimits.maxIdLength))
+      .min(1, "Choose at least one topic.")
+      .max(testScopeLimits.maxTopics, `Choose at most ${testScopeLimits.maxTopics} topics.`),
     difficultyMode: z.enum(["easy", "medium", "hard", "custom"]),
     // The language the student has the site in. It is fixed for the paper: the
     // questions are copied onto the attempt in it, so changing the site language
@@ -81,7 +88,30 @@ const generateSchema = z
     }
   });
 
+/**
+ * Tests one address may generate in ten minutes.
+ *
+ * Generating needs no account and writes the attempt plus a row for every
+ * question served, so this keeps a script from filling the database. A school
+ * computer room shares one address: 30 students starting a test each minute
+ * would be 300, so the limit sits at twice that. Behind a host's proxy the
+ * address is only the student's own once TRUST_PROXY is set (see env.ts).
+ */
+const generateLimiter = createRateLimiter({ maxRequests: 600, windowMs: 10 * 60 * 1000 });
+
 testsRouter.post("/generate", async (request, response, next) => {
+  const waitMs = generateLimiter.take(request.ip ?? request.socket.remoteAddress ?? "unknown");
+
+  if (waitMs > 0) {
+    const seconds = Math.ceil(waitMs / 1000);
+    response.setHeader("Retry-After", String(seconds));
+    return response.status(429).json({
+      code: "too-many-tests",
+      retryAfterSeconds: seconds,
+      message: "Too many tests were started from this connection. Wait a few minutes, then try again."
+    });
+  }
+
   const parsed = generateSchema.safeParse(request.body);
 
   if (!parsed.success) {
@@ -91,7 +121,12 @@ testsRouter.post("/generate", async (request, response, next) => {
     });
   }
 
-  const { studentKey, subjectId, topicIds, difficultyMode } = parsed.data;
+  const { studentKey, subjectId, difficultyMode } = parsed.data;
+
+  // A topic named twice is still one topic. The list is kept on the attempt
+  // and the paper's heading counts it, so a repeat would read as "5 topics"
+  // for a test drawn from two.
+  const topicIds = [...new Set(parsed.data.topicIds)];
 
   const resolved = resolveSettings(difficultyMode, {
     questionCount: parsed.data.questionCount ?? customLimits.minQuestions,
@@ -153,15 +188,29 @@ testsRouter.post("/generate", async (request, response, next) => {
 const SUBMIT_GRACE_SECONDS = 60;
 
 /**
- * The most time the browser's own figure is believed for.
+ * The largest time taken the browser may send.
  *
  * Only a cap on what the browser says, never a reason to refuse. An untimed
  * test can honestly be open for longer, and refusing one that was cost the
  * student every answer: the retry sent the same figure and failed the same
- * way. The time recorded is measured by the server anyway (see the submit
- * route), so a longer sitting still shows its real length.
+ * way. The time recorded is bounded by the server's own measure anyway (see
+ * the submit route), so a longer sitting still shows its real length.
  */
 const MAX_CLAIMED_SECONDS = 60 * 60 * 6;
+
+/**
+ * Papers whose submission is being marked right now, in this process.
+ *
+ * Written answers go to a paid AI marker before the result is saved, and the
+ * save is what decides which of two submissions wins. Without this, several
+ * submissions of the same paper sent together (a double click, two tabs, a
+ * script) would each pay to mark every written answer, only for one result to
+ * be kept. A second submission while one is in flight gets the same refusal
+ * the loser of the save would have got. The entry is removed whatever happens,
+ * so a submission that fails can be retried. One API process holds all of
+ * them; a deployment with several would need the claim in the database.
+ */
+const submissionsInFlight = new Set<string>();
 
 const submitSchema = z.object({
   studentKey: studentKeySchema,
@@ -234,61 +283,80 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
       });
     }
 
-    // Never record less time than actually passed, whatever the browser claims.
-    const timeTakenSeconds = Math.max(parsed.data.timeTakenSeconds, elapsedSeconds);
-
-    // Written answers go to the AI marker first, all at once. One it cannot
-    // reach comes back unmarked and is left out of the score, never failed.
-    const written = await markWrittenAnswers(
-      attempt.questions,
-      resolveAnswers(attempt.questions, parsed.data.answers)
+    // Never record less time than actually passed, whatever the browser claims,
+    // and never much more either: the browser cannot have been open longer
+    // than since the paper was generated. The grace covers a database clock a
+    // little behind this one. A timed paper is never recorded as taking longer
+    // than its limit, so a five-minute test cannot claim six hours.
+    const believedSeconds = Math.min(
+      Math.max(parsed.data.timeTakenSeconds, elapsedSeconds),
+      elapsedSeconds + SUBMIT_GRACE_SECONDS
     );
+    const timeTakenSeconds =
+      limitMinutes === null ? believedSeconds : Math.min(believedSeconds, limitMinutes * 60);
 
-    const marked = markAttempt(attempt.questions, parsed.data.answers, written);
-
-    // Read history before saving, so this attempt is not compared against itself.
-    // Headline figures only: the comparison never looks at topics.
-    const history = await listAttempts(parsed.data.studentKey, { topicBreakdown: false });
-
-    const recorded = await completeAttempt({
-      attemptId: attempt.id,
-      score: marked.score,
-      totalMarks: marked.totalMarks,
-      totalQuestions: marked.totalQuestions,
-      percentage: marked.percentage,
-      timeTakenSeconds,
-      answers: marked.answers
-    });
-
-    // Another submission of this paper was recorded between the check above
-    // and now: a second tab, or a retry racing the original. Its result is the
-    // one kept, so this one is refused the same way a late resubmit is.
-    if (!recorded) {
+    if (submissionsInFlight.has(attempt.id)) {
       return response.status(409).json(alreadySubmitted);
     }
 
-    const result: TestResult = {
-      attemptId: attempt.id,
-      score: marked.score,
-      totalMarks: marked.totalMarks,
-      totalQuestions: marked.totalQuestions,
-      percentage: marked.percentage,
-      correctAnswers: marked.correctAnswers,
-      incorrectAnswers: marked.incorrectAnswers,
-      timeTakenSeconds,
-      topicBreakdown: marked.topicBreakdown,
-      reviews: marked.reviews,
-      comparison: compareToPrevious(
-        {
-          percentage: marked.percentage,
-          totalQuestions: marked.totalQuestions,
-          difficultyMode: attempt.settings.difficultyMode
-        },
-        history
-      )
-    };
+    submissionsInFlight.add(attempt.id);
 
-    response.json(result);
+    try {
+      // Written answers go to the AI marker first, all at once. One it cannot
+      // reach comes back unmarked and is left out of the score, never failed.
+      const written = await markWrittenAnswers(
+        attempt.questions,
+        resolveAnswers(attempt.questions, parsed.data.answers)
+      );
+
+      const marked = markAttempt(attempt.questions, parsed.data.answers, written);
+
+      // Read history before saving, so this attempt is not compared against itself.
+      // Headline figures only: the comparison never looks at topics.
+      const history = await listAttempts(parsed.data.studentKey, { topicBreakdown: false });
+
+      const recorded = await completeAttempt({
+        attemptId: attempt.id,
+        score: marked.score,
+        totalMarks: marked.totalMarks,
+        totalQuestions: marked.totalQuestions,
+        percentage: marked.percentage,
+        timeTakenSeconds,
+        answers: marked.answers
+      });
+
+      // Another submission of this paper was recorded between the check above
+      // and now: a second tab, or a retry racing the original. Its result is the
+      // one kept, so this one is refused the same way a late resubmit is.
+      if (!recorded) {
+        return response.status(409).json(alreadySubmitted);
+      }
+
+      const result: TestResult = {
+        attemptId: attempt.id,
+        score: marked.score,
+        totalMarks: marked.totalMarks,
+        totalQuestions: marked.totalQuestions,
+        percentage: marked.percentage,
+        correctAnswers: marked.correctAnswers,
+        incorrectAnswers: marked.incorrectAnswers,
+        timeTakenSeconds,
+        topicBreakdown: marked.topicBreakdown,
+        reviews: marked.reviews,
+        comparison: compareToPrevious(
+          {
+            percentage: marked.percentage,
+            totalQuestions: marked.totalQuestions,
+            difficultyMode: attempt.settings.difficultyMode
+          },
+          history
+        )
+      };
+
+      response.json(result);
+    } finally {
+      submissionsInFlight.delete(attempt.id);
+    }
   } catch (error) {
     next(error);
   }

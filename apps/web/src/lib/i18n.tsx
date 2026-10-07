@@ -62,6 +62,11 @@ const en = {
   "main.testsTaken": "Tests taken",
   "main.bestScore": "Best score",
   "main.noTests": "No tests yet",
+  "main.climb": "Your climb",
+  "main.climbEmpty": "Your first test sets base camp. Every test after it is measured against it.",
+  "main.lastTest": "Last test",
+  "main.practiseNext": "Practise next",
+  "main.seeHistory": "See every test",
 
   // The same words the builder, the results and the history use (subjects in
   // packages/shared), so a subject has one name wherever it is read.
@@ -94,6 +99,9 @@ const en = {
   "landing.dailyQuizzesBody":
     "Complete new daily challenges designed to become progressively more difficult.",
   "landing.trackProgress": "Track Progress",
+  "landing.stepBuild": "Build a test from past-paper questions",
+  "landing.stepSit": "Sit it start to finish",
+  "landing.stepReview": "See every mistake, with the right answer",
   "landing.trackProgressBody":
     "Review your scores, test history and mistakes to understand where you can improve.",
   "landing.closing":
@@ -379,8 +387,14 @@ const en = {
     "Leave this test? Your answers are kept, and you can come back to it from the dashboard or the test builder.",
   "exam.leaveConfirmTimed":
     "Leave this test? Your answers are kept, and you can come back to it from the dashboard or the test builder. The timer keeps running while you are away.",
+  "exam.leaveConfirmGuest":
+    "Leave this test? Your answers are kept, and you can come back to it from the test builder.",
+  "exam.leaveConfirmGuestTimed":
+    "Leave this test? Your answers are kept, and you can come back to it from the test builder. The timer keeps running while you are away.",
   "exam.resumeTitle": "You have a test in progress",
-  "exam.resumeBody": "{title}: {answered} of {total} questions answered. Starting a new test replaces it.",
+  // Counted by the paper's length, {n}: Russian says "из 21 вопроса" but "из 5 вопросов".
+  "exam.resumeBody":
+    "{title}: {answered} of {n} question answered. Starting a new test replaces it.|{title}: {answered} of {n} questions answered. Starting a new test replaces it.",
   "exam.resume": "Resume test",
 
   // Test builder: what each difficulty can draw
@@ -423,6 +437,7 @@ const en = {
 
   "test.errInvalid": "Those test settings were not accepted. Refresh the page and try again.",
   "test.errNotFound": "That test could not be found.",
+  "test.errTooMany": "Too many tests were started from this connection. Wait a few minutes, then try again.",
   "test.errNotYours": "That test belongs to a different account.",
   "test.errNotSubmitted": "That test has not been handed in yet.",
   "test.errTimeExpired":
@@ -441,7 +456,8 @@ const en = {
   // A topic card counts what the difficulty chosen below can draw on.
   "builder.topicCountAt": "{questions} ({difficulty})",
   "builder.topicNoneAt": "no questions on {difficulty}",
-  "builder.lastScore": "Last score {n}%",
+  // {n} is the percentage with its sign, written by formatPercent.
+  "builder.lastScore": "Last score {n}",
   "builder.notTried": "Not tried yet",
   "builder.difficulty": "Difficulty",
   "builder.difficultyHint":
@@ -471,6 +487,7 @@ const en = {
   "exam.palette": "Jump to question",
   "exam.dotAnswered": "Question {n}, answered",
   "exam.dotUnanswered": "Question {n}, not answered",
+  "exam.questionNumber": "Question {n} of {total}.",
   "exam.diagram": "Question diagram",
   "exam.yourAnswer": "Your answer",
   "exam.writtenPlaceholder": "Write your answer here. A teacher-style marker will read it when you submit.",
@@ -489,7 +506,8 @@ const en = {
   "results.title": "Results",
   "results.backToHistory": "Back to history",
   "results.loading": "Loading your results...",
-  "results.marksUnit": "marks",
+  // The word under "3/21", counted by the total: Russian reads it "3 из 21 балла".
+  "results.marksUnit": "mark|marks",
   "results.completeSubject": "{subject} test complete",
   "results.complete": "Test complete",
   "results.summary": "{questions} in {time} - {mistakes} to review.",
@@ -528,6 +546,9 @@ const en = {
     "Your best result is highlighted. It accounts for difficulty and test length, not just the percentage.",
   "history.best": "Best test so far",
   "history.all": "All attempts",
+  "history.climb": "Your climb",
+  "history.climbNote": "Each point is a test, oldest on the left. The higher the point, the better the score, and the flag marks your best test.",
+  "history.allSubjects": "All subjects",
 
   "common.saving": "Saving...",
   "common.back": "Back",
@@ -600,6 +621,11 @@ const ru: Dictionary = {
   "main.testsTaken": "Пройдено тестов",
   "main.bestScore": "Лучший результат",
   "main.noTests": "Пока нет тестов",
+  "main.climb": "Ваш подъём",
+  "main.climbEmpty": "Первый тест — ваш базовый лагерь. С ним сравнивается каждый следующий.",
+  "main.lastTest": "Последний тест",
+  "main.practiseNext": "Что повторить",
+  "main.seeHistory": "Все тесты",
 
   "subject.math": "Математика",
   "subject.english": "Английский язык",
@@ -626,6 +652,9 @@ const ru: Dictionary = {
   "landing.dailyQuizzesBody":
     "Проходите новые задания каждый день: с каждым разом они становятся сложнее.",
   "landing.trackProgress": "Ваш прогресс",
+  "landing.stepBuild": "Составьте тест из заданий прошлых лет",
+  "landing.stepSit": "Пройдите его целиком",
+  "landing.stepReview": "Разберите каждую ошибку с правильным ответом",
   "landing.trackProgressBody":
     "Смотрите свои баллы, историю тестов и ошибки, чтобы понять, над чем ещё стоит поработать.",
   "landing.closing":
@@ -758,11 +787,11 @@ const ru: Dictionary = {
   "friends.empty": "Друзей пока нет. Добавьте кого-нибудь выше по почте или имени пользователя.",
   "friends.since": "Друзья с",
   "friends.remove": "Удалить",
-  "friends.removeConfirm": "Удалить {name} из друзей? Вы перестанете видеть прогресс друг друга.",
+  "friends.removeConfirm": "Удалить из друзей: {name}? Вы перестанете видеть прогресс друг друга.",
   "friends.removeYes": "Да, удалить",
   "friends.removeNo": "Оставить",
 
-  "friends.compareCaption": "Ваш прогресс в сравнении с {name}",
+  "friends.compareCaption": "Сравнение прогресса: вы и {name}",
   "friends.you": "Вы",
   "friends.testsTaken": "Пройдено тестов",
   "friends.bestScore": "Лучший результат",
@@ -910,8 +939,13 @@ const ru: Dictionary = {
     "Выйти из теста? Ваши ответы сохранятся, и вы сможете вернуться к нему с главной страницы или со страницы создания теста.",
   "exam.leaveConfirmTimed":
     "Выйти из теста? Ваши ответы сохранятся, и вы сможете вернуться к нему с главной страницы или со страницы создания теста. Таймер продолжает идти, пока вас нет.",
+  "exam.leaveConfirmGuest":
+    "Выйти из теста? Ваши ответы сохранятся, и вы сможете вернуться к нему со страницы создания теста.",
+  "exam.leaveConfirmGuestTimed":
+    "Выйти из теста? Ваши ответы сохранятся, и вы сможете вернуться к нему со страницы создания теста. Таймер продолжает идти, пока вас нет.",
   "exam.resumeTitle": "У вас есть незаконченный тест",
-  "exam.resumeBody": "{title}: отвечено {answered} из {total} вопросов. Если начать новый тест, этот будет заменён.",
+  "exam.resumeBody":
+    "{title}: отвечено {answered} из {n} вопроса. Если начать новый тест, этот будет заменён.|{title}: отвечено {answered} из {n} вопросов. Если начать новый тест, этот будет заменён.|{title}: отвечено {answered} из {n} вопросов. Если начать новый тест, этот будет заменён.",
   "exam.resume": "Продолжить тест",
 
   // Test builder: what each difficulty can draw
@@ -951,6 +985,7 @@ const ru: Dictionary = {
 
   "test.errInvalid": "Эти настройки теста не приняты. Обновите страницу и попробуйте снова.",
   "test.errNotFound": "Этот тест не найден.",
+  "test.errTooMany": "С этого подключения начато слишком много тестов. Подождите несколько минут и попробуйте снова.",
   "test.errNotYours": "Этот тест принадлежит другому аккаунту.",
   "test.errNotSubmitted": "Этот тест ещё не сдан.",
   "test.errTimeExpired":
@@ -968,7 +1003,7 @@ const ru: Dictionary = {
   "builder.noQuestions": "вопросов пока нет",
   "builder.topicCountAt": "{questions} ({difficulty})",
   "builder.topicNoneAt": "нет вопросов уровня «{difficulty}»",
-  "builder.lastScore": "Последний результат: {n}%",
+  "builder.lastScore": "Последний результат: {n}",
   "builder.notTried": "Ещё не проходили",
   "builder.difficulty": "Сложность",
   "builder.difficultyHint":
@@ -996,6 +1031,7 @@ const ru: Dictionary = {
   "exam.palette": "Перейти к вопросу",
   "exam.dotAnswered": "Вопрос {n}, есть ответ",
   "exam.dotUnanswered": "Вопрос {n}, нет ответа",
+  "exam.questionNumber": "Вопрос {n} из {total}.",
   "exam.diagram": "Рисунок к вопросу",
   "exam.yourAnswer": "Ваш ответ",
   "exam.writtenPlaceholder":
@@ -1015,7 +1051,7 @@ const ru: Dictionary = {
   "results.title": "Результаты",
   "results.backToHistory": "К истории тестов",
   "results.loading": "Загружаем результаты...",
-  "results.marksUnit": "баллы",
+  "results.marksUnit": "балла|баллов|баллов",
   "results.completeSubject": "{subject}: тест завершён",
   "results.complete": "Тест завершён",
   "results.summary": "{questions} за {time}. На разбор: {mistakes}.",
@@ -1053,6 +1089,9 @@ const ru: Dictionary = {
     "Лучший результат выделен. Он учитывает сложность и длину теста, а не только процент.",
   "history.best": "Лучший тест",
   "history.all": "Все попытки",
+  "history.climb": "Ваш подъём",
+  "history.climbNote": "Каждая точка — это тест, самые ранние слева. Чем выше точка, тем лучше результат, а флаг отмечает ваш лучший тест.",
+  "history.allSubjects": "Все предметы",
 
   "common.saving": "Сохранение...",
   "common.back": "Назад",
@@ -1121,6 +1160,11 @@ const az: Dictionary = {
   "main.testsTaken": "Həll edilmiş testlər",
   "main.bestScore": "Ən yaxşı nəticə",
   "main.noTests": "Hələ test yoxdur",
+  "main.climb": "Sizin yüksəlişiniz",
+  "main.climbEmpty": "İlk testiniz baza düşərgənizdir. Sonrakı hər test onunla müqayisə olunur.",
+  "main.lastTest": "Son test",
+  "main.practiseNext": "Növbəti məşq",
+  "main.seeHistory": "Bütün testlər",
 
   "subject.math": "Riyaziyyat",
   "subject.english": "İngilis dili",
@@ -1147,6 +1191,9 @@ const az: Dictionary = {
   "landing.dailyQuizzesBody":
     "Hər gün yeni tapşırıqları yerinə yetirin: onlar getdikcə çətinləşir.",
   "landing.trackProgress": "İnkişafınız",
+  "landing.stepBuild": "Keçmiş illərin suallarından test qurun",
+  "landing.stepSit": "Əvvəldən sona qədər həll edin",
+  "landing.stepReview": "Hər səhvi düzgün cavabı ilə görün",
   "landing.trackProgressBody":
     "Nəyi yaxşılaşdıra biləcəyinizi görmək üçün ballarınıza, test tarixçənizə və səhvlərinizə baxın.",
   "landing.closing":
@@ -1431,8 +1478,12 @@ const az: Dictionary = {
     "Testdən çıxırsınız? Cavablarınız saxlanılır, ona ana səhifədən və ya test yaratma səhifəsindən qayıda bilərsiniz.",
   "exam.leaveConfirmTimed":
     "Testdən çıxırsınız? Cavablarınız saxlanılır, ona ana səhifədən və ya test yaratma səhifəsindən qayıda bilərsiniz. Siz yoxkən taymer işləməyə davam edir.",
+  "exam.leaveConfirmGuest":
+    "Testdən çıxırsınız? Cavablarınız saxlanılır, ona test yaratma səhifəsindən qayıda bilərsiniz.",
+  "exam.leaveConfirmGuestTimed":
+    "Testdən çıxırsınız? Cavablarınız saxlanılır, ona test yaratma səhifəsindən qayıda bilərsiniz. Siz yoxkən taymer işləməyə davam edir.",
   "exam.resumeTitle": "Yarımçıq testiniz var",
-  "exam.resumeBody": "{title}: {total} sualdan {answered} cavablandırılıb. Yeni test başlasanız, bu test onunla əvəz olunacaq.",
+  "exam.resumeBody": "{title}: {n} sualdan {answered} cavablandırılıb. Yeni test başlasanız, bu test onunla əvəz olunacaq.",
   "exam.resume": "Testə davam et",
 
   // Test builder: what each difficulty can draw
@@ -1472,6 +1523,7 @@ const az: Dictionary = {
 
   "test.errInvalid": "Bu test parametrləri qəbul olunmadı. Səhifəni yeniləyib yenidən cəhd edin.",
   "test.errNotFound": "Bu test tapılmadı.",
+  "test.errTooMany": "Bu bağlantıdan çox sayda test başladılıb. Bir neçə dəqiqə gözləyin və yenidən cəhd edin.",
   "test.errNotYours": "Bu test başqa hesaba aiddir.",
   "test.errNotSubmitted": "Bu test hələ təhvil verilməyib.",
   "test.errTimeExpired":
@@ -1489,7 +1541,7 @@ const az: Dictionary = {
   "builder.noQuestions": "hələ sual yoxdur",
   "builder.topicCountAt": "{questions} ({difficulty})",
   "builder.topicNoneAt": "«{difficulty}» səviyyəsində sual yoxdur",
-  "builder.lastScore": "Son nəticə: {n}%",
+  "builder.lastScore": "Son nəticə: {n}",
   "builder.notTried": "Hələ cəhd edilməyib",
   "builder.difficulty": "Çətinlik",
   "builder.difficultyHint":
@@ -1517,6 +1569,7 @@ const az: Dictionary = {
   "exam.palette": "Suala keç",
   "exam.dotAnswered": "Sual {n}, cavablanıb",
   "exam.dotUnanswered": "Sual {n}, cavabsız",
+  "exam.questionNumber": "Sual {n} / {total}.",
   "exam.diagram": "Sualın şəkli",
   "exam.yourAnswer": "Cavabınız",
   "exam.writtenPlaceholder":
@@ -1573,6 +1626,9 @@ const az: Dictionary = {
     "Ən yaxşı nəticəniz fərqləndirilib. O, yalnız faizi deyil, çətinliyi və testin uzunluğunu da nəzərə alır.",
   "history.best": "Ən yaxşı test",
   "history.all": "Bütün cəhdlər",
+  "history.climb": "Sizin yüksəlişiniz",
+  "history.climbNote": "Hər nöqtə bir testdir, ən köhnələri soldadır. Nöqtə nə qədər yüksəkdirsə, nəticə o qədər yaxşıdır, bayraq isə ən yaxşı testinizi göstərir.",
+  "history.allSubjects": "Bütün fənlər",
 
   "common.saving": "Yadda saxlanılır...",
   "common.back": "Geri",
@@ -1728,13 +1784,17 @@ interface LanguageContextValue {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
+/** The language a pinned page has put on <html>, while it is on screen. */
+let documentPin: Language | null = null;
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => getStoredLanguage());
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, language);
-    // Screen readers and browser translation both key off this.
-    document.documentElement.lang = language;
+    // Screen readers and browser translation both key off this. A page pinned
+    // to one language keeps its own (see usePinnedLanguage).
+    document.documentElement.lang = documentPin ?? language;
   }, [language]);
 
   const setLanguage = useCallback((next: Language) => setLanguageState(next), []);
@@ -1753,6 +1813,24 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 export function usePinnedLanguage(pinned: Language | null): LanguageContextValue {
   const site = useLanguage();
   const fixed = useLanguageValue(pinned ?? site.language, site.setLanguage);
+
+  /*
+   * The document says which language the page is in, not the site. The
+   * admin dashboard is English through and through, yet <html lang> kept
+   * saying "ru" or "az", so a screen reader read its English with Russian or
+   * Azerbaijani pronunciation. The pin is kept in a module variable because
+   * the provider's own effect runs after this one on the first render and
+   * would otherwise put the site's language back.
+   */
+  useEffect(() => {
+    documentPin = pinned;
+    document.documentElement.lang = pinned ?? site.language;
+    return () => {
+      documentPin = null;
+      document.documentElement.lang = site.language;
+    };
+  }, [pinned, site.language]);
+
   return pinned === null ? site : fixed;
 }
 

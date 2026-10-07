@@ -120,7 +120,10 @@ export function redirectErrorText(result: AuthRedirectResult, t: Translate): str
   if (result.errorCode === "otp_expired") return t("profile.errLinkExpired");
   if (result.errorCode === "identity_already_exists") return t("profile.errGoogleTaken");
   if (result.errorCode === "access_denied") return t("profile.errLinkCancelled");
-  return result.error ?? t("profile.errGeneric");
+  // result.error is the English sentence from redirectErrorMessage, so any
+  // other failure gets the plain apology in the site language instead, as the
+  // sign-in page does (signInRedirectErrorText).
+  return t("profile.errGeneric");
 }
 
 export function nameProblemText(problem: NameProblem, t: Translate): string {

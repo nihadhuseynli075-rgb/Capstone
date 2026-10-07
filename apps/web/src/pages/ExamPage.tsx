@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SubmittedAnswer } from "@grade9/shared";
 import { writtenAnswerMaxLength } from "@grade9/shared";
 import { navigate, replaceRoute, setLeaveGuard } from "../app/router";
+import { useAuth } from "../features/auth/AuthContext";
+import { SignInToFinishButton } from "../features/auth/SignInToFinishButton";
 import { fill } from "../features/friends/fill";
 import {
   clearActiveTest,
@@ -40,6 +42,7 @@ function formatClock(totalSeconds: number): string {
 
 export function ExamPage() {
   const { t, tn } = useLanguage();
+  const { user } = useAuth();
   const [active, setActive] = useState<ActiveTest | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -63,6 +66,24 @@ export function ExamPage() {
 
   const paletteRef = useRef<HTMLDivElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
+
+  /*
+   * The question's own heading, and whether the student has just asked for a
+   * different question. Next, Previous and the palette used to swap the
+   * question under a focus that stayed on the button, so a screen reader said
+   * nothing at all and the student had to go back up to find out what was
+   * now being asked. Only a move the student makes counts: resuming a paper
+   * after a refresh restores the question without taking focus.
+   */
+  const promptRef = useRef<HTMLHeadingElement>(null);
+  const movedRef = useRef(false);
+
+  useEffect(() => {
+    if (!movedRef.current) return;
+    movedRef.current = false;
+    promptRef.current?.focus({ preventScroll: true });
+    promptRef.current?.scrollIntoView({ block: "nearest" });
+  }, [currentIndex]);
 
   // The countdown fires once when it reaches zero and then leaves it alone.
   // Without this the timer retries the same failing request on every tick, so a
@@ -116,7 +137,10 @@ export function ExamPage() {
         // The paper's own numbering, which survives the question being deleted
         // from the bank while this test is open.
         position: index,
-        answer: answers[question.id] ?? ""
+        // Cut to what the API accepts. The boxes stop typing there, but an
+        // answer can also come back from saved progress, and one too long
+        // gets the whole paper refused on every retry.
+        answer: (answers[question.id] ?? "").slice(0, writtenAnswerMaxLength)
       }));
 
       const timeTakenSeconds = Math.max(0, Math.round((Date.now() - active.startedAt) / 1000));
@@ -255,11 +279,16 @@ export function ExamPage() {
   // the paper is open. The paper is kept whatever the answer, and the dashboard
   // and the builder offer to resume it, so the question says that rather than
   // claiming the answers are lost. A timed paper also says its clock goes on:
-  // the time is the server's, counted from when the test was made.
+  // the time is the server's, counted from when the test was made. A guest
+  // has no dashboard (the home page is the landing page), so their question
+  // names only the builder.
+  const timed = active !== null && active.test.settings.timeLimitMinutes !== null;
   const leaveText =
     active === null
       ? null
-      : t(active.test.settings.timeLimitMinutes === null ? "exam.leaveConfirm" : "exam.leaveConfirmTimed");
+      : user
+        ? t(timed ? "exam.leaveConfirmTimed" : "exam.leaveConfirm")
+        : t(timed ? "exam.leaveConfirmGuestTimed" : "exam.leaveConfirmGuest");
 
   useEffect(() => {
     if (leaveText === null) return;
@@ -276,7 +305,8 @@ export function ExamPage() {
   }, [error]);
 
   if (!active) {
-    return <p>{t("exam.loading")}</p>;
+    // A status, like every other loading line, so it is read out.
+    return <p role="status">{t("exam.loading")}</p>;
   }
 
   const questions = active.test.questions;
@@ -285,7 +315,10 @@ export function ExamPage() {
   const isLast = currentIndex === questions.length - 1;
 
   function goToQuestion(index: number) {
-    setCurrentIndex(Math.max(0, Math.min(index, questions.length - 1)));
+    const next = Math.max(0, Math.min(index, questions.length - 1));
+    if (next === currentIndex) return;
+    movedRef.current = true;
+    setCurrentIndex(next);
   }
 
   // A paper the server has refused is closed: its answers can no longer
@@ -380,7 +413,14 @@ export function ExamPage() {
         {/* The question itself is never translated here. The API has already
             put maths into the site language where a translation exists, and an
             English or Russian question stays in the language it is testing. */}
-        <h2 className="question-prompt">{question.prompt}</h2>
+        {/* Focusable by script only (see promptRef), and read with the
+            question's number first, so moving to it says where the student is. */}
+        <h2 className="question-prompt route-focus" ref={promptRef} tabIndex={-1}>
+          <span className="visually-hidden">
+            {fill(t("exam.questionNumber"), { n: String(currentIndex + 1), total: String(questions.length) })}
+          </span>
+          {question.prompt}
+        </h2>
 
         {question.imageUrl && (
           <img className="question-image" src={question.imageUrl} alt={t("exam.diagram")} />
@@ -434,6 +474,10 @@ export function ExamPage() {
               onChange={(event) => setAnswer(event.target.value)}
               placeholder={t("exam.shortPlaceholder")}
               autoComplete="off"
+              // The API refuses any answer longer than this, short ones too,
+              // and refuses the whole paper with it: one long paste here made
+              // every send fail with no hint of which answer was at fault.
+              maxLength={writtenAnswerMaxLength}
             />
           </label>
         )}
@@ -454,17 +498,30 @@ export function ExamPage() {
               </button>
             </>
           ) : (
-            /* The only way back from a failed send. Without it a student whose
-               time ran out on question three is stranded: the timer has had its
-               one attempt and the finish button only appears on the last page. */
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={() => void handleSubmit("manual")}
-              disabled={submitting}
-            >
-              {submitting ? t("exam.sending") : t("exam.retry")}
-            </button>
+            <>
+              {/* A session the server no longer accepts: sending again cannot
+                  work until the student signs in again, and this keeps the
+                  paper through that. */}
+              {error?.cause instanceof ApiError && error.cause.status === 401 && (
+                <SignInToFinishButton
+                  paper={{ ...active, answers, currentIndex }}
+                  onLeave={() => {
+                    closedRef.current = true;
+                  }}
+                />
+              )}
+              {/* The only way back from a failed send. Without it a student whose
+                 time ran out on question three is stranded: the timer has had its
+                 one attempt and the finish button only appears on the last page. */}
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => void handleSubmit("manual")}
+                disabled={submitting}
+              >
+                {submitting ? t("exam.sending") : t("exam.retry")}
+              </button>
+            </>
           )}
         </div>
       )}

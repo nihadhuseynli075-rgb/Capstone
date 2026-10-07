@@ -61,7 +61,17 @@ export const env = {
    * Without it written questions are simply never put in a test, so nobody
    * sits a question that cannot be marked.
    */
-  anthropicApiKey: optional("ANTHROPIC_API_KEY")
+  anthropicApiKey: optional("ANTHROPIC_API_KEY"),
+  /**
+   * How many proxies sit in front of the API, for Express's "trust proxy".
+   *
+   * The test generator's limit and the admin login limiter count requests per
+   * address. Behind a host's proxy every request arrives from the proxy, so
+   * without this every student would share one allowance. It stays 0 unless
+   * set, because trusting a proxy that is not there lets anyone choose their
+   * own address by sending X-Forwarded-For.
+   */
+  trustProxyHops: Math.max(0, Math.trunc(Number(optional("TRUST_PROXY") ?? 0)) || 0)
 };
 
 export const writtenMarkingEnabled = Boolean(env.anthropicApiKey);

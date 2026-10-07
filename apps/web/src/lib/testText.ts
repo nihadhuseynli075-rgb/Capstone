@@ -98,6 +98,9 @@ export function testErrorText(cause: unknown, t: Translate, conflict?: Translati
       return t("test.errNotFound");
     case 409:
       return t(conflict ?? "profile.errGeneric");
+    // Starting tests is limited per connection (see the generate route).
+    case 429:
+      return t("test.errTooMany");
     default:
       return t("profile.errGeneric");
   }

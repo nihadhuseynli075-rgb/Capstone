@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import type { QuestionDraft } from "@grade9/shared";
-import { markLimits, paperYearLimits, repeatedOption, siteLanguages, subjects } from "@grade9/shared";
+import { markLimits, paperYearLimits, repeatedOption, siteLanguages, subjects, testScopeLimits } from "@grade9/shared";
 import { bearerToken } from "../lib/bearerToken";
 import { env, storageMode, writtenMarkingEnabled } from "../lib/env";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
@@ -49,11 +49,20 @@ const questionSchema = z
     subjectId: z
       .string({ required_error: unknownSubject, invalid_type_error: unknownSubject })
       .refine((id) => subjectIds.includes(id), { message: unknownSubject }),
-    topicId: z.string().min(1),
+    // Trimmed like the answer below, and as the form and the import trim
+    // them. Untrimmed, a topic of spaces became a blank topic chip in the
+    // student builder, and a question or option of spaces was served blank.
+    // No longer than generating a test accepts (testScopeLimits): a longer
+    // topic saved here could never be drawn into a paper.
+    topicId: z
+      .string()
+      .trim()
+      .min(1, "A topic is required")
+      .max(testScopeLimits.maxIdLength, `A topic can be at most ${testScopeLimits.maxIdLength} characters`),
     difficulty: z.enum(["easy", "medium", "hard"]),
     type: z.enum(["multiple-choice", "short-answer", "open-ended"]),
-    prompt: z.string().min(1, "Question text is required"),
-    options: z.array(z.string().min(1)).default([]),
+    prompt: z.string().trim().min(1, "Question text is required"),
+    options: z.array(z.string().trim().min(1, "An option cannot be empty")).default([]),
     // For an open-ended question this is the marking guide the AI marker
     // works from.
     correctAnswer: z.string().trim().min(1, "A correct answer (or, for a written question, a marking guide) is required"),
@@ -203,7 +212,9 @@ adminRouter.get("/questions", requireAdmin, async (request, response, next) => {
           request.query.difficulty === "hard"
             ? request.query.difficulty
             : undefined,
-        search: typeof request.query.search === "string" ? request.query.search : undefined
+        // Spaces at either end are not part of what is looked for: pasted
+        // text often carries one, and " radius" then found nothing at all.
+        search: typeof request.query.search === "string" ? request.query.search.trim() || undefined : undefined
       }),
       bankSummary()
     ]);

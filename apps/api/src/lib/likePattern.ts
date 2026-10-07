@@ -35,5 +35,20 @@ export function needsTextCheck(text: string): boolean {
  * results and a Supabase project's agree.
  */
 export function containsText(text: string, search: string): boolean {
-  return text.toLowerCase().includes(search.toLowerCase());
+  return foldCase(text).includes(foldCase(search));
+}
+
+/**
+ * Text lowercased one character at a time, which is how Postgres lowercases
+ * both sides of an ILIKE in a UTF-8 database.
+ *
+ * JavaScript's toLowerCase works on the whole string, and differs in two ways
+ * that matter here. It turns the Azerbaijani and Turkish "İ" into "i" plus a
+ * combining dot, so "istanbul" did not find "İstanbul" while a search for "i"
+ * did, and the memory store and a Supabase project answered the same search
+ * differently. And it writes a "Σ" at the end of a word as "ς", which no
+ * search for "σ" would find.
+ */
+export function foldCase(text: string): string {
+  return Array.from(text, (char) => (char === "İ" ? "i" : char.toLowerCase())).join("");
 }

@@ -1,4 +1,5 @@
 import { navigate } from "../app/router";
+import { Ascent } from "../components/Ascent";
 import { LanguageSelect, ThemeToggle } from "../components/SiteControls";
 import { SubjectShortcuts } from "../components/SubjectShortcuts";
 import { useAuth } from "../features/auth/AuthContext";
@@ -60,7 +61,7 @@ export function LandingPage() {
               <span>{t("landing.titlePeak")}</span>
             </h1>
 
-            <div className="landing-description-box">
+            <div className="landing-intro">
               <p>{t("landing.intro")}</p>
 
               <p>{t("landing.introMore")}</p>
@@ -83,28 +84,19 @@ export function LandingPage() {
             <SubjectShortcuts className="landing-subjects" />
           </div>
 
+          {/* The name drawn out: a test is a climb, and the three stages of one
+              are the camps on the way to the summit. No scores here: a visitor
+              has not taken a test, and invented results would be a claim. */}
           <div className="landing-right">
-            <div className="landing-orbit orbit-one" />
-            <div className="landing-orbit orbit-two" />
-            <div className="landing-glow" />
-
-            <div className="landing-circle">
-              <div className="circle-line circle-line-one" />
-              <div className="circle-line circle-line-two" />
-
-              <div className="peak peak-left" />
-              <div className="peak peak-right" />
-              <div className="peak peak-main" />
-
-              <div className="peak-cap" />
-            </div>
+            <Ascent
+              variant="path"
+              steps={[t("landing.stepBuild"), t("landing.stepSit"), t("landing.stepReview")]}
+            />
           </div>
         </section>
 
         <section className="landing-features">
           <article className="landing-feature">
-            <span className="feature-number">01</span>
-
             <h2>{t("landing.mockTests")}</h2>
 
             <p>{t("landing.mockTestsBody")}</p>
@@ -112,18 +104,14 @@ export function LandingPage() {
 
           <article className="landing-feature">
             <div className="feature-head">
-              <span className="feature-number">02</span>
+              <h2>{t("landing.dailyQuizzes")}</h2>
               <span className="soon-badge">{t("main.soon")}</span>
             </div>
-
-            <h2>{t("landing.dailyQuizzes")}</h2>
 
             <p>{t("landing.dailyQuizzesBody")}</p>
           </article>
 
           <article className="landing-feature">
-            <span className="feature-number">03</span>
-
             <h2>{t("landing.trackProgress")}</h2>
 
             <p>{t("landing.trackProgressBody")}</p>

@@ -112,7 +112,9 @@ are taken as the question itself and only the Russian ones become a translation.
 ## Rows that are skipped
 
 A row is reported and skipped, with the rest of the paste still importing, when
-`subject`, `topic`, `question` or `correct_answer` is empty, when a
+`subject`, `topic`, `question` or `correct_answer` is empty, when `subject` is
+not one of the three subjects (a new subject would appear in front of students
+with no way to filter it in the dashboard), when a
 multiple-choice row has fewer than two options, when `correct_answer` matches
 none of them, or when `difficulty` or `marks` is filled in with something
 unusable. Subject and topic are checked per row, not just as columns: the
@@ -142,6 +144,10 @@ answer itself in `correct_answer`.
    the box below, so you can check it. (Opening the file in a text editor,
    copying everything, header row included, and pasting works as well.)
 3. Press **Import questions**.
+
+A quote mark inside a cell, as in `A 12" ruler`, is kept as part of the text.
+Only a cell that starts with a quote is read as a quoted cell, which is how
+spreadsheets export a cell holding commas, tabs or line breaks.
 
 Rows that do not validate are reported back with their spreadsheet row number and
 skipped. The rest still import, so one bad cell does not block the other forty.

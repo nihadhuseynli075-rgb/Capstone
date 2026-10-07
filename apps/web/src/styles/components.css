@@ -1104,7 +1104,9 @@
   width: auto;
   min-height: 44px;
   padding: 8px 12px;
-  font-size: 0.9rem;
+  /* 16px keeps iOS Safari from zooming the page when the picker is tapped,
+     the same rule as the sign-in fields. */
+  font-size: 16px;
   cursor: pointer;
 }
 

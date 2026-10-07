@@ -1,5 +1,5 @@
 import type { Difficulty, QuestionDraft, QuestionTranslation, QuestionTranslations, QuestionType } from "@grade9/shared";
-import { markLimits, paperYearLimits, repeatedOption, subjects, topicIdFor } from "@grade9/shared";
+import { markLimits, paperYearLimits, repeatedOption, subjects, testScopeLimits, topicIdFor } from "@grade9/shared";
 import { languageNames, translationProblems } from "./questionTranslations";
 
 /**
@@ -29,7 +29,9 @@ export interface ImportResult {
  * else is the comma-separated format this has always read.
  */
 function detectDelimiter(text: string): "," | "\t" {
-  const headerLine = text.split("\n", 1)[0];
+  // The first line with anything on it: blank rows above the header are
+  // skipped when the rows are read, so they must not decide this either.
+  const headerLine = text.split("\n").find((line) => line.trim().length > 0) ?? "";
   const tabs = headerLine.split("\t").length - 1;
   const commas = headerLine.split(",").length - 1;
   return tabs > 0 && tabs >= commas ? "\t" : ",";
@@ -47,6 +49,18 @@ export function parseCsv(input: string): string[][] {
   return parseCsvChecked(input).rows;
 }
 
+/** One row of the sheet, with the number the spreadsheet shows beside it. */
+export interface SheetRow {
+  row: number;
+  cells: string[];
+}
+
+/** The rows readSheetRows finds, without their spreadsheet numbers. */
+export function parseCsvChecked(input: string): { rows: string[][]; unterminatedRow?: number } {
+  const { rows, unterminatedRow } = readSheetRows(input);
+  return { rows: rows.map((entry) => entry.cells), unterminatedRow };
+}
+
 /**
  * The same reader, but it also says where a quote was opened and never closed.
  *
@@ -58,8 +72,13 @@ export function parseCsv(input: string): string[][] {
  * word`, `He is 6' 2" tall`) is just text. If the text ends inside a quote, the
  * rows from the one where that quote opened are left out and its number is
  * returned, instead of the quote swallowing every row after it.
+ *
+ * Each record is one spreadsheet row, however many lines a quoted cell spans,
+ * so a row's number is its record's position. It is taken before blank rows
+ * are left out: numbering what was left once they had gone reported every row
+ * below a gap in the sheet one row too early, pointing at the wrong question.
  */
-export function parseCsvChecked(input: string): { rows: string[][]; unterminatedRow?: number } {
+export function readSheetRows(input: string): { rows: SheetRow[]; unterminatedRow?: number } {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -94,7 +113,7 @@ export function parseCsvChecked(input: string): { rows: string[][]; unterminated
     if (char === '"' && atFieldStart) {
       inQuotes = true;
       atFieldStart = false;
-      openedAtRow = rows.filter(hasContent).length + 1;
+      openedAtRow = rows.length + 1;
       index += 1;
       continue;
     }
@@ -127,8 +146,13 @@ export function parseCsvChecked(input: string): { rows: string[][]; unterminated
     index += 1;
   }
 
+  const numbered = (records: string[][]): SheetRow[] =>
+    records
+      .map((cells, position) => ({ row: position + 1, cells }))
+      .filter((entry) => hasContent(entry.cells));
+
   if (inQuotes) {
-    return { rows: rows.filter(hasContent), unterminatedRow: openedAtRow };
+    return { rows: numbered(rows), unterminatedRow: openedAtRow };
   }
 
   if (field.length > 0 || row.length > 0) {
@@ -136,7 +160,7 @@ export function parseCsvChecked(input: string): { rows: string[][]; unterminated
     rows.push(row);
   }
 
-  return { rows: rows.filter(hasContent) };
+  return { rows: numbered(rows) };
 }
 
 const hasContent = (entry: string[]) => entry.some((value) => value.trim().length > 0);
@@ -317,8 +341,40 @@ export function resolveCorrectAnswer(raw: string, options: string[]): string | n
   return caseInsensitive ?? null;
 }
 
+/**
+ * Whether a bare letter answer could mean two different options.
+ *
+ * Grammar questions about articles have options such as "the", "an" and "a".
+ * An answer of "a" there could be the letter naming the first column or the
+ * text of the third, and whichever reading won, half the time students would
+ * be marked against the wrong key. A letter in brackets or with a stop, "(A)"
+ * or "A.", is only ever a letter, so that is the way out offered.
+ */
+export function isAmbiguousLetterAnswer(raw: string, options: string[]): boolean {
+  const value = raw.trim();
+  if (!/^[a-eA-E]$/.test(value)) return false;
+
+  const letterIndex = value.toUpperCase().charCodeAt(0) - 65;
+  if ((options[letterIndex] ?? "").length === 0) return false;
+
+  return options.some(
+    (option, index) => index !== letterIndex && option.trim().toLowerCase() === value.toLowerCase()
+  );
+}
+
+/**
+ * A cell holding a whole number written plainly, digits only.
+ *
+ * Number() alone also reads "0x10" as 16, "1e1" as 10 and "2.024e3" as 2024,
+ * none of which anyone typing a mark or a year meant, so those are reported
+ * like any other value that is not a number.
+ */
+function parseWholeNumber(raw: string): number {
+  return /^\d+$/.test(raw) ? Number(raw) : Number.NaN;
+}
+
 export function importQuestionsFromCsv(csv: string): ImportResult {
-  const { rows, unterminatedRow } = parseCsvChecked(csv);
+  const { rows, unterminatedRow } = readSheetRows(csv);
   const drafts: QuestionDraft[] = [];
   const errors: ImportRowError[] = [];
 
@@ -334,7 +390,8 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     return { drafts, errors: [{ row: 0, message: "The pasted text was empty." }] };
   }
 
-  const mapping = mapHeaders(rows[0]);
+  const [headerRow, ...dataRows] = rows;
+  const mapping = mapHeaders(headerRow.cells);
 
   const missing = ["subjectId", "topicId", "prompt", "correctAnswer"].filter(
     (field) => mapping[field] === undefined
@@ -350,7 +407,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       drafts,
       errors: [
         {
-          row: 1,
+          row: headerRow.row,
           message: `Missing column(s): ${columns.join(", ")}. The header row needs at least subject, topic, question and correct_answer.`
         }
       ]
@@ -363,10 +420,8 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     return (row[columnIndex] ?? "").trim();
   };
 
-  rows.slice(1).forEach((row, offset) => {
-    // Row number as the person sees it in the spreadsheet: header is row 1.
-    const rowNumber = offset + 2;
-
+  // Each row carries the number the spreadsheet shows beside it (see readSheetRows).
+  dataRows.forEach(({ row: rowNumber, cells: row }) => {
     const prompt = cell(row, "prompt");
     if (prompt.length === 0) {
       errors.push({ row: rowNumber, message: "Question text is empty." });
@@ -404,6 +459,12 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     // A topic's name means the topic: "Functions and Graphs" is `functions`.
     // Only a topic the subject does not have becomes a new id.
     const topicId = topicIdFor(rawTopic, subjects.find((subject) => subject.id === subjectId)?.topics ?? []);
+    // Held to the length a test can ask for, as the admin form is: a longer
+    // topic would import but never be drawn into a paper.
+    if (topicId.length > testScopeLimits.maxIdLength) {
+      errors.push({ row: rowNumber, message: `Topic is longer than ${testScopeLimits.maxIdLength} characters.` });
+      return;
+    }
 
     const optionCells = [
       cell(row, "optionA"),
@@ -432,10 +493,18 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       return;
     }
 
-    const correctAnswer = resolveCorrectAnswer(
-      cell(row, "correctAnswer"),
-      type === "multiple-choice" ? optionCells : []
-    );
+    const answerOptions = type === "multiple-choice" ? optionCells : [];
+
+    if (isAmbiguousLetterAnswer(cell(row, "correctAnswer"), answerOptions)) {
+      const letter = cell(row, "correctAnswer").toUpperCase();
+      errors.push({
+        row: rowNumber,
+        message: `Correct answer "${cell(row, "correctAnswer")}" could be option ${letter} or the option that reads "${cell(row, "correctAnswer")}". Write the right option's letter in brackets instead, such as "(${letter})".`
+      });
+      return;
+    }
+
+    const correctAnswer = resolveCorrectAnswer(cell(row, "correctAnswer"), answerOptions);
 
     if (!correctAnswer) {
       errors.push({
@@ -459,9 +528,9 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     // A value that is there but nonsense is a mistake worth reporting rather
     // than quietly rounding to one.
     const rawMarks = cell(row, "marks");
-    const marks = rawMarks.length === 0 ? markLimits.min : Number(rawMarks);
+    const marks = rawMarks.length === 0 ? markLimits.min : parseWholeNumber(rawMarks);
 
-    // Number rather than parseInt: "2.5" and "3 marks" are mistakes worth
+    // Digits only rather than parseInt: "2.5" and "3 marks" are mistakes worth
     // reporting, not values to round down to something plausible. The ceiling is
     // the one the admin form and the API already enforce, so a cell typed into
     // the wrong column cannot quietly weight one question above the whole paper.
@@ -478,7 +547,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     // 2024 and "20 24" as 20, and a number too big for the column failed the
     // whole import instead of this one row.
     const rawYear = cell(row, "paperYear");
-    const paperYear = rawYear.length === 0 ? null : Number(rawYear);
+    const paperYear = rawYear.length === 0 ? null : parseWholeNumber(rawYear);
 
     if (paperYear !== null && !isWholeNumberWithin(paperYear, paperYearLimits)) {
       errors.push({

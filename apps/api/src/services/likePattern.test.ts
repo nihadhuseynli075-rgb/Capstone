@@ -43,4 +43,14 @@ describe("containsText", () => {
     assert.equal(containsText("Work out 2 + 3", "2 * 3"), false);
     assert.equal(containsText("Work out 2 x 3", "*"), false);
   });
+
+  test("letters are lowercased one at a time, as Postgres does", () => {
+    // JavaScript alone makes "İ" an "i" with a combining dot after it.
+    assert.equal(containsText("İstanbul", "istanbul"), true);
+    assert.equal(containsText("istanbul", "İSTANBUL"), true);
+    assert.equal(containsText("ΑΣ", "σ"), true);
+    assert.equal(containsText("Əli ğarğa", "ƏLİ ĞARĞA"), true);
+    // The dotless ı is a letter of its own, as it is to Postgres.
+    assert.equal(containsText("ılıq", "iliq"), false);
+  });
 });

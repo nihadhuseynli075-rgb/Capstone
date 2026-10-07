@@ -65,9 +65,15 @@
   box-shadow: 0 6px 18px rgba(10, 58, 88, 0.06);
 }
 
+/*
+ * The words and fills here use #0a70ad, a step darker than the logo's
+ * #0c82c8: white on the logo blue, and the logo blue on white or its pale
+ * tints, only reach 3.5-4.2:1, under the 4.5:1 small text needs. The logo
+ * blue stays in the artwork and the hero circle, which carry no small text.
+ */
 .landing-signup {
-  border: 1px solid #0c82c8;
-  background: #0c82c8;
+  border: 1px solid #0a70ad;
+  background: #0a70ad;
   color: #ffffff;
   box-shadow: 0 7px 18px rgba(12, 130, 200, 0.2);
 }
@@ -105,18 +111,6 @@
   /* The headline is sized against this box, not the window: see :lang below. */
   container-type: inline-size;
   box-shadow: 0 22px 48px rgba(12, 130, 200, 0.22);
-}
-
-.landing-left::after {
-  content: "";
-  position: absolute;
-  width: 270px;
-  height: 270px;
-  right: -110px;
-  bottom: -125px;
-  border-radius: 50%;
-  border: 36px solid rgba(255, 255, 255, 0.08);
-  pointer-events: none;
 }
 
 /* The default brand-blue ring vanishes on the blue hero. */
@@ -159,25 +153,22 @@
   color: #ffffff;
 }
 
-.landing-description-box {
-  max-width: 570px;
-  margin-top: 28px;
-  padding: 18px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+/* Plain text on the blue, no frosted panel: the panel added a second box
+   inside the hero without saying anything the words did not. */
+.landing-intro {
+  max-width: 540px;
+  margin-top: 26px;
 }
 
-.landing-description-box p {
+.landing-intro p {
   margin: 0;
-  color: #ffffff;
-  font-size: 15px;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 16px;
   line-height: 1.65;
 }
 
-.landing-description-box p + p {
-  margin-top: 8px;
+.landing-intro p + p {
+  margin-top: 10px;
 }
 
 .landing-start {
@@ -194,7 +185,7 @@
   border: none;
   border-radius: 999px;
   background: #ffffff;
-  color: #0c82c8;
+  color: #0a70ad;
   font: inherit;
   font-weight: 800;
   cursor: pointer;
@@ -254,7 +245,7 @@
 .landing-subjects .subject-glyph,
 .landing-subjects .subject-card:hover:not(:disabled) .subject-glyph {
   background: #e6f4fd;
-  color: #0c82c8;
+  color: #0a70ad;
 }
 
 .landing-subjects .subject-count {
@@ -283,113 +274,20 @@
 
 /* -------------------------------------------------------------- visual side */
 
+/* The climb card: the Ascent's path variant fills it (styles/ascent.css). */
 .landing-right {
   position: relative;
-  min-height: 590px;
-  display: grid;
-  place-items: center;
+  min-height: 560px;
+  padding: clamp(24px, 4vw, 40px);
   overflow: hidden;
   border: 1px solid #e1ebf2;
   background: #ffffff;
   box-shadow: 0 18px 42px rgba(10, 58, 88, 0.09);
 }
 
-.landing-right::before {
-  content: "EXAMPEAK";
-  position: absolute;
-  top: 30px;
-  left: 30px;
-  color: #8aa5b8;
-  /* 12px is the smallest text anywhere on the site. */
-  font-size: 12px;
-  font-weight: 850;
-  letter-spacing: 0.18em;
-}
-
-.landing-glow {
-  position: absolute;
-  width: 470px;
-  height: 470px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(12, 130, 200, 0.15), transparent 68%);
-  filter: blur(10px);
-}
-
-.landing-orbit {
-  position: absolute;
-  border-radius: 50%;
-  border: 1px solid rgba(12, 130, 200, 0.11);
-}
-
-.orbit-one {
-  width: 440px;
-  height: 440px;
-}
-
-.orbit-two {
-  width: 520px;
-  height: 520px;
-}
-
-.landing-circle {
-  position: relative;
-  width: min(365px, 31vw);
-  aspect-ratio: 1;
-  overflow: hidden;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #37a7f3 0%, #0c82c8 60%, #08699f 100%);
-  box-shadow: 0 24px 52px rgba(12, 130, 200, 0.22);
-}
-
-.circle-line {
-  position: absolute;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 50%;
-}
-
-.circle-line-one {
-  inset: 10%;
-}
-
-.circle-line-two {
-  inset: 24%;
-}
-
-.peak {
-  position: absolute;
-  bottom: -5%;
-  clip-path: polygon(50% 0, 100% 100%, 0 100%);
-}
-
-.peak-left {
-  width: 78%;
-  height: 50%;
-  left: -24%;
-  background: #1679b3;
-}
-
-.peak-right {
-  width: 78%;
-  height: 60%;
-  right: -25%;
-  background: #0a5f8d;
-}
-
-.peak-main {
-  width: 92%;
-  height: 76%;
-  left: 4%;
-  background: linear-gradient(145deg, #0e6fa4, #07364f);
-}
-
-.peak-cap {
-  position: absolute;
-  left: 38%;
-  bottom: 51%;
-  width: 25%;
-  height: 16%;
-  background: rgba(255, 255, 255, 0.92);
-  clip-path: polygon(50% 0, 100% 100%, 72% 76%, 56% 100%, 36% 70%, 0 100%);
+.landing-right .ascent-path {
+  /* Room above the summit for its flag. */
+  padding-top: 28px;
 }
 
 /* ------------------------------------------------------------- feature cards */
@@ -399,39 +297,30 @@
   margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 28px;
 }
 
+/* Three short notes under a rule rather than three numbered cards: they are
+   what the site offers, not steps, and the steps are on the climb above. */
 .landing-feature {
   min-width: 0;
-  padding: 24px;
-  border: 1px solid #e3ecf3;
-  border-radius: 22px;
-  background: #ffffff;
-  box-shadow: 0 10px 28px rgba(10, 58, 88, 0.07);
-}
-
-.feature-number {
-  display: inline-grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: #e7f5fe;
-  color: #0c82c8;
-  font-size: 12px;
-  font-weight: 900;
+  padding: 20px 4px 4px;
+  border-top: 3px solid #0c82c8;
 }
 
 .landing-feature h2 {
-  margin: 14px 0 8px;
+  margin: 0 0 8px;
   color: #0a3a58;
   font-size: 20px;
 }
 
+.feature-head h2 {
+  margin-bottom: 8px;
+}
+
 .feature-head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 12px;
 }
@@ -461,7 +350,7 @@
 }
 
 .landing-bottom span {
-  color: #0c82c8;
+  color: #0a70ad;
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.16em;
@@ -508,24 +397,14 @@
   box-shadow: 0 22px 48px rgba(0, 0, 0, 0.35);
 }
 
-[data-theme="dark"] .landing-right,
-[data-theme="dark"] .landing-feature {
+[data-theme="dark"] .landing-right {
   border-color: var(--border);
   background: var(--surface);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3);
 }
 
-[data-theme="dark"] .landing-right::before {
-  color: var(--muted);
-}
-
-[data-theme="dark"] .landing-orbit {
-  border-color: rgba(58, 166, 230, 0.16);
-}
-
-[data-theme="dark"] .feature-number {
-  background: var(--brand-soft);
-  color: var(--brand);
+[data-theme="dark"] .landing-feature {
+  border-top-color: var(--brand);
 }
 
 [data-theme="dark"] .landing-feature h2 {
@@ -549,11 +428,7 @@
   }
 
   .landing-right {
-    min-height: 440px;
-  }
-
-  .landing-circle {
-    width: min(340px, 70vw);
+    min-height: 420px;
   }
 
   .landing-features {
@@ -574,6 +449,11 @@
     padding-block: 10px;
     /* The mark follows the first control row instead of floating between two rows. */
     align-items: flex-start;
+  }
+
+  /* The 34px mark is centred within the first row's 44px tap-target height. */
+  .landing-header .wordmark {
+    margin-top: 5px;
   }
 
   /* Hidden from view but still read out: the mark beside it is decoration
@@ -606,9 +486,6 @@
     font-size: clamp(38px, 13vw, 52px);
   }
 
-  .landing-description-box {
-    padding: 16px;
-  }
 
   .landing-subjects .subject-grid {
     grid-template-columns: 1fr;
@@ -626,21 +503,12 @@
   }
 
   .landing-right {
-    min-height: 360px;
+    min-height: 0;
+    padding: 22px 18px;
   }
 
-  .landing-circle {
-    width: 255px;
-  }
-
-  .orbit-one {
-    width: 300px;
-    height: 300px;
-  }
-
-  .orbit-two {
-    width: 340px;
-    height: 340px;
+  .landing-right .ascent-path .ascent-canvas {
+    min-height: 200px;
   }
 
   .landing-bottom {

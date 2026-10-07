@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { env } from "../lib/env";
+import { PublicError } from "../lib/publicError";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 
 /**
@@ -47,12 +48,15 @@ function bucket() {
   return supabaseAdmin.storage.from(env.avatarBucket);
 }
 
-/** Worded for whoever has to fix it: a missing bucket means 0007 has not been run. */
+/**
+ * Worded for whoever has to fix it: a missing bucket means 0007 has not been
+ * run. The storage server's own words are kept for the log only.
+ */
 function storageError(action: string, message: string): Error {
   const hint = /bucket not found/i.test(message)
     ? " Run supabase/migrations/0007_profiles_and_google.sql to create the avatars bucket."
     : "";
-  return new Error(`Failed to ${action}: ${message}.${hint}`);
+  return new PublicError(`Failed to ${action}.${hint}`, message);
 }
 
 /** Stores a photo in the account's folder and returns where it is served from. */
