@@ -165,4 +165,14 @@ app.listen(env.port, () => {
       `[api] ADMIN_PASSWORD is not set, so the admin dashboard is using the default password "${env.adminPassword}". Set your own in .env.`
     );
   }
+
+  // Hosted, the API sits behind the host's proxy, and without TRUST_PROXY every
+  // request seems to come from that proxy. The admin sign-in limit then counts
+  // everyone together: ten wrong passwords from anyone shut the real admin out
+  // for fifteen minutes, as often as someone cares to repeat it.
+  if (env.isProduction && env.trustProxyHops === 0) {
+    console.warn(
+      "[api] TRUST_PROXY is 0. Behind a host's proxy (Render, Railway, Fly and the like) set TRUST_PROXY=1, or the admin sign-in and test limits treat every visitor as one address and anyone can lock the admin out."
+    );
+  }
 });

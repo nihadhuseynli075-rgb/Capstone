@@ -57,12 +57,20 @@ Why these, in case they look odd:
 | `SUPABASE_SECRET_KEY` | the **secret** key (Project settings → API keys) |
 | `ADMIN_PASSWORD` | a real password. Blank keeps the admin dashboard shut in production |
 | `WEB_ORIGIN` | `https://placeholder.invalid` for now; fixed in step 3 |
+| `TRUST_PROXY` | `1` |
 | `ANTHROPIC_API_KEY` | optional; without it, written questions are left out of tests |
 | `SUPABASE_IMAGE_BUCKET` | optional, defaults to `question-images` |
 | `SUPABASE_AVATAR_BUCKET` | optional, defaults to `avatars` |
 
 `API_PORT` matters: the API reads `API_PORT`, not Render's `PORT`, and Render
 expects the service on 10000 unless told otherwise.
+
+`TRUST_PROXY=1` matters too. Every request reaches the API through Render's
+proxy, and without it the API sees them all as coming from one address. The
+admin sign-in locks an address out for 15 minutes after 10 wrong passwords, so
+anyone could keep the real admin out just by guessing badly every quarter of an
+hour. The limit on starting tests would be shared by every student the same
+way. The API prints a warning at startup when this is missing in production.
 
 Create it, wait for the deploy, then open
 `https://exampeak-api.onrender.com/health` (your exact URL is at the top of the
