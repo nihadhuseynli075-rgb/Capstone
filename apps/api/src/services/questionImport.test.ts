@@ -189,6 +189,64 @@ describe("importQuestionsFromCsv", () => {
     assert.match(errors[0].message, /^Marks "2.5"/);
     assert.match(errors[4].message, /^Paper year "2024.5"/);
   });
+
+  test("rejects hex and exponent numbers, which Number() would read as something else", () => {
+    const csv = [
+      "subject,topic,question,answer,marks,year",
+      "math,algebra,Q1,1,0x10,",
+      "math,algebra,Q2,1,1e1,",
+      "math,algebra,Q3,1,,2.024e3",
+      "math,algebra,Q4,1,+2,",
+      "math,algebra,Q5,1,4,2024"
+    ].join("\n");
+
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(
+      errors.map((error) => error.row),
+      [2, 3, 4, 5]
+    );
+    assert.equal(drafts.length, 1);
+    assert.equal(drafts[0].marks, 4);
+    assert.equal(drafts[0].paperYear, 2024);
+  });
+});
+
+describe("a letter answer that is also an option's text", () => {
+  const sheet = "subject,topic,question,option_a,option_b,option_c,correct_answer";
+
+  test("a bare letter that could be either is refused, in either case", () => {
+    const { drafts, errors } = importQuestionsFromCsv(
+      [sheet, "english,grammar,She is ___ engineer.,the,an,a,a", "english,grammar,Pick,the,an,a,A"].join("\n")
+    );
+
+    assert.deepEqual(drafts, []);
+    assert.deepEqual(
+      errors.map((error) => error.row),
+      [2, 3]
+    );
+    assert.match(errors[0].message, /could be option A or the option that reads "a"/);
+    assert.match(errors[0].message, /"\(A\)"/);
+  });
+
+  test("a letter in brackets is only ever a letter", () => {
+    const { drafts, errors } = importQuestionsFromCsv(
+      [sheet, "english,grammar,She is ___ engineer.,the,an,a,(B)", "english,grammar,Pick,the,an,a,(C)"].join("\n")
+    );
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(
+      drafts.map((draft) => draft.correctAnswer),
+      ["an", "a"]
+    );
+  });
+
+  test("a letter whose own column reads the same letter is not ambiguous", () => {
+    const { drafts, errors } = importQuestionsFromCsv([sheet, "english,grammar,Pick,a,b,c,a"].join("\n"));
+
+    assert.deepEqual(errors, []);
+    assert.equal(drafts[0].correctAnswer, "a");
+  });
 });
 
 describe("a tab-separated sheet", () => {

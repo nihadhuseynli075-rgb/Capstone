@@ -317,6 +317,38 @@ export function resolveCorrectAnswer(raw: string, options: string[]): string | n
   return caseInsensitive ?? null;
 }
 
+/**
+ * Whether a bare letter answer could mean two different options.
+ *
+ * Grammar questions about articles have options such as "the", "an" and "a".
+ * An answer of "a" there could be the letter naming the first column or the
+ * text of the third, and whichever reading won, half the time students would
+ * be marked against the wrong key. A letter in brackets or with a stop, "(A)"
+ * or "A.", is only ever a letter, so that is the way out offered.
+ */
+export function isAmbiguousLetterAnswer(raw: string, options: string[]): boolean {
+  const value = raw.trim();
+  if (!/^[a-eA-E]$/.test(value)) return false;
+
+  const letterIndex = value.toUpperCase().charCodeAt(0) - 65;
+  if ((options[letterIndex] ?? "").length === 0) return false;
+
+  return options.some(
+    (option, index) => index !== letterIndex && option.trim().toLowerCase() === value.toLowerCase()
+  );
+}
+
+/**
+ * A cell holding a whole number written plainly, digits only.
+ *
+ * Number() alone also reads "0x10" as 16, "1e1" as 10 and "2.024e3" as 2024,
+ * none of which anyone typing a mark or a year meant, so those are reported
+ * like any other value that is not a number.
+ */
+function parseWholeNumber(raw: string): number {
+  return /^\d+$/.test(raw) ? Number(raw) : Number.NaN;
+}
+
 export function importQuestionsFromCsv(csv: string): ImportResult {
   const { rows, unterminatedRow } = parseCsvChecked(csv);
   const drafts: QuestionDraft[] = [];
@@ -432,10 +464,18 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       return;
     }
 
-    const correctAnswer = resolveCorrectAnswer(
-      cell(row, "correctAnswer"),
-      type === "multiple-choice" ? optionCells : []
-    );
+    const answerOptions = type === "multiple-choice" ? optionCells : [];
+
+    if (isAmbiguousLetterAnswer(cell(row, "correctAnswer"), answerOptions)) {
+      const letter = cell(row, "correctAnswer").toUpperCase();
+      errors.push({
+        row: rowNumber,
+        message: `Correct answer "${cell(row, "correctAnswer")}" could be option ${letter} or the option that reads "${cell(row, "correctAnswer")}". Write the right option's letter in brackets instead, such as "(${letter})".`
+      });
+      return;
+    }
+
+    const correctAnswer = resolveCorrectAnswer(cell(row, "correctAnswer"), answerOptions);
 
     if (!correctAnswer) {
       errors.push({
@@ -459,9 +499,9 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     // A value that is there but nonsense is a mistake worth reporting rather
     // than quietly rounding to one.
     const rawMarks = cell(row, "marks");
-    const marks = rawMarks.length === 0 ? markLimits.min : Number(rawMarks);
+    const marks = rawMarks.length === 0 ? markLimits.min : parseWholeNumber(rawMarks);
 
-    // Number rather than parseInt: "2.5" and "3 marks" are mistakes worth
+    // Digits only rather than parseInt: "2.5" and "3 marks" are mistakes worth
     // reporting, not values to round down to something plausible. The ceiling is
     // the one the admin form and the API already enforce, so a cell typed into
     // the wrong column cannot quietly weight one question above the whole paper.
@@ -478,7 +518,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     // 2024 and "20 24" as 20, and a number too big for the column failed the
     // whole import instead of this one row.
     const rawYear = cell(row, "paperYear");
-    const paperYear = rawYear.length === 0 ? null : Number(rawYear);
+    const paperYear = rawYear.length === 0 ? null : parseWholeNumber(rawYear);
 
     if (paperYear !== null && !isWholeNumberWithin(paperYear, paperYearLimits)) {
       errors.push({
