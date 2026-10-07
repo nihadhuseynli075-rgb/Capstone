@@ -1539,7 +1539,11 @@ button:focus-visible {
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scrollbar-width: none;
-    padding-bottom: 2px;
+    /* Room for the current question's 2px outline, which the scrolling strip
+       would otherwise cut off on its edges. The negative margin keeps the
+       first dot lined up with the card. */
+    padding: 3px;
+    margin-inline: -3px;
   }
 
   .question-palette::-webkit-scrollbar {
