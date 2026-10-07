@@ -126,6 +126,9 @@ async function main() {
     env: {
       ...process.env,
       SUPABASE_URL: standin.url,
+      // Both names: the API prefers SUPABASE_SECRET_KEY, and .env holds the
+      // real project's under that name, which would otherwise be read here.
+      SUPABASE_SECRET_KEY: "standin-service-role-key",
       SUPABASE_SERVICE_ROLE_KEY: "standin-service-role-key",
       API_PORT: String(apiPort),
       ADMIN_PASSWORD,
@@ -1306,7 +1309,12 @@ async function main() {
         `;
         const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script, name], {
           cwd: root,
-          env: { ...process.env, SUPABASE_URL: standin.url, SUPABASE_SERVICE_ROLE_KEY: "standin-service-role-key" },
+          env: {
+            ...process.env,
+            SUPABASE_URL: standin.url,
+            SUPABASE_SECRET_KEY: "standin-service-role-key",
+            SUPABASE_SERVICE_ROLE_KEY: "standin-service-role-key"
+          },
           stdio: ["ignore", "pipe", "pipe"]
         });
         let out = "";
@@ -2218,7 +2226,14 @@ async function main() {
       cwd: root,
       // Exactly what .env.example tells you to write: the line is there and
       // empty. dotenv reads that as "", which is not the same as unset.
-      env: { ...process.env, SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "", API_PORT: String(blankPort), ADMIN_PASSWORD: "" },
+      env: {
+        ...process.env,
+        SUPABASE_URL: "",
+        SUPABASE_SECRET_KEY: "",
+        SUPABASE_SERVICE_ROLE_KEY: "",
+        API_PORT: String(blankPort),
+        ADMIN_PASSWORD: ""
+      },
       stdio: ["ignore", "ignore", "ignore"]
     });
 
