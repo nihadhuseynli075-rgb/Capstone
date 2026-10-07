@@ -91,7 +91,12 @@ testsRouter.post("/generate", async (request, response, next) => {
     });
   }
 
-  const { studentKey, subjectId, topicIds, difficultyMode } = parsed.data;
+  const { studentKey, subjectId, difficultyMode } = parsed.data;
+
+  // A topic named twice is still one topic. The list is kept on the attempt
+  // and the paper's heading counts it, so a repeat would read as "5 topics"
+  // for a test drawn from two.
+  const topicIds = [...new Set(parsed.data.topicIds)];
 
   const resolved = resolveSettings(difficultyMode, {
     questionCount: parsed.data.questionCount ?? customLimits.minQuestions,
