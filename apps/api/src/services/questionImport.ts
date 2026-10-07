@@ -1,5 +1,5 @@
 import type { Difficulty, QuestionDraft, QuestionTranslation, QuestionTranslations, QuestionType } from "@grade9/shared";
-import { markLimits, paperYearLimits, repeatedOption, subjects, topicIdFor } from "@grade9/shared";
+import { markLimits, paperYearLimits, repeatedOption, subjects, testScopeLimits, topicIdFor } from "@grade9/shared";
 import { languageNames, translationProblems } from "./questionTranslations";
 
 /**
@@ -459,6 +459,12 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
     // A topic's name means the topic: "Functions and Graphs" is `functions`.
     // Only a topic the subject does not have becomes a new id.
     const topicId = topicIdFor(rawTopic, subjects.find((subject) => subject.id === subjectId)?.topics ?? []);
+    // Held to the length a test can ask for, as the admin form is: a longer
+    // topic would import but never be drawn into a paper.
+    if (topicId.length > testScopeLimits.maxIdLength) {
+      errors.push({ row: rowNumber, message: `Topic is longer than ${testScopeLimits.maxIdLength} characters.` });
+      return;
+    }
 
     const optionCells = [
       cell(row, "optionA"),

@@ -28,6 +28,7 @@ import { SettingsPage } from "../pages/SettingsPage";
 import { TestBuilderPage } from "../pages/TestBuilderPage";
 
 import { navigate, navigateAway, replaceRoute, useRoute } from "./router";
+import { useRouteFocus } from "./useRouteFocus";
 
 /*
  * The admin dashboard, with its question form, is the largest page and no
@@ -352,6 +353,10 @@ function Shell() {
 
   useHistoryClaim();
 
+  // Every page, including the sign-in pages drawn outside the shell, hands
+  // focus to its heading when it is reached by a route change.
+  useRouteFocus(path);
+
 
   // A password reset link has just signed this tab in. It should land on the
   // reset page already, but a project that does not allow that address sends
@@ -445,7 +450,8 @@ function Shell() {
 
   if (!ready) {
     return (
-      <div className="landing-loading">
+      // A status, so a screen reader hears why the page is still blank.
+      <div className="landing-loading" role="status">
         {t("app.loading")}
       </div>
     );

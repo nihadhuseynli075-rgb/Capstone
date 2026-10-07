@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { cleanName, isReadableName, normalizeUsername, profileLimits } from "@grade9/shared";
+import { PublicError } from "../lib/publicError";
 import { accountOf, requireAccount, signInAgain } from "../modules/student/requireAccount";
 import { liveAccount } from "../modules/student/studentAuth";
 import { deleteAttemptsFor } from "../repositories/attemptRepository";
@@ -262,8 +263,9 @@ profileRouter.delete("/photo", async (_request, response, next) => {
       try {
         await removePhotoAt(stored);
       } catch (error) {
-        throw new Error(
-          `Your photo could not be deleted just now, so it is still on your profile. Try again in a moment. (${(error as Error).message})`
+        throw new PublicError(
+          "Your photo could not be deleted just now, so it is still on your profile. Try again in a moment.",
+          (error as Error).message
         );
       }
     }

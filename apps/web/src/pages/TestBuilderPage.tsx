@@ -4,9 +4,10 @@ import { customLimits, difficultyPresets } from "@grade9/shared";
 import { navigate, useRouteParam } from "../app/router";
 import { ResumeTestBanner } from "../components/ResumeTestBanner";
 import { useAuth } from "../features/auth/AuthContext";
+import { useClaimedHistoryVersion } from "../features/auth/useHistoryClaim";
 import { fill } from "../features/friends/fill";
 import { saveActiveTest } from "../lib/examSession";
-import { useLanguage, type TranslationKey } from "../lib/i18n";
+import { formatPercent, useLanguage, type TranslationKey } from "../lib/i18n";
 import { difficultyLabel, subjectLabel, testErrorText, topicLabel } from "../lib/testText";
 import {
   fetchCatalog,
@@ -136,6 +137,8 @@ function withBoldNumber(text: string, count: number) {
 
 export function TestBuilderPage() {
   const { ready, user } = useAuth();
+  // Guest tests moved onto the account after history was read: read it again.
+  const claimedVersion = useClaimedHistoryVersion();
   const { language, t, tn } = useLanguage();
   const [catalog, setCatalog] = useState<CatalogSubject[] | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
@@ -204,7 +207,7 @@ export function TestBuilderPage() {
     return () => {
       active = false;
     };
-  }, [ready, user?.id]);
+  }, [ready, user?.id, claimedVersion]);
 
   const subject = useMemo(
     () => catalog?.find((item) => item.id === subjectId) ?? null,
@@ -252,6 +255,9 @@ export function TestBuilderPage() {
   }
 
   async function handleGenerate() {
+    // The button stays focusable while a test is being built (see below), so
+    // a second press is ignored here instead.
+    if (generating) return;
     setError(null);
 
     // Settled here as well as on blur: pressing Enter, or a tap that does not
@@ -301,7 +307,8 @@ export function TestBuilderPage() {
     return (
       <div className="stack">
         <h1>{t("builder.title")}</h1>
-        <p className="error-banner">{testErrorText(loadError, t)}</p>
+        {/* An alert, so a failed load is said out loud and not only painted. */}
+        <p className="error-banner" role="alert">{testErrorText(loadError, t)}</p>
       </div>
     );
   }
@@ -396,6 +403,10 @@ export function TestBuilderPage() {
               key={item.id}
               type="button"
               className={`chip ${item.id === subjectId ? "selected" : ""}`}
+              // The chosen subject was shown by colour alone, so a screen
+              // reader heard three identical buttons. Pressed, like the
+              // difficulty cards below.
+              aria-pressed={item.id === subjectId}
               onClick={() => {
                 const topics = item.topics.filter((topic) => topic.total > 0).map((topic) => topic.id);
                 setSubjectId(item.id);
@@ -435,7 +446,7 @@ export function TestBuilderPage() {
                   {last !== undefined ? (
                     <span className={`topic-last ${band}`}>
                       {" · "}
-                      {fill(t("builder.lastScore"), { n: String(last) })}
+                      {fill(t("builder.lastScore"), { n: formatPercent(last, language) })}
                     </span>
                   ) : (
                     lastScores.size > 0 &&
@@ -584,17 +595,22 @@ export function TestBuilderPage() {
           </div>
         )}
 
+        {/* An alert, so a test that could not be built is said out loud. */}
         {error && (
-          <p className="error-banner">
+          <p className="error-banner" role="alert">
             {"key" in error ? t(error.key) : testErrorText(error.cause, t, "test.errNoQuestions")}
           </p>
         )}
 
+        {/* Marked busy with aria-disabled rather than disabled while the test
+            is built: a disabled button drops the keyboard focus that pressed
+            it, and a failure then left the student at the top of the page. */}
         <button
           type="button"
           className="primary-button"
           onClick={handleGenerate}
-          disabled={generating || availableCount === 0}
+          disabled={availableCount === 0}
+          aria-disabled={generating || undefined}
         >
           {generating ? t("builder.building") : t("builder.start")}
         </button>

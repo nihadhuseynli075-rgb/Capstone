@@ -427,7 +427,7 @@ function splitTopLevel(text) {
  */
 function likePattern(raw, caseInsensitive) {
   const literal = (char) => char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = raw.replaceAll("*", "%");
+  const pattern = (caseInsensitive ? foldCase(raw) : raw).replaceAll("*", "%");
   let source = "";
 
   for (let index = 0; index < pattern.length; index += 1) {
@@ -445,7 +445,23 @@ function likePattern(raw, caseInsensitive) {
     }
   }
 
-  return new RegExp(`^${source}$`, caseInsensitive ? "is" : "s");
+  // "u" so that "_" is one character, as it is to Postgres, and not half of
+  // an emoji. ILIKE compares the two sides lowercased (see foldCase), not
+  // with the regular expression's own case-insensitive flag, which kept "İ"
+  // and "i" apart where Postgres treats them as the same letter.
+  const regex = new RegExp(`^${source}$`, "su");
+  return caseInsensitive ? { test: (value) => regex.test(foldCase(value)) } : regex;
+}
+
+/**
+ * Text lowercased one character at a time, as Postgres lowercases both sides
+ * of an ILIKE in a UTF-8 database: "İ" becomes "i" (JavaScript's own
+ * toLowerCase makes it "i" plus a combining dot) and a "Σ" is always "σ",
+ * wherever it sits in a word. The API's memory store searches with the same
+ * rule (containsText in apps/api/src/lib/likePattern.ts).
+ */
+function foldCase(text) {
+  return Array.from(text, (char) => (char === "İ" ? "i" : char.toLowerCase())).join("");
 }
 
 function buildFilter(table, name, expression) {

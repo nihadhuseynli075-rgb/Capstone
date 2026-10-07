@@ -10,6 +10,7 @@ import type {
 } from "@grade9/shared";
 import { cleanName, isReadableName } from "@grade9/shared";
 import { isUuid } from "../lib/ids";
+import { PublicError } from "../lib/publicError";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import {
   otherEnd,
@@ -52,7 +53,9 @@ function friendsError(action: string, error: { code?: string; message: string })
   const hint = missing
     ? " Part of the database is missing: run supabase/run-all.sql in the Supabase SQL editor."
     : "";
-  return new Error(`Failed to ${action}: ${error.message}.${hint}`);
+  // The database's own wording names tables and columns, so it is kept for
+  // the log; the reader is told what failed and, when it is setup, the fix.
+  return new PublicError(`Failed to ${action}.${hint}`, error.message);
 }
 
 const FRIENDSHIP_COLUMNS = "id, user_id, friend_id, status, created_at, responded_at";

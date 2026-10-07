@@ -3,6 +3,7 @@ import type { AttemptSummary } from "@grade9/shared";
 import { attemptScoreValue } from "@grade9/shared";
 import { navigate } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
+import { useClaimedHistoryVersion } from "../features/auth/useHistoryClaim";
 import { formatDayTime, formatPercent, useLanguage } from "../lib/i18n";
 import { difficultyLabel, subjectLabel, testErrorText } from "../lib/testText";
 import { fetchHistory } from "../services/testsApi";
@@ -12,6 +13,8 @@ export function HistoryPage() {
   // The failure rather than its sentence, so it is shown in the current language.
   const [error, setError] = useState<unknown>(null);
   const { ready, user } = useAuth();
+  // Guest tests moved onto the account after history was read: read it again.
+  const claimedVersion = useClaimedHistoryVersion();
   const { language, t } = useLanguage();
 
   // Waits for the stored session before asking, and asks again if the account
@@ -35,13 +38,14 @@ export function HistoryPage() {
     return () => {
       active = false;
     };
-  }, [ready, user?.id]);
+  }, [ready, user?.id, claimedVersion]);
 
   if (error !== null) {
     return (
       <div className="stack">
         <h1>{t("main.history")}</h1>
-        <p className="error-banner">{testErrorText(error, t)}</p>
+        {/* An alert, so a failed load is said out loud and not only painted. */}
+        <p className="error-banner" role="alert">{testErrorText(error, t)}</p>
       </div>
     );
   }
@@ -50,7 +54,8 @@ export function HistoryPage() {
     return (
       <div className="stack">
         <h1>{t("main.history")}</h1>
-        <p>{t("history.loading")}</p>
+        {/* A status, so a screen reader says the list is on its way. */}
+        <p role="status">{t("history.loading")}</p>
       </div>
     );
   }
