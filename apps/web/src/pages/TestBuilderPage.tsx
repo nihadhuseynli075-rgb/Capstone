@@ -160,6 +160,8 @@ export function TestBuilderPage() {
   const [error, setError] = useState<{ key: TranslationKey } | { cause: unknown } | null>(null);
 
   const requestedSubject = useRouteParam("subject");
+  // The dashboard's "practise next" sends one topic along with its subject.
+  const requestedTopic = useRouteParam("topic");
 
   useEffect(() => {
     fetchCatalog()
@@ -180,12 +182,18 @@ export function TestBuilderPage() {
       catalog[0];
 
     if (first) {
-      const topics = first.topics.filter((topic) => topic.total > 0).map((topic) => topic.id);
+      const available = first.topics.filter((topic) => topic.total > 0).map((topic) => topic.id);
+      // A requested topic narrows the paper to it, but only if it still has
+      // questions; otherwise the whole subject is offered as usual.
+      const topics =
+        first.id === requestedSubject && requestedTopic && available.includes(requestedTopic)
+          ? [requestedTopic]
+          : available;
       setSubjectId(first.id);
       setTopicIds(topics);
       setDifficultyMode((current) => usableMode(first, topics, current));
     }
-  }, [catalog, requestedSubject]);
+  }, [catalog, requestedSubject, requestedTopic]);
 
   // Past results, for the last score on each topic. Waits for the session like
   // the history page does, or a signed-in student is asked about with the guest

@@ -1,0 +1,347 @@
+/*
+ * The Ascent (components/Ascent.tsx): the student's tests drawn as a ridge.
+ *
+ * Colours come from the theme tokens, so light and dark need only the few
+ * values below. The peak-to-foot gradient is the logo's: peak blue at the top
+ * shading into the wordmark's navy at the bottom.
+ */
+
+.ascent {
+  --ascent-peak: var(--brand);
+  --ascent-foot: var(--brand-strong);
+  --ascent-back: color-mix(in srgb, var(--brand) 22%, var(--surface));
+  --ascent-line: #ffffff;
+  --ascent-dot: #ffffff;
+  --ascent-flag: var(--warning);
+  --ascent-camp: var(--brand-strong);
+
+  position: relative;
+  margin: 0;
+}
+
+[data-theme="dark"] .ascent {
+  /* The navy foot disappears into a dark page, so the dark ridge runs from the
+     bright blue into a deeper one instead. */
+  --ascent-foot: #0c5a8a;
+  --ascent-back: color-mix(in srgb, var(--brand) 26%, var(--surface));
+  --ascent-camp: var(--brand);
+}
+
+.ascent-canvas {
+  position: relative;
+  height: var(--ascent-height, 200px);
+}
+
+.ascent-ridge {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.ascent-back {
+  fill: var(--ascent-back);
+}
+
+.ascent-pages {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.ascent-line {
+  fill: none;
+  stroke: var(--ascent-line);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.85;
+  /* Drawn in from left to right once, the way the climb went. */
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: ascent-draw 0.6s ease-out 0.1s forwards;
+}
+
+@keyframes ascent-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ---------------------------------------------------------------- markers */
+
+.ascent-point,
+.ascent-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+.ascent-dot {
+  display: block;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 2px solid var(--ascent-foot);
+  border-radius: 50%;
+  background: var(--ascent-dot);
+}
+
+.ascent-point.is-best .ascent-dot {
+  width: 16px;
+  height: 16px;
+  border-color: var(--ascent-flag);
+}
+
+/* The flag stands on the best point, its pole on the dot. */
+.ascent-flag {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  width: 20px;
+  height: 24px;
+  margin-bottom: -2px;
+  color: var(--ascent-flag);
+}
+
+.ascent-flag svg,
+.ascent-marker svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Base camp sits at the foot of the first test, just below and left of it,
+   on the ridge's dark fill, so it is drawn light. */
+.ascent-marker.is-camp {
+  --surface: var(--ascent-foot);
+
+  width: 22px;
+  height: 18px;
+  margin: 16px 0 0 -14px;
+  color: #ffffff;
+}
+
+/* With no tests yet it stands on the pale back range instead. */
+.ascent-marker.is-camp.is-alone {
+  --surface: #ffffff;
+
+  margin: 0;
+  color: var(--ascent-camp);
+}
+
+/* A point that opens a result: the visible dot stays small, the target is 44px. */
+button.ascent-dot {
+  position: relative;
+  cursor: pointer;
+}
+
+button.ascent-dot::before {
+  content: "";
+  position: absolute;
+  inset: -16px;
+}
+
+.ascent-tip {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  z-index: 2;
+  width: max-content;
+  max-width: 220px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.ascent-point.is-left .ascent-tip {
+  left: auto;
+  right: -8px;
+  transform: translateY(4px);
+}
+
+.ascent-point.is-right .ascent-tip {
+  left: -8px;
+  transform: translateY(4px);
+}
+
+button.ascent-dot:hover .ascent-tip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.ascent-point.is-left button.ascent-dot:hover .ascent-tip,
+.ascent-point.is-right button.ascent-dot:hover .ascent-tip {
+  transform: none;
+}
+
+@media (hover: hover) {
+  button.ascent-dot:hover {
+    transform: scale(1.25);
+  }
+}
+
+/* ---------------------------------------------------------------- variants */
+
+.ascent-compact {
+  --ascent-height: 96px;
+}
+
+.ascent-compact .ascent-dot {
+  width: 9px;
+  height: 9px;
+}
+
+.ascent-compact .ascent-point.is-best .ascent-dot {
+  width: 12px;
+  height: 12px;
+}
+
+.ascent-compact .ascent-flag {
+  width: 15px;
+  height: 18px;
+}
+
+.ascent.is-empty {
+  --ascent-height: 72px;
+}
+
+.ascent-empty {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+/* The landing page's climb: three numbered camps, words listed underneath. */
+.ascent-path {
+  --ascent-height: 100%;
+
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  height: 100%;
+}
+
+.ascent-path .ascent-canvas {
+  flex: 1;
+  min-height: 220px;
+}
+
+.ascent-dot.is-numbered {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-width: 2px;
+  color: var(--ascent-foot);
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.ascent-path .ascent-point.is-best .ascent-dot.is-numbered {
+  width: 28px;
+  height: 28px;
+}
+
+.ascent-path .ascent-flag {
+  width: 26px;
+  height: 32px;
+  margin-bottom: -4px;
+}
+
+/* One stage per line: three columns left two or three words to a line. */
+.ascent-steps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ascent-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--text);
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.ascent-step-number {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ascent-line {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .ascent-tip,
+  button.ascent-dot {
+    transition: none;
+  }
+
+  button.ascent-dot:hover {
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------- history page panel */
+
+.climb-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.climb-head h2 {
+  margin: 0;
+}
+
+/* Room above for the summit flag, which stands taller than the highest point. */
+.climb-panel .ascent-full {
+  --ascent-height: 220px;
+
+  margin-top: 30px;
+}
+
+.climb-note {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .climb-panel .ascent-full {
+    --ascent-height: 160px;
+  }
+}

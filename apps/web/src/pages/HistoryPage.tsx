@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AttemptSummary } from "@grade9/shared";
 import { attemptScoreValue } from "@grade9/shared";
 import { navigate } from "../app/router";
+import { Ascent } from "../components/Ascent";
 import { useAuth } from "../features/auth/AuthContext";
 import { useClaimedHistoryVersion } from "../features/auth/useHistoryClaim";
 import { formatDayTime, formatPercent, useLanguage } from "../lib/i18n";
@@ -16,6 +17,18 @@ export function HistoryPage() {
   // Guest tests moved onto the account after history was read: read it again.
   const claimedVersion = useClaimedHistoryVersion();
   const { language, t } = useLanguage();
+  // Which subject's climb is drawn and listed; null is every subject.
+  const [subjectFilter, setSubjectFilter] = useState<string | null>(null);
+
+  // Oldest first, the order the climb is drawn in. Sorted here rather than
+  // trusted from the API, so a store that lists newest first draws the same.
+  const chronological = useMemo(
+    () =>
+      attempts
+        ? [...attempts].sort((a, b) => Date.parse(a.submittedAt) - Date.parse(b.submittedAt))
+        : [],
+    [attempts]
+  );
 
   // Waits for the stored session before asking, and asks again if the account
   // changes. Fetching on mount alone sent the guest key while Supabase was
@@ -78,6 +91,21 @@ export function HistoryPage() {
     attemptScoreValue(attempt) > attemptScoreValue(leader) ? attempt : leader
   );
 
+  // The subjects this student has actually sat, in the order first taken, so
+  // the filter never offers a subject with nothing to show.
+  const subjectIds = [...new Set(chronological.map((attempt) => attempt.subjectId))];
+  const shown = subjectFilter
+    ? attempts.filter((attempt) => attempt.subjectId === subjectFilter)
+    : attempts;
+  const climb = chronological.filter((attempt) => !subjectFilter || attempt.subjectId === subjectFilter);
+  // The flag goes on the best of what is drawn, chosen exactly as the "best
+  // test so far" panel chooses: from the list in the API's order, the first of
+  // equals winning. Reducing over the oldest-first climb instead put the flag
+  // on a different test than the panel whenever two tests tied.
+  const climbBest = shown.reduce((leader, attempt) =>
+    attemptScoreValue(attempt) > attemptScoreValue(leader) ? attempt : leader
+  );
+
   return (
     <div className="stack">
       <section>
@@ -97,10 +125,57 @@ export function HistoryPage() {
         </p>
       </section>
 
+      <section className="panel climb-panel" aria-labelledby="climb-heading">
+        <div className="climb-head">
+          <h2 id="climb-heading">{t("history.climb")}</h2>
+
+          {/* Only worth offering once there is more than one subject to tell apart. */}
+          {subjectIds.length > 1 && (
+            <div className="chip-row climb-filter" role="group" aria-label={t("history.climb")}>
+              <button
+                type="button"
+                className={`chip ${subjectFilter === null ? "selected" : ""}`}
+                aria-pressed={subjectFilter === null}
+                onClick={() => setSubjectFilter(null)}
+              >
+                {t("history.allSubjects")}
+              </button>
+
+              {subjectIds.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`chip ${subjectFilter === id ? "selected" : ""}`}
+                  aria-pressed={subjectFilter === id}
+                  onClick={() => setSubjectFilter(id)}
+                >
+                  {subjectLabel(t, id)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Ascent
+          variant="full"
+          points={climb.map((attempt) => ({
+            id: attempt.id,
+            percent: attempt.percentage,
+            label: `${subjectLabel(t, attempt.subjectId)} · ${attempt.score}/${attempt.totalMarks} · ${formatDayTime(attempt.submittedAt, language)}`
+          }))}
+          bestId={climbBest.id}
+          emptyLabel={t("history.empty")}
+          onSelect={(id) => navigate(`/results/${id}`)}
+        />
+
+        {/* What the drawing shows, in words; the list below is every point on it. */}
+        <p className="climb-note">{t("history.climbNote")}</p>
+      </section>
+
       <section className="panel">
         <h2>{t("history.all")}</h2>
         <ul className="attempt-list">
-          {attempts.map((attempt) => (
+          {shown.map((attempt) => (
             <li key={attempt.id}>
               <button
                 type="button"
