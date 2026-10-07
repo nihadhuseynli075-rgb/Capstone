@@ -126,9 +126,9 @@ interface Page {
  * list, from the pool tests are drawn from, and from the catalog's counts. Each
  * page carries the total, so a small bank still costs one request. A page
  * shorter than asked for is not taken as the end, since the project's limit
- * could be below the page size.
+ * could be below the page size. History reads it too (see listAttempts).
  */
-async function readAllPages(
+export async function readAllPages(
   readPage: (from: number, to: number) => PromiseLike<Page>,
   task: string
 ): Promise<unknown[]> {

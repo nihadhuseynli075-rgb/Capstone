@@ -3,6 +3,7 @@ import type { AttemptSummary, DifficultyMode, TestSettings, TopicPerformance } f
 import { isUuid } from "../lib/ids";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { accountIdFor } from "./profileRepository";
+import { readAllPages } from "./questionRepository";
 
 /** Answer rows written at once when a submission is saved. */
 const ANSWER_WRITES_AT_ONCE = 8;
@@ -378,17 +379,27 @@ export async function listAttempts(
     ? "*, attempt_questions(topic_id, marks, score, is_correct)"
     : "*";
 
-  const { data, error } = await supabaseAdmin
-    .from("test_attempts")
-    .select(columns)
-    .eq("student_key", studentKey)
-    .not("submitted_at", "is", null)
-    .order("submitted_at", { ascending: false });
+  const client = supabaseAdmin;
 
-  if (error) throw new Error(`Failed to load history: ${error.message}`);
+  // Every attempt, a page at a time: a single read stops at 1,000 rows, which
+  // would drop a keen student's oldest results from history and from the
+  // personal best a new result is compared with. The id settles ties between
+  // attempts submitted in the same instant, so none lands on two pages.
+  const rows = await readAllPages(
+    (from, to) =>
+      client
+        .from("test_attempts")
+        .select(columns, { count: "exact" })
+        .eq("student_key", studentKey)
+        .not("submitted_at", "is", null)
+        .order("submitted_at", { ascending: false })
+        .order("id", { ascending: true })
+        .range(from, to),
+    "load history"
+  );
 
   // The column list is chosen at run time, so the client cannot type the rows.
-  return (data as unknown as Array<Record<string, unknown>>).map((row) => ({
+  return (rows as Array<Record<string, unknown>>).map((row) => ({
     id: row.id as string,
     subjectId: row.subject_id as string,
     topicIds: (row.topic_ids ?? []) as string[],
