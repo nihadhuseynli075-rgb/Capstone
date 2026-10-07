@@ -753,6 +753,51 @@ async function main() {
     untimedSubmit.body.timeTakenSeconds > 0 && untimedSubmit.body.timeTakenSeconds < sevenHours,
     `timeTakenSeconds ${untimedSubmit.body.timeTakenSeconds}`
   );
+  check(
+    "a figure far beyond the time the paper has been open is not believed",
+    untimedSubmit.body.timeTakenSeconds <= 120,
+    `timeTakenSeconds ${untimedSubmit.body.timeTakenSeconds}`
+  );
+
+  section("A timed paper cannot claim more than its limit");
+  // The browser once could record six hours against a five-minute test.
+  const shortKey = `${studentKey}-short`;
+  const shortTimed = await call("/api/tests/generate", {
+    method: "POST",
+    body: {
+      studentKey: shortKey,
+      subjectId: "math",
+      topicIds: ["algebra"],
+      difficultyMode: "custom",
+      questionCount: 5,
+      timeLimitMinutes: 5
+    }
+  });
+  const shortSubmit = await call(`/api/tests/${shortTimed.body.test?.id}/submit`, {
+    method: "POST",
+    body: { studentKey: shortKey, answers: [], timeTakenSeconds: 99999999 }
+  });
+  check(
+    "a five-minute test handed in at once records at most five minutes",
+    shortSubmit.status === 200 && shortSubmit.body.timeTakenSeconds <= 5 * 60,
+    `${shortSubmit.status} timeTakenSeconds ${shortSubmit.body.timeTakenSeconds}`
+  );
+
+  section("A topic named twice is one topic");
+  const repeated = await call("/api/tests/generate", {
+    method: "POST",
+    body: {
+      studentKey: `${studentKey}-repeat`,
+      subjectId: "math",
+      topicIds: ["algebra", "algebra", "algebra"],
+      difficultyMode: "easy"
+    }
+  });
+  check(
+    "the paper records the topic once",
+    repeated.status === 200 && JSON.stringify(repeated.body.test?.settings.topicIds) === JSON.stringify(["algebra"]),
+    `${repeated.status} ${JSON.stringify(repeated.body.test?.settings)}`
+  );
 
   section("Two submissions of one paper at once");
   // A second tab, or a retry racing the original. Exactly one may be kept, and
