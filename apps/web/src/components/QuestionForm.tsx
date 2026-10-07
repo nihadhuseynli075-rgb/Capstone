@@ -140,9 +140,17 @@ export function QuestionForm({
   const [type, setType] = useState<QuestionType>(initial?.type ?? "multiple-choice");
   const [prompt, setPrompt] = useState(initial?.prompt ?? "");
   const [options, setOptions] = useState<string[]>(() => paddedOptions(initial?.options ?? []));
+  // -1 is "none marked yet". A draft whose answer is not one of its options
+  // (often none have been typed) used to open with A marked, and saving after
+  // typing the options stored A as the answer without anyone choosing it.
   const [correctIndex, setCorrectIndex] = useState(() =>
-    initial ? Math.max(0, initial.options.indexOf(initial.correctAnswer)) : 0
+    initial ? initial.options.indexOf(initial.correctAnswer) : 0
   );
+  /** The answer a draft arrived with when it matches no option, shown so the right one can be marked. */
+  const unmatchedAnswer =
+    initial && initial.type === "multiple-choice" && initial.correctAnswer.trim() && !initial.options.includes(initial.correctAnswer)
+      ? initial.correctAnswer.trim()
+      : null;
   // Short answers and written questions both keep their text here: the answer
   // for one, the marking guide for the other.
   const [shortAnswer, setShortAnswer] = useState(
@@ -284,6 +292,9 @@ export function QuestionForm({
     // The button is disabled while saving, but a second press can land before
     // the page has drawn that, and would save the same question twice.
     if (submitting) return;
+    // The picture is only attached once its upload answers. Saving before then
+    // stored the question without it, ready for students, and dropped the upload.
+    if (uploading) return;
 
     setFormError(null);
 
@@ -315,7 +326,7 @@ export function QuestionForm({
       // The correct answer is stored by text, so a gap in the option list must
       // not silently shift which option is marked correct.
       if ((options[correctIndex] ?? "").trim().length === 0) {
-        fail("Mark which option is the correct answer.", "correct", correctIndex);
+        fail("Mark which option is the correct answer.", "correct", Math.max(0, correctIndex));
         return;
       }
     } else if (shortAnswer.trim().length === 0) {
@@ -428,6 +439,12 @@ export function QuestionForm({
       {type === "multiple-choice" ? (
         <fieldset className="options-fieldset">
           <legend>Options - select the correct one</legend>
+          {unmatchedAnswer !== null && (
+            <p className="panel-hint">
+              The answer recorded for this question is "{unmatchedAnswer}", which is not one of the options
+              yet. Type the options, then mark the correct one.
+            </p>
+          )}
           {options.map((option, index) => (
             <div key={index} className="option-input-row">
               {/* The radio and its letter are one label, so the whole 44px
@@ -604,8 +621,8 @@ export function QuestionForm({
       )}
 
       <div className="form-actions">
-        <button type="submit" className="primary-button" disabled={submitting}>
-          {submitting ? "Saving..." : initial ? "Save changes" : "Add question"}
+        <button type="submit" className="primary-button" disabled={submitting || uploading}>
+          {submitting ? "Saving..." : uploading ? "Uploading the diagram..." : initial ? "Save changes" : "Add question"}
         </button>
         {onCancel && (
           <button type="button" className="ghost-button" onClick={onCancel}>
