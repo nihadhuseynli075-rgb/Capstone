@@ -380,6 +380,9 @@ const en = {
   "auth.resetSending": "Sending...",
   "auth.resetSent":
     "If that email has an account, a link is on its way. Open it in this browser to choose a new password. It may take a minute, so check your spam folder too.",
+  // A reset link opened in a different browser from the one that asked for it, such as on a phone.
+  "auth.resetOtherBrowser":
+    "That link only works in the browser where you asked for it, and it cannot be used again. To choose a new password on this device, ask for a new link below, then open it in this browser.",
   "auth.rememberedIt": "Remembered it?",
   "auth.newPasswordTitle": "Choose a new password",
   "auth.newPasswordSubtitle": "This is the password you will sign in with from now on.",
@@ -948,6 +951,8 @@ const ru: Dictionary = {
   "auth.resetSending": "Отправляем...",
   "auth.resetSent":
     "Если с этой почтой есть аккаунт, ссылка уже в пути. Откройте её в этом браузере, чтобы задать новый пароль. Письмо может прийти не сразу, проверьте и папку «Спам».",
+  "auth.resetOtherBrowser":
+    "Эта ссылка работает только в том браузере, где вы её запросили, и использовать её снова нельзя. Чтобы задать новый пароль на этом устройстве, запросите новую ссылку ниже и откройте её в этом браузере.",
   "auth.rememberedIt": "Вспомнили пароль?",
   "auth.newPasswordTitle": "Задайте новый пароль",
   "auth.newPasswordSubtitle": "С этим паролем вы будете входить с этого момента.",
@@ -1496,6 +1501,8 @@ const az: Dictionary = {
   "auth.resetSending": "Göndərilir...",
   "auth.resetSent":
     "Bu e-poçtla hesab varsa, link yoldadır. Yeni şifrə seçmək üçün onu bu brauzerdə açın. Məktub bir az gecikə bilər, «Spam» qovluğunu da yoxlayın.",
+  "auth.resetOtherBrowser":
+    "Bu link yalnız onu istədiyiniz brauzerdə işləyir və onu yenidən istifadə etmək olmaz. Bu cihazda yeni şifrə seçmək üçün aşağıda yeni link istəyin və onu bu brauzerdə açın.",
   "auth.rememberedIt": "Yadınıza düşdü?",
   "auth.newPasswordTitle": "Yeni şifrə seçin",
   "auth.newPasswordSubtitle": "Bundan sonra bu şifrə ilə daxil olacaqsınız.",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { replaceRoute } from "../../app/router";
 import { useLanguage } from "../../lib/i18n";
@@ -19,10 +19,32 @@ import { emailProblem, passwordProblem } from "./authValidation";
  * AuthContext) and brings them back here, now signed in, to choose the new
  * password. A student who was already signed in and comes here gets the same
  * form, which is the same change the profile page makes.
+ *
+ * Only the browser that asked for the link can use it. Opened in another one
+ * (the email read on a phone), it cannot sign in there, and the page says why
+ * above the form, which sends a link that will work there.
  */
 export function ResetPasswordPage() {
   const { t } = useLanguage();
-  const { user, configured, requestPasswordReset, updatePassword, clearPasswordRecovery } = useAuth();
+  const {
+    user,
+    configured,
+    requestPasswordReset,
+    updatePassword,
+    clearPasswordRecovery,
+    redirectResult,
+    clearRedirectResult
+  } = useAuth();
+
+  // Kept here once read, so the note stays while the student fills the form in.
+  const [openedElsewhere, setOpenedElsewhere] = useState(false);
+
+  useEffect(() => {
+    if (redirectResult?.errorCode === "other-browser") {
+      setOpenedElsewhere(true);
+      clearRedirectResult();
+    }
+  }, [redirectResult, clearRedirectResult]);
 
   return user ? (
     <NewPasswordForm
@@ -32,17 +54,25 @@ export function ResetPasswordPage() {
       }}
     />
   ) : (
-    <RequestLinkForm configured={configured} onRequest={requestPasswordReset} t={t} />
+    <RequestLinkForm
+      configured={configured}
+      onRequest={requestPasswordReset}
+      openedElsewhere={openedElsewhere}
+      t={t}
+    />
   );
 }
 
 function RequestLinkForm({
   configured,
   onRequest,
+  openedElsewhere,
   t
 }: {
   configured: boolean;
   onRequest: (email: string) => Promise<void>;
+  /** The page was opened by a reset link that only works in another browser. */
+  openedElsewhere: boolean;
   t: ReturnType<typeof useLanguage>["t"];
 }) {
   const [email, setEmail] = useState("");
@@ -89,6 +119,13 @@ function RequestLinkForm({
       {!configured && (
         <p className="warning-banner" role="status">
           {t("profile.errNotConfigured")}
+        </p>
+      )}
+
+      {/* Until a new link is sent, whose own banner says to open it in this browser. */}
+      {openedElsewhere && !sent && (
+        <p className="error-banner" role="alert">
+          {t("auth.resetOtherBrowser")}
         </p>
       )}
 

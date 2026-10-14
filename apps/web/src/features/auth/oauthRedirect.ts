@@ -35,8 +35,12 @@ export interface AuthRedirectResult {
   intent: AuthRedirectIntent;
   /** Null when it worked; otherwise why not, worded for the student, in English. */
   error: string | null;
-  /** The same reason as a code, for a page that words it in the student's own language. */
-  errorCode: "otp_expired" | "identity_already_exists" | "access_denied" | null;
+  /**
+   * The same reason as a code, for a page that words it in the student's own
+   * language. "other-browser" is a password reset link opened in a browser
+   * that cannot use it (see finishAuthRedirect).
+   */
+  errorCode: "otp_expired" | "identity_already_exists" | "access_denied" | "other-browser" | null;
 }
 
 interface PendingRedirect {
@@ -127,6 +131,19 @@ export function signUpRedirectUrl(returnTo?: string): string {
 /** The page a sign-up confirmation link was carrying, read before anything tidies the address. */
 const signUpNext = new URLSearchParams(window.location.search).get(NEXT_PARAMETER);
 
+/**
+ * Whether this page load is a password reset link come back with its
+ * "?code=", read before anything tidies the address. Its route survives the
+ * trip (see requestPasswordReset), which is how it is told from the others.
+ */
+let resetLinkCode =
+  new URLSearchParams(window.location.search).has("code") &&
+  window.location.hash.split("?")[0] === "#/reset-password";
+
+/** Why a reset link did nothing here, for a page that only prints the English (see AuthRedirectResult). */
+const OTHER_BROWSER_MESSAGE =
+  "That link only works in the browser where you asked for it, and it cannot be used again. Ask for a new link here, then open it in this browser.";
+
 /** Notes, before leaving for Google, what the trip is for and where it should end. */
 export function rememberAuthRedirect(intent: PendingRedirect["intent"], returnTo?: string): void {
   try {
@@ -169,12 +186,43 @@ function takePendingRedirect(): PendingRedirect | null {
  * Returns how it went, for the page they land on to report, or null when
  * there is nothing to report: the page was not opened by a redirect, or it
  * was an email link that worked. A sign-up confirmation goes on to the page
- * that asked for the sign-up; any other email link lands where it pointed.
+ * that asked for the sign-up; a password reset link this browser could not
+ * use stays on the reset page to say so; any other email link lands where it
+ * pointed.
  */
 export function finishAuthRedirect(outcome: {
   signedIn: boolean;
   error: AuthError | null;
 }): AuthRedirectResult | null {
+  if (resetLinkCode) {
+    resetLinkCode = false;
+
+    // The code a reset link brings back can only be swapped for a session by
+    // the browser that asked for the email, which kept the other half of it
+    // (see hasStoredCodeVerifier). Swapped, the student is signed in and the
+    // client has taken it out of the address. Opened anywhere else -- the
+    // email read on a phone, say -- the browser has no other half, or one
+    // from some other request that the server turns down, and the code is
+    // worth nothing there or anywhere: Supabase used the link up on the way.
+    // That used to show the plain request form, with the code left in the
+    // address and no word of why; the reset page now says so, above the form
+    // that sends a link which will work there. Other failures go on as before.
+    const unused = !outcome.signedIn || new URLSearchParams(window.location.search).has("code");
+    const elsewhere =
+      outcome.error === null ||
+      outcome.error.code === "bad_code_verifier" ||
+      outcome.error.code === "pkce_code_verifier_not_found";
+
+    if (unused && elsewhere) {
+      openedByRedirect = false;
+      forgetAuthRedirect();
+      replaceRoute("/reset-password");
+      // Someone already signed in here is shown the form for choosing a new
+      // password instead, which needs no link.
+      return outcome.signedIn ? null : { intent: "email-link", error: OTHER_BROWSER_MESSAGE, errorCode: "other-browser" };
+    }
+  }
+
   if (!openedByRedirect) {
     // A sign-up confirmation opened in another browser than the one that
     // signed up. Supabase has confirmed the address, but the code it sent back
