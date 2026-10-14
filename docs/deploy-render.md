@@ -58,7 +58,7 @@ Why these, in case they look odd:
 | `ADMIN_PASSWORD` | a real password. Blank keeps the admin dashboard shut in production |
 | `WEB_ORIGIN` | `https://placeholder.invalid` for now; fixed in step 3 |
 | `TRUST_PROXY` | `1` |
-| `ANTHROPIC_API_KEY` | optional; without it, written questions are left out of tests |
+| `GEMINI_API_KEY` | optional; without it, written questions are left out of tests |
 | `SUPABASE_IMAGE_BUCKET` | optional, defaults to `question-images` |
 | `SUPABASE_AVATAR_BUCKET` | optional, defaults to `avatars` |
 

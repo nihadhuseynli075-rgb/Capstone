@@ -68,11 +68,11 @@ function runSharedSmoke(apiUrl) {
 }
 
 /**
- * A stand-in for the Claude API, so written answers are marked end to end
+ * A stand-in for the Gemini API, so written answers are marked end to end
  * without calling (or paying for) the real one. The API finds it through
- * ANTHROPIC_BASE_URL, which the SDK reads. It gives every answer the score
- * named in it ("SCORE:2"), and fails with a 500 for any answer saying
- * "MARKER DOWN", which the SDK retries and then gives up on.
+ * GEMINI_BASE_URL. It gives every answer the score named in it ("SCORE:2"),
+ * and fails with a 500 for any answer saying "MARKER DOWN", which the API
+ * retries and then gives up on.
  */
 async function startFakeMarker() {
   const requests = [];
@@ -82,26 +82,26 @@ async function startFakeMarker() {
     request.on("end", () => {
       const body = JSON.parse(raw || "{}");
       requests.push({ path: request.url, headers: request.headers, body });
-      const text = body.messages?.[0]?.content?.at(-1)?.text ?? "";
+      const text = body.contents?.[0]?.parts?.at(-1)?.text ?? "";
       const answer = /<student_answer>\n([\s\S]*?)\n<\/student_answer>/.exec(text)?.[1] ?? "";
 
       if (answer.includes("MARKER DOWN")) {
         response.writeHead(500, { "content-type": "application/json" });
-        return response.end(JSON.stringify({ type: "error", error: { type: "api_error", message: "down" } }));
+        return response.end(JSON.stringify({ error: { code: 500, message: "down", status: "INTERNAL" } }));
       }
 
       const score = Number(/SCORE:(\d+)/.exec(answer)?.[1] ?? 0);
       response.writeHead(200, { "content-type": "application/json" });
       response.end(
         JSON.stringify({
-          id: `msg_fake_${requests.length}`,
-          type: "message",
-          role: "assistant",
-          model: body.model,
-          content: [{ type: "text", text: JSON.stringify({ score, feedback: `Fake feedback for a ${score}.` }) }],
-          stop_reason: "end_turn",
-          stop_sequence: null,
-          usage: { input_tokens: 100, output_tokens: 20 }
+          candidates: [
+            {
+              finishReason: "STOP",
+              content: { role: "model", parts: [{ text: JSON.stringify({ score, feedback: `Fake feedback for a ${score}.` }) }] }
+            }
+          ],
+          usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 20 },
+          modelVersion: /models\/([^:]+):/.exec(request.url ?? "")?.[1] ?? "unknown"
         })
       );
     });
@@ -132,8 +132,8 @@ async function main() {
       SUPABASE_SERVICE_ROLE_KEY: "standin-service-role-key",
       API_PORT: String(apiPort),
       ADMIN_PASSWORD,
-      ANTHROPIC_API_KEY: "smoke-fake-key",
-      ANTHROPIC_BASE_URL: marker.url
+      GEMINI_API_KEY: "smoke-fake-key",
+      GEMINI_BASE_URL: marker.url
     },
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -613,19 +613,20 @@ async function main() {
     const markerCall = marker.requests[markedCallsBefore];
     check("the marker was asked once", marker.requests.length === markedCallsBefore + 1);
     check(
-      "as claude-opus-5-5, with the key",
-      markerCall?.body.model === "claude-opus-5-5" && markerCall?.headers["x-api-key"] === "smoke-fake-key"
+      "as gemini-3.8-flash, with the key",
+      markerCall?.path === "/v1beta/models/gemini-3.8-flash:generateContent" &&
+        markerCall?.headers["x-goog-api-key"] === "smoke-fake-key",
+      markerCall?.path
     );
-    check("with the Grade 9 teacher prompt", /Grade 9 teacher/.test(markerCall?.body.system ?? ""));
     check(
-      "with refusal fallbacks on",
-      markerCall?.body.fallbacks === "default" &&
-        /server-side-fallback-2026-07-01/.test(markerCall?.headers["anthropic-beta"] ?? "")
+      "with the Grade 9 teacher prompt",
+      /Grade 9 teacher/.test(markerCall?.body.systemInstruction?.parts?.[0]?.text ?? "")
     );
     check(
       "and a structured score to return",
-      markerCall?.body.output_config?.format?.type === "json_schema",
-      JSON.stringify(markerCall?.body.output_config)
+      markerCall?.body.generationConfig?.responseMimeType === "application/json" &&
+        markerCall?.body.generationConfig?.responseJsonSchema?.type === "object",
+      JSON.stringify(markerCall?.body.generationConfig)
     );
 
     const [storedWritten] = await rows("attempt_questions", `?attempt_id=eq.${markedPaper.id}`);

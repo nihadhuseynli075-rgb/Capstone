@@ -74,7 +74,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
         {
           heading: "Written answers and AI marking",
           paragraphs: [
-            "Some questions ask you to write an answer in your own words. To mark it, your answer and the question are sent to an AI marking service (Claude, made by Anthropic). Your name and email address are not sent with them."
+            "Some questions ask you to write an answer in your own words. To mark it, your answer and the question are sent to an AI marking service (Gemini, made by Google). Your name and email address are not sent with them."
           ]
         },
         {
@@ -170,7 +170,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
         {
           heading: "Письменные ответы и проверка с помощью ИИ",
           paragraphs: [
-            "В некоторых заданиях нужно написать ответ своими словами. Чтобы его проверить, ваш ответ и само задание отправляются в сервис проверки на основе ИИ (Claude от компании Anthropic). Ваше имя и адрес почты вместе с ними не отправляются."
+            "В некоторых заданиях нужно написать ответ своими словами. Чтобы его проверить, ваш ответ и само задание отправляются в сервис проверки на основе ИИ (Gemini от компании Google). Ваше имя и адрес почты вместе с ними не отправляются."
           ]
         },
         {
@@ -266,7 +266,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
         {
           heading: "Yazılı cavablar və süni intellektlə yoxlama",
           paragraphs: [
-            "Bəzi suallarda cavabı öz sözlərinizlə yazmaq lazımdır. Onu yoxlamaq üçün cavabınız və sualın özü süni intellektlə yoxlama xidmətinə (Anthropic şirkətinin Claude xidməti) göndərilir. Adınız və e-poçt ünvanınız onlarla birlikdə göndərilmir."
+            "Bəzi suallarda cavabı öz sözlərinizlə yazmaq lazımdır. Onu yoxlamaq üçün cavabınız və sualın özü süni intellektlə yoxlama xidmətinə (Google şirkətinin Gemini xidməti) göndərilir. Adınız və e-poçt ünvanınız onlarla birlikdə göndərilmir."
           ]
         },
         {

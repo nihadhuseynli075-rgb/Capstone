@@ -521,7 +521,7 @@ export function AdminPage() {
         {!writtenMarking && (bank ? bank.written > 0 : questions.some((question) => question.type === "open-ended")) && (
           <p className="warning-banner">
             AI marking is not set up, so written (open-ended) questions are kept out of tests until it
-            is. Add ANTHROPIC_API_KEY to <code>.env</code> and restart the API to switch it on.
+            is. Add GEMINI_API_KEY to <code>.env</code> and restart the API to switch it on.
           </p>
         )}
 

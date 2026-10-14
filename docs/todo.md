@@ -56,7 +56,7 @@ Next session: **Saturday 3 October, 4:30pm Nihad's time (Baku)**, 30 minutes.
 - [x] Phone header and an icon-tile dashboard, as a first version for Nihad to
       build on.
 - [x] Written answers marked by the AI (migration 0009). This needs
-      `ANTHROPIC_API_KEY` in `.env`; without it, written questions are never served.
+      `GEMINI_API_KEY` in `.env`; without it, written questions are never served.
 - [ ] **Pictures for questions.** 11 questions across the two papers are held
       back for their diagrams. Upload them through the admin form or a seed
       that uses Storage. Use Storage rather than data URLs, because the AI

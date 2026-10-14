@@ -67,7 +67,9 @@ export const env = {
    * Without it written questions are simply never put in a test, so nobody
    * sits a question that cannot be marked.
    */
-  anthropicApiKey: optional("ANTHROPIC_API_KEY"),
+  geminiApiKey: optional("GEMINI_API_KEY"),
+  /** Where the Gemini API lives. Only changed by the smoke test, to point at a stand-in. */
+  geminiBaseUrl: optional("GEMINI_BASE_URL") ?? "https://generativelanguage.googleapis.com",
   /**
    * How many proxies sit in front of the API, for Express's "trust proxy".
    *
@@ -80,7 +82,7 @@ export const env = {
   trustProxyHops: Math.max(0, Math.trunc(Number(optional("TRUST_PROXY") ?? 0)) || 0)
 };
 
-export const writtenMarkingEnabled = Boolean(env.anthropicApiKey);
+export const writtenMarkingEnabled = Boolean(env.geminiApiKey);
 
 export const supabaseConfigured = Boolean(env.supabaseUrl && env.supabaseServiceRoleKey);
 
