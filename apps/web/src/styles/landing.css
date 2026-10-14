@@ -103,10 +103,16 @@
   position: relative;
   overflow: hidden;
   padding: clamp(30px, 5vw, 54px);
-  /* Dark enough behind the small white text to clear 4.5:1 everywhere. */
+  /*
+   * Dark enough behind the small white text to clear 4.5:1 everywhere, the
+   * glow included. On a phone the label and the first lines of the intro run
+   * the whole width, under the glow, and with the old start (#0b78bd) and a
+   * stronger glow they fell to 3.8:1. The start is now the text blue the
+   * buttons use, and the glow is lighter.
+   */
   background:
-    radial-gradient(circle at 90% 12%, rgba(255, 255, 255, 0.14), transparent 14rem),
-    linear-gradient(145deg, #0b78bd 0%, #0a6aa6 62%, #085a8e 100%);
+    radial-gradient(circle at 90% 12%, rgba(255, 255, 255, 0.1), transparent 14rem),
+    linear-gradient(145deg, #0a70ad 0%, #0a6aa6 62%, #085a8e 100%);
   color: #ffffff;
   /* The headline is sized against this box, not the window: see :lang below. */
   container-type: inline-size;
@@ -118,9 +124,11 @@
   outline-color: #ffffff;
 }
 
+/* The small words on the blue are solid white: a see-through white takes on
+   the blue behind it and loses the contrast the background was chosen for. */
 .landing-label {
   margin: 0 0 16px;
-  color: rgba(255, 255, 255, 0.92);
+  color: #ffffff;
   font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.16em;
@@ -162,7 +170,7 @@
 
 .landing-intro p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.94);
+  color: #ffffff;
   font-size: 16px;
   line-height: 1.65;
 }
@@ -203,7 +211,7 @@
 }
 
 .landing-cta-note {
-  color: rgba(255, 255, 255, 0.92);
+  color: #ffffff;
   font-size: 13px;
 }
 

@@ -24,7 +24,7 @@
 }
 
 [data-theme="dark"] .dashboard {
-  --tile-blue: linear-gradient(135deg, #0c82c8, #0a3a58);
+  --tile-blue: linear-gradient(135deg, #0a70ad, #0a3a58);
 }
 
 /* ----------------------------------------------------------------- tiles */

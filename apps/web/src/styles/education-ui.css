@@ -263,14 +263,19 @@ textarea:focus-visible {
   padding: 28px 30px;
   border-radius: var(--ui-radius-lg);
   background:
-    radial-gradient(circle at 88% 8%, rgba(255, 255, 255, 0.22), transparent 12rem),
+    radial-gradient(circle at 88% 8%, rgba(255, 255, 255, 0.1), transparent 12rem),
     linear-gradient(135deg, #0b74b5, #0a5f95);
   color: #ffffff;
   box-shadow: 0 18px 42px rgba(12, 130, 200, 0.19);
 }
 
+/*
+ * Solid white, and the glow above kept faint: the line is small, and on a
+ * phone, in Russian or Azerbaijani, it runs right under the glow. A see-through
+ * white over a stronger glow came to 4.1:1, under the 4.5:1 it needs.
+ */
 .main-greeting .eyebrow {
-  color: rgba(255, 255, 255, 0.92);
+  color: #ffffff;
 }
 
 .main-greeting h1 {
@@ -572,8 +577,10 @@ textarea:focus-visible {
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
 
+/* From the text blue rather than the logo's (#0c82c8), where even solid white
+   is only 4.2:1 behind the small line at the top. */
 [data-theme="dark"] .main-greeting {
-  background: linear-gradient(135deg, #0c82c8, #0a3a58);
+  background: linear-gradient(135deg, #0a70ad, #0a3a58);
 }
 
 /* --------------------------------------------------------------- responsive */
@@ -677,7 +684,7 @@ textarea:focus-visible {
   background:
     radial-gradient(
       circle at 88% 8%,
-      rgba(255, 255, 255, 0.18),
+      rgba(255, 255, 255, 0.1),
       transparent 12rem
     ),
     linear-gradient(
