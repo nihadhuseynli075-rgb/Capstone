@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import type { AttemptComparison, QuestionReview, TopicPerformance } from "@grade9/shared";
 import { navigate, replaceRoute } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
+import { SignInAgainButton } from "../features/auth/SignInAgainButton";
 import { fill } from "../features/friends/fill";
+import { needsSignInAgain } from "../features/profile/profileText";
 import { loadLastResult } from "../lib/examSession";
 import { formatPercent, useLanguage, type TranslationKey } from "../lib/i18n";
 import { difficultyLabel, subjectLabel, testErrorText, topicLabel } from "../lib/testText";
@@ -212,8 +214,12 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
     return (
       <div className="stack">
         <h1>{t("results.title")}</h1>
-        {/* An alert, so a failed load is said out loud and not only painted. */}
-        <p className="error-banner" role="alert">{testErrorText(error, t, "test.errNotSubmitted")}</p>
+        {/* An alert, so a failed load is said out loud and not only painted.
+            A sign-in that has ended said "sign in again" with nothing to
+            press, so it comes with the way to do it, as on the friends page. */}
+        <p className="error-banner" role="alert">
+          {testErrorText(error, t, "test.errNotSubmitted")} {needsSignInAgain(error) && <SignInAgainButton />}
+        </p>
         <button type="button" className="ghost-button" onClick={() => navigate("/history")}>
           {t("results.backToHistory")}
         </button>
