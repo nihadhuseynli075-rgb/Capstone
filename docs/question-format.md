@@ -20,7 +20,7 @@ imported in one paste, rather than typed into the form question by question.
 | `correct_answer` | yes      | The letter (`A` to `E`, in capitals or not) or the full answer text.    |
 | `marks`          | no       | What the question is worth, e.g. `3`. A whole number from 1 to 100. Defaults to `1` if blank. |
 | `explanation`    | no       | Why the answer is right. Shown to the student after the test. |
-| `image_url`      | no       | Link to a diagram. Leave blank and attach the picture through the admin form instead. |
+| `image_url`      | no       | A full link to the diagram, starting with `https://`. Leave blank and attach the picture through the admin form instead (see [Pictures](#pictures)). |
 | `paper_year`     | no       | e.g. `2024`.                                                |
 | `source`         | no       | e.g. `2024 final paper 1`.                                  |
 
@@ -116,10 +116,11 @@ A row is reported and skipped, with the rest of the paste still importing, when
 not one of the three subjects (a new subject would appear in front of students
 with no way to filter it in the dashboard), when a
 multiple-choice row has fewer than two options, when `correct_answer` matches
-none of them, or when `difficulty` or `marks` is filled in with something
-unusable. Subject and topic are checked per row, not just as columns: the
-builder filters on both, so a question missing either could never appear in a
-test. A translation that does not fit its question (the wrong number of
+none of them, when `difficulty` or `marks` is filled in with something
+unusable, or when `image_url` is not a full `https://` link. Subject and topic
+are checked per row, not just as columns: the builder filters on both, so a
+question missing either could never appear in a test. A translation that does
+not fit its question (the wrong number of
 options, translated options with no question text, or a subject that does not
 follow the site language) skips the row too.
 
@@ -162,7 +163,22 @@ quote opened on instead of quietly merging the rows after it.
 
 Questions with diagrams are the fiddly ones. Two options:
 
-- Crop the image, upload it somewhere reachable, and put the link in `image_url`.
 - Leave `image_url` empty, import the row, then find the question in
-  **All questions**, press **Edit** and attach the picture there. This is usually
-  easier for a handful of questions.
+  **All questions**, press **Edit** and attach the picture there. The picture
+  goes into the project's own storage. This is usually the easier way, and the
+  only one for a picture that is a file on your computer.
+- Crop the image, put it online somewhere anyone can open it, and put its full
+  link in `image_url`: `https://` followed by the address of the picture itself
+  (it opens as just the picture in a browser), not of a page that shows it.
+
+A file name such as `diagram1.png` is not a link, so a row with one (or with a
+link that does not start with `https://`) is reported and skipped rather than
+imported with a picture students would see broken. Links into the project's own
+Supabase storage are taken as they are.
+
+For a written (open-ended) question, the AI marker is sent the picture too.
+The API fetches it only from the project's storage or from an `https://`
+address on the public internet, never from an address inside a private
+network, and only a picture of at most 5 MB, served as an image and without a
+redirect. A picture it cannot fetch leaves the written answer unmarked rather
+than marked without it, so check that the link opens the picture itself.

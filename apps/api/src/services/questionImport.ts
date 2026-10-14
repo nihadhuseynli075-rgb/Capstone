@@ -1,5 +1,6 @@
 import type { Difficulty, QuestionDraft, QuestionTranslation, QuestionTranslations, QuestionType } from "@grade9/shared";
 import { markLimits, paperYearLimits, repeatedOption, subjects, testScopeLimits, topicIdFor } from "@grade9/shared";
+import { httpsPicturesOnly, pictureLinkProblem, quotedLink, type PictureLinkRules } from "./pictureLinks";
 import { languageNames, translationProblems } from "./questionTranslations";
 
 /**
@@ -375,7 +376,13 @@ function parseWholeNumber(raw: string): number {
   return /^\d+$/.test(raw) ? Number(raw) : Number.NaN;
 }
 
-export function importQuestionsFromCsv(csv: string): ImportResult {
+/**
+ * `pictureLinks` says which image_url values are links to a picture, as the
+ * admin form's own save does (see pictureLinks.ts). Without it only https://
+ * links are taken.
+ */
+export function importQuestionsFromCsv(csv: string, options: { pictureLinks?: PictureLinkRules } = {}): ImportResult {
+  const pictureLinks = options.pictureLinks ?? httpsPicturesOnly;
   const { rows, unterminatedRow } = readSheetRows(csv);
   const drafts: QuestionDraft[] = [];
   const draftRows: number[] = [];
@@ -561,6 +568,22 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       return;
     }
 
+    // A link to the picture, never the picture's file name. "diagram1.png"
+    // imported as ready showed students a broken picture, and a written
+    // answer on it could never be marked.
+    const imageUrl = cell(row, "imageUrl") || null;
+    const pictureProblem = imageUrl === null ? null : pictureLinkProblem(imageUrl, pictureLinks);
+    if (imageUrl !== null && pictureProblem !== null) {
+      errors.push({
+        row: rowNumber,
+        message:
+          pictureProblem === "inline-with-storage"
+            ? "image_url holds a picture itself (a data: link), which only works while no Supabase storage is connected. Leave image_url empty and add the picture in the admin form."
+            : `image_url "${quotedLink(imageUrl)}" is not a full link starting with https://. Put the picture's full link there, or leave image_url empty and add the picture in the admin form.`
+      });
+      return;
+    }
+
     const draftOptions = type === "multiple-choice" ? options : [];
 
     // The other languages, each only if the sheet gave it something. A language
@@ -623,7 +646,7 @@ export function importQuestionsFromCsv(csv: string): ImportResult {
       correctAnswer,
       marks,
       explanation: cell(row, "explanation"),
-      imageUrl: cell(row, "imageUrl") || null,
+      imageUrl,
       paperYear,
       source: cell(row, "source") || null,
       translations

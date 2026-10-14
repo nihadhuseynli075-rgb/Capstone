@@ -510,6 +510,71 @@ describe("five options (DIM papers run A to E)", () => {
   });
 });
 
+describe("image_url", () => {
+  const sheet = "subject,topic,question,correct_answer,image_url";
+
+  test("a file name, a script or a link that is not https skips its row, naming the value", () => {
+    const csv = [
+      sheet,
+      "math,geometry,Q1,4,diagram1.png",
+      "english,reading,Q2,1 mark,picture 3.jpg",
+      "math,geometry,Q3,4,javascript:alert(1)",
+      "math,geometry,Q4,4,http://127.0.0.1:54775/internal-only",
+      "math,geometry,Q5,4,https://example.com/q5.png",
+      "math,geometry,Q6,4,"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(
+      errors.map((error) => error.row),
+      [2, 3, 4, 5]
+    );
+    assert.equal(
+      errors[0].message,
+      'image_url "diagram1.png" is not a full link starting with https://. Put the picture\'s full link there, or leave image_url empty and add the picture in the admin form.'
+    );
+    assert.deepEqual(
+      drafts.map((draft) => [draft.prompt, draft.imageUrl]),
+      [
+        ["Q5", "https://example.com/q5.png"],
+        ["Q6", null]
+      ]
+    );
+  });
+
+  test("links into the project's storage, and pictures kept inline without storage, follow the rules given", () => {
+    const rules = { supabaseOrigin: "http://127.0.0.1:54321", allowInlinePictures: true };
+    const csv = [
+      sheet,
+      "math,geometry,Q1,4,http://127.0.0.1:54321/storage/v1/object/public/question-images/a.png",
+      'math,geometry,Q2,4,"data:image/png;base64,iVBORw0KGgo="',
+      "math,geometry,Q3,4,http://127.0.0.1:9999/a.png"
+    ].join("\n");
+
+    const memory = importQuestionsFromCsv(csv, { pictureLinks: rules });
+    assert.deepEqual(
+      memory.drafts.map((draft) => draft.prompt),
+      ["Q1", "Q2"]
+    );
+    assert.deepEqual(
+      memory.errors.map((error) => error.row),
+      [4]
+    );
+
+    const withStorage = importQuestionsFromCsv(csv, { pictureLinks: { ...rules, allowInlinePictures: false } });
+    assert.deepEqual(
+      withStorage.errors.map((error) => error.row),
+      [3, 4]
+    );
+    assert.match(withStorage.errors[0].message, /^image_url holds a picture itself \(a data: link\)/);
+  });
+
+  test("a very long value is cut short in the message", () => {
+    const { errors } = importQuestionsFromCsv(`${sheet}\nmath,geometry,Q1,4,${"x".repeat(500)}.png`);
+    assert.ok(errors[0].message.length < 250, errors[0].message);
+  });
+});
+
 describe("importQuestionsFromCsv topic length", () => {
   test("a topic longer than a test can ask for is reported, not saved", () => {
     const long = "a".repeat(101);

@@ -1,6 +1,12 @@
+import { lookup } from "node:dns/promises";
+import http from "node:http";
+import https from "node:https";
+import { isIP, type LookupFunction } from "node:net";
 import { subjectName, topicName } from "@grade9/shared";
 import { env } from "../lib/env";
 import type { AttemptQuestion } from "../repositories/attemptRepository";
+import { originOf } from "./pictureLinks";
+import { isPublicAddress } from "./publicAddress";
 
 /**
  * Marks written (open-ended) answers with Gemini, acting as a Grade 9 teacher.
@@ -84,14 +90,171 @@ function geminiClient(apiKey: string, baseUrl: string): MarkerClient {
     },
 
     async loadImage(url) {
-      const response = await fetch(url, { signal: AbortSignal.timeout(20_000) });
-      const mimeType = response.headers.get("content-type")?.split(";")[0].trim() ?? "";
-      if (!response.ok || !mimeType.startsWith("image/")) {
-        throw new Error(`The question's picture could not be loaded (${response.status} ${mimeType}).`);
-      }
-      return { mimeType, data: Buffer.from(await response.arrayBuffer()).toString("base64") };
+      return loadQuestionImage(url);
     }
   };
+}
+
+/** The largest picture fetched for the marker. A bigger one is abandoned part way, not read to the end. */
+export const MAX_PICTURE_BYTES = 5 * 1024 * 1024;
+const PICTURE_TIMEOUT_MS = 20_000;
+
+/** A picture kept in the question itself, as the upload gives one when no storage is connected. */
+const INLINE_PICTURE = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/;
+
+/** Every address a host name has. */
+export type HostResolver = (hostname: string) => Promise<Array<{ address: string; family: number }>>;
+
+const systemResolver: HostResolver = (hostname) => lookup(hostname, { all: true, verbatim: true });
+
+/** Where a question's picture may be fetched from. */
+export interface PictureSources {
+  /** The Supabase project's origin, whose storage holds every picture the admin form uploads. */
+  supabaseOrigin: string | null;
+  /** Looks host names up: the system's resolver unless a test stands in for it. */
+  resolve?: HostResolver;
+}
+
+/**
+ * A question's picture as Gemini takes it, fetched only from where a
+ * question's picture can properly be.
+ *
+ * The link is whatever the question was saved with, and it is fetched each
+ * time a student hands in a written answer on it. Fetching any link at all
+ * had the server request whatever address it was given, one inside its own
+ * network included, held open for 20 seconds and read to the end however big.
+ * Now:
+ *
+ * - a picture kept in the question (data:) is read here, with nothing fetched;
+ * - the project's own storage, where the admin form puts every upload, is
+ *   fetched as configured, whatever its scheme (the local stand-in is http);
+ * - any other host must be https://, and every address it resolves to public,
+ *   checked by the lookup the connection itself makes, so the name cannot
+ *   answer one way for the check and another for the request.
+ *
+ * Redirects are not followed, the reply must be an image, and the download is
+ * abandoned once it passes 5 MB. Anything refused throws, which leaves the
+ * written answer unmarked rather than marked without its picture (see
+ * userParts).
+ */
+export async function loadQuestionImage(
+  link: string,
+  sources: PictureSources = { supabaseOrigin: originOf(env.supabaseUrl) }
+): Promise<{ mimeType: string; data: string }> {
+  const inline = INLINE_PICTURE.exec(link);
+  if (inline) {
+    const bytes = Buffer.from(inline[2], "base64");
+    if (bytes.length > MAX_PICTURE_BYTES) throw new Error("The picture kept in the question is larger than 5 MB.");
+    return { mimeType: inline[1], data: bytes.toString("base64") };
+  }
+
+  let url: URL;
+  try {
+    url = new URL(link);
+  } catch {
+    throw new Error("The question's picture link is not a full link, so it was not fetched.");
+  }
+
+  if (sources.supabaseOrigin !== null && url.origin === sources.supabaseOrigin) return downloadPicture(url);
+
+  if (url.protocol !== "https:") {
+    throw new Error(`The question's picture is not on an https:// address (${url.protocol}), so it was not fetched.`);
+  }
+
+  // An address written into the link is connected to as it is, with no
+  // lookup for publicOnlyLookup to check, so it is checked here.
+  const host = url.hostname.replace(/^\[|\]$/g, "");
+  if (isIP(host) !== 0 && !isPublicAddress(host)) {
+    throw new Error(`The question's picture is on a private or reserved address (${host}), so it was not fetched.`);
+  }
+
+  return downloadPicture(url, publicOnlyLookup(sources.resolve ?? systemResolver));
+}
+
+/**
+ * A lookup for the connection that refuses a host when any address it has is
+ * not public (see isPublicAddress). It is the lookup the request connects
+ * with, so there is no second lookup for the name to answer differently.
+ */
+export function publicOnlyLookup(resolve: HostResolver): LookupFunction {
+  return (hostname, options, callback) => {
+    const refuse = (message: string) => {
+      const error: NodeJS.ErrnoException = new Error(message);
+      error.code = "ENOTFOUND";
+      callback(error, "");
+    };
+
+    resolve(hostname).then(
+      (found) => {
+        const refused = found.find((entry) => !isPublicAddress(entry.address));
+        if (refused) {
+          refuse(`${hostname} resolves to ${refused.address}, which is not a public address, so the picture was not fetched.`);
+          return;
+        }
+
+        const family = options.family === 6 || options.family === "IPv6" ? 6 : options.family === 4 || options.family === "IPv4" ? 4 : 0;
+        const usable = family === 0 ? found : found.filter((entry) => entry.family === family);
+        if (usable.length === 0) {
+          refuse(`${hostname} has no address to fetch the picture from.`);
+        } else if (options.all) {
+          callback(null, usable);
+        } else {
+          callback(null, usable[0].address, usable[0].family);
+        }
+      },
+      (error: NodeJS.ErrnoException) => callback(error, "")
+    );
+  };
+}
+
+/** Fetches a picture: a 2xx reply with an image type, of at most 5 MB, with no redirect followed. */
+function downloadPicture(url: URL, lookup?: LookupFunction): Promise<{ mimeType: string; data: string }> {
+  return new Promise((resolve, reject) => {
+    const options: https.RequestOptions = {
+      headers: { accept: "image/*" },
+      signal: AbortSignal.timeout(PICTURE_TIMEOUT_MS),
+      ...(lookup ? { lookup } : {})
+    };
+
+    const receive = (response: http.IncomingMessage) => {
+      const status = response.statusCode ?? 0;
+      const mimeType = (response.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
+      const stop = (message: string) => {
+        request.destroy();
+        reject(new Error(message));
+      };
+
+      // A redirect is refused like any other reply that is not the picture:
+      // following it would take the request on to an address nobody checked.
+      if (status < 200 || status > 299 || !mimeType.startsWith("image/")) {
+        stop(`The question's picture could not be loaded (${status} ${mimeType}).`);
+        return;
+      }
+      if (Number(response.headers["content-length"] ?? 0) > MAX_PICTURE_BYTES) {
+        stop("The question's picture is larger than 5 MB, so it was not fetched.");
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      let received = 0;
+      response.on("data", (chunk: Buffer) => {
+        received += chunk.length;
+        if (received > MAX_PICTURE_BYTES) {
+          stop("The question's picture is larger than 5 MB, so it was not fetched.");
+          return;
+        }
+        chunks.push(chunk);
+      });
+      response.on("end", () => resolve({ mimeType, data: Buffer.concat(chunks).toString("base64") }));
+      response.on("error", reject);
+      response.on("close", () => {
+        if (!response.complete) reject(new Error("The question's picture was cut off part way."));
+      });
+    };
+
+    const request = url.protocol === "https:" ? https.get(url, options, receive) : http.get(url, options, receive);
+    request.on("error", reject);
+  });
 }
 
 let defaultClient: MarkerClient | null = null;

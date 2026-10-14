@@ -667,6 +667,8 @@ export function AdminPage() {
             key={editing ? `edit-${editing.id}` : `new-${formKey}`}
             ref={questionForm}
             onSessionEnded={handlePictureRefused}
+            // As the API takes them: only with no storage connected.
+            inlinePictures={storageMode === "memory"}
             initial={editing}
             carryOver={carryOver}
             onSubmit={handleSave}

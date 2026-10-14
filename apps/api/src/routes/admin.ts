@@ -15,11 +15,29 @@ import {
   updateQuestion
 } from "../repositories/questionRepository";
 import { createLoginLimiter } from "../services/loginLimiter";
+import { originOf, pictureLinkProblem, quotedLink, type PictureLinkProblem, type PictureLinkRules } from "../services/pictureLinks";
 import { photoTypeOf } from "../services/profilePhotos";
 import { importQuestionsFromCsv, withoutDuplicates } from "../services/questionImport";
 import { translationProblems } from "../services/questionTranslations";
 
 export const adminRouter = Router();
+
+/**
+ * The picture links this API takes (see pictureLinks.ts): any https:// link,
+ * any link into its own Supabase project's storage, and a picture kept in the
+ * question only while there is no storage, which is when the upload below
+ * gives those back.
+ */
+const pictureLinks: PictureLinkRules = {
+  supabaseOrigin: originOf(env.supabaseUrl),
+  allowInlinePictures: storageMode === "memory"
+};
+
+function pictureLinkMessage(problem: PictureLinkProblem, link: string): string {
+  return problem === "inline-with-storage"
+    ? "This picture is kept inside the question (a data: link), which only works while no Supabase storage is connected. Upload the picture in the admin form instead."
+    : `The picture link "${quotedLink(link)}" is not a full link starting with https://, so students would see a broken picture. Upload the picture in the admin form instead.`;
+}
 
 /**
  * One language's version of a question. Whether it fits the question it sits on
@@ -74,7 +92,20 @@ const questionSchema = z
       .max(markLimits.max)
       .default(markLimits.min),
     explanation: z.string().default(""),
-    imageUrl: z.string().nullable().default(null),
+    // Shown to students as it is and, for a written question, fetched for the
+    // AI marker, so only a link to a picture is taken. Blank is no picture.
+    imageUrl: z
+      .string()
+      .trim()
+      .nullable()
+      .default(null)
+      .transform((link) => (link ? link : null))
+      .superRefine((link, context) => {
+        const problem = link === null ? null : pictureLinkProblem(link, pictureLinks);
+        if (link !== null && problem !== null) {
+          context.addIssue({ code: z.ZodIssueCode.custom, message: pictureLinkMessage(problem, link) });
+        }
+      }),
     paperYear: z
       .number()
       .int()
@@ -129,12 +160,16 @@ const questionSchema = z
  *
  * The browser shows the message and not the issues, so a problem the form
  * cannot show beside the field (the translations, a subject that is not one
- * of ours, which the form's list never offers, or a repeated option) is put
- * in the message itself.
+ * of ours, which the form's list never offers, a repeated option, or a picture
+ * link that is not one) is put in the message itself.
  */
 function invalidQuestion(error: z.ZodError) {
   const visibleIssue = error.issues.find(
-    (issue) => issue.path[0] === "translations" || issue.path[0] === "subjectId" || issue.path[0] === "options"
+    (issue) =>
+      issue.path[0] === "translations" ||
+      issue.path[0] === "subjectId" ||
+      issue.path[0] === "options" ||
+      issue.path[0] === "imageUrl"
   );
 
   return {
@@ -299,7 +334,7 @@ adminRouter.post("/questions/import", requireAdmin, async (request, response, ne
   }
 
   try {
-    const imported = importQuestionsFromCsv(parsed.data.csv);
+    const imported = importQuestionsFromCsv(parsed.data.csv, { pictureLinks });
     const { drafts, duplicateRows } =
       imported.drafts.length > 0
         ? withoutDuplicates(imported, await listQuestions())

@@ -33,6 +33,43 @@ function emptyOptions(): string[] {
 /** The largest diagram the API stores, so a bigger one is turned away before it is sent. */
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
+/** The Supabase project's origin, as the browser is told it, or null without one. */
+const SUPABASE_ORIGIN = (() => {
+  try {
+    const url = new URL(import.meta.env.SUPABASE_URL ?? "");
+    return url.protocol === "https:" || url.protocol === "http:" ? url.origin : null;
+  } catch {
+    return null;
+  }
+})();
+
+/**
+ * What is wrong with a picture link a question was saved with, or null.
+ *
+ * The API's own rule (apps/api/src/services/pictureLinks.ts): a full https://
+ * link, a link into the project's storage, or, while no storage is connected,
+ * a picture kept in the question. Rows imported before links were checked can
+ * hold a file name ("diagram1.png"), which showed students a broken picture.
+ * The form says so beside the picture, where it can be removed, instead of
+ * leaving the API's refusal to appear under the button.
+ */
+function pictureLinkProblem(link: string, inlinePictures: boolean): "not-https" | "inline-with-storage" | null {
+  if (/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(link)) {
+    return inlinePictures ? null : "inline-with-storage";
+  }
+  try {
+    const url = new URL(link);
+    if (url.origin === SUPABASE_ORIGIN) return null;
+    if (url.protocol === "https:" && url.hostname.length > 0) return null;
+  } catch {
+    // Not a link at all.
+  }
+  return "not-https";
+}
+
+/** A link short enough to quote. */
+const quotedLink = (link: string) => (link.length > 60 ? `${link.slice(0, 57)}...` : link);
+
 /**
  * The languages the form offers a translation in. Azerbaijani has none yet, so
  * a student reading the site in it gets the question as first written; any that
@@ -192,11 +229,14 @@ export const QuestionForm = forwardRef(function QuestionForm(
     submitting,
     error,
     onEdited,
-    onSessionEnded
+    onSessionEnded,
+    inlinePictures = false
   }: {
     initial: BankQuestion | null;
     /** Only used when there is no `initial`. */
     carryOver?: QuestionCarryOver | null;
+    /** Whether a picture may be kept in the question itself: only while no Supabase storage is connected. */
+    inlinePictures?: boolean;
     onSubmit: (draft: QuestionDraft) => void;
     onCancel?: () => void;
     submitting: boolean;
@@ -292,6 +332,11 @@ export const QuestionForm = forwardRef(function QuestionForm(
 
   const knownTopics = subjects.find((subject) => subject.id === subjectId)?.topics ?? [];
 
+  // Only the link the question was saved with is checked: an upload's own
+  // link is the API's, and always one it takes.
+  const savedLinkProblem =
+    imageUrl !== null && imageUrl === (initial?.imageUrl ?? null) ? pictureLinkProblem(imageUrl, inlinePictures) : null;
+
   function setOption(index: number, value: string) {
     setOptions((current) => current.map((option, position) => (position === index ? value : option)));
   }
@@ -384,6 +429,12 @@ export const QuestionForm = forwardRef(function QuestionForm(
   function choosePicture(next: ChosenPicture | null) {
     uploadCount.current += 1;
     changeChosen(next);
+  }
+
+  /** Takes the attached picture, or the link standing in for one, off the question. */
+  function removePicture() {
+    setImageUrl(null);
+    setProblem((current) => (current?.field === "image" ? null : current));
   }
 
   /**
@@ -520,6 +571,11 @@ export const QuestionForm = forwardRef(function QuestionForm(
 
     if (typeof builtTranslations === "string") {
       fail(builtTranslations, null);
+      return;
+    }
+
+    if (savedLinkProblem) {
+      fail("Remove the picture link that cannot be shown, then save. To keep a picture, choose its file to upload it.", "image");
       return;
     }
 
@@ -856,10 +912,27 @@ export const QuestionForm = forwardRef(function QuestionForm(
           </div>
         )}
 
-        {imageUrl && (
+        {imageUrl && savedLinkProblem && (
+          // Said, not drawn: as a picture it was only ever a broken one.
+          <div className="picture-failed">
+            <p className="error-banner">
+              {savedLinkProblem === "inline-with-storage"
+                ? "This question's picture is kept inside the question, which only works while no Supabase storage is connected."
+                : `This question's picture link, "${quotedLink(imageUrl)}", is not a full link starting with https://, so students see a broken picture.`}{" "}
+              Remove it, then choose the picture to upload it.
+            </p>
+            <div className="form-actions">
+              <button type="button" className="ghost-button" onClick={removePicture}>
+                Remove link
+              </button>
+            </div>
+          </div>
+        )}
+
+        {imageUrl && !savedLinkProblem && (
           <div className="image-preview">
             <img src={imageUrl} alt="Question diagram preview" />
-            <button type="button" className="ghost-button" onClick={() => setImageUrl(null)}>
+            <button type="button" className="ghost-button" onClick={removePicture}>
               Remove image
             </button>
           </div>
