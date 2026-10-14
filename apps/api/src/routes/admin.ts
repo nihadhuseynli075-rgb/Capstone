@@ -15,7 +15,7 @@ import {
   updateQuestion
 } from "../repositories/questionRepository";
 import { createLoginLimiter } from "../services/loginLimiter";
-import { originOf, pictureLinkProblem, quotedLink, type PictureLinkProblem, type PictureLinkRules } from "../services/pictureLinks";
+import { checkPictureLink, originOf, quotedLink, type PictureLinkProblem, type PictureLinkRules } from "../services/pictureLinks";
 import { photoTypeOf } from "../services/profilePhotos";
 import { importQuestionsFromCsv, withoutDuplicates } from "../services/questionImport";
 import { translationProblems } from "../services/questionTranslations";
@@ -93,18 +93,21 @@ const questionSchema = z
       .default(markLimits.min),
     explanation: z.string().default(""),
     // Shown to students as it is and, for a written question, fetched for the
-    // AI marker, so only a link to a picture is taken. Blank is no picture.
+    // AI marker, so only a link to a picture is taken, and it is saved written
+    // out in full, as it is read (see pictureLinks.ts). Blank is no picture.
     imageUrl: z
       .string()
       .trim()
       .nullable()
       .default(null)
-      .transform((link) => (link ? link : null))
-      .superRefine((link, context) => {
-        const problem = link === null ? null : pictureLinkProblem(link, pictureLinks);
-        if (link !== null && problem !== null) {
-          context.addIssue({ code: z.ZodIssueCode.custom, message: pictureLinkMessage(problem, link) });
+      .transform((link, context) => {
+        if (!link) return null;
+        const checked = checkPictureLink(link, pictureLinks);
+        if ("problem" in checked) {
+          context.addIssue({ code: z.ZodIssueCode.custom, message: pictureLinkMessage(checked.problem, link) });
+          return z.NEVER;
         }
+        return checked.link;
       }),
     paperYear: z
       .number()

@@ -1,6 +1,6 @@
 import type { Difficulty, QuestionDraft, QuestionTranslation, QuestionTranslations, QuestionType } from "@grade9/shared";
 import { markLimits, paperYearLimits, repeatedOption, subjects, testScopeLimits, topicIdFor } from "@grade9/shared";
-import { httpsPicturesOnly, pictureLinkProblem, quotedLink, type PictureLinkRules } from "./pictureLinks";
+import { checkPictureLink, httpsPicturesOnly, quotedLink, type PictureLinkRules } from "./pictureLinks";
 import { languageNames, translationProblems } from "./questionTranslations";
 
 /**
@@ -570,19 +570,21 @@ export function importQuestionsFromCsv(csv: string, options: { pictureLinks?: Pi
 
     // A link to the picture, never the picture's file name. "diagram1.png"
     // imported as ready showed students a broken picture, and a written
-    // answer on it could never be marked.
-    const imageUrl = cell(row, "imageUrl") || null;
-    const pictureProblem = imageUrl === null ? null : pictureLinkProblem(imageUrl, pictureLinks);
-    if (imageUrl !== null && pictureProblem !== null) {
+    // answer on it could never be marked. Kept written out in full, as the
+    // admin form's save keeps it.
+    const rawImageUrl = cell(row, "imageUrl");
+    const picture = rawImageUrl.length > 0 ? checkPictureLink(rawImageUrl, pictureLinks) : null;
+    if (picture !== null && "problem" in picture) {
       errors.push({
         row: rowNumber,
         message:
-          pictureProblem === "inline-with-storage"
+          picture.problem === "inline-with-storage"
             ? "image_url holds a picture itself (a data: link), which only works while no Supabase storage is connected. Leave image_url empty and add the picture in the admin form."
-            : `image_url "${quotedLink(imageUrl)}" is not a full link starting with https://. Put the picture's full link there, or leave image_url empty and add the picture in the admin form.`
+            : `image_url "${quotedLink(rawImageUrl)}" is not a full link starting with https://. Put the picture's full link there, or leave image_url empty and add the picture in the admin form.`
       });
       return;
     }
+    const imageUrl = picture === null ? null : picture.link;
 
     const draftOptions = type === "multiple-choice" ? options : [];
 

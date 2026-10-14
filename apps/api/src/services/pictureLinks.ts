@@ -15,6 +15,14 @@
  * - with no Supabase storage connected, a PNG, JPG or WebP kept in the question
  *   itself (a data: link), which is what the upload gives back then.
  *
+ * A link is saved as it is read, written out in full, not as it was typed.
+ * The parser takes "https:example.com/a.png", "HTTPS://Example.com/a.png" and
+ * "https:\\example.com\a.png" all to mean https://example.com/a.png. Saved as
+ * typed, the first passed the check, but a page served over https reads it as
+ * a path on its own site: students saw a broken picture while the marker
+ * fetched the real one. Written out in full, the link that is saved is the one
+ * that is shown and the one that is fetched.
+ *
  * Nothing here reads the environment, so tests can say which project there is.
  */
 
@@ -53,21 +61,25 @@ export function originOf(link: string | undefined | null): string | null {
   }
 }
 
-/** What is wrong with a picture link, or null when it can be saved. */
-export function pictureLinkProblem(link: string, rules: PictureLinkRules): PictureLinkProblem | null {
-  if (INLINE_PICTURE.test(link)) return rules.allowInlinePictures ? null : "inline-with-storage";
+/** A picture link as it is saved, or what is wrong with it. */
+export type PictureLinkCheck = { link: string } | { problem: PictureLinkProblem };
 
-  const origin = originOf(link);
-  if (origin !== null && origin === rules.supabaseOrigin) return null;
+/** Checks a picture link, and gives it back written out in full for saving. */
+export function checkPictureLink(link: string, rules: PictureLinkRules): PictureLinkCheck {
+  // Already in its one written form: the pattern allows nothing else.
+  if (INLINE_PICTURE.test(link)) return rules.allowInlinePictures ? { link } : { problem: "inline-with-storage" };
 
+  let url: URL;
   try {
-    const url = new URL(link);
-    if (url.protocol === "https:" && url.hostname.length > 0) return null;
+    url = new URL(link);
   } catch {
     // Not a link at all: a file name, a sentence, a stray value from another column.
+    return { problem: "not-https" };
   }
 
-  return "not-https";
+  if (url.origin === rules.supabaseOrigin) return { link: url.href };
+  if (url.protocol === "https:" && url.hostname.length > 0) return { link: url.href };
+  return { problem: "not-https" };
 }
 
 /** A link short enough to quote in a message: a picture kept inline can be megabytes long. */

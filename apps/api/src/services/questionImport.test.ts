@@ -569,6 +569,32 @@ describe("image_url", () => {
     assert.match(withStorage.errors[0].message, /^image_url holds a picture itself \(a data: link\)/);
   });
 
+  test("a link is imported written out in full, as it is read, not as it was typed", () => {
+    const csv = [
+      sheet,
+      "math,geometry,Q1,4,https:example.com/q1.png",
+      "math,geometry,Q2,4,HTTPS://EXAMPLE.COM/q2.png",
+      "math,geometry,Q3,4,https:\\\\example.com\\q3.png",
+      "math,geometry,Q4,4,https://example.com/picture 4.png",
+      "math,geometry,Q5,4,http:127.0.0.1:54321/storage/v1/object/public/question-images/q5.png"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv, {
+      pictureLinks: { supabaseOrigin: "http://127.0.0.1:54321", allowInlinePictures: false }
+    });
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(
+      drafts.map((draft) => draft.imageUrl),
+      [
+        "https://example.com/q1.png",
+        "https://example.com/q2.png",
+        "https://example.com/q3.png",
+        "https://example.com/picture%204.png",
+        "http://127.0.0.1:54321/storage/v1/object/public/question-images/q5.png"
+      ]
+    );
+  });
+
   test("a very long value is cut short in the message", () => {
     const { errors } = importQuestionsFromCsv(`${sheet}\nmath,geometry,Q1,4,${"x".repeat(500)}.png`);
     assert.ok(errors[0].message.length < 250, errors[0].message);

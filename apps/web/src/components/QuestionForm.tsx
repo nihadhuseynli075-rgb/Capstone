@@ -44,27 +44,31 @@ const SUPABASE_ORIGIN = (() => {
 })();
 
 /**
- * What is wrong with a picture link a question was saved with, or null.
+ * A picture link a question was saved with, written out in full as the API
+ * saves it, or what is wrong with it.
  *
  * The API's own rule (apps/api/src/services/pictureLinks.ts): a full https://
  * link, a link into the project's storage, or, while no storage is connected,
- * a picture kept in the question. Rows imported before links were checked can
- * hold a file name ("diagram1.png"), which showed students a broken picture.
- * The form says so beside the picture, where it can be removed, instead of
- * leaving the API's refusal to appear under the button.
+ * a picture kept in the question; and a link is kept as the parser reads it
+ * ("https:example.com/a.png" is https://example.com/a.png). Rows imported
+ * before links were checked can hold a file name ("diagram1.png"), which
+ * showed students a broken picture. The form says so beside the picture, where
+ * it can be removed, instead of leaving the API's refusal under the button.
  */
-function pictureLinkProblem(link: string, inlinePictures: boolean): "not-https" | "inline-with-storage" | null {
+function checkPictureLink(
+  link: string,
+  inlinePictures: boolean
+): { link: string } | { problem: "not-https" | "inline-with-storage" } {
   if (/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(link)) {
-    return inlinePictures ? null : "inline-with-storage";
+    return inlinePictures ? { link } : { problem: "inline-with-storage" };
   }
   try {
     const url = new URL(link);
-    if (url.origin === SUPABASE_ORIGIN) return null;
-    if (url.protocol === "https:" && url.hostname.length > 0) return null;
+    if (url.origin === SUPABASE_ORIGIN || (url.protocol === "https:" && url.hostname.length > 0)) return { link: url.href };
   } catch {
     // Not a link at all.
   }
-  return "not-https";
+  return { problem: "not-https" };
 }
 
 /** A link short enough to quote. */
@@ -277,7 +281,17 @@ export const QuestionForm = forwardRef(function QuestionForm(
     initial && initial.type !== "multiple-choice" ? initial.correctAnswer : ""
   );
   const [explanation, setExplanation] = useState(initial?.explanation ?? "");
-  const [imageUrl, setImageUrl] = useState<string | null>(initial?.imageUrl ?? null);
+  // The picture the question was saved with, written out in full as the API
+  // now saves it (see checkPictureLink). A row saved before then could hold
+  // "https:example.com/a.png", which this page, like a student's, read as a
+  // path on its own site: the form shows, and saves, what the link points at.
+  // A link that is no picture link at all is kept as it is, to be pointed out.
+  const [savedImageUrl] = useState(() => {
+    const saved = initial?.imageUrl ?? null;
+    const checked = saved === null ? null : checkPictureLink(saved, inlinePictures);
+    return checked !== null && "link" in checked ? checked.link : saved;
+  });
+  const [imageUrl, setImageUrl] = useState<string | null>(savedImageUrl);
   const [marks, setMarks] = useState(initial ? String(initial.marks) : "1");
   const [paperYear, setPaperYear] = useState(() => {
     const year = initial ? initial.paperYear : (kept?.paperYear ?? null);
@@ -326,7 +340,7 @@ export const QuestionForm = forwardRef(function QuestionForm(
       }
     },
     hasChanges() {
-      return contents() !== openedWith || imageUrl !== (initial?.imageUrl ?? null) || chosen !== null;
+      return contents() !== openedWith || imageUrl !== savedImageUrl || chosen !== null;
     }
   }));
 
@@ -334,8 +348,8 @@ export const QuestionForm = forwardRef(function QuestionForm(
 
   // Only the link the question was saved with is checked: an upload's own
   // link is the API's, and always one it takes.
-  const savedLinkProblem =
-    imageUrl !== null && imageUrl === (initial?.imageUrl ?? null) ? pictureLinkProblem(imageUrl, inlinePictures) : null;
+  const savedLinkCheck = imageUrl !== null && imageUrl === savedImageUrl ? checkPictureLink(imageUrl, inlinePictures) : null;
+  const savedLinkProblem = savedLinkCheck !== null && "problem" in savedLinkCheck ? savedLinkCheck.problem : null;
 
   function setOption(index: number, value: string) {
     setOptions((current) => current.map((option, position) => (position === index ? value : option)));
