@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type {
   BankQuestion,
   Difficulty,
@@ -82,6 +82,46 @@ function translationInputs(saved: QuestionTranslations): TranslationInputs {
 
 function languageLabel(language: TranslationLanguage): string {
   return adminLanguageNames[language];
+}
+
+/** The fields a problem with the form can be about (see fail), by their data-field. */
+type ProblemField = "topic" | "prompt" | "option" | "correct" | "answer" | "marks";
+
+/**
+ * Something that stops the question being saved.
+ *
+ * One about a field is shown right under that field, which is marked invalid;
+ * one that belongs to no one field (a translation, say) is shown above the
+ * button. Every message used to go above the button, which on a long form was
+ * a screen or more below the field it was about.
+ */
+interface FormProblem {
+  message: string;
+  field: ProblemField | null;
+  /** Which of the fields with that name, for the option rows. */
+  nth: number;
+}
+
+const problemId = (field: ProblemField) => `question-form-error-${field}`;
+
+/**
+ * The option texts and the radio that marks the right one are one question to
+ * get right, so changing either clears a problem with either.
+ */
+const problemGroup = (field: string) => (field === "correct" ? "option" : field);
+
+/**
+ * A problem's message, under the field it is about. Its id is what that
+ * field's aria-describedby points at, so a screen reader reads it with the
+ * field; it is an alert as well, so it is heard even when focus does not move.
+ */
+function FieldProblem({ problem, field, nth = 0 }: { problem: FormProblem | null; field: ProblemField; nth?: number }) {
+  if (problem?.field !== field || problem.nth !== nth) return null;
+  return (
+    <p className="field-error" role="alert" id={problemId(field)}>
+      {problem.message}
+    </p>
+  );
 }
 
 /**
@@ -170,15 +210,15 @@ export function QuestionForm({
 
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [problem, setProblem] = useState<FormProblem | null>(null);
   // For moving focus to the field a problem is about (see fail).
   const formRef = useRef<HTMLFormElement>(null);
 
   // A failed check means the last save's notice no longer fits under the button.
   useEffect(() => {
-    if (formError) onEdited?.();
+    if (problem) onEdited?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formError]);
+  }, [problem]);
 
 
   const knownTopics = subjects.find((subject) => subject.id === subjectId)?.topics ?? [];
@@ -275,15 +315,41 @@ export function QuestionForm({
    * keyboard user had to hunt back up for the field. Focus waits a frame for
    * the message to be drawn.
    */
-  function fail(message: string, field: string | null, nth = 0) {
-    setFormError(message);
+  function fail(message: string, field: ProblemField | null, nth = 0) {
+    setProblem({ message, field, nth });
     window.requestAnimationFrame(() => {
       const form = formRef.current;
       const target =
         (field ? form?.querySelectorAll<HTMLElement>(`[data-field="${field}"]`)[nth] : null) ??
         form?.querySelector<HTMLElement>("#question-form-error");
-      target?.focus();
+      if (!target) return;
+      target.focus({ preventScroll: true });
+      // Focus does not scroll to a field that already has it: one typed in
+      // and then scrolled away from, with the button pressed by a click that
+      // leaves focus where it was (as Safari's does). So the message and then
+      // the field, with its label, are brought into view, and all of it ends
+      // up on screen.
+      if (field) document.getElementById(problemId(field))?.scrollIntoView({ block: "nearest" });
+      (target.closest<HTMLElement>(".form-field, .image-field, .option-input-row") ?? target).scrollIntoView({ block: "nearest" });
     });
+  }
+
+  /** Marks the field a problem is about as invalid, and ties it to the message under it. */
+  function problemProps(field: ProblemField, nth = 0) {
+    return problem?.field === field && problem.nth === nth
+      ? { "aria-invalid": true, "aria-describedby": problemId(field) }
+      : {};
+  }
+
+  /*
+   * Any change tells the page the last save's notice is out of date. A change
+   * to the field a problem is about also takes the problem's message away:
+   * it described the field as it was, and the next save checks it again.
+   */
+  function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
+    onEdited?.();
+    const changed = (event.target as HTMLElement).dataset?.field;
+    if (problem?.field && changed && problemGroup(changed) === problemGroup(problem.field)) setProblem(null);
   }
 
   function handleSubmit(event: React.FormEvent) {
@@ -296,7 +362,7 @@ export function QuestionForm({
     // stored the question without it, ready for students, and dropped the upload.
     if (uploading) return;
 
-    setFormError(null);
+    setProblem(null);
 
     const filledOptions = options.map((option) => option.trim()).filter((option) => option.length > 0);
 
@@ -369,8 +435,10 @@ export function QuestionForm({
     });
   }
 
+  const banner = problem ? (problem.field === null ? problem.message : null) : error;
+
   return (
-    <form className="question-form" onSubmit={handleSubmit} onChange={onEdited} ref={formRef}>
+    <form className="question-form" onSubmit={handleSubmit} onChange={handleFormChange} ref={formRef}>
       <div className="form-row">
         <label>
           Subject
@@ -383,25 +451,31 @@ export function QuestionForm({
           </select>
         </label>
 
-        <label>
-          Topic
-          <input
-            type="text"
-            list="known-topics"
-            data-field="topic"
-            maxLength={testScopeLimits.maxIdLength}
-            value={topicId}
-            onChange={(event) => setTopicId(event.target.value)}
-            placeholder="e.g. algebra"
-          />
-          <datalist id="known-topics">
-            {knownTopics.map((topic) => (
-              <option key={topic.id} value={topic.id}>
-                {topic.name}
-              </option>
-            ))}
-          </datalist>
-        </label>
+        {/* The label and its problem together, so the message sits under the
+            field and is not read as part of the field's name. */}
+        <div className="form-field">
+          <label>
+            Topic
+            <input
+              type="text"
+              list="known-topics"
+              data-field="topic"
+              maxLength={testScopeLimits.maxIdLength}
+              value={topicId}
+              onChange={(event) => setTopicId(event.target.value)}
+              placeholder="e.g. algebra"
+              {...problemProps("topic")}
+            />
+            <datalist id="known-topics">
+              {knownTopics.map((topic) => (
+                <option key={topic.id} value={topic.id}>
+                  {topic.name}
+                </option>
+              ))}
+            </datalist>
+          </label>
+          <FieldProblem problem={problem} field="topic" />
+        </div>
 
         <label>
           Difficulty
@@ -425,16 +499,20 @@ export function QuestionForm({
         </label>
       </div>
 
-      <label>
-        Question
-        <textarea
-          rows={3}
-          data-field="prompt"
-          value={prompt}
-          onChange={(event) => setPrompt(event.target.value)}
-          placeholder="Type the question exactly as it appears on the paper"
-        />
-      </label>
+      <div className="form-field">
+        <label>
+          Question
+          <textarea
+            rows={3}
+            data-field="prompt"
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            placeholder="Type the question exactly as it appears on the paper"
+            {...problemProps("prompt")}
+          />
+        </label>
+        <FieldProblem problem={problem} field="prompt" />
+      </div>
 
       {type === "multiple-choice" ? (
         <fieldset className="options-fieldset">
@@ -446,65 +524,81 @@ export function QuestionForm({
             </p>
           )}
           {options.map((option, index) => (
-            <div key={index} className="option-input-row">
-              {/* The radio and its letter are one label, so the whole 44px
-                  square around them picks the answer, not just a 13px dot. */}
-              <label className="option-correct">
+            <Fragment key={index}>
+              <div className="option-input-row">
+                {/* The radio and its letter are one label, so the whole 44px
+                    square around them picks the answer, not just a 13px dot. */}
+                <label className="option-correct">
+                  <input
+                    type="radio"
+                    name="correct-option"
+                    data-field="correct"
+                    checked={correctIndex === index}
+                    onChange={() => setCorrectIndex(index)}
+                    aria-label={`Option ${String.fromCharCode(65 + index)} is correct`}
+                    {...problemProps("correct", index)}
+                  />
+                  <span className="option-letter" aria-hidden="true">
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                </label>
+                {/* Named for a screen reader, which otherwise heard only
+                    "Required" or "Optional", the placeholder. */}
                 <input
-                  type="radio"
-                  name="correct-option"
-                  data-field="correct"
-                  checked={correctIndex === index}
-                  onChange={() => setCorrectIndex(index)}
-                  aria-label={`Option ${String.fromCharCode(65 + index)} is correct`}
+                  type="text"
+                  data-field="option"
+                  value={option}
+                  aria-label={`Option ${String.fromCharCode(65 + index)}`}
+                  onChange={(event) => setOption(index, event.target.value)}
+                  placeholder={index < 2 ? "Required" : "Optional"}
+                  {...problemProps("option", index)}
                 />
-                <span className="option-letter" aria-hidden="true">
-                  {String.fromCharCode(65 + index)}
-                </span>
-              </label>
-              {/* Named for a screen reader, which otherwise heard only
-                  "Required" or "Optional", the placeholder. */}
-              <input
-                type="text"
-                data-field="option"
-                value={option}
-                aria-label={`Option ${String.fromCharCode(65 + index)}`}
-                onChange={(event) => setOption(index, event.target.value)}
-                placeholder={index < 2 ? "Required" : "Optional"}
-              />
-            </div>
+              </div>
+              {/* Under the row it is about: the empty option, the repeated
+                  one, or the radio marking an option with no text. */}
+              <FieldProblem problem={problem} field="option" nth={index} />
+              <FieldProblem problem={problem} field="correct" nth={index} />
+            </Fragment>
           ))}
         </fieldset>
       ) : type === "open-ended" ? (
-        <label>
-          Marking guide
-          <textarea
-            rows={5}
-            data-field="answer"
-            value={shortAnswer}
-            onChange={(event) => setShortAnswer(event.target.value)}
-            placeholder={
-              "What earns each mark, as the paper's mark scheme says. For example:\n" +
-              "1 mark: explains the meaning in their own words.\n" +
-              "1 mark: gives a supporting example from the text."
-            }
-          />
-          <span className="field-hint">
-            The AI marker acts as a Grade 9 teacher and marks only against this guide, so spell out
-            what each mark needs. Students see it after the test.
-          </span>
-        </label>
+        <div className="form-field">
+          <label>
+            Marking guide
+            <textarea
+              rows={5}
+              data-field="answer"
+              value={shortAnswer}
+              onChange={(event) => setShortAnswer(event.target.value)}
+              placeholder={
+                "What earns each mark, as the paper's mark scheme says. For example:\n" +
+                "1 mark: explains the meaning in their own words.\n" +
+                "1 mark: gives a supporting example from the text."
+              }
+              {...problemProps("answer")}
+            />
+            <span className="field-hint">
+              The AI marker acts as a Grade 9 teacher and marks only against this guide, so spell out
+              what each mark needs. Students see it after the test.
+            </span>
+          </label>
+          <FieldProblem problem={problem} field="answer" />
+        </div>
       ) : (
-        <label>
-          Correct answer
-          <input
-            type="text"
-            data-field="answer"
-            value={shortAnswer}
-            onChange={(event) => setShortAnswer(event.target.value)}
-            placeholder="Marking ignores capitals and extra spaces"
-          />
-        </label>
+        <div className="form-field">
+          <label>
+            Correct answer
+            <input
+              type="text"
+              data-field="answer"
+              value={shortAnswer}
+              onChange={(event) => setShortAnswer(event.target.value)}
+              placeholder="Marking ignores capitals and extra spaces"
+              {...problemProps("answer")}
+            />
+          </label>
+          <FieldProblem problem={problem} field="answer" />
+        </div>
       )}
 
       <label>
@@ -546,19 +640,23 @@ export function QuestionForm({
       )}
 
       <div className="form-row">
-        <label>
-          Marks
-          <input
-            type="number"
-            min={markLimits.min}
-            max={markLimits.max}
-            data-field="marks"
-            value={marks}
-            onChange={(event) => setMarks(event.target.value)}
-            placeholder="1"
-          />
-          <span className="field-hint">What the paper says the question is worth.</span>
-        </label>
+        <div className="form-field">
+          <label>
+            Marks
+            <input
+              type="number"
+              min={markLimits.min}
+              max={markLimits.max}
+              data-field="marks"
+              value={marks}
+              onChange={(event) => setMarks(event.target.value)}
+              placeholder="1"
+              {...problemProps("marks")}
+            />
+            <span className="field-hint">What the paper says the question is worth.</span>
+          </label>
+          <FieldProblem problem={problem} field="marks" />
+        </div>
 
         <label>
           Paper year
@@ -613,10 +711,12 @@ export function QuestionForm({
       </div>
 
       {/* An alert, so a refusal is read out wherever focus is; focusable by
-          script for a problem that belongs to no one field (see fail). */}
-      {(formError || error) && (
+          script for a problem that belongs to no one field (see fail). A
+          problem with one field is under that field instead, and while there
+          is one, the API's answer to an earlier save no longer applies. */}
+      {banner && (
         <p className="error-banner" role="alert" id="question-form-error" tabIndex={-1}>
-          {formError ?? error}
+          {banner}
         </p>
       )}
 

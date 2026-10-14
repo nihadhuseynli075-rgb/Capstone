@@ -908,6 +908,40 @@
 }
 
 /*
+ * A problem with one admin form field, right under it (see QuestionForm's
+ * fail), and the field edged in the same colour. The words say what is wrong;
+ * the colour only helps the eye find the field.
+ */
+.form-field {
+  display: grid;
+  gap: 6px;
+}
+
+.field-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.question-form [aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+/* Room round a field brought into view for its problem, rather than flush with the edge. */
+.question-form .form-field,
+.question-form .image-field,
+.question-form .option-input-row,
+.question-form .field-error {
+  scroll-margin-block: 16px;
+}
+
+/* A radio has no edge of its own to colour, so the 44px square around it takes it. */
+.option-correct:has(input[aria-invalid="true"]) {
+  box-shadow: inset 0 0 0 2px var(--danger);
+}
+
+/*
  * An admin-list flag for a question that is in the bank but not in tests yet:
  * a draft waiting for its options, or one waiting for its picture.
  */
