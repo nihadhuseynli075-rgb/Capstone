@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { forwardRef, Fragment, useEffect, useImperativeHandle, useRef, useState, type ForwardedRef } from "react";
 import type {
   BankQuestion,
   Difficulty,
@@ -10,6 +10,7 @@ import type {
 import { followsSiteLanguage, markLimits, paperYearLimits, repeatedOption, subjects, testScopeLimits, topicIdFor } from "@grade9/shared";
 import { adminLanguageNames, adminText } from "./adminText";
 import { uploadQuestionImage } from "../services/adminApi";
+import { ApiError } from "../services/apiClient";
 
 /**
  * Every question on a DIM paper has five options, A to E, so the form offers
@@ -85,7 +86,7 @@ function languageLabel(language: TranslationLanguage): string {
 }
 
 /** The fields a problem with the form can be about (see fail), by their data-field. */
-type ProblemField = "topic" | "prompt" | "option" | "correct" | "answer" | "marks";
+type ProblemField = "topic" | "prompt" | "option" | "correct" | "answer" | "marks" | "image";
 
 /**
  * Something that stops the question being saved.
@@ -125,6 +126,33 @@ function FieldProblem({ problem, field, nth = 0 }: { problem: FormProblem | null
 }
 
 /**
+ * A picture chosen under Diagram that is not attached to the question yet.
+ *
+ * It is kept, file and all, until it is attached or removed. A save while it
+ * was still uploading, or after its upload failed, used to go ahead without
+ * it, and the question went out to students with no diagram.
+ */
+type ChosenPicture =
+  | { file: File; state: "uploading" }
+  /**
+   * Refused because the admin session had ended. It goes up again as soon as
+   * the admin has signed back in, and `thenSave` says a save is waiting on it.
+   */
+  | { file: File; state: "waiting-for-sign-in"; thenSave: boolean }
+  /** `canRetry` is false where sending the same file again cannot help: a file that is not a picture, or too big. */
+  | { file: File; state: "failed"; message: string; canRetry: boolean };
+
+/** What the page can ask of the form. */
+export interface QuestionFormHandle {
+  /**
+   * Carries on once the admin has signed in again after the session ended: a
+   * picture refused for want of a session is uploaded, and a save that was
+   * waiting is made from the form as it stands, so it includes that picture.
+   */
+  resumeAfterSignIn(saveWaiting: boolean): void;
+}
+
+/**
  * What a paper's questions have in common, kept from one question to the next.
  *
  * Someone typing in a paper adds a run of questions with the same subject,
@@ -153,25 +181,35 @@ export interface QuestionCarryOver {
  * not follow later changes to either: the page gives it a new `key` for each
  * question, which is also how it is emptied after one has been added.
  */
-export function QuestionForm({
-  initial,
-  carryOver,
-  onSubmit,
-  onCancel,
-  submitting,
-  error,
-  onEdited
-}: {
-  initial: BankQuestion | null;
-  /** Only used when there is no `initial`. */
-  carryOver?: QuestionCarryOver | null;
-  onSubmit: (draft: QuestionDraft) => void;
-  onCancel?: () => void;
-  submitting: boolean;
-  error: string | null;
-  /** Called when the form is edited or fails a check, so the page can drop a notice about the last save. */
-  onEdited?: () => void;
-}) {
+export const QuestionForm = forwardRef(function QuestionForm(
+  {
+    initial,
+    carryOver,
+    onSubmit,
+    onCancel,
+    submitting,
+    error,
+    onEdited,
+    onSessionEnded
+  }: {
+    initial: BankQuestion | null;
+    /** Only used when there is no `initial`. */
+    carryOver?: QuestionCarryOver | null;
+    onSubmit: (draft: QuestionDraft) => void;
+    onCancel?: () => void;
+    submitting: boolean;
+    error: string | null;
+    /** Called when the form is edited or fails a check, so the page can drop a notice about the last save. */
+    onEdited?: () => void;
+    /**
+     * Called when a picture's upload is refused because the admin session has
+     * ended, so the page can ask for the password straight away. The picture
+     * is kept and sent again from resumeAfterSignIn.
+     */
+    onSessionEnded?: () => void;
+  },
+  ref: ForwardedRef<QuestionFormHandle>
+) {
   const kept = initial ? null : (carryOver ?? null);
 
   const [subjectId, setSubjectId] = useState(initial?.subjectId ?? kept?.subjectId ?? "math");
@@ -208,8 +246,13 @@ export function QuestionForm({
     initial ? translationInputs(initial.translations ?? {}) : emptyTranslations()
   );
 
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<ChosenPicture | null>(null);
+  // Each upload is numbered, so one that answers after a newer choice (or
+  // after the picture was removed) cannot attach the older picture over it.
+  const uploadCount = useRef(0);
+  // Bumped to save the form as it stands once the page has drawn the latest
+  // state: after a picture uploaded on signing in again, the save must see it.
+  const [saveRequests, setSaveRequests] = useState(0);
   const [problem, setProblem] = useState<FormProblem | null>(null);
   // For moving focus to the field a problem is about (see fail).
   const formRef = useRef<HTMLFormElement>(null);
@@ -220,6 +263,20 @@ export function QuestionForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problem]);
 
+  // Through the button's own path, so the save is checked like any other.
+  useEffect(() => {
+    if (saveRequests > 0) formRef.current?.requestSubmit();
+  }, [saveRequests]);
+
+  useImperativeHandle(ref, () => ({
+    resumeAfterSignIn(saveWaiting) {
+      if (chosen?.state === "waiting-for-sign-in") {
+        void upload(chosen.file, saveWaiting || chosen.thenSave);
+      } else if (saveWaiting) {
+        setSaveRequests((count) => count + 1);
+      }
+    }
+  }));
 
   const knownTopics = subjects.find((subject) => subject.id === subjectId)?.topics ?? [];
 
@@ -277,33 +334,74 @@ export function QuestionForm({
     return built;
   }
 
-  async function handleImageChange(file: File | undefined) {
+  function handleImageChange(input: HTMLInputElement) {
+    const file = input.files?.[0];
+    // Emptied at once, so the same file can be chosen again after it has been
+    // removed or fixed: a file input fires no change for the file it holds.
+    input.value = "";
     if (!file) return;
-
-    setUploadError(null);
 
     // Checked here, before anything is sent: a file over the limit used to
     // come back as a bare "request entity too large", and one that is not a
     // picture as "That upload is not valid.". The API checks both again,
     // and what the file really is.
     if (!file.type.startsWith("image/")) {
-      setUploadError("Only image files are supported. Choose a PNG, JPG or WebP picture.");
+      choosePicture({ file, state: "failed", message: "Only image files are supported. Choose a PNG, JPG or WebP picture.", canRetry: false });
       return;
     }
 
     if (file.size > MAX_IMAGE_BYTES) {
-      setUploadError("Images must be 2 MB or smaller.");
+      choosePicture({ file, state: "failed", message: "Images must be 2 MB or smaller.", canRetry: false });
       return;
     }
 
-    setUploading(true);
+    void upload(file);
+  }
+
+  /**
+   * A new state for the chosen picture. Whatever the form last said about the
+   * picture ("still uploading", say) no longer applies. Read from the current
+   * state, not this render's: an upload ends long after the render it began in.
+   */
+  function changeChosen(next: ChosenPicture | null) {
+    setChosen(next);
+    setProblem((current) => (current?.field === "image" ? null : current));
+  }
+
+  /** A new choice (or none): an upload still on its way for the old one is ignored when it answers. */
+  function choosePicture(next: ChosenPicture | null) {
+    uploadCount.current += 1;
+    changeChosen(next);
+  }
+
+  /**
+   * Sends the picture and attaches it. A refusal for want of a session is the
+   * page's to handle, as with any other request: it asks for the password at
+   * once, and the picture goes up again after (see resumeAfterSignIn). It used
+   * to be caught here, which left only "Admin sign-in required." under the
+   * field, and the question was then saved without its picture.
+   */
+  async function upload(file: File, thenSave = false) {
+    choosePicture({ file, state: "uploading" });
+    const thisUpload = uploadCount.current;
 
     try {
-      setImageUrl(await uploadQuestionImage(file));
+      const url = await uploadQuestionImage(file);
+      if (thisUpload !== uploadCount.current) return;
+      setImageUrl(url);
+      changeChosen(null);
+      if (thenSave) setSaveRequests((count) => count + 1);
     } catch (cause) {
-      setUploadError((cause as Error).message);
-    } finally {
-      setUploading(false);
+      if (thisUpload !== uploadCount.current) return;
+      if (cause instanceof ApiError && cause.status === 401) {
+        changeChosen({ file, state: "waiting-for-sign-in", thenSave });
+        onSessionEnded?.();
+        return;
+      }
+      // The API turns the same file away every time; a dropped connection or
+      // a server error may well go through on a second try.
+      const refused = cause instanceof ApiError && (cause.status === 400 || cause.status === 413);
+      changeChosen({ file, state: "failed", message: (cause as Error).message, canRetry: !refused });
     }
   }
 
@@ -358,9 +456,6 @@ export function QuestionForm({
     // The button is disabled while saving, but a second press can land before
     // the page has drawn that, and would save the same question twice.
     if (submitting) return;
-    // The picture is only attached once its upload answers. Saving before then
-    // stored the question without it, ready for students, and dropped the upload.
-    if (uploading) return;
 
     setProblem(null);
 
@@ -416,6 +511,21 @@ export function QuestionForm({
       return;
     }
 
+    // The picture is only attached once its upload answers. Saving before then,
+    // or after the upload failed, stored the question without it, ready for
+    // students, and the picture was lost.
+    if (chosen) {
+      fail(
+        chosen.state !== "failed"
+          ? "The picture is still uploading. Save once it has finished."
+          : chosen.canRetry
+            ? "The picture you chose has not been attached. Try again, or remove it to save the question without it."
+            : "The picture you chose cannot be attached. Choose another one, or remove it to save the question without it.",
+        "image"
+      );
+      return;
+    }
+
     onSubmit({
       subjectId,
       // What was typed may be a topic's name rather than its id.
@@ -436,6 +546,9 @@ export function QuestionForm({
   }
 
   const banner = problem ? (problem.field === null ? problem.message : null) : error;
+  // A picture waiting for the admin to sign in again is on its way too: it is
+  // sent the moment they have.
+  const uploading = chosen?.state === "uploading" || chosen?.state === "waiting-for-sign-in";
 
   return (
     <form className="question-form" onSubmit={handleSubmit} onChange={handleFormChange} ref={formRef}>
@@ -686,18 +799,49 @@ export function QuestionForm({
       <div className="image-field">
         <label>
           Diagram (optional)
+          {/* Not while saving: a picture chosen then missed the save under
+              way, and was gone when the form emptied for the next question. */}
           <input
             type="file"
             accept="image/*"
-            onChange={(event) => void handleImageChange(event.target.files?.[0])}
+            data-field="image"
+            disabled={submitting}
+            onChange={(event) => handleImageChange(event.currentTarget)}
+            {...problemProps("image")}
           />
         </label>
 
-        {uploading && <p className="panel-hint">Uploading...</p>}
-        {uploadError && (
-          <p className="error-banner" role="alert">
-            {uploadError}
+        {chosen?.state === "uploading" && (
+          <p className="panel-hint" role="status">
+            Uploading {chosen.file.name}...
           </p>
+        )}
+        {chosen?.state === "waiting-for-sign-in" && (
+          <p className="panel-hint" role="status">
+            {chosen.file.name} is uploaded as soon as you have signed in again.
+          </p>
+        )}
+        {chosen?.state === "failed" && (
+          <div className="picture-failed">
+            <p className="error-banner" role="alert">
+              {chosen.file.name} was not attached: {chosen.message}
+            </p>
+            <div className="form-actions">
+              {chosen.canRetry && (
+                <button type="button" className="ghost-button" onClick={() => void upload(chosen.file)}>
+                  Try again
+                </button>
+              )}
+              <button
+                type="button"
+                className="ghost-button"
+                aria-label={`Remove ${chosen.file.name}`}
+                onClick={() => choosePicture(null)}
+              >
+                Remove
+              </button>
+            </div>
+          </div>
         )}
 
         {imageUrl && (
@@ -708,6 +852,8 @@ export function QuestionForm({
             </button>
           </div>
         )}
+
+        <FieldProblem problem={problem} field="image" />
       </div>
 
       {/* An alert, so a refusal is read out wherever focus is; focusable by
@@ -732,7 +878,7 @@ export function QuestionForm({
       </div>
     </form>
   );
-}
+});
 
 /**
  * One language's fields for a question's translation.

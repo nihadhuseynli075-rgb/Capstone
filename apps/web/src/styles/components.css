@@ -941,6 +941,12 @@
   box-shadow: inset 0 0 0 2px var(--danger);
 }
 
+/* A chosen diagram that did not upload: why, and the buttons to try again or remove it. */
+.picture-failed {
+  display: grid;
+  gap: 8px;
+}
+
 /*
  * An admin-list flag for a question that is in the bank but not in tests yet:
  * a draft waiting for its options, or one waiting for its picture.

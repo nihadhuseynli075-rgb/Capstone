@@ -9,7 +9,7 @@ import {
   subjectName,
   topicName
 } from "@grade9/shared";
-import { QuestionForm, type QuestionCarryOver } from "../components/QuestionForm";
+import { QuestionForm, type QuestionCarryOver, type QuestionFormHandle } from "../components/QuestionForm";
 import { adminText } from "../components/adminText";
 import { fill } from "../features/friends/fill";
 import { ApiError } from "../services/apiClient";
@@ -58,9 +58,16 @@ const statusLabel: Record<Exclude<QuestionStatus, "ready">, string> = {
 
 /**
  * Why the sign-in form is back: the session ended (the API restarted, or its
- * twelve hours ran out), with or without a question waiting to be saved.
+ * twelve hours ran out), with or without a question waiting to be saved or a
+ * picture waiting to be uploaded.
  */
-type SignInReason = "session-ended" | "session-ended-with-draft" | null;
+type SignInReason = "session-ended" | "session-ended-with-draft" | "session-ended-with-picture" | null;
+
+const signInReasonText: Record<Exclude<SignInReason, null>, string> = {
+  "session-ended": adminText.sessionEnded,
+  "session-ended-with-draft": adminText.sessionEndedDraft,
+  "session-ended-with-picture": adminText.sessionEndedPicture
+};
 
 function LoginScreen({
   reason,
@@ -100,7 +107,7 @@ function LoginScreen({
           the session ended looked as if it had been saved. */}
       {reason && (
         <p className="warning-banner" role="status">
-          {reason === "session-ended-with-draft" ? adminText.sessionEndedDraft : adminText.sessionEnded}
+          {signInReasonText[reason]}
         </p>
       )}
 
@@ -161,6 +168,10 @@ export function AdminPage() {
   // A question whose save was refused because the session had ended. It is
   // sent again as soon as the admin has signed back in.
   const pendingSave = useRef<QuestionDraft | null>(null);
+  // Set when a picture's upload was refused for the same reason. The form
+  // keeps the picture and uploads it once the admin has signed back in.
+  const pictureWaiting = useRef(false);
+  const questionForm = useRef<QuestionFormHandle>(null);
   const [saving, setSaving] = useState(false);
   // Set the moment a save starts, ahead of the state above reaching the page,
   // so a second press of the button cannot start a second save.
@@ -211,16 +222,30 @@ export function AdminPage() {
     window.requestAnimationFrame(() => document.getElementById(`admin-tab-${next}`)?.focus());
   }
 
-  /** Any 401 means the API restarted or the session expired: show login again, and say why. */
-  const handleFailure = useCallback((cause: unknown) => {
-    if (cause instanceof ApiError && cause.status === 401) {
-      setAdminToken(null);
-      setToken(null);
-      setSessionEnded(true);
-      return;
-    }
-    setError((cause as Error).message);
+  /** The API restarted or the session expired: show login again, with the dashboard kept behind it. */
+  const endSession = useCallback(() => {
+    setAdminToken(null);
+    setToken(null);
+    setSessionEnded(true);
   }, []);
+
+  /** Any 401 means the session has ended (see endSession); anything else is said in the banner. */
+  const handleFailure = useCallback(
+    (cause: unknown) => {
+      if (cause instanceof ApiError && cause.status === 401) {
+        endSession();
+        return;
+      }
+      setError((cause as Error).message);
+    },
+    [endSession]
+  );
+
+  /** A picture refused for want of a session: the same as any other 401, with the picture kept by the form. */
+  const handlePictureRefused = useCallback(() => {
+    pictureWaiting.current = true;
+    endSession();
+  }, [endSession]);
 
   const refresh = useCallback(async () => {
     try {
@@ -317,7 +342,13 @@ export function AdminPage() {
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.scrollTo(0, position)));
   }
 
-  /** Signed in, for the first time or again: back to the dashboard, saving anything left waiting. */
+  /**
+   * Signed in, for the first time or again: back to the dashboard, finishing
+   * whatever was left waiting. The form does that itself: a picture refused
+   * when the session ended is uploaded first, and a question waiting to be
+   * saved is then saved from the form, picture and all, rather than as it was
+   * before the picture arrived.
+   */
   function handleSignedIn(mode: string, isDefault: boolean) {
     setStorageMode(mode);
     setUsingDefaultPassword(isDefault);
@@ -326,7 +357,13 @@ export function AdminPage() {
 
     const draft = pendingSave.current;
     pendingSave.current = null;
-    if (draft) void handleSave(draft);
+    pictureWaiting.current = false;
+    const form = questionForm.current;
+    if (form) {
+      form.resumeAfterSignIn(draft !== null);
+    } else if (draft) {
+      void handleSave(draft);
+    }
   }
 
   // Before anything has been shown there is nothing to keep, so the sign-in
@@ -473,7 +510,13 @@ export function AdminPage() {
     <>
       {!token && (
         <LoginScreen
-          reason={pendingSave.current ? "session-ended-with-draft" : "session-ended"}
+          reason={
+            pendingSave.current
+              ? "session-ended-with-draft"
+              : pictureWaiting.current
+                ? "session-ended-with-picture"
+                : "session-ended"
+          }
           onSignedIn={handleSignedIn}
         />
       )}
@@ -500,6 +543,7 @@ export function AdminPage() {
                 // end. This tab forgets the token either way.
               }
               pendingSave.current = null;
+              pictureWaiting.current = false;
               setSessionEnded(false);
               setAdminToken(null);
               setToken(null);
@@ -589,6 +633,8 @@ export function AdminPage() {
             <QuestionForm
               // One form per question being edited, and a new one after each add.
               key={editing ? `edit-${editing.id}` : `new-${formKey}`}
+              ref={questionForm}
+              onSessionEnded={handlePictureRefused}
               initial={editing}
               carryOver={carryOver}
               onSubmit={handleSave}
