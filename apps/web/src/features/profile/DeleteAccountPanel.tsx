@@ -22,7 +22,7 @@ export function DeleteAccountPanel({
   onDeleted: () => void;
 }) {
   const { t } = useLanguage();
-  const { deleteAccount } = useProfile();
+  const { deleteAccount, noteSignInEnded } = useProfile();
 
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
@@ -53,8 +53,11 @@ export function DeleteAccountPanel({
       await deleteAccount(typed);
       onDeleted();
     } catch (cause) {
-      setError(errorText(cause, t));
       setDeleting(false);
+      // A sign-in that has ended is said at the top of the page (see noteSignInEnded).
+      if (noteSignInEnded(cause)) return;
+
+      setError(errorText(cause, t));
       focusFirstError("delete-confirm");
     }
   }

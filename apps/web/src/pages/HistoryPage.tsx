@@ -4,7 +4,9 @@ import { attemptScoreValue } from "@grade9/shared";
 import { navigate } from "../app/router";
 import { Ascent } from "../components/Ascent";
 import { useAuth } from "../features/auth/AuthContext";
+import { SignInAgainButton } from "../features/auth/SignInAgainButton";
 import { useClaimedHistoryVersion } from "../features/auth/useHistoryClaim";
+import { needsSignInAgain } from "../features/profile/profileText";
 import { formatDayTime, formatPercent, useLanguage } from "../lib/i18n";
 import { difficultyLabel, subjectLabel, testErrorText } from "../lib/testText";
 import { fetchHistory, isScored } from "../services/testsApi";
@@ -57,8 +59,32 @@ export function HistoryPage() {
     return (
       <div className="stack">
         <h1>{t("main.history")}</h1>
-        {/* An alert, so a failed load is said out loud and not only painted. */}
-        <p className="error-banner" role="alert">{testErrorText(error, t)}</p>
+        {/* An alert, so a failed load is said out loud and not only painted.
+            A sign-in that has ended gets a way to sign in again, which comes
+            back here, since asking again cannot help; anything else, such as
+            no connection, gets another go. */}
+        <p className="error-banner" role="alert">
+          {testErrorText(error, t)}{" "}
+          {needsSignInAgain(error) ? (
+            <SignInAgainButton />
+          ) : (
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => {
+                // The effect above only asks again when the account changes
+                // or guest tests are claimed, so a retry asks for itself.
+                setError(null);
+                fetchHistory().then(
+                  (rows) => setAttempts(rows),
+                  (cause: unknown) => setError(cause)
+                );
+              }}
+            >
+              {t("profile.retry")}
+            </button>
+          )}
+        </p>
       </div>
     );
   }

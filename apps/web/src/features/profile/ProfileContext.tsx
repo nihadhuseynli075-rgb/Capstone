@@ -4,6 +4,7 @@ import type { StudentProfile } from "@grade9/shared";
 import { ApiError } from "../../services/apiClient";
 import * as profileApi from "../../services/profileApi";
 import { useAuth } from "../auth/AuthContext";
+import { needsSignInAgain } from "./profileText";
 
 /**
  * The signed-in student's profile, shared by the header and the profile page.
@@ -32,6 +33,27 @@ interface ProfileContextValue {
    */
   error: unknown;
   reload: () => void;
+  /**
+   * Whether this tab's sign-in has been found to have ended: signed out on
+   * another device, or run out. The tab cannot tell until something it sends
+   * is refused, and from then on everything is, so the profile page says it
+   * once, with the way to sign in again, rather than in every panel. It holds
+   * until the account changes: a save the API still lets through proves
+   * nothing, since the API can accept a signed-out session's token until it
+   * runs out, about an hour later (see signedInAccount in the API).
+   */
+  signInEnded: boolean;
+  /** How many presses of a button have found the sign-in ended, so the page can take the student to its message after each. */
+  signInEndedPresses: number;
+  /**
+   * Looks at a failure from one of the profile page's panels. True when it
+   * means the sign-in has ended, which is then marked for the page to say; the
+   * panel says nothing of its own. Unless `quiet`, it also counts as a press
+   * (signInEndedPresses), for a failure that came from pressing something: the
+   * message can be a long way up the page from the button. A check that runs
+   * while the student types is quiet, so it does not take them from the box.
+   */
+  noteSignInEnded: (cause: unknown, options?: { quiet?: boolean }) => boolean;
   /** Saves a new name, username, or both. Throws the API's reason when it is refused. */
   updateDetails: (changes: { fullName?: string; username?: string }) => Promise<void>;
   uploadPhoto: (photo: Blob) => Promise<void>;
@@ -82,6 +104,12 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<unknown>(null);
   const [loads, setLoads] = useState(0);
 
+  // The account whose sign-in was found to have ended. Kept by account, so
+  // the next one to sign in in this tab starts without it.
+  const [endedFor, setEndedFor] = useState<string | null>(null);
+  const [signInEndedPresses, setSignInEndedPresses] = useState(0);
+  const signInEnded = userId !== null && endedFor === userId;
+
   // Who is signed in right now, for answers that arrive after that changed.
   const currentUserId = useRef(userId);
   currentUserId.current = userId;
@@ -93,6 +121,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       setProfile(null);
       setStatus("signed-out");
       setError(null);
+      // Signing out is the way to sign in again, and the same account then
+      // comes back with a sign-in that works.
+      setEndedFor(null);
       cacheProfile(null);
       return;
     }
@@ -121,6 +152,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
         setStatus("error");
         setError(cause);
+        if (needsSignInAgain(cause)) setEndedFor(userId);
       });
 
     return () => {
@@ -129,6 +161,21 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   }, [ready, userId, userEmail, loads]);
 
   const reload = useCallback(() => setLoads((count) => count + 1), []);
+
+  const noteSignInEnded = useCallback(
+    (cause: unknown, { quiet = false }: { quiet?: boolean } = {}) => {
+      if (!needsSignInAgain(cause)) return false;
+
+      // A refusal that comes back after the account has changed was about the
+      // last one, and says nothing about this one.
+      if (userId === null || userId !== currentUserId.current) return true;
+
+      setEndedFor(userId);
+      if (!quiet) setSignInEndedPresses((count) => count + 1);
+      return true;
+    },
+    [userId]
+  );
 
   /** Takes a profile the API sent back, unless it belongs to someone no longer signed in. */
   const accept = useCallback((next: StudentProfile) => {
@@ -153,8 +200,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       accept(await profileApi.removeProfilePhoto());
     } catch (cause) {
       // The photo can be off the profile already even though its file could
-      // not be deleted, so show whatever the server now has.
-      reload();
+      // not be deleted, so show whatever the server now has. A sign-in that
+      // has ended changed nothing, and asking again would only be refused too.
+      if (!needsSignInAgain(cause)) reload();
       throw cause;
     }
   }, [accept, reload]);
@@ -171,8 +219,32 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<ProfileContextValue>(
-    () => ({ profile, status, error, reload, updateDetails, uploadPhoto, removePhoto, deleteAccount }),
-    [profile, status, error, reload, updateDetails, uploadPhoto, removePhoto, deleteAccount]
+    () => ({
+      profile,
+      status,
+      error,
+      reload,
+      signInEnded,
+      signInEndedPresses,
+      noteSignInEnded,
+      updateDetails,
+      uploadPhoto,
+      removePhoto,
+      deleteAccount
+    }),
+    [
+      profile,
+      status,
+      error,
+      reload,
+      signInEnded,
+      signInEndedPresses,
+      noteSignInEnded,
+      updateDetails,
+      uploadPhoto,
+      removePhoto,
+      deleteAccount
+    ]
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;

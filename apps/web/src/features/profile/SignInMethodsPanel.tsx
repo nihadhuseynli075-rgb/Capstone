@@ -3,6 +3,7 @@ import { useAuth } from "../auth/AuthContext";
 import { GoogleMark, useLeavingForGoogle } from "../auth/GoogleButton";
 import { useLanguage } from "../../lib/i18n";
 import { errorText, redirectErrorText } from "./profileText";
+import { useProfile } from "./ProfileContext";
 
 /**
  * How this account can sign in, and connecting or disconnecting Google.
@@ -15,6 +16,7 @@ import { errorText, redirectErrorText } from "./profileText";
 export function SignInMethodsPanel() {
   const { t } = useLanguage();
   const { user, linkGoogle, unlinkGoogle, redirectResult, clearRedirectResult } = useAuth();
+  const { noteSignInEnded } = useProfile();
   const [leaving, setLeaving] = useLeavingForGoogle();
   const [disconnecting, setDisconnecting] = useState(false);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
@@ -45,7 +47,8 @@ export function SignInMethodsPanel() {
       await linkGoogle();
     } catch (cause) {
       setLeaving(false);
-      setNotice({ ok: false, text: errorText(cause, t) });
+      // A sign-in that has ended is said at the top of the page (see noteSignInEnded).
+      if (!noteSignInEnded(cause)) setNotice({ ok: false, text: errorText(cause, t) });
     }
   }
 
@@ -59,7 +62,7 @@ export function SignInMethodsPanel() {
       await unlinkGoogle();
       setNotice({ ok: true, text: t("profile.googleDisconnected") });
     } catch (cause) {
-      setNotice({ ok: false, text: errorText(cause, t) });
+      if (!noteSignInEnded(cause)) setNotice({ ok: false, text: errorText(cause, t) });
     } finally {
       setDisconnecting(false);
     }

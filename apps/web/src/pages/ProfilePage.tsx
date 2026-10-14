@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { PasswordField, focusFirstError } from "../features/auth/AuthLayout";
@@ -11,7 +11,7 @@ import { PhotoPanel } from "../features/profile/PhotoPanel";
 import { useProfile } from "../features/profile/ProfileContext";
 import { SignInMethodsPanel } from "../features/profile/SignInMethodsPanel";
 import { SignInAgainButton } from "../features/auth/SignInAgainButton";
-import { errorText, needsSignInAgain, passwordProblemText, redirectErrorText } from "../features/profile/profileText";
+import { errorText, passwordProblemText, redirectErrorText } from "../features/profile/profileText";
 import { formatDay, useLanguage } from "../lib/i18n";
 
 /**
@@ -31,11 +31,24 @@ import { formatDay, useLanguage } from "../lib/i18n";
 export function ProfilePage() {
   const { t, language } = useLanguage();
   const { user, configured, updatePassword, redirectResult, clearRedirectResult } = useAuth();
-  const { profile, status, error, reload } = useProfile();
+  const { profile, status, error, reload, signInEnded, signInEndedPresses } = useProfile();
 
   // Kept here rather than read from the session, which is gone the moment
   // the account is: this page stays up to say it worked.
   const [deleted, setDeleted] = useState(false);
+
+  // A press that finds the sign-in ended takes the student to the one message
+  // saying so, at the top: the button pressed can be a long way down the page,
+  // and its panel says nothing itself. Presses from before this page was
+  // opened are not its to answer.
+  const endedBanner = useRef<HTMLParagraphElement>(null);
+  const answeredPresses = useRef(signInEndedPresses);
+
+  useEffect(() => {
+    if (signInEndedPresses === answeredPresses.current) return;
+    answeredPresses.current = signInEndedPresses;
+    endedBanner.current?.focus();
+  }, [signInEndedPresses]);
 
   // Something that came back from a redirect failed while this student was
   // still signed in. Connecting Google says so on its own panel, so this is
@@ -121,19 +134,25 @@ export function ProfilePage() {
         </p>
       )}
 
-      {/* Worded by what went wrong, in the site language. A session that has
-          ended gets a way to sign in again, since trying again cannot help. */}
-      {status === "error" && (
-        <p className="error-banner" role="alert">
-          {errorText(error, t)}{" "}
-          {needsSignInAgain(error) ? (
-            <SignInAgainButton />
-          ) : (
+      {/* Worded by what went wrong, in the site language. A sign-in that has
+          ended gets a way to sign in again, since trying again cannot help.
+          It is said here, once, whichever panel found out: each used to say
+          it alone, with no way to do it, and every other panel would only
+          have been refused the same way. Focusable by script only (see
+          endedBanner), so it is read out whole when a press lands here. */}
+      {signInEnded ? (
+        <p className="error-banner" role="alert" tabIndex={-1} ref={endedBanner}>
+          {t("profile.errSignInAgain")} <SignInAgainButton />
+        </p>
+      ) : (
+        status === "error" && (
+          <p className="error-banner" role="alert">
+            {errorText(error, t)}{" "}
             <button type="button" className="link-button" onClick={reload}>
               {t("profile.retry")}
             </button>
-          )}
-        </p>
+          </p>
+        )
       )}
 
       <div className="settings-grid">
@@ -162,6 +181,7 @@ function PasswordPanel({
   onSave: (password: string) => Promise<void>;
 }) {
   const { t } = useLanguage();
+  const { noteSignInEnded } = useProfile();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({});
@@ -191,7 +211,8 @@ function PasswordPanel({
       setPassword("");
       setConfirm("");
     } catch (cause) {
-      setFormError(errorText(cause, t));
+      // A sign-in that has ended is said at the top of the page (see noteSignInEnded).
+      if (!noteSignInEnded(cause)) setFormError(errorText(cause, t));
     } finally {
       setSaving(false);
     }

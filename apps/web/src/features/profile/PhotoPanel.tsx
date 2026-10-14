@@ -36,7 +36,7 @@ export function PhotoPanel({
   editable: boolean;
 }) {
   const { t } = useLanguage();
-  const { profile, uploadPhoto, removePhoto } = useProfile();
+  const { profile, uploadPhoto, removePhoto, noteSignInEnded } = useProfile();
   const input = useRef<HTMLInputElement>(null);
 
   const [preview, setPreview] = useState<{ photo: Blob; address: string } | null>(null);
@@ -90,7 +90,8 @@ export function PhotoPanel({
       setPreview(null);
       setNotice({ ok: true, text: t("profile.photoSaved") });
     } catch (cause) {
-      setNotice({ ok: false, text: errorText(cause, t) });
+      // A sign-in that has ended is said at the top of the page (see noteSignInEnded).
+      if (!noteSignInEnded(cause)) setNotice({ ok: false, text: errorText(cause, t) });
     } finally {
       setBusy(null);
     }
@@ -104,7 +105,7 @@ export function PhotoPanel({
       await removePhoto();
       setNotice({ ok: true, text: t("profile.photoRemoved") });
     } catch (cause) {
-      setNotice({ ok: false, text: errorText(cause, t) });
+      if (!noteSignInEnded(cause)) setNotice({ ok: false, text: errorText(cause, t) });
     } finally {
       setBusy(null);
     }

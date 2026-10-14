@@ -28,7 +28,7 @@ export function EmailPanel({ email, googleOnly }: { email: string; googleOnly: b
   const { t } = useLanguage();
   const { user, updateEmail, refreshUser } = useAuth();
   // The profile row mirrors the account's address, so it is asked again when that moves.
-  const { reload } = useProfile();
+  const { reload, noteSignInEnded } = useProfile();
 
   const pending = user?.pendingEmail ?? null;
   // The newest account, for code that runs after an await and would otherwise
@@ -79,11 +79,16 @@ export function EmailPanel({ email, googleOnly }: { email: string; googleOnly: b
     }
   }, [pending, user, t]);
 
-  /** Asks Supabase for the change: what it did, or the sentence to show when it refused. */
-  async function request(address: string): Promise<{ applied: boolean } | string> {
+  /**
+   * Asks Supabase for the change: what it did, the sentence to show when it
+   * refused, or null when the sign-in has ended, which the page says at the
+   * top (see noteSignInEnded).
+   */
+  async function request(address: string): Promise<{ applied: boolean } | string | null> {
     try {
       return await updateEmail(address);
     } catch (cause) {
+      if (noteSignInEnded(cause)) return null;
       // "validation_failed" is Supabase's catch-all, and on this form it can
       // only mean the address.
       return errorText(cause, t, { validation_failed: "profile.errEmailInvalid" });
@@ -114,6 +119,8 @@ export function EmailPanel({ email, googleOnly }: { email: string; googleOnly: b
     const result = await request(address);
     savingRef.current = false;
     setSaving(false);
+
+    if (result === null) return;
 
     if (typeof result === "string") {
       setError(result);
@@ -164,6 +171,8 @@ export function EmailPanel({ email, googleOnly }: { email: string; googleOnly: b
     const result = await request(stillWaiting);
     savingRef.current = false;
     setSaving(false);
+
+    if (result === null) return;
 
     setNotice(
       typeof result === "string"

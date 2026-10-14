@@ -25,7 +25,7 @@ export function DetailsPanel({
   editable: boolean;
 }) {
   const { t } = useLanguage();
-  const { updateDetails } = useProfile();
+  const { updateDetails, noteSignInEnded } = useProfile();
 
   const [name, setName] = useState(currentName);
   const [username, setUsername] = useState(currentUsername);
@@ -80,6 +80,9 @@ export function DetailsPanel({
         t(nameChanged && usernameChanged ? "profile.detailsSaved" : nameChanged ? "profile.nameSaved" : "profile.usernameSaved")
       );
     } catch (cause) {
+      // A sign-in that has ended is said at the top of the page (see noteSignInEnded).
+      if (noteSignInEnded(cause)) return;
+
       const text = errorText(cause, t);
 
       if (cause instanceof ApiError && cause.code?.startsWith("username-")) {

@@ -3,6 +3,7 @@ import { normalizeUsername, usernameProblem, type UsernameProblem } from "@grade
 import { useLanguage } from "../../lib/i18n";
 import * as profileApi from "../../services/profileApi";
 import { fill, usernameProblemText } from "./profileText";
+import { useProfile } from "./ProfileContext";
 
 /** Long enough that a name being typed is not asked about on every key. */
 const CHECK_DELAY_MS = 400;
@@ -19,7 +20,9 @@ export type UsernameState =
   | { kind: "available"; username: string }
   | { kind: "taken" }
   /** The check itself failed. Saving is still allowed: the save decides. */
-  | { kind: "unknown" };
+  | { kind: "unknown" }
+  /** The sign-in has ended, so nobody can be asked, and nothing saved, until the student signs in again. */
+  | { kind: "ended" };
 
 /**
  * Works out what to say about a username while it is typed.
@@ -33,10 +36,12 @@ export type UsernameState =
  * what decides between them.
  */
 export function useUsernameState(value: string, current: string): UsernameState {
+  const { signInEnded, noteSignInEnded } = useProfile();
   const normalized = normalizeUsername(value);
   const typed = value.trim().length > 0;
   const problem = typed ? usernameProblem(value) : null;
-  const askable = typed && problem === null && normalized !== current;
+  // Once the sign-in has ended every check is refused, so none is sent.
+  const askable = typed && problem === null && normalized !== current && !signInEnded;
 
   const [answer, setAnswer] = useState<{ username: string; state: UsernameState } | null>(null);
 
@@ -58,7 +63,12 @@ export function useUsernameState(value: string, current: string): UsernameState 
                 : { kind: "unknown" };
           setAnswer({ username: normalized, state });
         })
-        .catch(() => {
+        .catch((cause: unknown) => {
+          // A refusal of the sign-in itself is the page's to say, at the top
+          // with the way to sign in again; the box then says it cannot check
+          // rather than that the name can still be saved, which it cannot.
+          // Quiet, since the student is still typing in the box.
+          noteSignInEnded(cause, { quiet: true });
           if (active) setAnswer({ username: normalized, state: { kind: "unknown" } });
         });
     }, CHECK_DELAY_MS);
@@ -67,11 +77,12 @@ export function useUsernameState(value: string, current: string): UsernameState 
       active = false;
       window.clearTimeout(timer);
     };
-  }, [askable, normalized]);
+  }, [askable, normalized, noteSignInEnded]);
 
   if (!typed) return { kind: "idle" };
   if (problem) return { kind: "problem", problem };
   if (normalized === current) return { kind: "current" };
+  if (signInEnded) return { kind: "ended" };
   return answer?.username === normalized ? answer.state : { kind: "checking" };
 }
 
@@ -121,6 +132,9 @@ export function UsernameField({
   } else if (state.kind === "unknown") {
     tone = "wait";
     text = t("profile.usernameCheckFailed");
+  } else if (state.kind === "ended") {
+    tone = "wait";
+    text = t("profile.usernameCheckSignIn");
   }
 
   const invalid = tone === "bad";
