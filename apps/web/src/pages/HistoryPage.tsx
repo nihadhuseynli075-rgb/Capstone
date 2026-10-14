@@ -15,6 +15,10 @@ export function HistoryPage() {
   const [attempts, setAttempts] = useState<AttemptSummary[] | null>(null);
   // The failure rather than its sentence, so it is shown in the current language.
   const [error, setError] = useState<unknown>(null);
+  // Presses of Try again. Each asks again through the effect below, so an
+  // answer that comes back after the account has changed, or after the page
+  // has gone, is dropped like the effect's own.
+  const [retries, setRetries] = useState(0);
   const { ready, user } = useAuth();
   // Guest tests moved onto the account after history was read: read it again.
   const claimedVersion = useClaimedHistoryVersion();
@@ -53,7 +57,7 @@ export function HistoryPage() {
     return () => {
       active = false;
     };
-  }, [ready, user?.id, claimedVersion]);
+  }, [ready, user?.id, claimedVersion, retries]);
 
   if (error !== null) {
     return (
@@ -68,19 +72,7 @@ export function HistoryPage() {
           {needsSignInAgain(error) ? (
             <SignInAgainButton />
           ) : (
-            <button
-              type="button"
-              className="link-button"
-              onClick={() => {
-                // The effect above only asks again when the account changes
-                // or guest tests are claimed, so a retry asks for itself.
-                setError(null);
-                fetchHistory().then(
-                  (rows) => setAttempts(rows),
-                  (cause: unknown) => setError(cause)
-                );
-              }}
-            >
+            <button type="button" className="link-button" onClick={() => setRetries((count) => count + 1)}>
               {t("profile.retry")}
             </button>
           )}
