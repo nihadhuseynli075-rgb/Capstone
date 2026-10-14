@@ -4,8 +4,10 @@ import { customLimits, difficultyPresets } from "@grade9/shared";
 import { navigate, useRouteParam } from "../app/router";
 import { ResumeTestBanner } from "../components/ResumeTestBanner";
 import { useAuth } from "../features/auth/AuthContext";
+import { SignInAgainButton } from "../features/auth/SignInAgainButton";
 import { useClaimedHistoryVersion } from "../features/auth/useHistoryClaim";
 import { fill } from "../features/friends/fill";
+import { needsSignInAgain } from "../features/profile/profileText";
 import { saveActiveTest } from "../lib/examSession";
 import { formatPercent, useLanguage, type TranslationKey } from "../lib/i18n";
 import { difficultyLabel, subjectLabel, testErrorText, topicLabel } from "../lib/testText";
@@ -603,10 +605,18 @@ export function TestBuilderPage() {
           </div>
         )}
 
-        {/* An alert, so a test that could not be built is said out loud. */}
+        {/* An alert, so a test that could not be built is said out loud. A
+            sign-in that has ended gets a way to sign in again, which comes
+            back here, since pressing Start again cannot help. */}
         {error && (
           <p className="error-banner" role="alert">
             {"key" in error ? t(error.key) : testErrorText(error.cause, t, "test.errNoQuestions")}
+            {"cause" in error && needsSignInAgain(error.cause) && (
+              <>
+                {" "}
+                <SignInAgainButton />
+              </>
+            )}
           </p>
         )}
 
