@@ -216,6 +216,41 @@ code {
   font-size: 0.875rem;
 }
 
+/*
+ * What is left on screen when the app cannot be drawn (components/
+ * ErrorBoundary): the page's own background and one card in the middle, with
+ * no header or footer, since they are part of what failed.
+ */
+.app-error {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+}
+
+.app-error-card {
+  width: min(460px, 100%);
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: clamp(22px, 4vw, 34px);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.app-error-card h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 1.9rem);
+}
+
+.app-error-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
 /* ----------------------------------------------------------------- layout */
 
 .stack {

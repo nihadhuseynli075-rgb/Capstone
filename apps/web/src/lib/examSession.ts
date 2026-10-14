@@ -1,5 +1,6 @@
 import type { AttemptComparison, MockTest, TestResult } from "@grade9/shared";
 import { recordOwner, storedRecordFate } from "@grade9/shared";
+import { safeSessionStorage } from "./safeStorage";
 import { peekIdentity } from "./studentKey";
 
 const ACTIVE_TEST_KEY = "examPeak.activeTest";
@@ -34,13 +35,13 @@ export interface ActiveTest {
  */
 export function saveActiveTest(active: ActiveTest): void {
   const { answers, currentIndex, ...paper } = active;
-  window.sessionStorage.setItem(ACTIVE_TEST_KEY, JSON.stringify({ ...paper, owner: recordOwner(peekIdentity()) }));
+  safeSessionStorage.setItem(ACTIVE_TEST_KEY, JSON.stringify({ ...paper, owner: recordOwner(peekIdentity()) }));
   saveProgress(paper.test.id, answers, currentIndex);
 }
 
 /** Records the answers and the question on screen for the paper in progress. */
 export function saveProgress(testId: string, answers: Record<string, string>, currentIndex: number): void {
-  window.sessionStorage.setItem(PROGRESS_KEY, JSON.stringify({ testId, answers, currentIndex }));
+  safeSessionStorage.setItem(PROGRESS_KEY, JSON.stringify({ testId, answers, currentIndex }));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -149,7 +150,7 @@ function isThisTabs(value: unknown): boolean {
 }
 
 export function loadActiveTest(): ActiveTest | null {
-  const raw = window.sessionStorage.getItem(ACTIVE_TEST_KEY);
+  const raw = safeSessionStorage.getItem(ACTIVE_TEST_KEY);
   if (!raw) return null;
 
   const stored = parseStored(raw);
@@ -161,7 +162,7 @@ export function loadActiveTest(): ActiveTest | null {
     return null;
   }
 
-  const progress = window.sessionStorage.getItem(PROGRESS_KEY);
+  const progress = safeSessionStorage.getItem(PROGRESS_KEY);
   const active = readActiveTest(stored, progress === null ? null : parseStored(progress));
 
   // It can never be resumed, so drop it rather than meet it on every visit.
@@ -170,8 +171,8 @@ export function loadActiveTest(): ActiveTest | null {
 }
 
 export function clearActiveTest(): void {
-  window.sessionStorage.removeItem(ACTIVE_TEST_KEY);
-  window.sessionStorage.removeItem(PROGRESS_KEY);
+  safeSessionStorage.removeItem(ACTIVE_TEST_KEY);
+  safeSessionStorage.removeItem(PROGRESS_KEY);
 }
 
 /**
@@ -188,7 +189,7 @@ export interface StoredResult extends Omit<TestResult, "comparison"> {
 }
 
 export function saveLastResult(result: StoredResult): void {
-  window.sessionStorage.setItem(LAST_RESULT_KEY, JSON.stringify({ ...result, owner: recordOwner(peekIdentity()) }));
+  safeSessionStorage.setItem(LAST_RESULT_KEY, JSON.stringify({ ...result, owner: recordOwner(peekIdentity()) }));
 }
 
 function isOptionalNumber(value: unknown): boolean {
@@ -281,13 +282,13 @@ function readLastResult(value: unknown): StoredResult | null {
 }
 
 export function loadLastResult(): StoredResult | null {
-  const raw = window.sessionStorage.getItem(LAST_RESULT_KEY);
+  const raw = safeSessionStorage.getItem(LAST_RESULT_KEY);
   if (!raw) return null;
 
   const stored = parseStored(raw);
 
   if (!isThisTabs(stored)) {
-    window.sessionStorage.removeItem(LAST_RESULT_KEY);
+    safeSessionStorage.removeItem(LAST_RESULT_KEY);
     return null;
   }
 
@@ -302,7 +303,7 @@ export function loadLastResult(): StoredResult | null {
 /** Forgets the paper, its progress and the last result: all that the tab keeps about a test. */
 export function clearSessionRecords(): void {
   clearActiveTest();
-  window.sessionStorage.removeItem(LAST_RESULT_KEY);
+  safeSessionStorage.removeItem(LAST_RESULT_KEY);
 }
 
 /**
@@ -319,25 +320,25 @@ export function settleSessionRecords(): void {
   const who = peekIdentity();
 
   for (const key of [ACTIVE_TEST_KEY, LAST_RESULT_KEY]) {
-    const raw = window.sessionStorage.getItem(key);
+    const raw = safeSessionStorage.getItem(key);
     if (raw === null) continue;
 
     const stored = parseStored(raw);
     const fate = isRecord(stored) ? storedRecordFate(stored.owner, who) : "drop";
 
     if (fate === "drop") {
-      window.sessionStorage.removeItem(key);
+      safeSessionStorage.removeItem(key);
     } else if (fate === "hand-over" && isRecord(stored)) {
       try {
-        window.sessionStorage.setItem(key, JSON.stringify({ ...stored, owner: who.userId }));
+        safeSessionStorage.setItem(key, JSON.stringify({ ...stored, owner: who.userId }));
       } catch {
         // No room to write it again. A record that cannot be re-stamped must not
         // stay as the guest's.
-        window.sessionStorage.removeItem(key);
+        safeSessionStorage.removeItem(key);
       }
     }
   }
 
   // Progress only means something beside its paper.
-  if (window.sessionStorage.getItem(ACTIVE_TEST_KEY) === null) window.sessionStorage.removeItem(PROGRESS_KEY);
+  if (safeSessionStorage.getItem(ACTIVE_TEST_KEY) === null) safeSessionStorage.removeItem(PROGRESS_KEY);
 }

@@ -1,17 +1,18 @@
 import type { BankQuestion, QuestionDraft } from "@grade9/shared";
+import { safeSessionStorage } from "../lib/safeStorage";
 import { apiRequest } from "./apiClient";
 
 const TOKEN_KEY = "examPeak.adminToken";
 
 export function getAdminToken(): string | null {
-  return window.sessionStorage.getItem(TOKEN_KEY);
+  return safeSessionStorage.getItem(TOKEN_KEY);
 }
 
 export function setAdminToken(token: string | null): void {
   if (token) {
-    window.sessionStorage.setItem(TOKEN_KEY, token);
+    safeSessionStorage.setItem(TOKEN_KEY, token);
   } else {
-    window.sessionStorage.removeItem(TOKEN_KEY);
+    safeSessionStorage.removeItem(TOKEN_KEY);
   }
 }
 

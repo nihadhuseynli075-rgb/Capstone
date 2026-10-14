@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { safeLocalStorage } from "./safeStorage";
 
 /**
  * Site language.
@@ -1809,7 +1810,7 @@ export function isTranslationKey(key: string): key is TranslationKey {
 }
 
 export function getStoredLanguage(): Language {
-  const stored = window.localStorage.getItem(STORAGE_KEY);
+  const stored = safeLocalStorage.getItem(STORAGE_KEY);
   if (stored === "en" || stored === "ru" || stored === "az") return stored;
 
   // Fall back to the browser's language when it is one we speak.
@@ -1838,7 +1839,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => getStoredLanguage());
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, language);
+    safeLocalStorage.setItem(STORAGE_KEY, language);
     // Screen readers and browser translation both key off this. A page pinned
     // to one language keeps its own (see usePinnedLanguage).
     document.documentElement.lang = documentPin ?? language;

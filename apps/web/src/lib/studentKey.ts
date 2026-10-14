@@ -1,4 +1,5 @@
 import { studentKeyLimits, type TabIdentity } from "@grade9/shared";
+import { safeLocalStorage } from "./safeStorage";
 import { supabase } from "./supabaseClient";
 
 const STORAGE_KEY = "examPeak.studentKey";
@@ -24,7 +25,7 @@ export function setSignedInUserId(userId: string | null): void {
 
 /** This browser's guest key, if it has one, without creating or replacing it. */
 export function peekGuestKey(): string | null {
-  const existing = window.localStorage.getItem(STORAGE_KEY);
+  const existing = safeLocalStorage.getItem(STORAGE_KEY);
   // A key the API would refuse fails every request a guest makes, so it is no
   // key at all.
   return existing &&
@@ -50,7 +51,7 @@ function guestKey(): string {
   if (existing && !isGuestKeyClaimed(existing)) return existing;
 
   const key = crypto.randomUUID();
-  window.localStorage.setItem(STORAGE_KEY, key);
+  safeLocalStorage.setItem(STORAGE_KEY, key);
   return key;
 }
 
@@ -99,10 +100,10 @@ export function peekIdentity(): TabIdentity {
 }
 
 export function isGuestKeyClaimed(key: string): boolean {
-  return window.localStorage.getItem(CLAIMED_KEY) === key;
+  return safeLocalStorage.getItem(CLAIMED_KEY) === key;
 }
 
 /** Records that this guest key's tests now belong to an account. */
 export function markGuestKeyClaimed(key: string): void {
-  window.localStorage.setItem(CLAIMED_KEY, key);
+  safeLocalStorage.setItem(CLAIMED_KEY, key);
 }

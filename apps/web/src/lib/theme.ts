@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { safeLocalStorage } from "./safeStorage";
 
 const STORAGE_KEY = "examPeak.theme";
 
@@ -8,12 +9,8 @@ const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
 
 /** The theme the student picked on this device, or null if they never have. */
 function storedChoice(): Theme | null {
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    return stored === "light" || stored === "dark" ? stored : null;
-  } catch {
-    return null;
-  }
+  const stored = safeLocalStorage.getItem(STORAGE_KEY);
+  return stored === "light" || stored === "dark" ? stored : null;
 }
 
 function systemTheme(): Theme {
@@ -82,14 +79,13 @@ function change(theme: Theme): void {
   for (const listener of [...listeners]) listener();
 }
 
-/** A student's own choice, kept on this device from now on. */
+/**
+ * A student's own choice, kept on this device from now on. Where the browser
+ * keeps nothing, it holds until the page is closed, and still outranks the
+ * system's setting until then.
+ */
 export function setTheme(theme: Theme): void {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, theme);
-  } catch {
-    // Storage refused: the choice still holds until the page is closed.
-  }
-
+  safeLocalStorage.setItem(STORAGE_KEY, theme);
   change(theme);
 }
 
