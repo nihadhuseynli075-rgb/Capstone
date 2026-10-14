@@ -17,7 +17,12 @@ type StorageName = "localStorage" | "sessionStorage";
 
 export interface SafeStorage {
   getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
+  /**
+   * Whether the value reached the browser's store. False means it is only in
+   * memory and gone on a reload, for the few callers with a better place to
+   * send someone then (see saveLastResult).
+   */
+  setItem(key: string, value: string): boolean;
   removeItem(key: string): void;
 }
 
@@ -42,8 +47,10 @@ function createSafeStorage(name: StorageName): SafeStorage {
       try {
         window[name].setItem(key, value);
         memory.delete(key);
+        return true;
       } catch {
         memory.set(key, value);
+        return false;
       }
     },
 

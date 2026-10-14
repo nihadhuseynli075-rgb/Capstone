@@ -188,8 +188,19 @@ export interface StoredResult extends Omit<TestResult, "comparison"> {
   comparison: AttemptComparison | null;
 }
 
+/**
+ * Keeps the fresh result for the results screen. Throws when the tab's store
+ * would not take it (full, or blocked): a copy held only in memory is gone on
+ * a reload, and the exam page then sends the student to the saved copy on the
+ * server instead, which survives one.
+ */
 export function saveLastResult(result: StoredResult): void {
-  safeSessionStorage.setItem(LAST_RESULT_KEY, JSON.stringify({ ...result, owner: recordOwner(peekIdentity()) }));
+  const kept = safeSessionStorage.setItem(
+    LAST_RESULT_KEY,
+    JSON.stringify({ ...result, owner: recordOwner(peekIdentity()) })
+  );
+
+  if (!kept) throw new Error("The result could not be kept in this tab's storage.");
 }
 
 function isOptionalNumber(value: unknown): boolean {
