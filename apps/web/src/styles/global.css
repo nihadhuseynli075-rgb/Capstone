@@ -30,6 +30,13 @@
    */
   --muted: #4f6d88;
   --border: #d1e2ef;
+  /*
+   * The edge of a text field or a select. The divider colour above is meant to
+   * be faint, but a field's fill is the panel's own colour, so its edge is all
+   * that shows where to type, and it needs 3:1 against whatever it sits on
+   * (WCAG 1.4.11). This clears it on white, the page and the surfaces between.
+   */
+  --field-border: #6e879c;
   --brand: #0a70ad;
   --brand-strong: #0a3a58;
   --brand-soft: #e0eefa;
@@ -54,6 +61,7 @@
   --text: #e4f1fa;
   --muted: #8dabc4;
   --border: #1d465f;
+  --field-border: #5e87a6;
   --brand: #3aa6e6;
   --brand-strong: #3aa6e6;
   --brand-soft: #123650;
@@ -409,7 +417,7 @@ select,
 textarea {
   width: 100%;
   min-height: 42px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-border);
   border-radius: 8px;
   padding: 9px 12px;
   background: var(--surface);

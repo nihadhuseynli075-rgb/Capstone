@@ -231,7 +231,8 @@ textarea,
 .auth-field input {
   min-height: 48px;
   border-radius: 13px;
-  border-color: color-mix(in srgb, var(--border) 88%, transparent);
+  /* Its own token, not the divider colour: see --field-border in global.css. */
+  border-color: var(--field-border);
   background: color-mix(in srgb, var(--surface) 96%, var(--brand-soft));
 }
 
