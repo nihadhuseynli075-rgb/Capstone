@@ -371,6 +371,8 @@ const en = {
   "legal.signUpNotice": "By creating an account you accept the {terms}. The {privacy} says what we keep and how to delete it.",
   "legal.termsInline": "terms of use",
   "legal.privacyInline": "privacy page",
+  // Read out after a link that opens in a new tab, such as the ones on the sign-up form.
+  "legal.newTab": "(opens in a new tab)",
 
   // Forgotten password
   "auth.forgotPassword": "Forgot password?",
@@ -942,6 +944,7 @@ const ru: Dictionary = {
     "Создавая аккаунт, вы принимаете {terms}. На странице {privacy} написано, что мы храним и как это удалить.",
   "legal.termsInline": "условия использования",
   "legal.privacyInline": "о конфиденциальности",
+  "legal.newTab": "(откроется в новой вкладке)",
 
   // Forgotten password
   "auth.forgotPassword": "Забыли пароль?",
@@ -1492,6 +1495,7 @@ const az: Dictionary = {
     "Hesab yaratmaqla {terms} qəbul edirsiniz. Nəyi saxladığımız və onu necə silmək olduğu {privacy} yazılıb.",
   "legal.termsInline": "istifadə şərtlərini",
   "legal.privacyInline": "məxfilik səhifəsində",
+  "legal.newTab": "(yeni tabda açılır)",
 
   // Forgotten password
   "auth.forgotPassword": "Şifrəni unutmusunuz?",

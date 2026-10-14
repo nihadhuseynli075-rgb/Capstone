@@ -69,11 +69,30 @@ export function AuthLayout({
         </p>
 
         <nav className="auth-legal">
-          <a href="#/privacy">{t("legal.privacy")}</a>
-          <a href="#/terms">{t("legal.terms")}</a>
+          <NewTabLink href="#/privacy">{t("legal.privacy")}</NewTabLink>
+          <NewTabLink href="#/terms">{t("legal.terms")}</NewTabLink>
         </nav>
       </main>
     </div>
+  );
+}
+
+/**
+ * A link from these pages to the privacy page or the terms, opened in a new tab.
+ *
+ * Followed in the same tab, Back came back to an empty sign-up form: the page
+ * is drawn afresh, and everything typed into it was gone. In a tab of its own
+ * the form stays as it was. Sighted students see the new tab open; screen
+ * readers are told before the link is followed.
+ */
+export function NewTabLink({ href, children }: { href: string; children: ReactNode }) {
+  const { t } = useLanguage();
+
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer">
+      {children}
+      <span className="visually-hidden">{` ${t("legal.newTab")}`}</span>
+    </a>
   );
 }
 

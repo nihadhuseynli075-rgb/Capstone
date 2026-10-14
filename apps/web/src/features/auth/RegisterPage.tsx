@@ -3,7 +3,7 @@ import { replaceRoute, useRouteParam } from "../../app/router";
 import { fill, useLanguage } from "../../lib/i18n";
 import { emailProblemText, errorText, nameProblemText, passwordProblemText } from "../profile/profileText";
 import { useAuth } from "./AuthContext";
-import { AuthDivider, AuthLayout, Field, PasswordField, focusFirstError } from "./AuthLayout";
+import { AuthDivider, AuthLayout, Field, NewTabLink, PasswordField, focusFirstError } from "./AuthLayout";
 import { GoogleButton } from "./GoogleButton";
 import { strengthText } from "./authText";
 import { emailProblem, nameProblem, passwordProblem, passwordStrength } from "./authValidation";
@@ -196,11 +196,12 @@ export function RegisterPage() {
         </button>
 
         {/* Said where the account is made, not only in the footer: the
-            accounts are Grade 9 students'. */}
+            accounts are Grade 9 students'. The links open in a new tab, so
+            reading the terms does not cost the student what they typed. */}
         <p className="auth-legal-notice">
           {fillLinks(t("legal.signUpNotice"), {
-            terms: <a href="#/terms">{t("legal.termsInline")}</a>,
-            privacy: <a href="#/privacy">{t("legal.privacyInline")}</a>
+            terms: <NewTabLink href="#/terms">{t("legal.termsInline")}</NewTabLink>,
+            privacy: <NewTabLink href="#/privacy">{t("legal.privacyInline")}</NewTabLink>
           })}
         </p>
       </form>
