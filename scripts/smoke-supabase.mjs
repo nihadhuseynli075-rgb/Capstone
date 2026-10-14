@@ -1218,6 +1218,31 @@ async function main() {
     const late = await submit(lateTest, lateKey, rightAnswers(lateTest));
     check("a paper past its time is refused", late.status === 409 && late.body.code === "time-expired", `${late.status} ${JSON.stringify(late.body)}`);
 
+    // Handed in on time, but marking took minutes and then the save failed:
+    // by the time the browser sends it again, the limit and its grace are
+    // past. Refused as out of time, the browser put the paper down for good.
+    const onTimeKey = randomUUID();
+    const onTimeTest = (await generate(onTimeKey, undefined, { timeLimitMinutes: 5 })).body.test;
+    await control("faults", { method: "PATCH", table: "attempt_questions", times: 1 });
+    const onTimeFirst = await submit(onTimeTest, onTimeKey, rightAnswers(onTimeTest));
+    check("a paper handed in on time whose save fails is reported", onTimeFirst.status === 500, `got ${onTimeFirst.status}`);
+    // Seven minutes into a five-minute paper: past the limit and the minute's grace.
+    await request(standin.url, `/__standin/rows/test_attempts/${onTimeTest.id}`, {
+      method: "PATCH",
+      body: { created_at: new Date(Date.now() - 7 * 60 * 1000).toISOString() }
+    });
+    const onTimeRetry = await submit(onTimeTest, onTimeKey, rightAnswers(onTimeTest));
+    check(
+      "sending it again after its time is up is taken, as the on-time hand-in it is",
+      onTimeRetry.status === 200 && onTimeRetry.body.score === onTimeTest.questions.length,
+      `${onTimeRetry.status} ${JSON.stringify(onTimeRetry.body).slice(0, 200)}`
+    );
+    check(
+      "and is recorded as taking no longer than the limit",
+      onTimeRetry.body.timeTakenSeconds <= 5 * 60,
+      String(onTimeRetry.body.timeTakenSeconds)
+    );
+
     // An untimed paper open for seven hours, with the browser saying so too.
     // That figure was once refused outright, and the answers with it.
     const sevenHours = 7 * 60 * 60;

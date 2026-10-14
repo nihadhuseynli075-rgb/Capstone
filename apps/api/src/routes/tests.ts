@@ -205,7 +205,8 @@ testsRouter.post("/generate", async (request, response, next) => {
  *
  * Covers a slow network, a clock that is slightly out, and the second or two
  * between the countdown hitting zero and the request arriving. Anything beyond
- * this is not lag, it is a test that was left open.
+ * this is not lag, it is a test that was left open, unless it is a paper
+ * already taken in on time being sent again (see admittedOnTime).
  */
 const SUBMIT_GRACE_SECONDS = 60;
 
@@ -219,6 +220,29 @@ const SUBMIT_GRACE_SECONDS = 60;
  * the submit route), so a longer sitting still shows its real length.
  */
 const MAX_CLAIMED_SECONDS = 60 * 60 * 6;
+
+/**
+ * Timed papers taken in on time whose hand-in has not been saved yet, by when
+ * they were taken in.
+ *
+ * The time limit is checked when a hand-in arrives, but marking written
+ * answers can take about three minutes, far beyond the minute's grace. If the
+ * save then fails, the paper is reopened and the browser sends it again, by
+ * now past the limit: refused as out of time, the browser put the paper down
+ * and every answer was lost, on a paper handed in on time. So a paper taken in
+ * on time is taken again for a while afterwards, as the retry it is. The entry
+ * goes once the paper is saved, and old ones are swept when another is added.
+ * Kept in memory, like the limits above, so a restart forgets it.
+ */
+const ON_TIME_RETRY_WINDOW_MS = 15 * 60 * 1000;
+const admittedOnTime = new Map<string, number>();
+
+function admitOnTime(attemptId: string, at: number): void {
+  for (const [id, admittedAt] of admittedOnTime) {
+    if (at - admittedAt >= ON_TIME_RETRY_WINDOW_MS) admittedOnTime.delete(id);
+  }
+  admittedOnTime.set(attemptId, at);
+}
 
 /**
  * Papers whose submission is being marked right now, in this process.
@@ -358,7 +382,12 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
 
     const limitMinutes = attempt.settings.timeLimitMinutes;
 
-    if (limitMinutes !== null && elapsedSeconds > limitMinutes * 60 + SUBMIT_GRACE_SECONDS) {
+    // A paper taken in on time a little while ago and not saved since: this
+    // is that hand-in again, after its save failed (see admittedOnTime).
+    const admittedAt = admittedOnTime.get(attempt.id);
+    const retryOfOnTime = admittedAt !== undefined && Date.now() - admittedAt < ON_TIME_RETRY_WINDOW_MS;
+
+    if (limitMinutes !== null && elapsedSeconds > limitMinutes * 60 + SUBMIT_GRACE_SECONDS && !retryOfOnTime) {
       return response.status(409).json({
         code: "time-expired",
         message:
@@ -381,6 +410,10 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
     // Nothing has been awaited since the in-flight check above, so no other
     // request can have claimed the paper in between.
     submissionsInFlight.add(attempt.id);
+
+    // Taken in on time: remembered from the first hand-in, so a run of failed
+    // saves cannot stretch the window past that one.
+    if (limitMinutes !== null && !retryOfOnTime) admitOnTime(attempt.id, Date.now());
 
     try {
       const answers = resolveAnswers(attempt.questions, parsed.data.answers);
@@ -425,6 +458,10 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
       if (!recorded) {
         return response.status(409).json(submissionInProgress);
       }
+
+      // Saved, so no retry of this hand-in is to come. One that lost the race
+      // above keeps its place: the paper may yet be reopened.
+      admittedOnTime.delete(attempt.id);
 
       const result: TestResult = {
         attemptId: attempt.id,
