@@ -1,15 +1,18 @@
--- Exampeak: answers stay hidden until hand-in.
+-- Exampeak: answers stay hidden until hand-in, and the leaderboard is closed.
 --
 -- Run this in the Supabase SQL editor after 0013_friends_privacy.sql. It needs
--- 0001 and 0002 (the attempt tables and their policies) to be in already.
+-- 0001 and 0002 (the attempt tables and their policies) and 0005 (the
+-- leaderboard view) to be in already.
 --
--- A fix from the bug hunt of 14 October 2026:
+-- Two fixes from the bug hunt of 14 October 2026, in one file:
 --
 --   Part 1. The answers on a test cannot be read from the database until the
 --           student has handed it in.
+--   Part 2. No signed-in student can read the leaderboard view, which lists
+--           every student's name and scores.
 --
--- It changes nothing the API does. The API uses the secret key, which
--- bypasses row level security.
+-- Neither changes anything the API does. It uses the secret key, which
+-- bypasses row level security, and it keeps its own rights on the view.
 --
 -- Every statement here is safe to run twice.
 
@@ -58,3 +61,34 @@ create policy "own attempt questions readable by key" on attempt_questions
         and test_attempts.submitted_at is not null
     )
   );
+
+-- ===========================================================================
+-- Part 2. The leaderboard is closed until a page uses it
+-- ===========================================================================
+--
+-- ---------------------------------------------------------------------------
+-- Why
+-- ---------------------------------------------------------------------------
+-- 0005 granted `leaderboard` to every signed-in account, and 0006 kept that
+-- grant on purpose, taking only the anonymous one away: the leaderboard was
+-- "meant to show every student to every signed-in student". The view runs
+-- with its owner's rights, so no row level security applies to it, and it
+-- lists every profile: full name, marks, streaks and rank. Any account could
+-- read all of it through PostgREST:
+--
+--   GET /rest/v1/leaderboard?select=user_id,full_name,exam_score,rank
+--
+-- No page in the app reads the view yet, and the privacy page tells students,
+-- who are 14 and 15, that only the friends they accept see their figures. So
+-- the grant is taken back, and this replaces 0006's decision to keep it.
+-- (Rerunning 0005 on its own would grant it again; run-all.sql runs this
+-- after it, which takes it away again.)
+--
+-- When a leaderboard page is built, do not simply grant this back. Switch the
+-- view to `security_invoker`, as 0006 did for `friends_of`, so that the
+-- policies on the tables it reads decide what each student sees; give those
+-- tables policies that let a student read their own figures and their
+-- accepted friends', and nobody else's; and make the privacy page say who
+-- sees what on the leaderboard before it ships.
+
+revoke all on leaderboard from authenticated;
