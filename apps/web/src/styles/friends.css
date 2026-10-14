@@ -22,15 +22,6 @@
 }
 
 /*
- * Browsers draw a placeholder in their own grey, whatever the theme. On the
- * dark input that is too faint to read, so it takes the theme's muted colour.
- */
-.friends-add-form input::placeholder {
-  color: var(--muted);
-  opacity: 1;
-}
-
-/*
  * The shared success banner is the success green on its pale tint, which in the
  * light theme is a little under the contrast small text needs. The words take
  * a darker mix of the same green; the border keeps the green itself.

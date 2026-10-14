@@ -421,6 +421,18 @@ textarea {
   font-family: inherit;
 }
 
+/*
+ * Browsers draw a placeholder in their own grey whatever the theme, #757575
+ * in Chrome: 3.1:1 on the dark field, too faint to read. The theme's muted
+ * colour is 5.4:1 on the light field and 5.9:1 on the dark one. Firefox also
+ * fades its placeholder by default, hence the opacity.
+ */
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
