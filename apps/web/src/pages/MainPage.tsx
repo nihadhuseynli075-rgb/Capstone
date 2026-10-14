@@ -15,7 +15,7 @@ import { SubjectShortcuts } from "../components/SubjectShortcuts";
 import { useAuth } from "../features/auth/AuthContext";
 import { useProfile } from "../features/profile/ProfileContext";
 import { useLanguage, type TranslationKey } from "../lib/i18n";
-import { fetchHistory } from "../services/testsApi";
+import { fetchHistory, isScored } from "../services/testsApi";
 import "../styles/dashboard.css";
 
 /**
@@ -104,9 +104,14 @@ export function MainPage() {
     };
   }, [ready, user?.id]);
 
+  // A test where nothing could be marked has no score, so it is neither a
+  // test taken nor a best here, as in a friend's figures (see isScored).
+  const scored =
+    attempts === null ? null : attempts.filter(isScored);
+
   const best =
-    attempts && attempts.length > 0
-      ? attempts.reduce((leader, attempt) =>
+    scored && scored.length > 0
+      ? scored.reduce((leader, attempt) =>
           attemptScoreValue(attempt) >
           attemptScoreValue(leader)
             ? attempt
@@ -115,8 +120,8 @@ export function MainPage() {
       : null;
 
   const hasHistory =
-    attempts !== null &&
-    attempts.length > 0;
+    scored !== null &&
+    scored.length > 0;
 
   // App only shows this page to a signed-in student.
   if (!user) {
@@ -238,9 +243,9 @@ export function MainPage() {
         <section className="stat-row">
           <div className="stat">
             <div className="stat-value">
-              {attempts === null
+              {scored === null
                 ? "-"
-                : attempts.length}
+                : scored.length}
             </div>
 
             <div className="stat-label">

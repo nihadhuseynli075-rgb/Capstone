@@ -7,7 +7,7 @@ import { useAuth } from "../features/auth/AuthContext";
 import { useClaimedHistoryVersion } from "../features/auth/useHistoryClaim";
 import { formatDayTime, formatPercent, useLanguage } from "../lib/i18n";
 import { difficultyLabel, subjectLabel, testErrorText } from "../lib/testText";
-import { fetchHistory } from "../services/testsApi";
+import { fetchHistory, isScored } from "../services/testsApi";
 
 export function HistoryPage() {
   const [attempts, setAttempts] = useState<AttemptSummary[] | null>(null);
@@ -87,9 +87,16 @@ export function HistoryPage() {
 
   // Best is weighted for difficulty and length, so a short easy test does not
   // sit above a long hard one with the same percentage.
-  const best = attempts.reduce((leader, attempt) =>
-    attemptScoreValue(attempt) > attemptScoreValue(leader) ? attempt : leader
-  );
+  const bestOf = (list: AttemptSummary[]) =>
+    list.reduce<AttemptSummary | null>(
+      (leader, attempt) => (leader === null || attemptScoreValue(attempt) > attemptScoreValue(leader) ? attempt : leader),
+      null
+    );
+
+  // A test where nothing could be marked has no score (see isScored). It is
+  // listed below as not scored, but it is not a best and has no height on the
+  // climb: drawn as 0% it dragged the ridge down for a paper nobody marked.
+  const best = bestOf(attempts.filter(isScored));
 
   // The subjects this student has actually sat, in the order first taken, so
   // the filter never offers a subject with nothing to show.
@@ -97,14 +104,14 @@ export function HistoryPage() {
   const shown = subjectFilter
     ? attempts.filter((attempt) => attempt.subjectId === subjectFilter)
     : attempts;
-  const climb = chronological.filter((attempt) => !subjectFilter || attempt.subjectId === subjectFilter);
+  const climb = chronological.filter(
+    (attempt) => isScored(attempt) && (!subjectFilter || attempt.subjectId === subjectFilter)
+  );
   // The flag goes on the best of what is drawn, chosen exactly as the "best
   // test so far" panel chooses: from the list in the API's order, the first of
   // equals winning. Reducing over the oldest-first climb instead put the flag
   // on a different test than the panel whenever two tests tied.
-  const climbBest = shown.reduce((leader, attempt) =>
-    attemptScoreValue(attempt) > attemptScoreValue(leader) ? attempt : leader
-  );
+  const climbBest = bestOf(shown.filter(isScored));
 
   return (
     <div className="stack">
@@ -113,17 +120,20 @@ export function HistoryPage() {
         <p className="lede">{t("history.lede")}</p>
       </section>
 
-      <section className="panel best-panel">
-        <p className="eyebrow">{t("history.best")}</p>
-        <p className="best-score">
-          {best.score}/{best.totalMarks}
-          <span className="best-percent">{formatPercent(best.percentage, language)}</span>
-        </p>
-        <p className="best-meta">
-          {subjectLabel(t, best.subjectId)} - {difficultyLabel(t, best.difficultyMode)} -{" "}
-          {formatDayTime(best.submittedAt, language)}
-        </p>
-      </section>
+      {/* Only once a test has a score: none yet is said by the climb below. */}
+      {best && (
+        <section className="panel best-panel">
+          <p className="eyebrow">{t("history.best")}</p>
+          <p className="best-score">
+            {best.score}/{best.totalMarks}
+            <span className="best-percent">{formatPercent(best.percentage, language)}</span>
+          </p>
+          <p className="best-meta">
+            {subjectLabel(t, best.subjectId)} - {difficultyLabel(t, best.difficultyMode)} -{" "}
+            {formatDayTime(best.submittedAt, language)}
+          </p>
+        </section>
+      )}
 
       <section className="panel climb-panel" aria-labelledby="climb-heading">
         <div className="climb-head">
@@ -163,8 +173,9 @@ export function HistoryPage() {
             percent: attempt.percentage,
             label: `${subjectLabel(t, attempt.subjectId)} · ${attempt.score}/${attempt.totalMarks} · ${formatDayTime(attempt.submittedAt, language)}`
           }))}
-          bestId={climbBest.id}
-          emptyLabel={t("history.empty")}
+          bestId={climbBest?.id}
+          // Drawn with no points only when every test here has no score.
+          emptyLabel={t("history.noneScored")}
           onSelect={(id) => navigate(`/results/${id}`)}
         />
 
@@ -179,7 +190,7 @@ export function HistoryPage() {
             <li key={attempt.id}>
               <button
                 type="button"
-                className={`attempt-row ${attempt.id === best.id ? "best" : ""}`}
+                className={`attempt-row ${attempt.id === best?.id ? "best" : ""}`}
                 onClick={() => navigate(`/results/${attempt.id}`)}
               >
                 <span className="attempt-subject">{subjectLabel(t, attempt.subjectId)}</span>
@@ -190,10 +201,22 @@ export function HistoryPage() {
                   <span className="attempt-mode">{difficultyLabel(t, attempt.difficultyMode)}</span>
                   <span className="attempt-date">{formatDayTime(attempt.submittedAt, language)}</span>
                 </span>
-                <span className="attempt-score">
-                  {attempt.score}/{attempt.totalMarks}
-                </span>
-                <span className="attempt-percent">{formatPercent(attempt.percentage, language)}</span>
+                {isScored(attempt) ? (
+                  <>
+                    <span className="attempt-score">
+                      {attempt.score}/{attempt.totalMarks}
+                    </span>
+                    <span className="attempt-percent">{formatPercent(attempt.percentage, language)}</span>
+                  </>
+                ) : (
+                  // Said in words, where "0/0" and "0%" read as everything wrong.
+                  <>
+                    <span className="attempt-score" aria-hidden="true">
+                      –
+                    </span>
+                    <span className="attempt-percent">{t("results.notScored")}</span>
+                  </>
+                )}
               </button>
             </li>
           ))}

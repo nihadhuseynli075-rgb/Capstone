@@ -7,7 +7,7 @@ import { loadLastResult } from "../lib/examSession";
 import { formatPercent, useLanguage, type TranslationKey } from "../lib/i18n";
 import { difficultyLabel, subjectLabel, testErrorText, topicLabel } from "../lib/testText";
 import { ApiError } from "../services/apiClient";
-import { fetchAttempt } from "../services/testsApi";
+import { fetchAttempt, isScored } from "../services/testsApi";
 
 /**
  * How soon a result that is still being saved is asked for again.
@@ -233,20 +233,35 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
   }
 
   const mistakeCount = view.reviews.filter(isMistake).length;
+  // Nothing on the paper could be marked, so there is no score to show: "0/0"
+  // and "0%" read as a test got entirely wrong. Said in words instead, with
+  // no comparison and no topics, which have nothing in them either.
+  const scored = isScored(view);
 
   return (
     <div className="stack">
       <section className="score-hero">
         <div className="score-figure">
-          <span className="score-value">
-            {view.score}
-            <span className="score-total">/{view.totalMarks}</span>
-          </span>
-          {/* Agrees with the total it follows: "3/21 балла", "3/25 баллов". */}
-          <span className="score-unit">{tn("results.marksUnit", view.totalMarks)}</span>
-          {/* Written the way the site language writes a percentage: "14,3 %"
-              in Russian, not the English "14.3%". */}
-          <span className="score-percent">{formatPercent(view.percentage, language)}</span>
+          {scored ? (
+            <>
+              <span className="score-value">
+                {view.score}
+                <span className="score-total">/{view.totalMarks}</span>
+              </span>
+              {/* Agrees with the total it follows: "3/21 балла", "3/25 баллов". */}
+              <span className="score-unit">{tn("results.marksUnit", view.totalMarks)}</span>
+              {/* Written the way the site language writes a percentage: "14,3 %"
+                  in Russian, not the English "14.3%". */}
+              <span className="score-percent">{formatPercent(view.percentage, language)}</span>
+            </>
+          ) : (
+            <>
+              <span className="score-value" aria-hidden="true">
+                –
+              </span>
+              <span className="score-unit">{t("results.notScored")}</span>
+            </>
+          )}
         </div>
 
         <div className="score-meta">
@@ -256,14 +271,17 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
               : t("results.complete")}
           </h1>
           <p>
-            {fill(t("results.summary"), {
-              questions: tn("count.questions", view.totalQuestions),
-              time: formatDuration(view.timeTakenSeconds, t),
-              mistakes: tn("count.mistakes", mistakeCount)
-            })}
+            {scored
+              ? fill(t("results.summary"), {
+                  questions: tn("count.questions", view.totalQuestions),
+                  time: formatDuration(view.timeTakenSeconds, t),
+                  mistakes: tn("count.mistakes", mistakeCount)
+                })
+              : t("results.notScoredNote")}
           </p>
+          {!scored && <p>{t("results.notScoredKept")}</p>}
 
-          {view.comparison && (
+          {scored && view.comparison && (
             <p
               className={`comparison ${
                 view.comparison.isPersonalBest || view.comparison.matchedBest ? "best" : ""
@@ -275,32 +293,34 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
         </div>
       </section>
 
-      <section className="panel">
-        <h2>{t("results.byTopic")}</h2>
-        <ul className="topic-bars">
-          {view.topicBreakdown.map((topic) => {
-            const percent =
-              topic.marks === 0 ? 0 : Math.round((topic.score / topic.marks) * 100);
+      {scored && (
+        <section className="panel">
+          <h2>{t("results.byTopic")}</h2>
+          <ul className="topic-bars">
+            {view.topicBreakdown.map((topic) => {
+              const percent =
+                topic.marks === 0 ? 0 : Math.round((topic.score / topic.marks) * 100);
 
-            return (
-              <li key={topic.topicId}>
-                <div className="topic-bar-header">
-                  <span>{topicLabel(t, view.subjectId ?? "", topic.topicId)}</span>
-                  <span>
-                    {topic.score}/{topic.marks}
-                  </span>
-                </div>
-                <div className="topic-bar-track">
-                  <div
-                    className={`topic-bar-fill ${percent < 50 ? "weak" : percent < 80 ? "ok" : "strong"}`}
-                    style={{ width: `${percent}%` }}
-                  />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+              return (
+                <li key={topic.topicId}>
+                  <div className="topic-bar-header">
+                    <span>{topicLabel(t, view.subjectId ?? "", topic.topicId)}</span>
+                    <span>
+                      {topic.score}/{topic.marks}
+                    </span>
+                  </div>
+                  <div className="topic-bar-track">
+                    <div
+                      className={`topic-bar-fill ${percent < 50 ? "weak" : percent < 80 ? "ok" : "strong"}`}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <section className="panel">
         <div className="review-header">

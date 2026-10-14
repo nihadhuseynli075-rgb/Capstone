@@ -180,7 +180,9 @@ export function markAttempt(
   const totalQuestions = questions.length;
   // Out of the marks available, not the number of questions. A paper of ten
   // one-mark questions gives the same figure as before; one with a three-mark
-  // question in it does not, which is the point.
+  // question in it does not, which is the point. With nothing available, as
+  // when no written answer on the paper could be marked, there is no score at
+  // all: the 0 kept here is only a placeholder (see isScored).
   const percentage = available === 0 ? 0 : Math.round((earned / available) * 1000) / 10;
 
   return {
@@ -198,6 +200,20 @@ export function markAttempt(
 }
 
 /**
+ * Whether a submitted test has a score at all.
+ *
+ * A paper where nothing could be marked (every answer a written one the AI
+ * marker could not reach) is still saved, since a timed paper cannot wait for
+ * the marker to come back, but there is nothing to score it out of. Every question is worth at least one mark, so marks
+ * available of zero mean exactly that. Such a test is listed in history as
+ * not scored, and left out of bests, comparisons, the climb and every average:
+ * it used to count as 0%, which says the student got everything wrong.
+ */
+export function isScored(attempt: { totalMarks: number }): boolean {
+  return attempt.totalMarks > 0;
+}
+
+/**
  * Compares this attempt against the student's previous best.
  *
  * "Best" is not raw percentage: a 10/10 easy test should not outrank 45/50 hard,
@@ -206,33 +222,47 @@ export function markAttempt(
  * Only beating the best is a new personal best. Equalling it used to count,
  * so a second identical 5/5 announced "New personal best. Your previous best
  * was 5/5." A tie is reported as `matchedBest` instead.
+ *
+ * A test with no score (see isScored) is compared with nothing and nothing is
+ * compared with it: the first scored test after one is still the first test,
+ * and one itself is neither a best nor level with one.
  */
 export function compareToPrevious(
-  current: { percentage: number; totalQuestions: number; difficultyMode: AttemptSummary["difficultyMode"] },
+  current: {
+    percentage: number;
+    totalMarks: number;
+    totalQuestions: number;
+    difficultyMode: AttemptSummary["difficultyMode"];
+  },
   history: AttemptSummary[]
 ): AttemptComparison {
-  if (history.length === 0) {
-    return { isPersonalBest: true, matchedBest: false, previousBest: null };
+  const scored = history.filter(isScored);
+
+  const best =
+    scored.length === 0
+      ? null
+      : scored.reduce((leader, attempt) => (attemptScoreValue(attempt) > attemptScoreValue(leader) ? attempt : leader));
+
+  const previousBest = best && {
+    score: best.score,
+    totalMarks: best.totalMarks,
+    totalQuestions: best.totalQuestions,
+    percentage: best.percentage,
+    difficultyMode: best.difficultyMode,
+    takenAt: best.submittedAt,
+    subjectId: best.subjectId
+  };
+
+  if (!isScored(current)) {
+    return { isPersonalBest: false, matchedBest: false, previousBest };
   }
 
-  const best = history.reduce((leader, attempt) =>
-    attemptScoreValue(attempt) > attemptScoreValue(leader) ? attempt : leader
-  );
+  if (!best) {
+    return { isPersonalBest: true, matchedBest: false, previousBest: null };
+  }
 
   const value = attemptScoreValue(current);
   const bestValue = attemptScoreValue(best);
 
-  return {
-    isPersonalBest: value > bestValue,
-    matchedBest: value === bestValue,
-    previousBest: {
-      score: best.score,
-      totalMarks: best.totalMarks,
-      totalQuestions: best.totalQuestions,
-      percentage: best.percentage,
-      difficultyMode: best.difficultyMode,
-      takenAt: best.submittedAt,
-      subjectId: best.subjectId
-    }
-  };
+  return { isPersonalBest: value > bestValue, matchedBest: value === bestValue, previousBest };
 }

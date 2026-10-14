@@ -543,6 +543,12 @@ const en = {
   "results.feedback": "Teacher's feedback:",
   "results.unmarkedNote":
     "This answer could not be marked just now, so it is not counted in your score either way.",
+  // A test where none of the answers could be marked: shown under a dash where the score would be,
+  // and in place of the score on the history page. The two sentences after it are two lines, each
+  // short enough to sit beside the dash, as the summary does beside a score.
+  "results.notScored": "Not scored",
+  "results.notScoredNote": "Your written answers could not be marked just now, so this test has no score.",
+  "results.notScoredKept": "It stays in your history, but it does not count towards your best result or your progress.",
   "results.why": "Why:",
   "results.noMistakes": "No mistakes on this one. Nothing to review.",
   "results.another": "Take another test",
@@ -557,6 +563,8 @@ const en = {
   "history.climb": "Your climb",
   "history.climbNote": "Each point is a test, oldest on the left. The higher the point, the better the score, and the flag marks your best test.",
   "history.allSubjects": "All subjects",
+  // The climb when none of the tests it would draw has a score.
+  "history.noneScored": "No tests with a score to show here yet.",
 
   "common.saving": "Saving...",
   "common.back": "Back",
@@ -1090,6 +1098,9 @@ const ru: Dictionary = {
   "results.feedback": "Отзыв учителя:",
   "results.unmarkedNote":
     "Этот ответ сейчас не удалось проверить, поэтому он никак не влияет на ваш результат.",
+  "results.notScored": "Без оценки",
+  "results.notScoredNote": "Ваши письменные ответы сейчас не удалось проверить, поэтому у этого теста нет оценки.",
+  "results.notScoredKept": "Он остаётся в истории, но не учитывается в вашем лучшем результате и в прогрессе.",
   "results.why": "Почему:",
   "results.noMistakes": "В этом тесте нет ошибок. Разбирать нечего.",
   "results.another": "Пройти ещё один тест",
@@ -1104,6 +1115,7 @@ const ru: Dictionary = {
   "history.climb": "Ваш подъём",
   "history.climbNote": "Каждая точка — это тест, самые ранние слева. Чем выше точка, тем лучше результат, а флаг отмечает ваш лучший тест.",
   "history.allSubjects": "Все предметы",
+  "history.noneScored": "Здесь пока нет тестов с оценкой.",
 
   "common.saving": "Сохранение...",
   "common.back": "Назад",
@@ -1631,6 +1643,9 @@ const az: Dictionary = {
   "results.feedback": "Müəllimin rəyi:",
   "results.unmarkedNote":
     "Bu cavabı hələlik yoxlamaq mümkün olmadı, ona görə nəticənizə heç bir təsiri yoxdur.",
+  "results.notScored": "Qiymətləndirilməyib",
+  "results.notScoredNote": "Yazılı cavablarınızı hələlik yoxlamaq mümkün olmadı, ona görə bu testin balı yoxdur.",
+  "results.notScoredKept": "Test tarixçənizdə qalır, amma ən yaxşı nəticənizə və irəliləyişinizə təsir etmir.",
   "results.why": "İzah:",
   "results.noMistakes": "Bu testdə səhv yoxdur. Təhlil ediləcək heç nə yoxdur.",
   "results.another": "Başqa test həll et",
@@ -1645,6 +1660,7 @@ const az: Dictionary = {
   "history.climb": "Sizin yüksəlişiniz",
   "history.climbNote": "Hər nöqtə bir testdir, ən köhnələri soldadır. Nöqtə nə qədər yüksəkdirsə, nəticə o qədər yaxşıdır, bayraq isə ən yaxşı testinizi göstərir.",
   "history.allSubjects": "Bütün fənlər",
+  "history.noneScored": "Burada hələ balı olan test yoxdur.",
 
   "common.saving": "Yadda saxlanılır...",
   "common.back": "Geri",

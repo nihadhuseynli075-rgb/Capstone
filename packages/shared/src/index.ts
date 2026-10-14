@@ -455,7 +455,15 @@ export interface TestResult {
   attemptId: string;
   /** Marks earned, not questions answered correctly. */
   score: number;
-  /** Marks available across the paper: the denominator for `percentage`. */
+  /**
+   * Marks available across the paper: the denominator for `percentage`.
+   *
+   * Zero when nothing on the paper could be marked (every answer a written one
+   * the AI marker could not mark). The test is saved but has no score, its
+   * percentage of 0 means nothing, and it is left out of bests, comparisons,
+   * the climb and averages. Every question is worth at least one mark, so zero
+   * means exactly that.
+   */
   totalMarks: number;
   totalQuestions: number;
   percentage: number;
@@ -475,6 +483,7 @@ export interface AttemptSummary {
   difficultyMode: DifficultyMode;
   /** Marks earned, not questions answered correctly. */
   score: number;
+  /** Marks available. Zero for a test with no score: see TestResult. */
   totalMarks: number;
   totalQuestions: number;
   percentage: number;
@@ -532,7 +541,8 @@ export interface FriendPerson {
 /**
  * How a student has done on their mock tests, for comparing with a friend.
  *
- * Built from submitted tests only, the same ones the history page lists. It is
+ * Built from submitted tests with a score: the ones the history page lists,
+ * less any where nothing could be marked (see TestResult's totalMarks). It is
  * a handful of headline figures on purpose: it is not a ranking, and says
  * nothing about which topics anyone is weak at.
  */
@@ -542,7 +552,7 @@ export interface FriendProgress {
   best: { score: number; totalMarks: number; percentage: number } | null;
   /** The mean percentage over every test, to one decimal place. */
   averagePercentage: number | null;
-  /** When the latest test was handed in. */
+  /** When the latest of those tests was handed in. */
   lastActiveAt: string | null;
 }
 

@@ -373,6 +373,7 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
         comparison: compareToPrevious(
           {
             percentage: marked.percentage,
+            totalMarks: marked.totalMarks,
             totalQuestions: marked.totalQuestions,
             difficultyMode: attempt.settings.difficultyMode
           },

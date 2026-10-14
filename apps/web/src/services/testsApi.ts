@@ -170,6 +170,20 @@ export function submitTest(
   );
 }
 
+/**
+ * Whether a finished test has a score at all.
+ *
+ * A paper where nothing could be marked (every answer a written one the AI
+ * marker could not mark) is saved with no marks available, since every
+ * question is worth at least one. It is listed as not scored and left out of
+ * bests, the climb and the dashboard's figures, as the API leaves it out of
+ * comparisons and friends' figures (isScored in the API's marking.ts).
+ * Shown as 0/0 and 0%, it read as a test the student got entirely wrong.
+ */
+export function isScored(attempt: { totalMarks: number }): boolean {
+  return attempt.totalMarks > 0;
+}
+
 export async function fetchHistory(): Promise<AttemptSummary[]> {
   const data = await asStudent(({ studentKey, token }) =>
     apiRequest<{ attempts: AttemptSummary[] }>(

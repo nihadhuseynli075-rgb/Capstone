@@ -191,7 +191,8 @@ const PAGE_SIZE = 1000;
  * Every submitted test for these students, grouped by student.
  *
  * Read the way the history page reads them, by `student_key`, so a friend's
- * figures are the tests that appear on their own history. A page is asked for
+ * figures are the tests that appear on their own history, less any with no
+ * score, which summariseProgress leaves out. A page is asked for
  * until the total is reached, as in questionRepository: a single read stops
  * without complaint at the project's row limit, which a few friends with a few
  * dozen tests each could reach.

@@ -1,4 +1,5 @@
 import { attemptScoreValue, normalizeUsername, type DifficultyMode, type FriendProgress } from "@grade9/shared";
+import { isScored } from "./marking";
 
 /**
  * The rules of friend requests, apart from the database.
@@ -156,13 +157,18 @@ export interface SubmittedTest {
  * "Best" is the same test the history page highlights, weighted for difficulty
  * and length, so a student sees the same best test on both pages. When two tie
  * the newer one wins, as it does there, because that page lists newest first.
+ *
+ * Only tests with a score count (see isScored). One where nothing could be
+ * marked counted as a 0% test taken, dragging the average down for a paper
+ * nobody marked, so it is left out of all four figures, which then agree.
  */
 export function summariseProgress(tests: SubmittedTest[]): FriendProgress {
-  if (tests.length === 0) return { testsTaken: 0, best: null, averagePercentage: null, lastActiveAt: null };
+  const scored = tests.filter(isScored);
+  if (scored.length === 0) return { testsTaken: 0, best: null, averagePercentage: null, lastActiveAt: null };
 
   // Compared as times, not as text, so the order does not depend on how
   // Postgres happened to format each one (with a fraction of a second or not).
-  const newestFirst = [...tests].sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt));
+  const newestFirst = [...scored].sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt));
   const best = newestFirst.reduce((leader, test) => (attemptScoreValue(test) > attemptScoreValue(leader) ? test : leader));
   const mean = newestFirst.reduce((sum, test) => sum + test.percentage, 0) / newestFirst.length;
 

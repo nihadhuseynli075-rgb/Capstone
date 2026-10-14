@@ -204,4 +204,28 @@ describe("summariseProgress", () => {
 
     assert.equal(progress.best?.score, 8);
   });
+
+  test("a test where nothing could be marked is not a test taken, nor part of the average", () => {
+    // Saved as 0/0 and 0%, it halved this average and counted as a test taken.
+    const progress = summariseProgress([
+      testWith({ score: 8, totalMarks: 10, percentage: 80, submittedAt: "2026-09-01T09:00:00+00:00" }),
+      testWith({ score: 0, totalMarks: 0, percentage: 0, submittedAt: "2026-09-12T09:00:00+00:00" })
+    ]);
+
+    assert.deepEqual(progress, {
+      testsTaken: 1,
+      best: { score: 8, totalMarks: 10, percentage: 80 },
+      averagePercentage: 80,
+      lastActiveAt: "2026-09-01T09:00:00+00:00"
+    });
+  });
+
+  test("only such tests is the same as none", () => {
+    assert.deepEqual(summariseProgress([testWith({ score: 0, totalMarks: 0, percentage: 0 })]), {
+      testsTaken: 0,
+      best: null,
+      averagePercentage: null,
+      lastActiveAt: null
+    });
+  });
 });

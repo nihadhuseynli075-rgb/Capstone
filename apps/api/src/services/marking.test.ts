@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import type { AttemptSummary } from "@grade9/shared";
 import type { AttemptQuestion } from "../repositories/attemptRepository";
-import { compareToPrevious, isAnswerCorrect, markAttempt } from "./marking";
+import { compareToPrevious, isAnswerCorrect, isScored, markAttempt } from "./marking";
+import type { WrittenMark } from "./writtenMarking";
 
 function question(overrides: Partial<AttemptQuestion> = {}): AttemptQuestion {
   return {
@@ -135,17 +136,47 @@ describe("markAttempt", () => {
     assert.equal(result.percentage, 0);
     assert.equal(result.totalMarks, 0);
   });
+
+  test("a paper whose every answer is a written one left unmarked has nothing to score out of", () => {
+    const written = (position: number) =>
+      question({ questionId: `w${position}`, position, type: "open-ended", options: [], marks: 3 });
+    const result = markAttempt(
+      [written(1), written(2)],
+      [
+        { questionId: "w1", position: 1, answer: "An answer the marker never saw." },
+        { questionId: "w2", position: 2, answer: "Another one." }
+      ],
+      new Map<number, WrittenMark>([
+        [1, { status: "unmarked", reason: "The marker could not be reached." }],
+        [2, { status: "unmarked", reason: "The marker could not be reached." }]
+      ])
+    );
+
+    assert.equal(result.totalMarks, 0);
+    assert.equal(isScored(result), false);
+  });
+});
+
+describe("isScored", () => {
+  test("a test with marks available has a score, even a score of nothing", () => {
+    assert.equal(isScored({ totalMarks: 10 }), true);
+    assert.equal(isScored(summary({ score: 0, totalMarks: 4, percentage: 0 })), true);
+  });
+
+  test("a test with no marks available has none", () => {
+    assert.equal(isScored({ totalMarks: 0 }), false);
+  });
 });
 
 describe("compareToPrevious", () => {
   test("the first attempt is a personal best", () => {
-    const current = { percentage: 40, totalQuestions: 10, difficultyMode: "easy" as const };
+    const current = { percentage: 40, totalMarks: 10, totalQuestions: 10, difficultyMode: "easy" as const };
     assert.deepEqual(compareToPrevious(current, []), { isPersonalBest: true, matchedBest: false, previousBest: null });
   });
 
   test("a perfect easy test does not outrank a strong hard one", () => {
     const hard = summary({ id: "hard", difficultyMode: "hard", percentage: 90, totalQuestions: 50 });
-    const current = { percentage: 100, totalQuestions: 10, difficultyMode: "easy" as const };
+    const current = { percentage: 100, totalMarks: 10, totalQuestions: 10, difficultyMode: "easy" as const };
 
     const comparison = compareToPrevious(current, [hard]);
 
@@ -160,7 +191,7 @@ describe("compareToPrevious", () => {
       summary({ id: "b", percentage: 80, submittedAt: "2026-09-10T10:00:00.000Z" }),
       summary({ id: "c", percentage: 60 })
     ];
-    const current = { percentage: 70, totalQuestions: 10, difficultyMode: "medium" as const };
+    const current = { percentage: 70, totalMarks: 10, totalQuestions: 10, difficultyMode: "medium" as const };
 
     const comparison = compareToPrevious(current, history);
 
@@ -170,7 +201,7 @@ describe("compareToPrevious", () => {
 
   test("equalling the best is a match, not a new personal best", () => {
     const history = [summary({ percentage: 80 })];
-    const current = { percentage: 80, totalQuestions: 10, difficultyMode: "medium" as const };
+    const current = { percentage: 80, totalMarks: 10, totalQuestions: 10, difficultyMode: "medium" as const };
     const comparison = compareToPrevious(current, history);
 
     assert.equal(comparison.isPersonalBest, false);
@@ -179,7 +210,7 @@ describe("compareToPrevious", () => {
 
   test("beating the best is a new personal best and not a match", () => {
     const history = [summary({ percentage: 80 })];
-    const current = { percentage: 90, totalQuestions: 10, difficultyMode: "medium" as const };
+    const current = { percentage: 90, totalMarks: 10, totalQuestions: 10, difficultyMode: "medium" as const };
     const comparison = compareToPrevious(current, history);
 
     assert.equal(comparison.isPersonalBest, true);
@@ -188,7 +219,40 @@ describe("compareToPrevious", () => {
 
   test("names the subject the best was in, which can differ from this test's", () => {
     const history = [summary({ subjectId: "math", percentage: 30, difficultyMode: "easy" })];
-    const current = { percentage: 20, totalQuestions: 10, difficultyMode: "easy" as const };
+    const current = { percentage: 20, totalMarks: 10, totalQuestions: 10, difficultyMode: "easy" as const };
     assert.equal(compareToPrevious(current, history).previousBest?.subjectId, "math");
+  });
+
+  test("an earlier test with no score is not a best to beat: the first scored test is still the first", () => {
+    // Saved as 0/0 and 0% when nothing on it could be marked. Compared, it
+    // made the next test "a new personal best" over a previous best of 0/0.
+    const history = [summary({ id: "unmarked", score: 0, totalMarks: 0, percentage: 0 })];
+    const current = { percentage: 40, totalMarks: 10, totalQuestions: 10, difficultyMode: "medium" as const };
+
+    assert.deepEqual(compareToPrevious(current, history), { isPersonalBest: true, matchedBest: false, previousBest: null });
+  });
+
+  test("nor is it the best, whatever its placeholder percentage", () => {
+    const history = [
+      summary({ id: "scored", percentage: 10 }),
+      summary({ id: "unmarked", score: 0, totalMarks: 0, percentage: 100, submittedAt: "2026-09-10T10:00:00.000Z" })
+    ];
+    const current = { percentage: 20, totalMarks: 10, totalQuestions: 10, difficultyMode: "medium" as const };
+    const comparison = compareToPrevious(current, history);
+
+    assert.equal(comparison.isPersonalBest, true);
+    assert.equal(comparison.previousBest?.percentage, 10);
+  });
+
+  test("a test with no score is neither a new best nor level with one", () => {
+    const unmarked = { percentage: 0, totalMarks: 0, totalQuestions: 2, difficultyMode: "medium" as const };
+
+    assert.deepEqual(compareToPrevious(unmarked, []), { isPersonalBest: false, matchedBest: false, previousBest: null });
+
+    // 0% against a best of 0% used to read as matching it.
+    const comparison = compareToPrevious(unmarked, [summary({ percentage: 0 })]);
+    assert.equal(comparison.isPersonalBest, false);
+    assert.equal(comparison.matchedBest, false);
+    assert.equal(comparison.previousBest?.percentage, 0);
   });
 });

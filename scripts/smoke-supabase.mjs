@@ -571,12 +571,12 @@ async function main() {
     check("a written question saves", writtenCreated.status === 201, JSON.stringify(writtenCreated.body));
 
     const writtenKey = randomUUID();
-    const writtenPaper = async () =>
+    const writtenPaper = async (studentKey = writtenKey) =>
       (
         await call("/api/tests/generate", {
           method: "POST",
           body: {
-            studentKey: writtenKey,
+            studentKey,
             subjectId: "russian",
             topicIds: [writtenTopic],
             difficultyMode: "custom",
@@ -585,11 +585,11 @@ async function main() {
           }
         })
       ).body.test;
-    const submitWritten = (paper, answer) =>
+    const submitWritten = (paper, answer, studentKey = writtenKey) =>
       call(`/api/tests/${paper.id}/submit`, {
         method: "POST",
         body: {
-          studentKey: writtenKey,
+          studentKey,
           timeTakenSeconds: 5,
           answers: [{ questionId: paper.questions[0].id, position: 0, answer }]
         }
@@ -658,6 +658,40 @@ async function main() {
     check("it is stored with no score", storedUnmarked?.score === null && storedUnmarked?.is_correct === null);
     const reopenedUnmarked = await call(`/api/tests/attempts/${downPaper.id}?studentKey=${writtenKey}`);
     check("and reopens as not counted", reopenedUnmarked.body.reviews?.[0]?.counted === false);
+
+    // With nothing on it marked, that paper has no marks to score out of, and
+    // so no score at all. It used to count as 0%: a first test, a best to
+    // beat, a point at the bottom of the climb.
+    check(
+      "a paper with nothing marked reopens with no marks available, so the page can say it has no score",
+      reopenedUnmarked.body.totalMarks === 0,
+      JSON.stringify(reopenedUnmarked.body).slice(0, 200)
+    );
+    const firstKey = randomUUID();
+    const firstUnmarked = await submitWritten(await writtenPaper(firstKey), "MARKER DOWN, on the first paper of all", firstKey);
+    check(
+      "a first paper with nothing marked is not called a personal best",
+      firstUnmarked.status === 200 &&
+        firstUnmarked.body.totalMarks === 0 &&
+        firstUnmarked.body.comparison?.isPersonalBest === false &&
+        firstUnmarked.body.comparison?.matchedBest === false &&
+        firstUnmarked.body.comparison?.previousBest === null,
+      JSON.stringify(firstUnmarked.body.comparison)
+    );
+    const firstScored = await submitWritten(await writtenPaper(firstKey), "Запомнить крепко. SCORE:1", firstKey);
+    check(
+      "and the next paper, with a score, is still the first test rather than a best over 0/0",
+      firstScored.body.totalMarks === 3 &&
+        firstScored.body.comparison?.isPersonalBest === true &&
+        firstScored.body.comparison?.previousBest === null,
+      JSON.stringify(firstScored.body.comparison)
+    );
+    const firstHistory = await call(`/api/tests/history?studentKey=${firstKey}`);
+    check(
+      "both are in history, the one with nothing marked still listed",
+      firstHistory.body.attempts?.length === 2 && firstHistory.body.attempts.some((attempt) => attempt.totalMarks === 0),
+      JSON.stringify(firstHistory.body.attempts?.map((attempt) => `${attempt.score}/${attempt.totalMarks}`))
+    );
 
     const blankPaper = await writtenPaper();
     const callsBeforeBlank = marker.requests.length;
@@ -1955,12 +1989,25 @@ async function main() {
         JSON.stringify(fionaFresh.body)
       );
 
-      // Two papers for Fiona, both perfect; one for Gabe, all wrong. Different
-      // enough that mixing the two up would show.
+      // Two papers for Fiona, both perfect, and one where nothing could be
+      // marked, which has no score and so is in none of her figures; one for
+      // Gabe, all wrong. Different enough that mixing the two up would show.
       for (let paper = 0; paper < 2; paper += 1) {
         const test = (await generate(fiona.id, fiona.token)).body.test;
         await submit(test, fiona.id, rightAnswers(test), fiona.token);
       }
+      const fionaUnmarked = (await generate(fiona.id, fiona.token, { subjectId: "russian", topicIds: [writtenTopic] })).body.test;
+      const fionaUnmarkedResult = await submit(
+        fionaUnmarked,
+        fiona.id,
+        [{ questionId: fionaUnmarked.questions[0].id, position: 0, answer: "MARKER DOWN, and nothing else on the paper" }],
+        fiona.token
+      );
+      check(
+        "Fiona's third paper had nothing marked",
+        fionaUnmarkedResult.status === 200 && fionaUnmarkedResult.body.totalMarks === 0,
+        JSON.stringify(fionaUnmarkedResult.body).slice(0, 200)
+      );
       const gabeTest = (await generate(gabe.id, gabe.token)).body.test;
       await submit(gabeTest, gabe.id, wrongAnswers(gabeTest), gabe.token);
 
@@ -2092,7 +2139,7 @@ async function main() {
       );
       const fionaAsSeenByGabe = gabeFriends.body.friends[0].progress;
       check(
-        "Gabe sees Fiona's two perfect ones",
+        "Gabe sees Fiona's two perfect ones, and not the one with no score",
         fionaAsSeenByGabe.testsTaken === 2 &&
           fionaAsSeenByGabe.best?.percentage === 100 &&
           fionaAsSeenByGabe.best?.score === fionaAsSeenByGabe.best?.totalMarks &&
