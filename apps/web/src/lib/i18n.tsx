@@ -512,6 +512,8 @@ const en = {
   "results.title": "Results",
   "results.backToHistory": "Back to history",
   "results.loading": "Loading your results...",
+  // The paper was handed in and its result is still being written: the page asks again until it is.
+  "results.stillSaving": "Still saving your result...",
   // The word under "3/21", counted by the total: Russian reads it "3 из 21 балла".
   "results.marksUnit": "mark|marks",
   "results.completeSubject": "{subject} test complete",
@@ -1060,6 +1062,7 @@ const ru: Dictionary = {
   "results.title": "Результаты",
   "results.backToHistory": "К истории тестов",
   "results.loading": "Загружаем результаты...",
+  "results.stillSaving": "Результат ещё сохраняется...",
   "results.marksUnit": "балла|баллов|баллов",
   "results.completeSubject": "{subject}: тест завершён",
   "results.complete": "Тест завершён",
@@ -1600,6 +1603,7 @@ const az: Dictionary = {
   "results.title": "Nəticələr",
   "results.backToHistory": "Tarixçəyə qayıt",
   "results.loading": "Nəticələriniz yüklənir...",
+  "results.stillSaving": "Nəticəniz hələ yadda saxlanılır...",
   "results.marksUnit": "bal",
   "results.completeSubject": "{subject}: test tamamlandı",
   "results.complete": "Test tamamlandı",

@@ -981,6 +981,53 @@ async function main() {
       JSON.stringify(handedInAgain.body).slice(0, 200)
     );
 
+    section("A result opened while it is still being saved");
+    // Read between the paper being marked submitted and its answers being
+    // written, the result had its score and every answer blank, not counted.
+    const savingKey = randomUUID();
+    const savingTest = (await generate(savingKey)).body.test;
+    await control("latency", { ms: 300 });
+    const savingHandIn = submit(savingTest, savingKey, rightAnswers(savingTest));
+    const savingTaken = await paperTaken(savingTest.id);
+    const [midResult, midHistory] = await Promise.all([
+      call(`/api/tests/attempts/${savingTest.id}?studentKey=${savingKey}`),
+      call(`/api/tests/history?studentKey=${savingKey}`)
+    ]);
+    const saved = await savingHandIn;
+    await control("latency", { ms: 0 });
+    check("the hand-in gets as far as marking the paper submitted", savingTaken);
+    check(
+      "the result is not shown half written: it is still being marked",
+      midResult.status === 409 && midResult.body.code === "submission-in-progress",
+      `${midResult.status} ${JSON.stringify(midResult.body).slice(0, 200)}`
+    );
+    check(
+      "nor is the paper listed in history yet",
+      midHistory.status === 200 && !(midHistory.body.attempts ?? []).some((attempt) => attempt.id === savingTest.id),
+      JSON.stringify(midHistory.body).slice(0, 200)
+    );
+    check("the hand-in is saved", saved.status === 200, JSON.stringify(saved.body).slice(0, 200));
+    const savedResult = await call(`/api/tests/attempts/${savingTest.id}?studentKey=${savingKey}`);
+    check(
+      "and then the result opens whole",
+      savedResult.status === 200 &&
+        savedResult.body.reviews?.length === savingTest.questions.length &&
+        savedResult.body.reviews.every((review) => review.isCorrect === true && review.counted === true),
+      JSON.stringify(savedResult.body.reviews?.map((review) => [review.studentAnswer, review.counted]))
+    );
+    const savedHistory = await call(`/api/tests/history?studentKey=${savingKey}`);
+    check(
+      "and is listed in history",
+      savedHistory.body.attempts?.some((attempt) => attempt.id === savingTest.id),
+      JSON.stringify(savedHistory.body).slice(0, 200)
+    );
+    const lateResubmit = await submit(savingTest, savingKey, rightAnswers(savingTest));
+    check(
+      "handing it in again now is refused as already submitted",
+      lateResubmit.status === 409 && lateResubmit.body.code === "already-submitted",
+      `${lateResubmit.status} ${JSON.stringify(lateResubmit.body)}`
+    );
+
     section("A paper whose questions cannot be saved leaves nothing behind");
     const orphanKey = randomUUID();
     await control("faults", { method: "POST", table: "attempt_questions", times: 1 });

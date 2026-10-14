@@ -53,7 +53,9 @@ const alreadySubmitted = {
  * that hand-in can still fail, and failing reopens the paper. Answered with
  * "already submitted", the browser threw its copy of the paper away and went
  * to a result that was then never saved, and every answer was lost. Told
- * this, it keeps the paper and asks again in a moment.
+ * this, it keeps the paper and asks again in a moment. Opening the result
+ * meanwhile is answered the same way, rather than with the half-written
+ * attempt stored so far (see the attempts route).
  */
 const submissionInProgress = {
   code: "submission-in-progress",
@@ -437,7 +439,15 @@ testsRouter.get("/history", async (request, response, next) => {
       return response.status(401).json({ message: "Sign in again to view this history." });
     }
 
-    response.json({ attempts: await listAttempts(studentKey) });
+    // A paper whose hand-in is still being saved is not a result yet: it is
+    // marked submitted before its answers are written, and the save can still
+    // fail and reopen it (see submissionsInFlight). It is listed once saved.
+    // Those in flight when the read began count too, as for a single result.
+    const inFlightWhenRead = new Set(submissionsInFlight);
+    const attempts = await listAttempts(studentKey);
+    response.json({
+      attempts: attempts.filter((attempt) => !inFlightWhenRead.has(attempt.id) && !submissionsInFlight.has(attempt.id))
+    });
   } catch (error) {
     next(error);
   }
@@ -452,6 +462,9 @@ testsRouter.get("/attempts/:attemptId", async (request, response, next) => {
       return response.status(401).json({ message: "Sign in again to view this result." });
     }
 
+    // Before and after the read, as in the submit route: a read made while a
+    // hand-in was in flight may hold what it had half written.
+    const inFlightWhenRead = submissionsInFlight.has(request.params.attemptId);
     const attempt = await getAttempt(request.params.attemptId);
 
     if (!attempt) {
@@ -460,6 +473,14 @@ testsRouter.get("/attempts/:attemptId", async (request, response, next) => {
 
     if (attempt.studentKey !== studentKey) {
       return response.status(403).json({ message: "That test belongs to a different student." });
+    }
+
+    // The hand-in marks the paper submitted, with its score, before it writes
+    // the answers, so until it is done the stored attempt is half a result:
+    // every answer not yet written read as blank and not counted. It can also
+    // still fail and reopen the paper. The results page asks again shortly.
+    if (inFlightWhenRead || submissionsInFlight.has(attempt.id)) {
+      return response.status(409).json(submissionInProgress);
     }
 
     if (!attempt.submittedAt) {

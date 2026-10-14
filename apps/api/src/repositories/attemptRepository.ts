@@ -285,7 +285,10 @@ export async function completeAttempt(input: {
   // they go a few at a time rather than one after another: a 50-question paper
   // was 50 round trips in a row. If one fails, reopen the attempt, so the
   // student's retry can save everything again rather than being refused as
-  // already submitted with answers missing.
+  // already submitted with answers missing. Until they are all written the
+  // attempt reads as submitted with blank answers, so the routes tell anyone
+  // asking meanwhile that it is still being marked (see submissionsInFlight
+  // in routes/tests.ts) rather than show it.
   const client = supabaseAdmin;
 
   for (let start = 0; start < input.answers.length; start += ANSWER_WRITES_AT_ONCE) {

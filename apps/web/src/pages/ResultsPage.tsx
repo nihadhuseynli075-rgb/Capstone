@@ -6,7 +6,19 @@ import { fill } from "../features/friends/fill";
 import { loadLastResult } from "../lib/examSession";
 import { formatPercent, useLanguage, type TranslationKey } from "../lib/i18n";
 import { difficultyLabel, subjectLabel, testErrorText, topicLabel } from "../lib/testText";
+import { ApiError } from "../services/apiClient";
 import { fetchAttempt } from "../services/testsApi";
+
+/**
+ * How soon a result that is still being saved is asked for again.
+ *
+ * Its hand-in has marked the paper submitted but not yet written every
+ * answer, or is still with the marker, and the API will not show half of it
+ * (or, if that hand-in fails, a result that was never saved). Saving takes a
+ * moment once marking is done; marking written answers can take minutes, and
+ * the page simply keeps asking until there is an answer either way.
+ */
+const STILL_SAVING_RETRY_MS = 2000;
 
 interface ResultView {
   attemptId: string;
@@ -103,6 +115,8 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
   const [view, setView] = useState<ResultView | null>(null);
   // The failure rather than its sentence, so it is shown in the current language.
   const [error, setError] = useState<unknown>(null);
+  // Set while the API says the result is still being saved (see STILL_SAVING_RETRY_MS).
+  const [stillSaving, setStillSaving] = useState(false);
   const [showOnlyMistakes, setShowOnlyMistakes] = useState(false);
   const { ready, user } = useAuth();
   const { language, t, tn } = useLanguage();
@@ -118,32 +132,49 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
     // and the previous attempt's result sat under the new one's address.
     let active = true;
     setError(null);
+    setStillSaving(false);
 
     if (attemptId) {
       setView(null);
+      let retry: number | undefined;
 
-      fetchAttempt(attemptId)
-        .then((attempt) => {
-          if (!active) return;
-          setView({
-            attemptId: attempt.attemptId,
-            subjectId: attempt.settings.subjectId,
-            score: attempt.score,
-            totalMarks: attempt.totalMarks,
-            totalQuestions: attempt.totalQuestions,
-            percentage: attempt.percentage,
-            timeTakenSeconds: attempt.timeTakenSeconds,
-            topicBreakdown: breakdownFromReviews(attempt.reviews),
-            reviews: attempt.reviews,
-            comparison: null
+      const load = () => {
+        fetchAttempt(attemptId)
+          .then((attempt) => {
+            if (!active) return;
+            setStillSaving(false);
+            setView({
+              attemptId: attempt.attemptId,
+              subjectId: attempt.settings.subjectId,
+              score: attempt.score,
+              totalMarks: attempt.totalMarks,
+              totalQuestions: attempt.totalQuestions,
+              percentage: attempt.percentage,
+              timeTakenSeconds: attempt.timeTakenSeconds,
+              topicBreakdown: breakdownFromReviews(attempt.reviews),
+              reviews: attempt.reviews,
+              comparison: null
+            });
+          })
+          .catch((cause: unknown) => {
+            if (!active) return;
+            // On its way, not missing: say so and ask again, rather than show
+            // an error for a result that is about to exist.
+            if (cause instanceof ApiError && cause.code === "submission-in-progress") {
+              setStillSaving(true);
+              retry = window.setTimeout(load, STILL_SAVING_RETRY_MS);
+              return;
+            }
+            setStillSaving(false);
+            setError(cause);
           });
-        })
-        .catch((cause: unknown) => {
-          if (active) setError(cause);
-        });
+      };
+
+      load();
 
       return () => {
         active = false;
+        window.clearTimeout(retry);
       };
     }
 
@@ -196,7 +227,7 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
     return (
       <div className="stack">
         <h1>{t("results.title")}</h1>
-        <p role="status">{t("results.loading")}</p>
+        <p role="status">{t(stillSaving ? "results.stillSaving" : "results.loading")}</p>
       </div>
     );
   }
