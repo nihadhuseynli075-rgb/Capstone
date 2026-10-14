@@ -949,6 +949,33 @@ async function main() {
     JSON.stringify(raceReview.body.reviews?.map((item) => item.studentAnswer))
   );
 
+  section("An answer with a NUL character in it");
+  // Postgres text cannot hold U+0000, so an answer carrying one failed every
+  // save of its paper after the attempt had been marked submitted. It is taken
+  // out on the way in, wherever the paper is stored.
+  const nulKey = `${studentKey}-nul`;
+  const nulTest = (
+    await call("/api/tests/generate", {
+      method: "POST",
+      body: { studentKey: nulKey, subjectId: "math", topicIds: ["algebra"], difficultyMode: "easy" }
+    })
+  ).body.test;
+  const nulSubmit = await call(`/api/tests/${nulTest.id}/submit`, {
+    method: "POST",
+    body: {
+      studentKey: nulKey,
+      timeTakenSeconds: 5,
+      answers: nulTest.questions.map((question, position) => ({ questionId: question.id, position, answer: "x\u0000=\u00004" }))
+    }
+  });
+  check("a paper with NUL characters in its answers is handed in", nulSubmit.status === 200, `got ${nulSubmit.status}`);
+  const nulReview = await call(`/api/tests/attempts/${nulTest.id}?studentKey=${encodeURIComponent(nulKey)}`);
+  check(
+    "and its answers are kept without them",
+    nulReview.body.reviews?.length > 0 && nulReview.body.reviews.every((item) => item.studentAnswer === "x=4"),
+    JSON.stringify(nulReview.body.reviews?.map((item) => item.studentAnswer))
+  );
+
   if (health.body.storageMode === "memory") {
     // With Supabase this needs a signed-in account; smoke-supabase.mjs covers it.
     section("Moving guest history onto an account");

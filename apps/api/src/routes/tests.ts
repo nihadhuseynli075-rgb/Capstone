@@ -284,7 +284,19 @@ const submitSchema = z.object({
       position: z.number().int().min(0).optional(),
       // Written answers go to a paid marker, so a paste of a whole book is
       // refused rather than sent. Far beyond anything a Grade 9 task asks for.
-      answer: z.string().max(writtenAnswerMaxLength)
+      //
+      // NUL characters (U+0000) are taken out: nothing a student types needs
+      // one, and Postgres text cannot hold it. An answer with one made every
+      // save of the paper fail (22P05) after the attempt had been marked
+      // submitted, and each failure reopened it. So the paper could never be
+      // handed in, and could be made to stand submitted on purpose, which is
+      // when row level security lets the student read the paper's answers
+      // (migration 0014): the answer key, then a resubmit. Other control
+      // characters are stored fine and are left alone.
+      answer: z
+        .string()
+        .max(writtenAnswerMaxLength)
+        .transform((answer) => answer.replace(/\u0000/g, ""))
     })
   )
 });
