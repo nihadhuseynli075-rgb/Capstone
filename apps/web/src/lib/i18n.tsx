@@ -444,6 +444,7 @@ const en = {
   "test.errNotSubmitted": "That test has not been handed in yet.",
   "test.errTimeExpired":
     "The time limit for this test ran out, so it can no longer be handed in. Start a new test to try again.",
+  "test.errStillMarking": "This test is still being marked. Wait a moment, then send it again.",
   "test.errNoQuestions": "There are no questions in the bank for that subject, topic and difficulty yet.",
 
   "builder.title": "Create a mock test",
@@ -501,6 +502,9 @@ const en = {
   "exam.previous": "Previous",
   "exam.next": "Next",
   "exam.marking": "Marking...",
+  // Another hand-in of the same paper (from before a reload, or another tab) is
+  // still being marked, and this one is sent again on its own until it is done.
+  "exam.stillMarking": "Still marking your test... Your answers stay on this page until the result is saved.",
   "exam.finish": "Finish and see results",
   "exam.confirmUnanswered":
     "{n} question is still unanswered. Submit anyway?|{n} questions are still unanswered. Submit anyway?",
@@ -993,6 +997,7 @@ const ru: Dictionary = {
   "test.errNotSubmitted": "Этот тест ещё не сдан.",
   "test.errTimeExpired":
     "Время на этот тест истекло, поэтому сдать его уже нельзя. Начните новый тест, чтобы попробовать снова.",
+  "test.errStillMarking": "Этот тест ещё проверяется. Подождите немного и отправьте его ещё раз.",
   "test.errNoQuestions": "В банке пока нет вопросов по этому предмету, теме и уровню сложности.",
 
   "builder.title": "Создать пробный тест",
@@ -1047,6 +1052,7 @@ const ru: Dictionary = {
   "exam.previous": "Назад",
   "exam.next": "Далее",
   "exam.marking": "Проверяем...",
+  "exam.stillMarking": "Тест ещё проверяется... Ваши ответы останутся на этой странице, пока результат не будет сохранён.",
   "exam.finish": "Завершить и узнать результат",
   "exam.confirmUnanswered":
     "Без ответа остался {n} вопрос. Всё равно отправить?|Без ответа осталось {n} вопроса. Всё равно отправить?|Без ответа осталось {n} вопросов. Всё равно отправить?",
@@ -1532,6 +1538,7 @@ const az: Dictionary = {
   "test.errNotSubmitted": "Bu test hələ təhvil verilməyib.",
   "test.errTimeExpired":
     "Bu testin vaxtı bitib, ona görə onu artıq təhvil vermək olmaz. Yenidən cəhd etmək üçün yeni test başladın.",
+  "test.errStillMarking": "Bu test hələ yoxlanılır. Bir az gözləyin, sonra yenidən göndərin.",
   "test.errNoQuestions": "Bankda bu fənn, mövzu və çətinlik üzrə hələ sual yoxdur.",
 
   "builder.title": "Sınaq testi yarat",
@@ -1586,6 +1593,7 @@ const az: Dictionary = {
   "exam.previous": "Əvvəlki",
   "exam.next": "Növbəti",
   "exam.marking": "Yoxlanılır...",
+  "exam.stillMarking": "Testiniz hələ yoxlanılır... Nəticə yadda saxlanılana qədər cavablarınız bu səhifədə qalır.",
   "exam.finish": "Bitir və nəticəyə bax",
   "exam.confirmUnanswered": "{n} sual hələ cavabsızdır. Yenə də göndərilsin?",
 

@@ -84,6 +84,8 @@ export function testErrorText(cause: unknown, t: Translate, conflict?: Translati
   if (!(cause instanceof ApiError)) return t("profile.errGeneric");
 
   if (cause.code === "time-expired") return t("test.errTimeExpired");
+  // Another hand-in of the paper is still being marked: a wait, not a failure.
+  if (cause.code === "submission-in-progress") return t("test.errStillMarking");
 
   switch (cause.status) {
     case 0:

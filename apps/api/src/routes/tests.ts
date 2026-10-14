@@ -38,12 +38,26 @@ export const testsRouter = Router();
 const studentKeySchema = z.string().min(studentKeyLimits.min).max(studentKeyLimits.max);
 
 /**
- * The refusal for a paper already handed in, however it happened: submitted
- * earlier, or by another request a moment ago. The browser branches on `code`.
+ * The refusal for a paper already handed in and saved, however it happened:
+ * submitted earlier, or by another request whose save finished a moment ago.
+ * It is final. The browser branches on `code`, and goes to the results.
  */
 const alreadySubmitted = {
   code: "already-submitted",
   message: "That test has already been submitted."
+} as const;
+
+/**
+ * The answer while another hand-in of the same paper is still being marked
+ * and saved (see submissionsInFlight). Unlike the one above it is not final:
+ * that hand-in can still fail, and failing reopens the paper. Answered with
+ * "already submitted", the browser threw its copy of the paper away and went
+ * to a result that was then never saved, and every answer was lost. Told
+ * this, it keeps the paper and asks again in a moment.
+ */
+const submissionInProgress = {
+  code: "submission-in-progress",
+  message: "This test is still being marked. Wait a moment."
 } as const;
 
 const generateSchema = z
@@ -204,11 +218,13 @@ const MAX_CLAIMED_SECONDS = 60 * 60 * 6;
  * Written answers go to a paid AI marker before the result is saved, and the
  * save is what decides which of two submissions wins. Without this, several
  * submissions of the same paper sent together (a double click, two tabs, a
- * script) would each pay to mark every written answer, only for one result to
- * be kept. A second submission while one is in flight gets the same refusal
- * the loser of the save would have got. The entry is removed whatever happens,
- * so a submission that fails can be retried. One API process holds all of
- * them; a deployment with several would need the claim in the database.
+ * retry after a reload, a script) would each pay to mark every written answer,
+ * only for one result to be kept. A second submission while one is in flight
+ * is told the paper is still being marked, not that it was handed in: the one
+ * in flight can still fail, and then the paper is open again. The entry is
+ * removed whatever happens, so a submission that fails can be retried. One API
+ * process holds all of them; a deployment with several would need the claim in
+ * the database.
  */
 const submissionsInFlight = new Set<string>();
 
@@ -247,6 +263,10 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
       return response.status(401).json({ message: "Sign in again to continue." });
     }
 
+    // Noted before the read as well as after it: a hand-in of this paper that
+    // was in flight while it was read may since have finished, or failed and
+    // reopened the paper, so what the read says about it cannot be trusted.
+    const inFlightWhenRead = submissionsInFlight.has(request.params.attemptId);
     const attempt = await getAttempt(request.params.attemptId);
 
     if (!attempt) {
@@ -255,6 +275,13 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
 
     if (attempt.studentKey !== parsed.data.studentKey) {
       return response.status(403).json({ message: "That test belongs to a different student." });
+    }
+
+    // Asked before "already submitted?", because a hand-in in flight marks the
+    // paper submitted before it writes the answers, and can still fail after
+    // that and reopen it. Until it is done, nothing is final.
+    if (inFlightWhenRead || submissionsInFlight.has(attempt.id)) {
+      return response.status(409).json(submissionInProgress);
     }
 
     // Both refusals below are final: no amount of retrying changes them. The
@@ -295,10 +322,8 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
     const timeTakenSeconds =
       limitMinutes === null ? believedSeconds : Math.min(believedSeconds, limitMinutes * 60);
 
-    if (submissionsInFlight.has(attempt.id)) {
-      return response.status(409).json(alreadySubmitted);
-    }
-
+    // Nothing has been awaited since the in-flight check above, so no other
+    // request can have claimed the paper in between.
     submissionsInFlight.add(attempt.id);
 
     try {

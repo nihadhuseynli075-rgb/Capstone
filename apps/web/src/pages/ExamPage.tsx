@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { SubmittedAnswer } from "@grade9/shared";
+import type { SubmittedAnswer, TestResult } from "@grade9/shared";
 import { writtenAnswerMaxLength } from "@grade9/shared";
 import { navigate, replaceRoute, setLeaveGuard } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
@@ -28,6 +28,26 @@ function isFinalRefusal(cause: unknown): boolean {
   return cause.code === "time-expired" || cause.status === 403 || cause.status === 404;
 }
 
+/**
+ * Another hand-in of this paper is still being marked: one sent before a
+ * reload, or from another tab. It can still fail and leave the paper open, so
+ * this is not "already handed in", and the paper must not be put down yet.
+ */
+function isStillMarking(cause: unknown): boolean {
+  return cause instanceof ApiError && cause.code === "submission-in-progress";
+}
+
+/**
+ * How often a paper that is still being marked elsewhere is sent again, and
+ * for how long at most. Marking written answers can take a few minutes (the
+ * marker is given up to three for each), so the wait covers that; after it
+ * the usual "try sending again" is offered, with the paper still here. Each
+ * send either finds the other hand-in finished, and so the result, or the
+ * paper open again after it failed, and hands it in for real.
+ */
+const STILL_MARKING_RETRY_MS = 3000;
+const STILL_MARKING_MAX_WAIT_MS = 4 * 60_000;
+
 /** Words as a teacher would count them: runs of letters or digits, in any script. */
 function wordCount(text: string): number {
   return text.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0;
@@ -52,12 +72,28 @@ export function ExamPage() {
   const [error, setError] = useState<{ cause: unknown; timeUp: boolean } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Set while the paper waits for another hand-in of it to finish marking
+  // (see isStillMarking), so the student is told why nothing has happened yet.
+  const [stillMarking, setStillMarking] = useState(false);
+
   // Set when the server will never accept this paper, however many times it is
   // offered. Retrying is then the one thing not to suggest.
   const [dead, setDead] = useState(false);
 
   // Auto-submit and a manual click can race; this makes sure only one wins.
   const submittedRef = useRef(false);
+
+  // Whether this page is still open. A paper waiting to be sent again is not
+  // sent again once the student has gone elsewhere, minutes later and from a
+  // page they left: it stays saved, for the builder to offer to resume.
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Set once the paper is over - marked, found already marked, or out of time -
   // and its saved copy cleared. Saving after that would put a finished paper
@@ -66,6 +102,7 @@ export function ExamPage() {
 
   const paletteRef = useRef<HTMLDivElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
+  const stillMarkingRef = useRef<HTMLParagraphElement>(null);
 
   /*
    * The question's own heading, and whether the student has just asked for a
@@ -144,9 +181,27 @@ export function ExamPage() {
       }));
 
       const timeTakenSeconds = Math.max(0, Math.round((Date.now() - active.startedAt) / 1000));
+      const giveUpAt = Date.now() + STILL_MARKING_MAX_WAIT_MS;
+
+      // Sends the paper, and sends it again while another hand-in of it is
+      // still being marked. Only a result, or an answer that settles it one
+      // way or the other, comes out of here.
+      const send = async (): Promise<TestResult> => {
+        for (;;) {
+          try {
+            return await submitTest(active.test.id, payload, timeTakenSeconds);
+          } catch (cause) {
+            if (!isStillMarking(cause) || Date.now() >= giveUpAt || !mountedRef.current) throw cause;
+            setStillMarking(true);
+            await new Promise((resolve) => window.setTimeout(resolve, STILL_MARKING_RETRY_MS));
+            if (!mountedRef.current) throw cause;
+          }
+        }
+      };
 
       try {
-        const result = await submitTest(active.test.id, payload, timeTakenSeconds);
+        const result = await send();
+        setStillMarking(false);
 
         // The fresh result is shown from storage, comparison and all. If it
         // will not fit, the saved copy on the server is the way to it instead:
@@ -164,10 +219,13 @@ export function ExamPage() {
         // goes to the builder and not to a paper that no longer exists.
         replaceRoute(stored ? "/results" : `/results/${active.test.id}`);
       } catch (cause) {
+        setStillMarking(false);
         const code = cause instanceof ApiError ? cause.code : null;
 
-        // Already marked: the score exists, and the results screen is where the
-        // student was trying to get to in the first place.
+        // Already marked and saved: the score exists, and the results screen is
+        // where the student was trying to get to in the first place. Only this
+        // answer puts the paper down; "still being marked" never does, since
+        // that hand-in can still fail (see isStillMarking).
         if (code === "already-submitted") {
           closedRef.current = true;
           clearActiveTest();
@@ -188,8 +246,9 @@ export function ExamPage() {
           return;
         }
 
-        // Anything else is a blip. Let them try again rather than losing the
-        // paper to a dropped connection.
+        // Anything else is a blip, including a paper still being marked
+        // elsewhere after the wait in send(). Let them try again rather than
+        // losing the paper to a dropped connection.
         submittedRef.current = false;
         setSubmitting(false);
         setError({ cause, timeUp: reason === "time-up" });
@@ -303,6 +362,14 @@ export function ExamPage() {
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     errorRef.current?.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
   }, [error]);
+
+  // The same for the line saying the paper is waiting on another hand-in, which
+  // appears where the error would.
+  useEffect(() => {
+    if (!stillMarking) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    stillMarkingRef.current?.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
+  }, [stillMarking]);
 
   if (!active) {
     // A status, like every other loading line, so it is read out.
@@ -482,6 +549,14 @@ export function ExamPage() {
           </label>
         )}
       </section>
+
+      {/* A status rather than an alert: nothing has gone wrong, and the paper
+          is sent again on its own. */}
+      {stillMarking && (
+        <p className="warning-banner" role="status" ref={stillMarkingRef}>
+          {t("exam.stillMarking")}
+        </p>
+      )}
 
       {errorText && (
         <div className="error-banner exam-error" role="alert" ref={errorRef}>

@@ -6,9 +6,10 @@ export class ApiError extends Error {
   /**
    * What kind of failure this is, where the status alone is not enough.
    *
-   * Two different 409s come back from submitting a test - already marked, and
-   * out of time - and they want opposite things from the browser. The message
-   * is written for a person to read, so it is the wrong thing to branch on.
+   * Three different 409s come back from submitting a test - already marked,
+   * still being marked, and out of time - and each wants something different
+   * from the browser. The message is written for a person to read, so it is
+   * the wrong thing to branch on.
    */
   readonly code: string | null;
 

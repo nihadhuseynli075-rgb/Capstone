@@ -863,8 +863,11 @@ async function main() {
 
     const statuses = [first.status, second.status].sort();
     check("exactly one submission is accepted", statuses[0] === 200 && statuses[1] === 409, `statuses ${first.status} and ${second.status}`);
+    // Both got past the read together, so the other one finds the winner still
+    // being saved: told so, not "already submitted", because that save can
+    // still fail and reopen the paper (see the next section).
     const loser = first.status === 409 ? first : second;
-    check("the other is told the paper was already submitted", loser.body.code === "already-submitted", JSON.stringify(loser.body));
+    check("the other is told the paper is still being marked", loser.body.code === "submission-in-progress", JSON.stringify(loser.body));
 
     const winner = first.status === 200 ? first : second;
     const raceReview = await call(`/api/tests/attempts/${raceTest.id}?studentKey=${racerKey}`);
@@ -925,6 +928,58 @@ async function main() {
     check("a failed result write is reported", parentBroken.status === 500, `got ${parentBroken.status}`);
     const parentRetried = await submit(parentTest, parentKey, rightAnswers(parentTest));
     check("and can be sent again", parentRetried.status === 200, JSON.stringify(parentRetried.body));
+
+    section("A paper handed in again while the first hand-in is saving");
+    // Every database call is slowed, so a hand-in spends a while between
+    // marking the paper submitted and writing its answers. Waits until the
+    // stand-in has seen that first write for this paper.
+    const paperTaken = async (attemptId) => {
+      const deadline = Date.now() + 10_000;
+      while (Date.now() < deadline) {
+        const { requests } = (await control("requests")).body;
+        if (
+          requests.some(
+            (entry) =>
+              entry.method === "PATCH" &&
+              entry.table === "test_attempts" &&
+              decodeURIComponent(entry.search).includes(`id=eq.${attemptId}`)
+          )
+        ) {
+          return true;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      return false;
+    };
+
+    // The first hand-in's answers fail to save, after a second has been sent
+    // (a reload and Finish again, or another tab). Telling the second "already
+    // submitted" sent the browser to a result that was never saved, and the
+    // paper with every answer on it was thrown away.
+    const lostKey = randomUUID();
+    const lostTest = (await generate(lostKey)).body.test;
+    await control("latency", { ms: 300 });
+    await control("faults", { method: "PATCH", table: "attempt_questions", times: 1 });
+    const firstHandIn = submit(lostTest, lostKey, rightAnswers(lostTest));
+    const lostTaken = await paperTaken(lostTest.id);
+    const secondHandIn = await submit(lostTest, lostKey, rightAnswers(lostTest));
+    const firstOutcome = await firstHandIn;
+    await control("latency", { ms: 0 });
+    check("the first hand-in gets as far as marking the paper submitted", lostTaken);
+    check(
+      "the second is told the paper is still being marked, not that it was handed in",
+      secondHandIn.status === 409 && secondHandIn.body.code === "submission-in-progress",
+      `${secondHandIn.status} ${JSON.stringify(secondHandIn.body)}`
+    );
+    check("the first then fails to save its answers", firstOutcome.status === 500, `got ${firstOutcome.status}`);
+    const [lostRow] = await rows("test_attempts", `?id=eq.${lostTest.id}`);
+    check("which leaves the paper open", lostRow?.submitted_at === null, JSON.stringify(lostRow));
+    const handedInAgain = await submit(lostTest, lostKey, rightAnswers(lostTest));
+    check(
+      "so the browser's next try hands it in for real, every answer marked",
+      handedInAgain.status === 200 && handedInAgain.body.score === lostTest.questions.length,
+      JSON.stringify(handedInAgain.body).slice(0, 200)
+    );
 
     section("A paper whose questions cannot be saved leaves nothing behind");
     const orphanKey = randomUUID();

@@ -930,10 +930,13 @@ async function main() {
     raceStatuses[0] === 200 && raceStatuses[1] === 409,
     `statuses ${raceFirst.status} and ${raceSecond.status}`
   );
+  // Which of the two it hears depends on when it arrived: while the winner was
+  // still being saved (still being marked, so a browser keeps its paper), or
+  // after (already submitted). Never anything that would let both be kept.
   const raceLoser = raceFirst.status === 409 ? raceFirst : raceSecond;
   check(
-    "the other is told it was already submitted",
-    raceLoser.body.code === "already-submitted",
+    "the other is told it is still being marked or was already submitted",
+    raceLoser.body.code === "submission-in-progress" || raceLoser.body.code === "already-submitted",
     JSON.stringify(raceLoser.body)
   );
   const winningAnswer = raceFirst.status === 200 ? "first" : "second";
