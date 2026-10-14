@@ -58,15 +58,29 @@
   stroke-linejoin: round;
   stroke-linecap: round;
   opacity: 0.85;
-  /* Drawn in from left to right once, the way the climb went. */
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: ascent-draw 0.6s ease-out 0.1s forwards;
+}
+
+/*
+ * The line is drawn in from left to right once, the way the climb went, by the
+ * rectangle it is seen through widening from the left edge. It used to be a
+ * dash the length of the path sliding into place, but with a stroke that does
+ * not stretch Chrome measures dashes in screen pixels, not along the path, so
+ * the finished line still had gaps in it: over a third of it was missing.
+ *
+ * At rest the rectangle covers the whole drawing, and the animation only runs
+ * it in from nothing, so a browser that does not run it shows the whole line.
+ * The rectangle starts at the drawing's left edge, so "left" is the same point
+ * whether a browser takes the origin from the rectangle or from the drawing.
+ */
+.ascent-reveal {
+  transform-box: fill-box;
+  transform-origin: left;
+  animation: ascent-draw 0.6s ease-out 0.1s backwards;
 }
 
 @keyframes ascent-draw {
-  to {
-    stroke-dashoffset: 0;
+  from {
+    transform: scaleX(0);
   }
 }
 
@@ -298,9 +312,8 @@ button.ascent-dot:hover .ascent-tip {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ascent-line {
+  .ascent-reveal {
     animation: none;
-    stroke-dashoffset: 0;
   }
 
   .ascent-tip,

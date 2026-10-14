@@ -120,6 +120,7 @@ function Tent() {
 /** The ridge drawing itself: back range, front range, the climb line and the book's page lines. */
 function Ridge({ spots, gradientId, pages = false }: { spots: Spot[]; gradientId: string; pages?: boolean }) {
   const summit = spots.reduce((top, spot) => (spot.y < top.y ? spot : top), spots[0]);
+  const revealId = `${gradientId}-reveal`;
 
   return (
     <svg className="ascent-ridge" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
@@ -128,6 +129,13 @@ function Ridge({ spots, gradientId, pages = false }: { spots: Spot[]; gradientId
           <stop offset="0" stopColor="var(--ascent-peak)" />
           <stop offset="1" stopColor="var(--ascent-foot)" />
         </linearGradient>
+
+        {/* What the climb line is seen through: the whole drawing, which
+            grows in from the left edge as the page opens (see .ascent-reveal
+            in ascent.css). */}
+        <clipPath id={revealId}>
+          <rect className="ascent-reveal" x="0" y="0" width="100" height="100" />
+        </clipPath>
       </defs>
 
       <path className="ascent-back" d={ridgeShape(backRange(spots))} />
@@ -145,7 +153,7 @@ function Ridge({ spots, gradientId, pages = false }: { spots: Spot[]; gradientId
           />
         ))}
 
-      <path className="ascent-line" d={ridgeLine(spots)} pathLength={1} vectorEffect="non-scaling-stroke" />
+      <path className="ascent-line" d={ridgeLine(spots)} clipPath={`url(#${revealId})`} vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
