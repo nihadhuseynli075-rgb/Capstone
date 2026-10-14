@@ -8,9 +8,12 @@ import type { Language } from "./i18n";
  * is the same for every language, and the type below makes a missing language
  * or document a compile error, as the dictionaries do.
  *
- * DRAFT. Herdy and Nihad still have to check every sentence, and there is no
- * contact address yet: "{contact}" is shown as a marked placeholder until one
- * is put here. Anything said about the data must stay true to the code: what
+ * DRAFT. Herdy and Nihad still have to check every sentence. The live site
+ * must not show draft markers, so the pages no longer say so on screen: this
+ * comment is where it is recorded. There is no contact address yet either, so
+ * every paragraph with "{contact}" in it is left out until `contactAddress`
+ * below is set, and then shows with the address in its place. Anything said
+ * about the data must stay true to the code: what
  * is stored (Supabase tables and photo storage), what a friend sees
  * (FriendPerson and FriendProgress in packages/shared), what the AI marker is
  * sent (services/writtenMarking.ts in the API) and what deleting an account
@@ -28,20 +31,24 @@ export interface LegalDocument {
   sections: LegalSection[];
 }
 
+/**
+ * Where people write to about these pages, or null while there is none.
+ *
+ * Null leaves out every paragraph that names it, rather than showing a
+ * placeholder on the live site. Set it and those paragraphs come back in all
+ * three languages.
+ */
+export const contactAddress: string | null = null;
+
 interface LegalTexts {
-  draftNote: string;
   updated: string;
-  /** Shown, marked, wherever "{contact}" appears, until there is an address. */
-  contactPlaceholder: string;
   privacy: LegalDocument;
   terms: LegalDocument;
 }
 
 export const legalTexts: Record<Language, LegalTexts> = {
   en: {
-    draftNote: "Draft - to be checked by Herdy and Nihad.",
-    updated: "Last updated: 4 October 2026",
-    contactPlaceholder: "[CONTACT EMAIL - to be added]",
+    updated: "Last updated: 14 October 2026",
     privacy: {
       title: "Privacy",
       intro:
@@ -120,7 +127,8 @@ export const legalTexts: Record<Language, LegalTexts> = {
         {
           heading: "Mistakes",
           paragraphs: [
-            "We check the questions and answers, but some may still be wrong. If you find a mistake, tell us at {contact}.",
+            "We check the questions and answers, but some may still be wrong.",
+            "If you find a mistake, tell us at {contact}.",
             "The site may sometimes be unavailable, for example while it is being updated."
           ]
         },
@@ -135,9 +143,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
   },
 
   ru: {
-    draftNote: "Черновик: текст ещё должны проверить Herdy и Nihad.",
-    updated: "Обновлено 4 октября 2026 г.",
-    contactPlaceholder: "[АДРЕС ПОЧТЫ ДЛЯ СВЯЗИ — будет добавлен]",
+    updated: "Обновлено 14 октября 2026 г.",
     privacy: {
       title: "Конфиденциальность",
       intro:
@@ -216,7 +222,8 @@ export const legalTexts: Record<Language, LegalTexts> = {
         {
           heading: "Ошибки",
           paragraphs: [
-            "Мы проверяем задания и ответы, но ошибки всё же возможны. Если вы нашли ошибку, напишите нам: {contact}.",
+            "Мы проверяем задания и ответы, но ошибки всё же возможны.",
+            "Если вы нашли ошибку, напишите нам: {contact}.",
             "Иногда сайт может быть недоступен, например во время обновления."
           ]
         },
@@ -231,9 +238,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
   },
 
   az: {
-    draftNote: "Qaralama: mətni hələ Herdy və Nihad yoxlamalıdır.",
-    updated: "Yenilənib: 4 oktyabr 2026",
-    contactPlaceholder: "[ƏLAQƏ ÜÇÜN E-POÇT — əlavə ediləcək]",
+    updated: "Yenilənib: 14 oktyabr 2026",
     privacy: {
       title: "Məxfilik",
       intro:
@@ -312,7 +317,8 @@ export const legalTexts: Record<Language, LegalTexts> = {
         {
           heading: "Səhvlər",
           paragraphs: [
-            "Sualları və cavabları yoxlayırıq, amma bəzilərində yenə səhv ola bilər. Səhv tapsanız, bizə yazın: {contact}.",
+            "Sualları və cavabları yoxlayırıq, amma bəzilərində yenə səhv ola bilər.",
+            "Səhv tapsanız, bizə yazın: {contact}.",
             "Sayt bəzən, məsələn yenilənərkən, açılmaya bilər."
           ]
         },

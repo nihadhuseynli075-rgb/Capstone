@@ -1166,15 +1166,6 @@
   margin-bottom: 0;
 }
 
-/* The contact address still to come: marked, so it cannot pass for a real one. */
-.legal-placeholder {
-  padding: 0 4px;
-  border-radius: 4px;
-  background: var(--warning-soft);
-  color: var(--warning);
-  font-weight: 700;
-}
-
 /* Under the sign-in and sign-up card, and under the landing page's closing line. */
 .auth-legal,
 .landing-legal {
