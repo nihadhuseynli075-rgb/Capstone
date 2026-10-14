@@ -2172,6 +2172,90 @@ async function main() {
       const askDeletedName = await ask(nora.token, "omar");
       check("nor does his username", askDeletedName.status === 404, `${askDeletedName.status} ${JSON.stringify(askDeletedName.body)}`);
 
+      section("An account that has not confirmed its email cannot be found");
+      // Anyone can sign up with a classmate's address and a name of their
+      // choosing, and the profile exists from that moment. Until the address
+      // is confirmed, asking about it must sound exactly like asking about an
+      // address nobody signed up with.
+      const signUpWaiting = async (email) => {
+        await control("mail", { confirmSignUp: true });
+        const made = await request(standin.url, `/auth/v1/signup?redirect_to=${encodeURIComponent("http://app.test/")}`, {
+          method: "POST",
+          body: { email, password: "notmine123", data: { full_name: "Chosen Name" } }
+        });
+        await control("mail", { confirmSignUp: false });
+        return made;
+      };
+      const quinn = await signUpWaiting("quinn@standin.test");
+      check("a sign-up waiting for its link has an account but no session", quinn.status === 200 && Boolean(quinn.body.id) && !quinn.body.access_token, JSON.stringify(quinn.body).slice(0, 200));
+      const quinnUsername = (await rows("profiles", `?id=eq.${quinn.body.id}`))[0]?.username;
+      const askWaiting = await ask(iris.token, "quinn@standin.test");
+      check(
+        "its address is answered as no account, word for word",
+        askWaiting.status === 404 && askWaiting.body.code === "no-account" && askWaiting.body.message === unknownEmail.body.message,
+        `${askWaiting.status} ${JSON.stringify(askWaiting.body)}`
+      );
+      const askWaitingName = await ask(iris.token, `@${quinnUsername}`);
+      check(
+        "and so is its username",
+        typeof quinnUsername === "string" && askWaitingName.status === 404 && askWaitingName.body.code === "no-account",
+        `@${quinnUsername}: ${askWaitingName.status} ${JSON.stringify(askWaitingName.body)}`
+      );
+      check("no request was made to it", (await friendRows(`?friend_id=eq.${quinn.body.id}`)).length === 0);
+
+      const quinnMail = (await control("emails")).body.emails.find((mail) => mail.kind === "signup" && mail.to === "quinn@standin.test");
+      await fetch(quinnMail?.link ?? "http://127.0.0.1:9", { redirect: "manual" });
+      const askConfirmed = await ask(iris.token, "quinn@standin.test");
+      check(
+        "once the link in the email is opened, it can be found",
+        askConfirmed.status === 201 && askConfirmed.body.person?.id === quinn.body.id,
+        `${askConfirmed.status} ${JSON.stringify(askConfirmed.body)}`
+      );
+
+      // The address's owner pressing "Continue with Google" instead: Google
+      // vouches for the address, so the account is confirmed, and the password
+      // whoever signed up chose is thrown away.
+      const rosa = await signUpWaiting("rosa@standin.test");
+      check("another sign-up waiting for its link cannot be found", (await ask(iris.token, "rosa@standin.test")).status === 404);
+      const googleBefore = (await control("google", {})).body.google.account;
+      await control("google", { account: { email: "rosa@standin.test", name: "Rosa", picture: null } });
+      await fetch(`${standin.url}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent("http://app.test/")}`, { redirect: "manual" });
+      await control("google", { account: googleBefore });
+      const askAfterGoogle = await ask(iris.token, "rosa@standin.test");
+      check(
+        "until its owner signs in with Google",
+        askAfterGoogle.status === 201 && askAfterGoogle.body.person?.id === rosa.body.id,
+        `${askAfterGoogle.status} ${JSON.stringify(askAfterGoogle.body)}`
+      );
+      check("after which the password the sign-up chose no longer works", (await signInWith("rosa@standin.test", "notmine123")).status === 400);
+
+      section("Too many lookups");
+      // Thirty an hour for one account, whatever they find. Tess has made none.
+      const tess = await makeAccount("tess@standin.test", "Tess");
+      const lookups = [];
+      for (let index = 0; index < 30; index += 1) lookups.push(await ask(tess.token, `nobody${index}@standin.test`));
+      check(
+        "an account's first 30 lookups in an hour are all answered",
+        lookups.every((answer) => answer.status === 404 && answer.body.code === "no-account"),
+        lookups.map((answer) => answer.status).join(",")
+      );
+      const overLimit = await ask(tess.token, "gabe.test@standin.test");
+      check(
+        "the next is refused, with how long to wait and nothing about the account",
+        overLimit.status === 429 &&
+          overLimit.body.code === "too-many-lookups" &&
+          overLimit.body.retryAfterSeconds > 59 * 60 &&
+          !("person" in overLimit.body),
+        `${overLimit.status} ${JSON.stringify(overLimit.body)}`
+      );
+      check("and sends no request", (await friendRows(`?user_id=eq.${tess.id}`)).length === 0);
+      const sameConnection = await ask(iris.token, `@${tess.username}`);
+      check(
+        "while another student on the same connection can still ask",
+        sameConnection.status === 201 && sameConnection.body.person?.id === tess.id,
+        `${sameConnection.status} ${JSON.stringify(sameConnection.body)}`
+      );
+
       section("Friends need the tables to exist");
       const readingFriends = await friendsOf(fiona.token);
       check("a normal read still works", readingFriends.status === 200);

@@ -12,6 +12,7 @@ import { cleanName, isReadableName } from "@grade9/shared";
 import { isUuid } from "../lib/ids";
 import { PublicError } from "../lib/publicError";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
+import { canBeFound } from "../services/friendLookups";
 import {
   otherEnd,
   planRequest,
@@ -116,7 +117,25 @@ function toPerson(row: Record<string, unknown>): FriendPerson {
 const PERSON_COLUMNS = "id, full_name, username, avatar_url";
 
 /**
- * The student with this email address or username, or null if there is none.
+ * Whether the account behind a profile has confirmed its email address, as
+ * the auth server says (see canBeFound). The profile cannot say: it is made
+ * the moment somebody signs up, confirmed or not. An account deleted since its
+ * profile was read is not there to be found either.
+ */
+async function hasConfirmedEmail(id: string): Promise<boolean> {
+  const { data, error } = await client().auth.admin.getUserById(id);
+
+  if (error) {
+    if (error.status === 404) return false;
+    throw friendsError("look that student up", error);
+  }
+
+  return canBeFound(data.user);
+}
+
+/**
+ * The student with this email address or username, or null if there is none
+ * that can be found.
  *
  * Both are columns of `profiles`, and so one read each. The email has no index
  * of its own, which is fine while the table is a school's worth of students;
@@ -127,6 +146,11 @@ const PERSON_COLUMNS = "id, full_name, username, avatar_url";
  * Supabase lowercases an address when it is saved, and the profile copies it
  * as it is, so an exact match on the lowercased address is a match on the
  * account's. Usernames are stored lowercase too, and unique.
+ *
+ * A profile whose account has not confirmed its email is answered as no
+ * account at all, whether it was found by address or by username, so a
+ * lookup cannot tell the two apart. The auth server is asked about the one
+ * profile the read found, never about every account.
  *
  * Only an id, a name, a username and a photo come back. Nothing returns the
  * address.
@@ -139,7 +163,10 @@ export async function findPerson(lookup: FriendLookup): Promise<FriendPerson | n
   ).limit(1);
 
   if (error) throw friendsError("look that student up", error);
-  return data && data.length > 0 ? toPerson(data[0]) : null;
+  if (!data || data.length === 0) return null;
+
+  const person = toPerson(data[0]);
+  return (await hasConfirmedEmail(person.id)) ? person : null;
 }
 
 async function peopleById(ids: string[]): Promise<Map<string, FriendPerson>> {
@@ -308,6 +335,12 @@ async function acceptPending(me: string, requestId: string): Promise<string | nu
  * being told whether an address or a username is registered is a fair price
  * for not leaving a student typing into the void. It is signed-in students
  * only, and only ever returns a name, a username and a photo.
+ *
+ * That price is only fair for a student asking about a classmate, not for a
+ * script asking about every address on a list. The route limits how many
+ * lookups an account and an address may make (see friendLookups), and an
+ * account that has not confirmed its email is never found (see findPerson),
+ * so a sign-up made with somebody else's address is not found under it.
  */
 export async function sendRequest(me: string, myEmail: string, lookup: FriendLookup): Promise<SendOutcome> {
   // Your own address is known without asking anyone. Your own username is only

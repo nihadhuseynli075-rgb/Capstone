@@ -1038,6 +1038,12 @@ function createAuth(db) {
    * email, and Google is linked onto it automatically; or there is no account
    * yet and one is made. The first two write Google's name and photo over the
    * account's metadata, which is exactly what the profile has to survive.
+   *
+   * Linking onto an account that never confirmed its email confirms it, since
+   * Google vouches for the address, and drops the password and every other way
+   * in, which nobody proved: whoever signed up with somebody else's address
+   * cannot sign in to it once its owner has. This is GoTrue's guard against
+   * taking an account over before it exists (see the README on Google).
    */
   function signInWithGoogle(account) {
     const email = String(account.email).trim().toLowerCase();
@@ -1050,6 +1056,11 @@ function createAuth(db) {
 
     const sameEmail = [...users.values()].find((user) => user.email === email);
     if (sameEmail) {
+      if (sameEmail.confirmedAt === null) {
+        sameEmail.confirmedAt = nowIso();
+        sameEmail.password = null;
+        sameEmail.identities = [];
+      }
       sameEmail.identities.push(newIdentity(sameEmail, "google", email));
       updateMetadata(sameEmail, googleMetadata({ ...account, email }));
       return sameEmail;

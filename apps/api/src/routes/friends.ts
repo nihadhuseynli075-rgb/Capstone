@@ -12,6 +12,7 @@ import {
   type SendOutcome
 } from "../repositories/friendRepository";
 import { ensureProfile } from "../repositories/profileRepository";
+import { createLookupLimiter } from "../services/friendLookups";
 import { parseLookup } from "../services/friends";
 
 /**
@@ -55,14 +56,37 @@ const refusals: Record<Extract<SendOutcome, { refused: string }>["refused"], { s
   yourself: { status: 400, message: "That is your own account. Add a friend instead." },
   // A plain answer rather than a vague one. Anyone signed in can ask, and for
   // an app this size being told whether an account exists beats a student
-  // wondering whether the request went anywhere.
+  // wondering whether the request went anywhere. How often they can ask is
+  // limited (see lookupLimiter below), and an account that has not confirmed
+  // its email gets this answer too.
   "no-account": { status: 404, message: "No Exampeak account with that email or username." },
   "already-friends": { status: 409, message: "You are already friends." },
   "already-requested": { status: 409, message: "You have already sent them a request. They have not answered yet." },
   blocked: { status: 403, message: "A request cannot be sent to that account." }
 };
 
+/**
+ * Sending a request is a lookup: the answer tells the sender whether an
+ * account is behind an address or a username. Each one is counted, per
+ * account and per address it came from (see friendLookups), before anything
+ * else is done with it, as the test generator counts its requests. One that
+ * turns out to be malformed still counts, which costs a student a typo at most.
+ */
+const lookupLimiter = createLookupLimiter();
+
 friendsRouter.post("/requests", async (request, response, next) => {
+  const waitMs = lookupLimiter.take(accountOf(response).id, request.ip ?? request.socket.remoteAddress ?? "unknown");
+
+  if (waitMs > 0) {
+    const seconds = Math.ceil(waitMs / 1000);
+    response.setHeader("Retry-After", String(seconds));
+    return response.status(429).json({
+      code: "too-many-lookups",
+      retryAfterSeconds: seconds,
+      message: "You have looked up a lot of people in a short time. Wait a while and try again."
+    });
+  }
+
   const parsed = sendSchema.safeParse(request.body);
 
   if (!parsed.success) {

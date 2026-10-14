@@ -21,7 +21,8 @@ const refusalText: Record<string, TranslationKey> = {
   "already-friends": "friends.error.alreadyFriends",
   "already-requested": "friends.error.alreadyRequested",
   blocked: "friends.error.blocked",
-  gone: "friends.error.gone"
+  gone: "friends.error.gone",
+  "too-many-lookups": "friends.error.tooManyLookups"
 };
 
 /**

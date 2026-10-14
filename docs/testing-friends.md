@@ -19,7 +19,9 @@ does not match what it says you should see.
       and nothing else will work.
 - [ ] **Two accounts.** Call them **A** and **B**. Make them with two different
       email addresses you can reach (Register page). If your project asks you to
-      confirm the email after registering, confirm both.
+      confirm the email after registering, confirm both. Until an account's
+      email is confirmed nobody can find it: asking for it says there is no
+      Exampeak account with that email or username.
 - [ ] **Two browsers at once.** A in your normal window, B in a private window
       (or a second browser), so both stay signed in together.
 - [ ] Give each account a different name, so you can tell them apart: "Test A"
@@ -72,6 +74,12 @@ under the box, and nothing else should change.
       ExamPeak account" message.
 - [ ] Nothing at all (empty box) → "Enter an email address or a username,
       without spaces."
+
+Every **Send request** with something typed in the box counts as looking
+somebody up. One account can look up 30 people in an hour, and everyone on the
+same internet connection 300 between them. This whole checklist stays well inside that. Past it, the page
+says "You have looked up a lot of people in a short time. Wait a while and try
+again." for up to an hour. That is the limit working, not a fault.
 
 ## 5. Accept, and compare
 
