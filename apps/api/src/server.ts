@@ -166,10 +166,6 @@ app.listen(env.port, () => {
     );
   }
 
-  if (env.adminDevBypass) {
-    console.warn("[api] ADMIN_DEV_BYPASS is on: the admin dashboard opens without its password. Development only.");
-  }
-
   // Hosted, the API sits behind the host's proxy, and without TRUST_PROXY every
   // request seems to come from that proxy. The admin sign-in limit then counts
   // everyone together: ten wrong passwords from anyone shut the real admin out

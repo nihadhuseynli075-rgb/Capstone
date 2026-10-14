@@ -14,7 +14,6 @@ import { adminText } from "../components/adminText";
 import { fill } from "../features/friends/fill";
 import { ApiError } from "../services/apiClient";
 import {
-  adminDevLogin,
   adminLogin,
   adminLogout,
   createQuestion,
@@ -73,28 +72,6 @@ function LoginScreen({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // In development the API may let us straight in; the form shows only if it says no.
-  const [tryingDevLogin, setTryingDevLogin] = useState(import.meta.env.DEV);
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    let cancelled = false;
-    void adminDevLogin().then((result) => {
-      if (cancelled) return;
-      if (result) {
-        setAdminToken(result.token);
-        onSignedIn(result.storageMode, result.usingDefaultPassword);
-      } else {
-        setTryingDevLogin(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-    // Once per showing of the form: onSignedIn is a new function every render.
-  }, []);
-
-  if (tryingDevLogin) return null;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();

@@ -26,19 +26,6 @@ export function adminLogin(password: string): Promise<LoginResponse> {
 }
 
 /**
- * Signs in without the password when the API allows it (local development with
- * ADMIN_DEV_BYPASS=true). Never tried in a production build.
- */
-export async function adminDevLogin(): Promise<LoginResponse | null> {
-  if (!import.meta.env.DEV) return null;
-  try {
-    return await apiRequest<LoginResponse>("/api/admin/dev-login", { method: "POST" });
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Ends the session on the API, not only in this tab.
  *
  * Forgetting the token here was all signing out did, and the API went on
