@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import type { AttemptSummary } from "@grade9/shared";
 import type { AttemptQuestion } from "../repositories/attemptRepository";
-import { compareToPrevious, isAnswerCorrect, isScored, markAttempt } from "./marking";
+import { compareToPrevious, isAnswerCorrect, isScored, markAttempt, writtenAnswersToMark } from "./marking";
 import type { WrittenMark } from "./writtenMarking";
 
 function question(overrides: Partial<AttemptQuestion> = {}): AttemptQuestion {
@@ -154,6 +154,31 @@ describe("markAttempt", () => {
 
     assert.equal(result.totalMarks, 0);
     assert.equal(isScored(result), false);
+  });
+});
+
+describe("writtenAnswersToMark", () => {
+  test("counts the written answers with something in them, and nothing else", () => {
+    const questions = [
+      question({ questionId: "mc", position: 0 }),
+      question({ questionId: "short", position: 1, type: "short-answer", options: [] }),
+      question({ questionId: "w1", position: 2, type: "open-ended", options: [] }),
+      question({ questionId: "w2", position: 3, type: "open-ended", options: [] }),
+      question({ questionId: "w3", position: 4, type: "open-ended", options: [] })
+    ];
+    const answers = new Map([
+      [0, "4"],
+      [1, "something"],
+      [2, "A written answer."],
+      // Blank ones score 0 without the marker, so they cost nothing.
+      [3, "   \n "]
+    ]);
+
+    assert.equal(writtenAnswersToMark(questions, answers), 1);
+  });
+
+  test("a paper with no written questions has none", () => {
+    assert.equal(writtenAnswersToMark([question()], new Map([[1, "4"]])), 0);
   });
 });
 

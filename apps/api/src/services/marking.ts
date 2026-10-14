@@ -78,6 +78,17 @@ export function resolveAnswers(questions: AttemptQuestion[], submitted: Submitte
   );
 }
 
+/**
+ * How many answers on a paper would go to the AI marker: the written ones with
+ * something in them. A blank written answer scores 0 without asking anyone
+ * (see markWrittenAnswers), so it costs nothing and is not counted.
+ */
+export function writtenAnswersToMark(questions: AttemptQuestion[], answers: Map<number, string>): number {
+  return questions.filter(
+    (question) => question.type === "open-ended" && (answers.get(question.position) ?? "").trim().length > 0
+  ).length;
+}
+
 /** The parts of a question's review that do not depend on how it was marked. */
 function reviewOf(question: AttemptQuestion, studentAnswer: string) {
   return {
@@ -203,8 +214,9 @@ export function markAttempt(
  * Whether a submitted test has a score at all.
  *
  * A paper where nothing could be marked (every answer a written one the AI
- * marker could not reach) is still saved, since a timed paper cannot wait for
- * the marker to come back, but there is nothing to score it out of. Every question is worth at least one mark, so marks
+ * marker could not reach, or was not asked to past the hourly marking limit)
+ * is still saved, since a timed paper cannot wait for the marker to come
+ * back, but there is nothing to score it out of. Every question is worth at least one mark, so marks
  * available of zero mean exactly that. Such a test is listed in history as
  * not scored, and left out of bests, comparisons, the climb and every average:
  * it used to count as 0%, which says the student got everything wrong.

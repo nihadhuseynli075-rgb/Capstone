@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { z } from "zod";
 import type { MockTest, QuestionType, TestResult, TestSettings } from "@grade9/shared";
 import {
@@ -16,7 +16,7 @@ import {
   getAttempt,
   listAttempts
 } from "../repositories/attemptRepository";
-import { compareToPrevious, markAttempt, resolveAnswers } from "../services/marking";
+import { compareToPrevious, markAttempt, resolveAnswers, writtenAnswersToMark } from "../services/marking";
 import { generateMockTest, toAttemptQuestion, toExamQuestion } from "../services/mockTestGenerator";
 import { createRateLimiter } from "../services/rateLimiter";
 import { markWrittenAnswers } from "../services/writtenMarking";
@@ -115,8 +115,13 @@ const generateSchema = z
  */
 const generateLimiter = createRateLimiter({ maxRequests: 600, windowMs: 10 * 60 * 1000 });
 
+/** The address a request came from, as every per-address limit here counts it. */
+function addressOf(request: Request): string {
+  return request.ip ?? request.socket.remoteAddress ?? "unknown";
+}
+
 testsRouter.post("/generate", async (request, response, next) => {
-  const waitMs = generateLimiter.take(request.ip ?? request.socket.remoteAddress ?? "unknown");
+  const waitMs = generateLimiter.take(addressOf(request));
 
   if (waitMs > 0) {
     const seconds = Math.ceil(waitMs / 1000);
@@ -230,6 +235,40 @@ const MAX_CLAIMED_SECONDS = 60 * 60 * 6;
  */
 const submissionsInFlight = new Set<string>();
 
+/**
+ * Written answers the AI marker may be asked to mark in an hour: for one
+ * student, and for one address.
+ *
+ * Handing a paper in needs no account, and every written answer with
+ * something in it is one paid call to Gemini, so with no limit anyone could
+ * run up the bill, or use up the key's quota for every other student, by
+ * handing papers in over and over. Thirty answers is several written papers
+ * an hour, more than anyone practising sits. A school computer room shares
+ * one address, as it does for generating, so an address gets ten times that.
+ *
+ * Past either one the paper is still marked and saved, never refused: its
+ * written answers come back unmarked and are left out of the score, as when
+ * the marker is down, and a paper of nothing else has no score at all.
+ */
+const MARKING_WINDOW_MS = 60 * 60 * 1000;
+const markingPerStudent = createRateLimiter({ maxRequests: 30, windowMs: MARKING_WINDOW_MS });
+const markingPerAddress = createRateLimiter({ maxRequests: 300, windowMs: MARKING_WINDOW_MS });
+
+/**
+ * Takes `count` answers' marking from both allowances, the student's first.
+ * Returns the one that refused, or null when the marker may be called.
+ *
+ * The student's goes first so that a student over their own allowance is
+ * refused before eating into the address's, which a whole room may share. If
+ * the address's then refuses, the student's has been used for nothing, which
+ * only happens when the address is at its limit anyway.
+ */
+function takeMarking(studentKey: string, address: string, count: number): "student" | "address" | null {
+  if (markingPerStudent.take(studentKey, count) > 0) return "student";
+  if (markingPerAddress.take(address, count) > 0) return "address";
+  return null;
+}
+
 const submitSchema = z.object({
   studentKey: studentKeySchema,
   timeTakenSeconds: z
@@ -329,12 +368,23 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
     submissionsInFlight.add(attempt.id);
 
     try {
+      const answers = resolveAnswers(attempt.questions, parsed.data.answers);
+
+      // Each written answer with something in it is one paid call to the AI
+      // marker. Past the hour's allowance the marker is not called at all (a
+      // null client): those answers come back unmarked, as when it is down.
+      const toMark = writtenAnswersToMark(attempt.questions, answers);
+      const refusedBy = toMark === 0 ? null : takeMarking(parsed.data.studentKey, addressOf(request), toMark);
+
+      if (refusedBy) {
+        console.warn(
+          `[marking] Hourly limit per ${refusedBy} reached: ${toMark} written answer(s) on attempt ${attempt.id} left unmarked.`
+        );
+      }
+
       // Written answers go to the AI marker first, all at once. One it cannot
       // reach comes back unmarked and is left out of the score, never failed.
-      const written = await markWrittenAnswers(
-        attempt.questions,
-        resolveAnswers(attempt.questions, parsed.data.answers)
-      );
+      const written = await markWrittenAnswers(attempt.questions, answers, refusedBy ? null : undefined);
 
       const marked = markAttempt(attempt.questions, parsed.data.answers, written);
 

@@ -704,6 +704,89 @@ async function main() {
       JSON.stringify(blank.body.reviews)
     );
 
+    section("How much the AI marker is asked to mark");
+    // Every written answer with something in it is a paid call to the marker,
+    // and handing in needs no account, so a student may have 30 marked an hour
+    // (and an address 300). Past that the paper is still taken: its written
+    // answers are left unmarked, as when the marker is down, never refused.
+    const limitTopic = `${topicId}-limit`;
+    for (let index = 1; index <= 5; index += 1) {
+      await call("/api/admin/questions", {
+        method: "POST",
+        token: adminToken,
+        body: {
+          subjectId: "english",
+          topicId: limitTopic,
+          difficulty: "easy",
+          type: "open-ended",
+          prompt: `Write one sentence about your day (${index}).`,
+          options: [],
+          correctAnswer: "1 mark: a complete sentence about the day.",
+          marks: 1,
+          explanation: ""
+        }
+      });
+    }
+    const limitPaper = async (studentKey) =>
+      (
+        await call("/api/tests/generate", {
+          method: "POST",
+          body: { studentKey, subjectId: "english", topicIds: [limitTopic], difficultyMode: "custom", questionCount: 5, timeLimitMinutes: 30 }
+        })
+      ).body.test;
+    const handInEvery = (paper, studentKey, answer) =>
+      call(`/api/tests/${paper.id}/submit`, {
+        method: "POST",
+        body: {
+          studentKey,
+          timeTakenSeconds: 5,
+          answers: paper.questions.map((question, position) => ({ questionId: question.id, position, answer }))
+        }
+      });
+
+    const limitKey = randomUUID();
+    const callsBeforeLimit = marker.requests.length;
+    const withinLimit = [];
+    for (let paper = 0; paper < 6; paper += 1) {
+      withinLimit.push(await handInEvery(await limitPaper(limitKey), limitKey, "I went to school. SCORE:1"));
+    }
+    check(
+      "thirty written answers in the hour are all marked",
+      withinLimit.every((result) => result.status === 200 && result.body.score === 5 && result.body.totalMarks === 5) &&
+        marker.requests.length === callsBeforeLimit + 30,
+      JSON.stringify(withinLimit.map((result) => `${result.status} ${result.body.score}/${result.body.totalMarks}`))
+    );
+    const callsAtLimit = marker.requests.length;
+    const overLimit = await handInEvery(await limitPaper(limitKey), limitKey, "I went to school. SCORE:1");
+    check(
+      "the next paper is still taken, without asking the marker",
+      overLimit.status === 200 && marker.requests.length === callsAtLimit,
+      `${overLimit.status}, ${marker.requests.length - callsAtLimit} marker calls`
+    );
+    check(
+      "its written answers are left unmarked, so a paper of nothing else has no score",
+      overLimit.body.totalMarks === 0 && overLimit.body.reviews?.every((review) => review.counted === false),
+      JSON.stringify(overLimit.body).slice(0, 200)
+    );
+    const blankOverLimit = await handInEvery(await limitPaper(limitKey), limitKey, "   ");
+    check(
+      "blank written answers ask nothing of the marker, so they still count, as 0",
+      blankOverLimit.status === 200 && blankOverLimit.body.totalMarks === 5 && blankOverLimit.body.score === 0,
+      JSON.stringify(blankOverLimit.body).slice(0, 200)
+    );
+    const otherKey = randomUUID();
+    const otherStudent = await handInEvery(await limitPaper(otherKey), otherKey, "I went to school. SCORE:1");
+    check(
+      "another student's allowance is their own",
+      otherStudent.status === 200 && otherStudent.body.score === 5 && marker.requests.length === callsAtLimit + 5,
+      `${otherStudent.status} ${otherStudent.body.score}/${otherStudent.body.totalMarks}`
+    );
+    check(
+      "and reaching the limit is noted in the log",
+      apiLog.join("").includes(`Hourly limit per student reached: 5 written answer(s) on attempt ${overLimit.body.attemptId} left unmarked.`),
+      apiLog.join("").split("\n").filter((line) => line.includes("limit")).slice(-3).join(" / ")
+    );
+
     section("Account keys need that account's token");
     const alice = (await control("users", { email: "alice@standin.test", fullName: "Alice" })).body;
     const bob = (await control("users", { email: "bob@standin.test", fullName: "Bob" })).body;
