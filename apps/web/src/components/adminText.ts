@@ -52,6 +52,15 @@ export const adminText = {
     "Your admin session ended before the question was saved. It has been kept: sign in again and it is saved straight away.",
   sessionEndedPicture:
     "Your admin session ended before the picture could be uploaded. The picture and the question have been kept: sign in again and the picture is uploaded straight away.",
+  // Asked before something would throw away a question form with changes in it.
+  discardNewForEdit:
+    "The question you are typing under Add question has not been saved. Discard it and edit this question instead?",
+  discardEditForAnother:
+    "Your changes to the question you are editing have not been saved. Discard them and edit this question instead?",
+  discardEdit: "Discard your changes to this question?",
+  discardOnSignOut: "The question form has changes that have not been saved. Sign out and discard them?",
+  deleteLosesEdit: "Your unsaved changes to it will be lost too.",
+  beingEdited: "Open in the Edit question tab",
   // The whole bank, whatever the list is filtered to, in a form that needs no plural.
   bankCount: "Questions in the bank: {total}.",
   bankMatching: "Questions in the bank: {total}. Matching this filter: {count}.",

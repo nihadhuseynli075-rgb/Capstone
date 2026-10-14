@@ -971,6 +971,13 @@
   background: var(--warning-soft);
 }
 
+/* The question open in the form, which stays open while the list is looked at. */
+.question-status-editing {
+  color: var(--brand);
+  background: var(--surface);
+  border: 1px solid currentColor;
+}
+
 /* ---------------------------------------------------------- translations */
 
 /* The optional translations on the question form: shut until wanted. */

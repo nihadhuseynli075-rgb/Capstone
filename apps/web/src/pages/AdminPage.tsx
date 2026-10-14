@@ -196,12 +196,24 @@ export function AdminPage() {
   const [dragging, setDragging] = useState(false);
   const [sheetNote, setSheetNote] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
-  /** Moving to another tab clears the last banner; it no longer applies there. */
+  /**
+   * Moving to another tab clears the last banner; it no longer applies there.
+   * The question form is only hidden (see its panel below), so a question part
+   * typed or part edited is still there, as it was, on coming back. Leaving
+   * the tab used to empty it, and an edit was dropped, without a word.
+   */
   function switchTab(next: Tab) {
     setTab(next);
     setNotice(null);
     setError(null);
-    if (next !== "add") setEditing(null);
+  }
+
+  /**
+   * Whether the question form may be thrown away: yes when nothing in it has
+   * changed, otherwise only if the admin says so.
+   */
+  function mayDiscardForm(question: string): boolean {
+    return !(questionForm.current?.hasChanges() ?? false) || window.confirm(question);
   }
 
   /** Left and Right step through the tabs (wrapping), Home and End jump to the ends. */
@@ -322,15 +334,28 @@ export function AdminPage() {
    * Save left an empty "Add a question" form where the list had been. Now the
    * form opens at its top, and either way out goes back to the list, scrolled
    * to the row that was edited.
+   *
+   * The question already open in the form is gone back to as it was left.
+   * Any other one takes the form's place, so changes still in it, to another
+   * question or to a new one, are asked about first.
    */
   function startEditing(question: BankQuestion) {
+    if (editing?.id !== question.id) {
+      if (!mayDiscardForm(editing ? adminText.discardEditForAnother : adminText.discardNewForEdit)) return;
+      setEditing(question);
+    }
     listScrollRef.current = window.scrollY;
     // What the list last said does not apply to the form.
     setNotice(null);
     setError(null);
-    setEditing(question);
     setTab("add");
     window.requestAnimationFrame(() => formPanelRef.current?.scrollIntoView({ block: "start" }));
+  }
+
+  /** Cancel on the edit form: back to the list, once any changes made have been let go. */
+  function cancelEditing() {
+    if (!mayDiscardForm(adminText.discardEdit)) return;
+    backToList();
   }
 
   function backToList() {
@@ -412,7 +437,10 @@ export function AdminPage() {
   }
 
   async function handleDelete(question: BankQuestion) {
-    if (!window.confirm(`Delete this question?\n\n${question.prompt.slice(0, 120)}`)) return;
+    // Deleting the question open in the form takes the changes in it too.
+    const losesEdit = editing?.id === question.id && (questionForm.current?.hasChanges() ?? false);
+    const warning = losesEdit ? ` ${adminText.deleteLosesEdit}` : "";
+    if (!window.confirm(`Delete this question?${warning}\n\n${question.prompt.slice(0, 120)}`)) return;
 
     try {
       await deleteQuestion(question.id);
@@ -536,6 +564,8 @@ export function AdminPage() {
             type="button"
             className="ghost-button"
             onClick={async () => {
+              // Signing out empties the dashboard, the question form with it.
+              if (!mayDiscardForm(adminText.discardOnSignOut)) return;
               try {
                 await adminLogout();
               } catch {
@@ -616,42 +646,43 @@ export function AdminPage() {
           </p>
         )}
 
-        {tab === "add" && (
-          <section
-            className="panel"
-            ref={formPanelRef}
-            role="tabpanel"
-            id="admin-panel-add"
-            aria-labelledby="admin-tab-add"
-          >
-            <h2>{editing ? "Edit question" : "Add a question"}</h2>
-            {/* Saving does not change this on its own: a question waiting for
-                its picture stays out of tests until one is uploaded below. */}
-            {editing && editing.status !== "ready" && (
-              <p className={`question-status question-status-${editing.status}`}>{statusLabel[editing.status]}</p>
-            )}
-            <QuestionForm
-              // One form per question being edited, and a new one after each add.
-              key={editing ? `edit-${editing.id}` : `new-${formKey}`}
-              ref={questionForm}
-              onSessionEnded={handlePictureRefused}
-              initial={editing}
-              carryOver={carryOver}
-              onSubmit={handleSave}
-              onCancel={editing ? backToList : undefined}
-              submitting={saving}
-              error={error}
-              // The "added" notice is about the last question, not the one now
-              // being typed or rejected.
-              onEdited={() => setNotice(null)}
-            />
-            {notice && (
-              <p className="success-banner" role="status" ref={noticeRef}>
-                {notice}
-              </p>
-            )}
-          </section>
-        )}
+        {/* Always there, and only hidden while another tab is shown, so the
+            question in it waits there, as it was left (see switchTab). */}
+        <section
+          className="panel"
+          ref={formPanelRef}
+          role="tabpanel"
+          id="admin-panel-add"
+          aria-labelledby="admin-tab-add"
+          style={tab === "add" ? undefined : { display: "none" }}
+        >
+          <h2>{editing ? "Edit question" : "Add a question"}</h2>
+          {/* Saving does not change this on its own: a question waiting for
+              its picture stays out of tests until one is uploaded below. */}
+          {editing && editing.status !== "ready" && (
+            <p className={`question-status question-status-${editing.status}`}>{statusLabel[editing.status]}</p>
+          )}
+          <QuestionForm
+            // One form per question being edited, and a new one after each add.
+            key={editing ? `edit-${editing.id}` : `new-${formKey}`}
+            ref={questionForm}
+            onSessionEnded={handlePictureRefused}
+            initial={editing}
+            carryOver={carryOver}
+            onSubmit={handleSave}
+            onCancel={editing ? cancelEditing : undefined}
+            submitting={saving}
+            error={error}
+            // The "added" notice is about the last question, not the one now
+            // being typed or rejected.
+            onEdited={() => setNotice(null)}
+          />
+          {tab === "add" && notice && (
+            <p className="success-banner" role="status" ref={noticeRef}>
+              {notice}
+            </p>
+          )}
+        </section>
 
         {tab === "list" && (
           <section className="panel" role="tabpanel" id="admin-panel-list" aria-labelledby="admin-tab-list">
@@ -688,6 +719,11 @@ export function AdminPage() {
                 {questions.map((question) => (
                   <li key={question.id} className="question-row">
                     <div className="question-row-main">
+                      {/* Edits now outlive a look at the list, so the list says
+                          which question is open in the form. */}
+                      {editing?.id === question.id && (
+                        <p className="question-status question-status-editing">{adminText.beingEdited}</p>
+                      )}
                       {question.status !== "ready" && (
                         <p className={`question-status question-status-${question.status}`}>
                           {statusLabel[question.status]}
@@ -722,7 +758,7 @@ export function AdminPage() {
                         className="ghost-button"
                         onClick={() => startEditing(question)}
                       >
-                        Edit
+                        {editing?.id === question.id ? "Continue editing" : "Edit"}
                       </button>
                       <button
                         type="button"

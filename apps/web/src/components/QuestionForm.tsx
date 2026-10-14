@@ -150,6 +150,8 @@ export interface QuestionFormHandle {
    * waiting is made from the form as it stands, so it includes that picture.
    */
   resumeAfterSignIn(saveWaiting: boolean): void;
+  /** Whether anything in the form differs from how it opened, a chosen picture included. */
+  hasChanges(): boolean;
 }
 
 /**
@@ -268,6 +270,13 @@ export const QuestionForm = forwardRef(function QuestionForm(
     if (saveRequests > 0) formRef.current?.requestSubmit();
   }, [saveRequests]);
 
+  // What the form holds apart from its picture, which is compared on its own:
+  // a picture kept in the question can be megabytes of text.
+  const contents = () =>
+    JSON.stringify([subjectId, topicId, difficulty, type, prompt, options, correctIndex, shortAnswer, explanation, marks, paperYear, source, translations]);
+  // Taken once, as the form opened, for hasChanges to compare against.
+  const [openedWith] = useState(contents);
+
   useImperativeHandle(ref, () => ({
     resumeAfterSignIn(saveWaiting) {
       if (chosen?.state === "waiting-for-sign-in") {
@@ -275,6 +284,9 @@ export const QuestionForm = forwardRef(function QuestionForm(
       } else if (saveWaiting) {
         setSaveRequests((count) => count + 1);
       }
+    },
+    hasChanges() {
+      return contents() !== openedWith || imageUrl !== (initial?.imageUrl ?? null) || chosen !== null;
     }
   }));
 
