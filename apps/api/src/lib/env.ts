@@ -58,6 +58,13 @@ export const env = {
    */
   adminPassword: optional("ADMIN_PASSWORD") ?? DEV_ADMIN_PASSWORD,
   adminPasswordIsDefault: optional("ADMIN_PASSWORD") === undefined,
+  /**
+   * Opens the admin dashboard without its password, for working on it locally.
+   *
+   * Needs ADMIN_DEV_BYPASS=true and is ignored in production whatever it says,
+   * so a copied .env cannot leave the live dashboard open.
+   */
+  adminDevBypass: !isProduction && optional("ADMIN_DEV_BYPASS") === "true",
   questionImageBucket: process.env.SUPABASE_IMAGE_BUCKET ?? "question-images",
   /** Profile photos, one folder per account. Created by migration 0007. */
   avatarBucket: process.env.SUPABASE_AVATAR_BUCKET ?? "avatars",

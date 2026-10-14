@@ -6,7 +6,7 @@ import { markLimits, paperYearLimits, repeatedOption, siteLanguages, subjects, t
 import { bearerToken } from "../lib/bearerToken";
 import { env, storageMode, writtenMarkingEnabled } from "../lib/env";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
-import { login, logout, requireAdmin } from "../modules/admin/adminAuth";
+import { devLogin, login, logout, requireAdmin } from "../modules/admin/adminAuth";
 import {
   bankSummary,
   createQuestions,
@@ -188,6 +188,18 @@ adminRouter.post("/login", (request, response) => {
   }
 
   loginLimiter.recordSuccess(address);
+
+  return response.json({
+    token,
+    storageMode,
+    usingDefaultPassword: env.adminPasswordIsDefault
+  });
+});
+
+// Answers 404 unless the bypass is on, so the live site does not even admit it exists.
+adminRouter.post("/dev-login", (_request, response) => {
+  const token = devLogin();
+  if (!token) return response.status(404).json({ message: "Not found." });
 
   return response.json({
     token,

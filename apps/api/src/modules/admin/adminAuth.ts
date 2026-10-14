@@ -47,6 +47,16 @@ export function login(password: string): string | null {
   return token;
 }
 
+/** A session without the password, for local development only (see env.adminDevBypass). */
+export function devLogin(): string | null {
+  if (!env.adminDevBypass) return null;
+
+  purgeExpired();
+  const token = randomBytes(32).toString("hex");
+  sessions.set(token, Date.now() + SESSION_LIFETIME_MS);
+  return token;
+}
+
 export function logout(token: string): void {
   sessions.delete(token);
 }
