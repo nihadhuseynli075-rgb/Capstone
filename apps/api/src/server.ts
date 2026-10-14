@@ -172,7 +172,7 @@ app.listen(env.port, () => {
   // for fifteen minutes, as often as someone cares to repeat it.
   if (env.isProduction && env.trustProxyHops === 0) {
     console.warn(
-      "[api] TRUST_PROXY is 0. Behind a host's proxy (Render, Railway, Fly and the like) set TRUST_PROXY=1, or the admin sign-in and test limits treat every visitor as one address and anyone can lock the admin out."
+      "[api] TRUST_PROXY is 0. Behind a host's proxy (Render, Railway, Fly and the like) set TRUST_PROXY=1, or the admin sign-in, test, AI-marking and friend-request limits treat every visitor as one address and anyone can lock the admin out."
     );
   }
 });

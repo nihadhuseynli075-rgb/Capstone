@@ -234,7 +234,14 @@ prompt and the call are in `apps/api/src/services/writtenMarking.ts`.
 It needs `GEMINI_API_KEY` in `.env`. Without it, written questions are never
 put in a test, so no one sits a question that cannot be marked. If the marker
 cannot be reached when a paper is handed in, that answer is left out of the
-score rather than counted wrong. Nothing else in the app calls the AI.
+score rather than counted wrong. A paper where nothing at all could be marked
+is kept but shows as "not scored": it is left out of best results, the climb
+chart, comparisons and friends' figures rather than counted as 0%.
+
+Marking is paid per answer and needs no account, so it is limited: 30 written
+answers an hour per student and 300 per address (see Hosting). Answers over
+the limit are left unmarked, the same way as when Gemini is down; the paper is
+still accepted. Nothing else in the app calls the AI.
 
 ## Testing
 
@@ -304,9 +311,10 @@ scripts/              End-to-end smoke test
 
 ## Hosting
 
-Starting a test (600 per address in ten minutes), sending friend requests (300
-per address in an hour, besides 30 per account, since each one looks somebody
-up) and admin sign-in are limited per address. Most hosts put a proxy in front
+Starting a test (600 per address in ten minutes), AI marking of written answers
+(300 answers per address in an hour, besides 30 per student), sending friend
+requests (300 per address in an hour, besides 30 per account, since each one
+looks somebody up) and admin sign-in are limited per address. Most hosts put a proxy in front
 of the API, and then every request looks like it comes from the proxy: set
 `TRUST_PROXY=1` in the API's settings there (the number of proxies in front of
 it). Leave it at `0` locally.

@@ -69,8 +69,9 @@ expects the service on 10000 unless told otherwise.
 proxy, and without it the API sees them all as coming from one address. The
 admin sign-in locks an address out for 15 minutes after 10 wrong passwords, so
 anyone could keep the real admin out just by guessing badly every quarter of an
-hour. The limit on starting tests would be shared by every student the same
-way. The API prints a warning at startup when this is missing in production.
+hour. The limits on starting tests, on AI marking and on friend requests would
+be shared by every student the same way. The API prints a warning at startup
+when this is missing in production.
 
 Create it, wait for the deploy, then open
 `https://exampeak-api.onrender.com/health` (your exact URL is at the top of the
