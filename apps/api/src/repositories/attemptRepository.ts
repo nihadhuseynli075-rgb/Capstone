@@ -287,8 +287,8 @@ export async function completeAttempt(input: {
   // student's retry can save everything again rather than being refused as
   // already submitted with answers missing. Until they are all written the
   // attempt reads as submitted with blank answers, so the routes tell anyone
-  // asking meanwhile that it is still being marked (see submissionsInFlight
-  // in routes/tests.ts) rather than show it.
+  // asking meanwhile that it is still being marked (see isMidSave, and
+  // submissionsInFlight in routes/tests.ts) rather than show it.
   const client = supabaseAdmin;
 
   for (let start = 0; start < input.answers.length; start += ANSWER_WRITES_AT_ONCE) {
@@ -321,6 +321,43 @@ export async function completeAttempt(input: {
   }
 
   return true;
+}
+
+/** How long a submitted attempt with an answer still unwritten counts as mid-save (see isMidSave). */
+const MID_SAVE_WINDOW_MS = 10 * 60 * 1000;
+
+/**
+ * Whether an attempt stands submitted while its hand-in is still writing the
+ * answers: the state completeAttempt leaves it in between taking the attempt
+ * and writing the last answer, and in which that hand-in can still fail and
+ * reopen it.
+ *
+ * completeAttempt writes an answer for every question, a blank one as "" and a
+ * written one the marker could not reach with its text (and no score), so an
+ * answer still null on a submitted attempt is one not yet written, whatever
+ * the question's type or how it was marked.
+ *
+ * Only for a recent submission. One left half written by a save whose reopen
+ * also failed would otherwise count as being saved for ever, and attempts
+ * saved long ago, by code that may have written their answers differently,
+ * are taken as they are.
+ *
+ * The routes also keep the hand-ins in flight in memory (submissionsInFlight
+ * in routes/tests.ts). This catches the ones that record misses: a hand-in in
+ * another API process, and one that began and ended while another request was
+ * reading the attempt, so that the read holds its half.
+ */
+export function isMidSave(
+  attempt: { submittedAt: string | null; questions: Array<{ studentAnswer: string | null }> },
+  now = Date.now()
+): boolean {
+  if (attempt.submittedAt === null) return false;
+
+  // A time that does not read as one is taken as long ago.
+  const age = now - Date.parse(attempt.submittedAt);
+  if (!(age <= MID_SAVE_WINDOW_MS)) return false;
+
+  return attempt.questions.some((question) => question.studentAnswer === null);
 }
 
 /** Marks earned and available per topic, from an attempt's marked questions. */

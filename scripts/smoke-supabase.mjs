@@ -1145,6 +1145,61 @@ async function main() {
       `${lateResubmit.status} ${JSON.stringify(lateResubmit.body)}`
     );
 
+    section("A half-saved paper that this API is not the one saving");
+    // The API keeps the hand-ins in flight in memory, which misses one in
+    // another process, or one that began and ended inside another request's
+    // read of the paper: that read holds the paper marked submitted with its
+    // answers not yet written. Made here by hand, with nothing in flight.
+    const halfKey = randomUUID();
+    const halfTest = (await generate(halfKey)).body.test;
+    const editAttempt = (id, body) => request(standin.url, `/__standin/rows/test_attempts/${id}`, { method: "PATCH", body });
+    await editAttempt(halfTest.id, { submitted_at: new Date().toISOString(), score: 2, percentage: 100, time_taken_seconds: 5 });
+    const halfRead = await call(`/api/tests/attempts/${halfTest.id}?studentKey=${halfKey}`);
+    check(
+      "its result is not shown half written: it is still being marked",
+      halfRead.status === 409 && halfRead.body.code === "submission-in-progress",
+      `${halfRead.status} ${JSON.stringify(halfRead.body).slice(0, 200)}`
+    );
+    const halfHandIn = await submit(halfTest, halfKey, rightAnswers(halfTest));
+    check(
+      "and handing it in is told the same, not that it was handed in",
+      halfHandIn.status === 409 && halfHandIn.body.code === "submission-in-progress",
+      `${halfHandIn.status} ${JSON.stringify(halfHandIn.body)}`
+    );
+    // That save fails, and the paper is reopened.
+    await editAttempt(halfTest.id, { submitted_at: null, score: null, percentage: null, time_taken_seconds: null });
+    const halfRetry = await submit(halfTest, halfKey, rightAnswers(halfTest));
+    check(
+      "so the browser's next try hands it in",
+      halfRetry.status === 200 && halfRetry.body.score === halfTest.questions.length,
+      JSON.stringify(halfRetry.body).slice(0, 200)
+    );
+    const halfSaved = await call(`/api/tests/attempts/${halfTest.id}?studentKey=${halfKey}`);
+    check(
+      "and with every answer written, the result opens",
+      halfSaved.status === 200 && halfSaved.body.reviews?.every((review) => review.isCorrect === true),
+      `${halfSaved.status} ${JSON.stringify(halfSaved.body.reviews?.map((review) => review.studentAnswer))}`
+    );
+
+    // Only a recent one. An answer missing from a paper submitted long ago is
+    // not a save in progress, and that paper opens as it is.
+    const oldKey = randomUUID();
+    const oldTest = (await generate(oldKey)).body.test;
+    await editAttempt(oldTest.id, {
+      submitted_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      score: 0,
+      percentage: 0,
+      time_taken_seconds: 5
+    });
+    const oldRead = await call(`/api/tests/attempts/${oldTest.id}?studentKey=${oldKey}`);
+    check("a paper submitted long ago with an answer missing still opens", oldRead.status === 200, `got ${oldRead.status}`);
+    const oldHandIn = await submit(oldTest, oldKey, rightAnswers(oldTest));
+    check(
+      "and handing it in again is refused as already submitted",
+      oldHandIn.status === 409 && oldHandIn.body.code === "already-submitted",
+      `${oldHandIn.status} ${JSON.stringify(oldHandIn.body)}`
+    );
+
     section("A paper whose questions cannot be saved leaves nothing behind");
     const orphanKey = randomUUID();
     await control("faults", { method: "POST", table: "attempt_questions", times: 1 });

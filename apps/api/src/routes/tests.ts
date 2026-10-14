@@ -14,6 +14,7 @@ import {
   completeAttempt,
   createAttempt,
   getAttempt,
+  isMidSave,
   listAttempts
 } from "../repositories/attemptRepository";
 import { compareToPrevious, markAttempt, resolveAnswers, writtenAnswersToMark } from "../services/marking";
@@ -49,13 +50,13 @@ const alreadySubmitted = {
 
 /**
  * The answer while another hand-in of the same paper is still being marked
- * and saved (see submissionsInFlight). Unlike the one above it is not final:
- * that hand-in can still fail, and failing reopens the paper. Answered with
- * "already submitted", the browser threw its copy of the paper away and went
- * to a result that was then never saved, and every answer was lost. Told
- * this, it keeps the paper and asks again in a moment. Opening the result
- * meanwhile is answered the same way, rather than with the half-written
- * attempt stored so far (see the attempts route).
+ * and saved (see submissionsInFlight and isMidSave). Unlike the one above it
+ * is not final: that hand-in can still fail, and failing reopens the paper.
+ * Answered with "already submitted", the browser threw its copy of the paper
+ * away and went to a result that was then never saved, and every answer was
+ * lost. Told this, it keeps the paper and asks again in a moment. Opening the
+ * result meanwhile is answered the same way, rather than with the
+ * half-written attempt stored so far (see the attempts route).
  */
 const submissionInProgress = {
   code: "submission-in-progress",
@@ -332,8 +333,10 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
 
     // Asked before "already submitted?", because a hand-in in flight marks the
     // paper submitted before it writes the answers, and can still fail after
-    // that and reopen it. Until it is done, nothing is final.
-    if (inFlightWhenRead || submissionsInFlight.has(attempt.id)) {
+    // that and reopen it. Until it is done, nothing is final. One this process
+    // cannot see (in another process, or begun and ended within the read
+    // above) shows in the attempt itself, as answers not yet written.
+    if (inFlightWhenRead || submissionsInFlight.has(attempt.id) || isMidSave(attempt)) {
       return response.status(409).json(submissionInProgress);
     }
 
@@ -414,11 +417,13 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
         answers: marked.answers
       });
 
-      // Another submission of this paper was recorded between the check above
-      // and now: a second tab, or a retry racing the original. Its result is the
-      // one kept, so this one is refused the same way a late resubmit is.
+      // Another submission of this paper took it between the read above and
+      // now: a second tab, or a retry racing the original. Its result is the
+      // one kept, but it may still be writing its answers, and could yet fail
+      // and reopen the paper, so this one is told the paper is still being
+      // marked rather than handed in. Asking again settles it either way.
       if (!recorded) {
-        return response.status(409).json(alreadySubmitted);
+        return response.status(409).json(submissionInProgress);
       }
 
       const result: TestResult = {
@@ -542,7 +547,8 @@ testsRouter.get("/attempts/:attemptId", async (request, response, next) => {
     // the answers, so until it is done the stored attempt is half a result:
     // every answer not yet written read as blank and not counted. It can also
     // still fail and reopen the paper. The results page asks again shortly.
-    if (inFlightWhenRead || submissionsInFlight.has(attempt.id)) {
+    // The attempt itself shows a hand-in this process cannot see (isMidSave).
+    if (inFlightWhenRead || submissionsInFlight.has(attempt.id) || isMidSave(attempt)) {
       return response.status(409).json(submissionInProgress);
     }
 
