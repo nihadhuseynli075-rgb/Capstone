@@ -112,9 +112,17 @@ describe("importQuestionsFromCsv", () => {
   });
 
   test("a header with no rows under it is reported, not imported as nothing", () => {
-    const { drafts, errors } = importQuestionsFromCsv(`${header}\n`);
+    const { drafts, errors, headerProblem } = importQuestionsFromCsv(`${header}\n`);
     assert.deepEqual(drafts, []);
     assert.deepEqual(errors, [{ row: 1, message: "There are no question rows under the header row." }]);
+    // So the dashboard does not also say a row was skipped.
+    assert.equal(headerProblem, true);
+  });
+
+  test("a problem in a row of questions is not a problem with the header", () => {
+    const { errors, headerProblem } = importQuestionsFromCsv(`${header}\nmath,algebra,,1,2,,,A`);
+    assert.equal(errors.length, 1);
+    assert.equal(headerProblem, undefined);
   });
 
   test("so is a header with only blank rows under it, against the header's own row", () => {
@@ -134,10 +142,11 @@ describe("importQuestionsFromCsv", () => {
   });
 
   test("a missing required column fails the whole paste with a clear message", () => {
-    const { drafts, errors } = importQuestionsFromCsv("subject,question,answer\nmath,1+1,2");
+    const { drafts, errors, headerProblem } = importQuestionsFromCsv("subject,question,answer\nmath,1+1,2");
     assert.deepEqual(drafts, []);
     assert.equal(errors.length, 1);
     assert.match(errors[0].message, /^Missing column\(s\): topic\. /);
+    assert.equal(headerProblem, true);
   });
 
   test("missing columns are named as the sheet names them, not by internal field names", () => {

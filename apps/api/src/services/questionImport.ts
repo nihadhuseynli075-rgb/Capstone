@@ -21,6 +21,12 @@ export interface ImportResult {
   /** The spreadsheet row each draft came from, in the same order as `drafts`. */
   draftRows: number[];
   errors: ImportRowError[];
+  /**
+   * Set when the one problem is the header row itself: a column missing, or
+   * no question rows under it. No row of questions was left out then, so the
+   * dashboard does not count one as skipped.
+   */
+  headerProblem?: true;
 }
 
 /** The characters a sheet's columns can be separated by. Comma is first, so it wins a tie. */
@@ -485,7 +491,8 @@ export function importQuestionsFromCsv(csv: string, options: { pictureLinks?: Pi
           row: headerRow.row,
           message: `Missing column(s): ${columns.join(", ")}. The header row needs at least subject, topic, question and correct_answer.`
         }
-      ]
+      ],
+      headerProblem: true
     };
   }
 
@@ -494,7 +501,12 @@ export function importQuestionsFromCsv(csv: string, options: { pictureLinks?: Pi
   // only those below it is the same. A quote left open below the header has
   // already said why its rows were not read.
   if (dataRows.length === 0 && errors.length === 0) {
-    return { drafts, draftRows, errors: [{ row: headerRow.row, message: "There are no question rows under the header row." }] };
+    return {
+      drafts,
+      draftRows,
+      errors: [{ row: headerRow.row, message: "There are no question rows under the header row." }],
+      headerProblem: true
+    };
   }
 
   const cell = (row: string[], field: string): string => {

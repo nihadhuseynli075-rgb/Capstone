@@ -346,7 +346,9 @@ adminRouter.post("/questions/import", requireAdmin, async (request, response, ne
 
     response.json({
       importedCount: created.length,
-      skippedCount: imported.errors.length,
+      // A sheet whose header is the problem has no row to skip: "skipped 1"
+      // beside "there are no question rows" contradicted itself.
+      skippedCount: imported.headerProblem ? 0 : imported.errors.length,
       errors: imported.errors,
       duplicateRows,
       questions: created
