@@ -579,7 +579,19 @@ export function AdminPage() {
     }
 
     try {
-      const text = await file.text();
+      const bytes = await file.arrayBuffer();
+
+      // Read strictly as UTF-8. Excel's plain "CSV" type writes the Windows
+      // code page instead (1251 on Russian Windows, 1254 on Azerbaijani), and
+      // read as UTF-8 every letter outside English became "�": the sheet then
+      // imported without a word, into questions no student could answer.
+      let text: string;
+      try {
+        text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      } catch {
+        setSheetNote({ kind: "error", text: adminText.importNotUtf8 });
+        return;
+      }
 
       if (text.trim().length === 0) {
         setSheetNote({ kind: "error", text: adminText.importEmpty });

@@ -43,6 +43,8 @@ export const adminText = {
     "Your paste is still in the box. Fix the rows below and press Import questions again: rows already in the bank are left out, so nothing goes in twice.",
   importTooBig: "That file is over 2 MB, which is far more than a question sheet. Check it is the right one.",
   importUnreadable: "That file could not be read.",
+  importNotUtf8:
+    "That file is not saved as UTF-8, so its Azerbaijani and Russian letters would come through as \"�\". In Excel choose File, Save As, CSV UTF-8 (Comma delimited), then choose the new file. A sheet downloaded from Google Sheets is UTF-8 already.",
   importFirstOnly: "Only one file is loaded at a time, so only the first was used.",
   importTranslationHint:
     "A translation goes in a column with the same name ending in _ru or _en: question_ru, option_a_ru, explanation_ru. See docs/question-format.md.",

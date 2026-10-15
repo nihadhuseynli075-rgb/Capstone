@@ -143,7 +143,10 @@ answer itself in `correct_answer`.
    from Excel imports too, including one with semicolons between the columns,
    which is how Excel saves it wherever the comma is the decimal mark
    (Azerbaijani and Russian Windows, for example). Which separator a sheet
-   uses is read from its header row.
+   uses is read from its header row. In Excel, save it as
+   **CSV UTF-8 (Comma delimited)**: the plain **CSV (Comma delimited)** type
+   writes Azerbaijani and Russian letters in an older encoding, and the
+   dashboard refuses such a file rather than import every one of them as "�".
 2. In the app go to **Admin dashboard → Bulk import** and drag the downloaded
    `.csv` or `.tsv` file onto the drop zone, or use **choose a file**. It fills
    the box below, so you can check it. (Opening the file in a text editor,
