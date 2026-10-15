@@ -395,7 +395,7 @@ export function TestBuilderPage() {
     <div className="stack">
       {intro}
 
-      <ResumeTestBanner />
+      <ResumeTestBanner inBuilder />
 
       {bankIsEmpty && (
         <p className="warning-banner">

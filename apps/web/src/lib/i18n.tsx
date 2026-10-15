@@ -406,6 +406,12 @@ const en = {
   "exam.resumeBody":
     "{title}: {answered} of {n} question answered. Starting a new test replaces it.|{title}: {answered} of {n} questions answered. Starting a new test replaces it.",
   "exam.resume": "Resume test",
+  // The same banner for a timed paper left until after its time ran out, which
+  // can no longer be handed in. On the builder, which is where a new test is
+  // started, it says so instead of offering a button to the builder.
+  "exam.expiredTitle": "Time ran out on this test",
+  "exam.expiredBody": "{title}: its time ran out before it was handed in, so it can no longer be marked.",
+  "exam.expiredStartBelow": "To start a new test, choose a subject and topics below.",
 
   // Test builder: what each difficulty can draw
   "builder.presetReady": "{available} of {asked} ready",
@@ -984,6 +990,9 @@ const ru: Dictionary = {
   "exam.resumeBody":
     "{title}: отвечено {answered} из {n} вопроса. Если начать новый тест, этот будет заменён.|{title}: отвечено {answered} из {n} вопросов. Если начать новый тест, этот будет заменён.|{title}: отвечено {answered} из {n} вопросов. Если начать новый тест, этот будет заменён.",
   "exam.resume": "Продолжить тест",
+  "exam.expiredTitle": "Время на этот тест вышло",
+  "exam.expiredBody": "{title}: время вышло до того, как тест был сдан, поэтому проверить его уже нельзя.",
+  "exam.expiredStartBelow": "Чтобы начать новый тест, выберите предмет и темы ниже.",
 
   // Test builder: what each difficulty can draw
   "builder.presetReady": "Готово: {available} из {asked}",
@@ -1538,6 +1547,9 @@ const az: Dictionary = {
   "exam.resumeTitle": "Yarımçıq testiniz var",
   "exam.resumeBody": "{title}: {n} sualdan {answered} cavablandırılıb. Yeni test başlasanız, bu test onunla əvəz olunacaq.",
   "exam.resume": "Testə davam et",
+  "exam.expiredTitle": "Bu testin vaxtı bitdi",
+  "exam.expiredBody": "{title}: vaxt bitənə qədər test təhvil verilmədi, ona görə onu artıq yoxlamaq olmaz.",
+  "exam.expiredStartBelow": "Yeni test başlamaq üçün aşağıda fənni və mövzuları seçin.",
 
   // Test builder: what each difficulty can draw
   "builder.presetReady": "Hazırdır: {asked} sualdan {available}",
