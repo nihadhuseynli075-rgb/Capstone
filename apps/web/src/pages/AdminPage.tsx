@@ -259,12 +259,22 @@ export function AdminPage() {
     endSession();
   }, [endSession]);
 
+  // Each reading of the list is numbered, and only the newest may change the
+  // page. With a slow API the answer to an earlier search could land after the
+  // answer to the one typed since, and put the old matches back under the new
+  // text in the box.
+  const listRequest = useRef(0);
+
   const refresh = useCallback(async () => {
+    listRequest.current += 1;
+    const thisRequest = listRequest.current;
+
     try {
       const data = await fetchQuestions({
         subject: subjectFilter || undefined,
         search: searchQuery || undefined
       });
+      if (thisRequest !== listRequest.current) return;
       setQuestions(data.questions);
       setBank(data.bank ?? null);
       setStorageMode(data.storageMode);
@@ -275,9 +285,19 @@ export function AdminPage() {
       setUsingDefaultPassword(data.usingDefaultPassword);
       setError(null);
     } catch (cause) {
+      // An earlier reading's failure is as out of date as its answer would
+      // be: the newer one says whether the session has ended.
+      if (thisRequest !== listRequest.current) return;
       handleFailure(cause);
     }
   }, [subjectFilter, searchQuery, handleFailure]);
+
+  // The newest refresh, for a save, delete or import that reads the list again
+  // once it has finished. The one from the render it started in asks with the
+  // filters of that moment, and as the newest reading it would put the list
+  // back to a search that has since been typed over.
+  const latestRefresh = useRef(refresh);
+  latestRefresh.current = refresh;
 
   // Typing settles before the bank is asked. Without this every letter of a
   // search term was its own round trip, and the answers could land out of order.
@@ -424,7 +444,7 @@ export function AdminPage() {
         });
         setFormKey((current) => current + 1);
       }
-      await refresh();
+      await latestRefresh.current();
     } catch (cause) {
       // Kept to be sent again once the admin has signed back in, rather than
       // lost with the session.
@@ -446,7 +466,7 @@ export function AdminPage() {
       await deleteQuestion(question.id);
       setNotice("Question deleted.");
       if (editing?.id === question.id) setEditing(null);
-      await refresh();
+      await latestRefresh.current();
     } catch (cause) {
       // Already deleted somewhere else, another tab or another admin: it is
       // gone either way, which is what was asked for. Saying "Question not
@@ -454,7 +474,7 @@ export function AdminPage() {
       if (cause instanceof ApiError && cause.status === 404) {
         setNotice("That question had already been deleted. The list has been refreshed.");
         if (editing?.id === question.id) setEditing(null);
-        await refresh();
+        await latestRefresh.current();
         return;
       }
 
@@ -477,7 +497,7 @@ export function AdminPage() {
       // paste stays, so the rows named below can be corrected in place and the
       // whole sheet imported again: rows already in the bank are left out.
       if (result.importedCount > 0 && result.errors.length === 0) setCsv("");
-      await refresh();
+      await latestRefresh.current();
     } catch (cause) {
       handleFailure(cause);
     } finally {
