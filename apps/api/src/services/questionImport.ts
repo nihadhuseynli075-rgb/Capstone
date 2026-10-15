@@ -489,6 +489,14 @@ export function importQuestionsFromCsv(csv: string, options: { pictureLinks?: Pi
     };
   }
 
+  // A header with nothing under it imported nothing and said only "Imported 0
+  // questions.", with no reason. Blank rows are gone by now, so a header with
+  // only those below it is the same. A quote left open below the header has
+  // already said why its rows were not read.
+  if (dataRows.length === 0 && errors.length === 0) {
+    return { drafts, draftRows, errors: [{ row: headerRow.row, message: "There are no question rows under the header row." }] };
+  }
+
   const cell = (row: string[], field: string): string => {
     const columnIndex = mapping[field];
     if (columnIndex === undefined) return "";

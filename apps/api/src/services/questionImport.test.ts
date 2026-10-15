@@ -111,6 +111,28 @@ describe("importQuestionsFromCsv", () => {
     assert.equal(errors[0].message, "The pasted text was empty.");
   });
 
+  test("a header with no rows under it is reported, not imported as nothing", () => {
+    const { drafts, errors } = importQuestionsFromCsv(`${header}\n`);
+    assert.deepEqual(drafts, []);
+    assert.deepEqual(errors, [{ row: 1, message: "There are no question rows under the header row." }]);
+  });
+
+  test("so is a header with only blank rows under it, against the header's own row", () => {
+    const { drafts, errors } = importQuestionsFromCsv(`\r\n${header}\r\n\r\n,,,,,,,\r\n   \r\n`);
+    assert.deepEqual(drafts, []);
+    assert.deepEqual(errors, [{ row: 2, message: "There are no question rows under the header row." }]);
+  });
+
+  test("a quote left open under the header is the one problem reported", () => {
+    const { drafts, errors } = importQuestionsFromCsv(`${header}\nmath,algebra,"never closed,1,2,,,A`);
+    assert.deepEqual(drafts, []);
+    assert.deepEqual(
+      errors.map((error) => error.row),
+      [2]
+    );
+    assert.match(errors[0].message, /^A quote opened in this row is never closed/);
+  });
+
   test("a missing required column fails the whole paste with a clear message", () => {
     const { drafts, errors } = importQuestionsFromCsv("subject,question,answer\nmath,1+1,2");
     assert.deepEqual(drafts, []);
