@@ -509,6 +509,15 @@ async function main() {
     answer: question.type === "multiple-choice" ? "definitely wrong" : "definitely wrong"
   }));
 
+  // One answer per question, and no paper has anywhere near a thousand. The
+  // hand-in is refused whole, and the paper stays open for the one below.
+  const padded = Array.from({ length: 1000 }, (_, index) => allWrong[index % allWrong.length]);
+  const tooManyAnswers = await call(`/api/tests/${test.id}/submit`, {
+    method: "POST",
+    body: { studentKey, answers: padded, timeTakenSeconds: 42 }
+  });
+  check("a hand-in with more answers than any paper has questions is a 400", tooManyAnswers.status === 400, `got ${tooManyAnswers.status}`);
+
   const wrongResult = await call(`/api/tests/${test.id}/submit`, {
     method: "POST",
     body: { studentKey, answers: allWrong, timeTakenSeconds: 42 }
@@ -804,6 +813,24 @@ async function main() {
     devOrigin.status === 200 && devOrigin.headers.get("access-control-allow-origin") === "http://localhost:5999",
     `got ${devOrigin.status}`
   );
+
+  section("Every response carries the same safety headers");
+  // Whichever part of the server answers: a route, the 404, a refusal before
+  // any route runs, or the error handler. HSTS is for production alone, where
+  // the API is served over HTTPS, and this is a development API.
+  const answeredBy = {
+    "the health check": await fetch(`${BASE_URL}/health`),
+    "a route that does not exist": await fetch(`${BASE_URL}/api/no-such-route`),
+    "a refused website": foreign,
+    "a refused preflight": foreignPreflight,
+    "a body that is not JSON": await rawPost({}, "{not json")
+  };
+  const without = (test) => Object.keys(answeredBy).filter((label) => !test(answeredBy[label].headers));
+  const noNosniff = without((headers) => headers.get("x-content-type-options") === "nosniff");
+  check("each one says nosniff", noNosniff.length === 0, `missing on ${noNosniff.join(", ")}`);
+  const namesExpress = without((headers) => !headers.has("x-powered-by"));
+  check("and none names the framework behind it", namesExpress.length === 0, `x-powered-by on ${namesExpress.join(", ")}`);
+  check("HSTS is left to production", !answeredBy["the health check"].headers.has("strict-transport-security"));
 
   section("Untimed tests have no limit");
   // The browser's figure used to be refused above six hours, so an untimed

@@ -11,6 +11,27 @@ import { testsRouter } from "./routes/tests";
 
 const app = express();
 
+// "X-Powered-By: Express" on every response told anyone who asked which
+// framework, and so which known weaknesses, to try first.
+app.disable("x-powered-by");
+
+// First, so every response carries them: the 404, a refused origin and a
+// failure in the error handler below as much as a route's own answer.
+//
+// nosniff makes a browser take each response as the type it is labelled with,
+// so a body that happens to look like a page or a script is never run as one.
+// Strict-Transport-Security tells the browser to come back over HTTPS only,
+// for a year. It is only sent in production, where the host serves the API
+// over HTTPS; a browser ignores it over plain HTTP, and pinning a developer's
+// own machine to HTTPS would only get in the way.
+app.use((_request, response, next) => {
+  response.setHeader("X-Content-Type-Options", "nosniff");
+  if (env.isProduction) {
+    response.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  next();
+});
+
 // Behind a host's proxy, read the student's own address from X-Forwarded-For
 // so the per-address limits count students, not the proxy (see env.ts).
 if (env.trustProxyHops > 0) {

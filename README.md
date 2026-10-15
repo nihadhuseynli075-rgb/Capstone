@@ -46,7 +46,9 @@ dashboard shows a banner, so this is never a silent surprise.
    replaces any username that was copied from an email address. `0014` keeps
    a test's answers out of the students' reach in the database until the test
    has been handed in, and closes the `leaderboard` view, which lists every
-   student and which no page uses yet, to students.) If `0001`-`0006` are already in, running
+   student and which no page uses yet, to students. `0015` gives the
+   `question-images` bucket the limits the API already holds a question
+   picture to: 2 MB, and PNG, JPG or WebP only.) If `0001`-`0006` are already in, running
    [`0007_profiles_and_google.sql`](supabase/migrations/0007_profiles_and_google.sql)
    on its own is enough: it adds profile photos and the `avatars` storage bucket.
 6. Under **Authentication → Providers**, make sure Email is enabled. Google is

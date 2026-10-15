@@ -12,11 +12,11 @@ buckets and sign-in all stay in Nihad's Supabase project.
 
 ## Before you start
 
-- Supabase is set up as in the README (`supabase/run-all.sql` run, Email
-  provider on). **Do not deploy the API without Supabase credentials.** It
-  would run in memory mode, and Render restarts services often (every deploy,
-  and every time a free service wakes up), so every question and result would
-  vanish.
+- Supabase is set up as in the README (`supabase/run-all.sql` run, which is
+  migrations 0001 to 0015, and the Email provider on). **Do not deploy the
+  API without Supabase credentials.** It would run in memory mode, and Render
+  restarts services often (every deploy, and every time a free service wakes
+  up), so every question and result would vanish.
 - Someone with access to `github.com/nihadhuseynli075-rgb/Capstone` signs in
   to Render with GitHub and lets Render see that repo. Simplest is for Nihad to
   own the Render account, the same way he owns Supabase.
@@ -59,7 +59,7 @@ Why these, in case they look odd:
 | `WEB_ORIGIN` | `https://placeholder.invalid` for now; fixed in step 3 |
 | `TRUST_PROXY` | `1` |
 | `GEMINI_API_KEY` | optional; without it, written questions are left out of tests |
-| `SUPABASE_IMAGE_BUCKET` | optional, defaults to `question-images` |
+| `SUPABASE_IMAGE_BUCKET` | optional, defaults to `question-images`. Migration 0015 sets the size and type limits on that bucket only; give one of another name the same limits in Supabase |
 | `SUPABASE_AVATAR_BUCKET` | optional, defaults to `avatars` |
 
 `API_PORT` matters: the API reads `API_PORT`, not Render's `PORT`, and Render
@@ -140,6 +140,9 @@ On the live site:
 - [ ] Sign up with email; the confirmation link opens the live site, not localhost.
 - [ ] Continue with Google (if switched on) lands on `/#/profile`.
 - [ ] A profile photo uploads.
+- [ ] `curl -I https://exampeak-api.onrender.com/health` shows
+      `strict-transport-security` and `x-content-type-options: nosniff`, and
+      no `x-powered-by`.
 
 ## Things to know
 

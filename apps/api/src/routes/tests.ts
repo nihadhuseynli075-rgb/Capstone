@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { MockTest, QuestionType, TestResult, TestSettings } from "@grade9/shared";
 import {
   customLimits,
+  difficultyPresets,
   resolveSettings,
   siteLanguages,
   studentKeyLimits,
@@ -294,6 +295,16 @@ function takeMarking(studentKey: string, address: string, count: number): "stude
   return null;
 }
 
+/**
+ * The most questions any paper can have: the largest custom test, or the
+ * largest a difficulty preset sets, whichever is more. A hand-in carries one
+ * answer per question, so it never needs more answers than this.
+ */
+const MAX_PAPER_QUESTIONS = Math.max(
+  customLimits.maxQuestions,
+  ...Object.values(difficultyPresets).map((preset) => preset.questionCount)
+);
+
 const submitSchema = z.object({
   studentKey: studentKeySchema,
   timeTakenSeconds: z
@@ -301,6 +312,10 @@ const submitSchema = z.object({
     .int()
     .min(0)
     .transform((seconds) => Math.min(seconds, MAX_CLAIMED_SECONDS)),
+  // Capped at the largest paper. Only the paper's own questions are looked up
+  // in it (see resolveAnswers), but uncapped, one hand-in could carry over a
+  // hundred thousand answers in the 5 MB a body may be, every one of them
+  // checked and held in memory while the paper was marked.
   answers: z.array(
     z.object({
       questionId: z.string().min(1),
@@ -323,7 +338,7 @@ const submitSchema = z.object({
         .max(writtenAnswerMaxLength)
         .transform((answer) => answer.replace(/\u0000/g, ""))
     })
-  )
+  ).max(MAX_PAPER_QUESTIONS)
 });
 
 testsRouter.post("/:attemptId/submit", async (request, response, next) => {
