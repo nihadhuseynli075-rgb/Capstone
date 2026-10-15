@@ -96,6 +96,38 @@ export function planRequest(between: FriendshipRow[], me: string, them: string):
   return theirs ? { action: "accept-theirs", theirs } : { action: "create" };
 }
 
+/**
+ * Whether `row` comes before `other` as the row that stands for a friendship:
+ * the older of the two, or the lower id when both were made in the same
+ * instant (or a time cannot be read).
+ *
+ * Two accepted rows between the same students come from both of them pressing
+ * Accept at the same moment, on a request each way. The list shows this one
+ * and the repository keeps this one (see surplusFriendships), so the
+ * friendship id a page is holding is never the row that was tidied away.
+ */
+function standsBefore(row: FriendshipRow, other: FriendshipRow): boolean {
+  const age = Date.parse(row.createdAt) - Date.parse(other.createdAt);
+  if (age < 0) return true;
+  if (age > 0) return false;
+  return row.id < other.id;
+}
+
+/**
+ * The accepted rows between `me` and `them` beyond the one that stands for
+ * their friendship (see standsBefore): what is left to delete after both
+ * accepted at once. Empty when there is one, or none.
+ */
+export function surplusFriendships(between: FriendshipRow[], me: string, them: string): FriendshipRow[] {
+  const accepted = between.filter((row) => row.status === "accepted" && otherEnd(row, me) === them);
+  const kept = accepted.reduce<FriendshipRow | null>(
+    (first, row) => (first === null || standsBefore(row, first) ? row : first),
+    null
+  );
+
+  return accepted.filter((row) => row !== kept);
+}
+
 export interface SortedFriendships {
   friends: FriendshipRow[];
   incoming: FriendshipRow[];
@@ -110,7 +142,8 @@ export interface SortedFriendships {
  * rule out two students asking each other in the same instant, which leaves a
  * pending row each way; that pair is shown as the one request to answer, and
  * accepting it clears the other (see acceptRequest). Likewise a request that
- * is still pending beside an accepted row is only a leftover and is hidden.
+ * is still pending beside an accepted row is only a leftover and is hidden,
+ * and of two accepted rows, the one that stands for the friendship is shown.
  */
 export function sortFriendships(rows: FriendshipRow[], me: string): SortedFriendships {
   const friends = new Map<string, FriendshipRow>();
@@ -118,7 +151,10 @@ export function sortFriendships(rows: FriendshipRow[], me: string): SortedFriend
   const outgoing = new Map<string, FriendshipRow>();
 
   for (const row of rows) {
-    if (row.status === "accepted" && !friends.has(otherEnd(row, me))) friends.set(otherEnd(row, me), row);
+    if (row.status !== "accepted") continue;
+
+    const shown = friends.get(otherEnd(row, me));
+    if (!shown || standsBefore(row, shown)) friends.set(otherEnd(row, me), row);
   }
 
   for (const row of rows) {

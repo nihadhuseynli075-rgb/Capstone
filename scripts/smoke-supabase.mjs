@@ -2449,6 +2449,87 @@ async function main() {
       const larsAfter = await friendsOf(lars.token);
       check("so Lars is a friend and has nothing left to answer", larsAfter.body.friends.length === 1 && larsAfter.body.incoming.length === 0, JSON.stringify(larsAfter.body));
 
+      section("Two students who accept each other at the same moment");
+      // Both ask at once, leaving a pending row each way, then both press
+      // Accept at once. Each answer found its own row still pending and
+      // accepted it: two friendships, and Remove ended only the one the list
+      // showed. A quarter of a second on every database call makes the overlap.
+      const pairRowsOf = (a, b) => friendRows(`?user_id=in.(${a.id},${b.id})&friend_id=in.(${a.id},${b.id})`);
+      const vera = await makeAccount("vera@standin.test", "Vera");
+      const wade = await makeAccount("wade@standin.test", "Wade");
+      await control("latency", { ms: 250 });
+      const bothAsk = await Promise.all([ask(vera.token, "wade@standin.test"), ask(wade.token, "vera@standin.test")]);
+      const crossedPending = await pairRowsOf(vera, wade);
+      check(
+        "asking at the same moment leaves a request each way",
+        bothAsk.every((sent) => sent.status === 201) && crossedPending.length === 2 && crossedPending.every((row) => row.status === "pending"),
+        `${bothAsk.map((sent) => sent.status)} ${JSON.stringify(crossedPending.map((row) => row.status))}`
+      );
+      const [veraIncoming, wadeIncoming] = [(await friendsOf(vera.token)).body.incoming, (await friendsOf(wade.token)).body.incoming];
+      const bothAccept = await Promise.all([
+        answer(vera.token, veraIncoming[0]?.requestId, "accept"),
+        answer(wade.token, wadeIncoming[0]?.requestId, "accept")
+      ]);
+      await control("latency", { ms: 0 });
+      const acceptedPair = await pairRowsOf(vera, wade);
+      check("both accepts are answered", bothAccept.every((accepted) => accepted.status === 200), bothAccept.map((accepted) => accepted.status).join(", "));
+      check(
+        "and leave one friendship between them, not one each way",
+        acceptedPair.length === 1 && acceptedPair[0].status === "accepted",
+        JSON.stringify(acceptedPair.map((row) => [row.user_id === vera.id ? "Vera->Wade" : "Wade->Vera", row.status]))
+      );
+      const raceViews = [await friendsOf(vera.token), await friendsOf(wade.token)];
+      check(
+        "each lists the other once, by that row",
+        raceViews.every((side) => side.body.friends.length === 1 && side.body.friends[0].friendshipId === acceptedPair[0]?.id),
+        JSON.stringify(raceViews.map((side) => side.body.friends.map((friend) => friend.friendshipId)))
+      );
+      const raceRemoved = await unfriend(vera.token, acceptedPair[0]?.id);
+      const afterRaceRemoved = [await friendsOf(vera.token), await friendsOf(wade.token)];
+      check(
+        "and one Remove ends it for both",
+        raceRemoved.status === 200 && (await pairRowsOf(vera, wade)).length === 0 && afterRaceRemoved.every((side) => side.body.friends.length === 0),
+        `${raceRemoved.status} ${JSON.stringify(afterRaceRemoved.map((side) => side.body.friends.length))}`
+      );
+
+      // A friendship each way already in the table, as the race left them
+      // before this was fixed. The list shows one, and Remove ends both.
+      const rhea = await makeAccount("rhea@standin.test", "Rhea");
+      const sam = await makeAccount("sam@standin.test", "Sam");
+      for (const [from, to] of [[rhea, sam], [sam, rhea]]) {
+        await request(standin.url, "/rest/v1/friendships", {
+          method: "POST",
+          body: { user_id: from.id, friend_id: to.id, status: "accepted", responded_at: new Date().toISOString() }
+        });
+      }
+      const rheaView = await friendsOf(rhea.token);
+      check("two friendships already there are one friend on the list", rheaView.body.friends.length === 1, JSON.stringify(rheaView.body.friends));
+      const bothRemoved = await unfriend(rhea.token, rheaView.body.friends[0]?.friendshipId);
+      check("and one Remove ends both rows", bothRemoved.status === 200 && (await pairRowsOf(rhea, sam)).length === 0, `got ${bothRemoved.status}`);
+      const afterBothRemoved = [await friendsOf(rhea.token), await friendsOf(sam.token)];
+      check(
+        "so neither lists the other, as a friend or a request",
+        afterBothRemoved.every((side) => side.body.friends.length + side.body.incoming.length + side.body.outgoing.length === 0),
+        JSON.stringify(afterBothRemoved.map((side) => side.body))
+      );
+
+      // A request accepted beside a friendship that already runs the other way.
+      const tara = await makeAccount("tara@standin.test", "Tara");
+      const uma = await makeAccount("uma@standin.test", "Uma");
+      await request(standin.url, "/rest/v1/friendships", {
+        method: "POST",
+        body: { user_id: tara.id, friend_id: uma.id, status: "accepted", responded_at: new Date().toISOString() }
+      });
+      await request(standin.url, "/rest/v1/friendships", { method: "POST", body: { user_id: uma.id, friend_id: tara.id } });
+      const [besideRequest] = await friendRows(`?user_id=eq.${uma.id}&friend_id=eq.${tara.id}`);
+      const acceptedBeside = await answer(tara.token, besideRequest?.id, "accept");
+      const besidePair = await pairRowsOf(tara, uma);
+      check(
+        "accepting a request beside a friendship the other way still leaves one",
+        acceptedBeside.status === 200 && besidePair.length === 1 && besidePair[0].status === "accepted",
+        `${acceptedBeside.status} ${JSON.stringify(besidePair.map((row) => row.status))}`
+      );
+
       section("A blocked row");
       const mona = await makeAccount("mona@standin.test", "Mona");
       const nils = await makeAccount("nils@standin.test", "Nils");

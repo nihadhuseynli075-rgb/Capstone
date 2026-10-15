@@ -5,6 +5,7 @@ import {
   planRequest,
   sortFriendships,
   summariseProgress,
+  surplusFriendships,
   type FriendshipRow,
   type SubmittedTest
 } from "./friends";
@@ -161,6 +162,47 @@ describe("sortFriendships", () => {
     const first = row(ME, ANA, "accepted");
     const sorted = sortFriendships([first, row(ANA, ME, "accepted")], ME);
     assert.deepEqual(sorted.friends, [first]);
+  });
+
+  test("by the same row, whichever order the rows are read in", () => {
+    // The repository reads newest first. The older row is the one it keeps
+    // (see surplusFriendships), so the id the page holds is never deleted.
+    const older = row(ANA, ME, "accepted");
+    const newer = row(ME, ANA, "accepted");
+    assert.deepEqual(sortFriendships([newer, older], ME).friends, [older]);
+    assert.deepEqual(sortFriendships([older, newer], ME).friends, [older]);
+  });
+});
+
+describe("surplusFriendships", () => {
+  test("a single friendship has nothing to spare", () => {
+    assert.deepEqual(surplusFriendships([row(ME, ANA, "accepted")], ME, ANA), []);
+    assert.deepEqual(surplusFriendships([], ME, ANA), []);
+  });
+
+  test("of an accepted row each way, the newer goes and the one the list shows stays", () => {
+    // Both pressed Accept at once, on a request each way.
+    const older = row(ANA, ME, "accepted");
+    const newer = row(ME, ANA, "accepted");
+    assert.deepEqual(surplusFriendships([newer, older], ME, ANA), [newer]);
+    // The other student's answer makes the same choice, so the two answers
+    // never delete a row each and leave nothing.
+    assert.deepEqual(surplusFriendships([older, newer], ANA, ME), [newer]);
+  });
+
+  test("two made in the same instant are told apart by id", () => {
+    const at = "2026-10-14T10:00:00.000+00:00";
+    const a = { ...row(ANA, ME, "accepted"), id: "row-a", createdAt: at };
+    const b = { ...row(ME, ANA, "accepted"), id: "row-b", createdAt: at };
+    assert.deepEqual(surplusFriendships([b, a], ME, ANA), [b]);
+    assert.deepEqual(surplusFriendships([a, b], ANA, ME), [b]);
+    assert.deepEqual(sortFriendships([b, a], ME).friends, [a]);
+  });
+
+  test("requests, blocked rows and other students' friendships are not spare", () => {
+    const friendship = row(ME, ANA, "accepted");
+    const others = [row(ANA, ME), row(ANA, ME, "blocked"), row(ME, BEN, "accepted"), row(BEN, ME, "accepted")];
+    assert.deepEqual(surplusFriendships([friendship, ...others], ME, ANA), []);
   });
 });
 

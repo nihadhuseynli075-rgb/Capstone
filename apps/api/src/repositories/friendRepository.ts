@@ -18,6 +18,7 @@ import {
   planRequest,
   sortFriendships,
   summariseProgress,
+  surplusFriendships,
   type FriendLookup,
   type FriendshipRow,
   type SubmittedTest
@@ -325,7 +326,48 @@ async function acceptPending(me: string, requestId: string): Promise<string | nu
     console.error(`[api] Could not remove the crossed request from ${me} to ${asker}: ${leftoverError.message}`);
   }
 
+  await dropSurplusFriendships(me, asker);
   return asker;
+}
+
+/**
+ * Leaves one accepted row between two students who have just become friends.
+ *
+ * Two who ask each other at the same moment have a pending row each way, and
+ * if both then press Accept at the same moment, each answer finds its own row
+ * still pending: two accepted rows, one each way. The list showed one of
+ * them, and Remove ended only that one, leaving the friend listed. Each
+ * answer reads the pair after its own write, so the one that finishes second
+ * sees both rows, and both choose the same one to keep (see
+ * surplusFriendships), so their deletes can never take both. A failure here
+ * leaves a row the list hides and Remove takes with the rest, so it is logged
+ * rather than thrown.
+ */
+async function dropSurplusFriendships(me: string, them: string): Promise<void> {
+  const { data, error } = await client()
+    .from("friendships")
+    .select(FRIENDSHIP_COLUMNS)
+    // The table holds one row per direction and none from a student to
+    // themselves, so this is the pair's rows, whichever way round.
+    .in("user_id", [me, them])
+    .in("friend_id", [me, them]);
+
+  if (error) {
+    console.error(`[api] Could not check for a second friendship between ${me} and ${them}: ${error.message}`);
+    return;
+  }
+
+  const surplus = surplusFriendships((data ?? []).map(toRow), me, them);
+  if (surplus.length === 0) return;
+
+  const { error: deleteError } = await client()
+    .from("friendships")
+    .delete()
+    .in("id", surplus.map((row) => row.id));
+
+  if (deleteError) {
+    console.error(`[api] Could not remove the second friendship between ${me} and ${them}: ${deleteError.message}`);
+  }
 }
 
 /**
@@ -419,16 +461,39 @@ export function cancelRequest(me: string, requestId: string): Promise<boolean> {
   return deletePending(requestId, "user_id", me, "cancel the request");
 }
 
-/** Ends a friendship, from either side. Returns whether there was one to end. */
+/**
+ * Ends a friendship, from either side. Returns whether there was one to end.
+ *
+ * The row named says who the friend is, and then every row between the two
+ * students goes, whichever way round. There can be an accepted row each way
+ * (see dropSurplusFriendships), and deleting only the one the page named left
+ * the friend listed. A request still pending beside a friendship is a
+ * leftover of the two asking each other at once, which would otherwise turn
+ * up as a request nobody had just sent. A blocked row is not a friendship
+ * and is left alone.
+ */
 export async function removeFriend(me: string, friendshipId: string): Promise<boolean> {
   const { data, error } = await client()
     .from("friendships")
-    .delete()
+    .select(FRIENDSHIP_COLUMNS)
     .eq("id", friendshipId)
     .eq("status", "accepted")
-    .or(involving(me))
-    .select("id");
+    .or(involving(me));
 
   if (error) throw friendsError("remove the friend", error);
-  return (data ?? []).length > 0;
+  if (!data || data.length === 0) return false;
+
+  const them = otherEnd(toRow(data[0]), me);
+
+  const { data: removed, error: removeError } = await client()
+    .from("friendships")
+    .delete()
+    .in("user_id", [me, them])
+    .in("friend_id", [me, them])
+    .in("status", ["accepted", "pending"])
+    .select("id");
+
+  if (removeError) throw friendsError("remove the friend", removeError);
+  // Nothing left to remove means the other student ended it in between.
+  return (removed ?? []).length > 0;
 }
