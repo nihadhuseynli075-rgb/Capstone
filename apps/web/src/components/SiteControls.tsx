@@ -12,8 +12,11 @@ import { IconMoon, IconSun } from "./icons";
  * while it is dark. The label says what a tap does, so it names the other
  * theme. If the icon should show where a tap leads instead, swap the two icons
  * below; the label is already right for that.
+ *
+ * It keeps no state of its own (the theme is useTheme's), so the header bar
+ * can draw one for each of its layouts and the two never disagree.
  */
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string }) {
   const { t } = useLanguage();
 
   const [theme, setTheme] = useTheme();
@@ -31,7 +34,7 @@ export function ThemeToggle() {
   return (
     <button
       type="button"
-      className="ghost-button icon-button theme-toggle"
+      className={`ghost-button icon-button theme-toggle${className ? ` ${className}` : ""}`}
       aria-label={label}
       title={label}
       onClick={() => setTheme(next)}

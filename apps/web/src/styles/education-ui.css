@@ -99,6 +99,18 @@ body {
   background: var(--brand-soft);
 }
 
+/*
+ * The header bar has a theme button for each layout, each in the markup where
+ * it is drawn (see App.tsx): before the menu button on a phone, after the
+ * links on anything wider. Only the one for the width is shown, and
+ * display: none also takes the other out of the Tab order and out of what a
+ * screen reader hears. Reordering one button with `order` moved it on screen
+ * but not for the keyboard.
+ */
+.app-header .theme-toggle-phone {
+  display: none;
+}
+
 @media (max-width: 760px) {
   .app-header .wordmark-text {
     display: none;
@@ -110,18 +122,16 @@ body {
     column-gap: 8px;
   }
 
-  .app-header .theme-toggle {
-    order: 1;
+  .app-header .theme-toggle-phone {
+    display: inline-flex;
     margin-left: auto;
   }
 
-  .app-header .nav-toggle {
-    order: 2;
-    margin-left: 0;
+  .app-header .theme-toggle-wide {
+    display: none;
   }
 
   .app-header .app-nav {
-    order: 3;
     margin-left: 0;
   }
 

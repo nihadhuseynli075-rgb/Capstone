@@ -579,13 +579,20 @@ function Shell() {
 
 
         {/*
-          * The markup runs in the order the bar is read, so Tab moves left to
-          * right: the menu button (phones only) comes just before the menu it
-          * opens, and the theme button comes last, where it is drawn. It used
-          * to sit before the links in the markup and be moved to the end by
-          * the stylesheet, so focus jumped to the far right and back. The theme
-          * button stays during an exam too: it changes nothing about the paper.
+          * The markup runs in the order the bar is read, so Tab moves the way
+          * the eye does. On a phone that is the theme button, then the menu
+          * button, then the menu it opens below them; on a wider screen it is
+          * the links, then the theme button at the far end. One button cannot
+          * come both before and after the links, so there are two, each where
+          * it is drawn, and the stylesheet shows only the one for the width
+          * (education-ui.css). Moving a single button about with the
+          * stylesheet instead, as the phone layout used to, sent focus from
+          * the menu back up to the top of the screen. The theme button stays
+          * during an exam too: it changes nothing about the paper.
           */}
+        <ThemeToggle className="theme-toggle-phone" />
+
+
         {!isExam && (
           <button
             type="button"
@@ -641,7 +648,7 @@ function Shell() {
         )}
 
 
-        <ThemeToggle />
+        <ThemeToggle className="theme-toggle-wide" />
       </header>
 
 
