@@ -60,6 +60,10 @@ export const adminText = {
   discardEdit: "Discard your changes to this question?",
   discardOnSignOut: "The question form has changes that have not been saved. Sign out and discard them?",
   deleteLosesEdit: "Your unsaved changes to it will be lost too.",
+  // Saving an edit to a question deleted elsewhere (another tab, another admin) since it was opened.
+  editDeleted:
+    "This question was deleted after you opened it, perhaps in another tab, so your changes cannot be saved to it. Everything in the form is still here.",
+  saveAsNew: "Save as a new question",
   beingEdited: "Open in the Edit question tab",
   // The whole bank, whatever the list is filtered to, in a form that needs no plural.
   bankCount: "Questions in the bank: {total}.",

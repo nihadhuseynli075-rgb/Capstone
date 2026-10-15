@@ -160,6 +160,13 @@ export function AdminPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [editing, setEditing] = useState<BankQuestion | null>(null);
+  // The question an edit was being saved to when it turned out to have been
+  // deleted elsewhere, and the one whose edit the admin then chose to save as
+  // a new question (see saveAsNew). Kept by id, so both lapse on their own
+  // once the form moves on to another question.
+  const [deletedWhileEditing, setDeletedWhileEditing] = useState<string | null>(null);
+  const saveAsNewFor = useRef<string | null>(null);
+  const editingDeleted = editing !== null && editing.id === deletedWhileEditing;
 
   // Set when the API stops recognising this tab's session part way through.
   // The dashboard then stays mounted, hidden behind the sign-in form, so what
@@ -319,6 +326,14 @@ export function AdminPage() {
     if (notice) noticeRef.current?.scrollIntoView({ block: "nearest" });
   }, [notice]);
 
+  // The same for the message that the question being edited has been deleted,
+  // after each save that finds it so: one made with Save changes pressed again
+  // otherwise changed nothing in view.
+  const deletedEditRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (editingDeleted && !saving) deletedEditRef.current?.scrollIntoView({ block: "nearest" });
+  }, [editingDeleted, saving]);
+
   // The toast on the list tab has done its job after a few seconds.
   useEffect(() => {
     if (!notice || tab === "add") return;
@@ -425,8 +440,12 @@ export function AdminPage() {
     setError(null);
     setNotice(null);
 
+    // An edit whose question has been deleted is added as a new question once
+    // the admin has chosen that (see saveAsNew).
+    const asNew = editing !== null && saveAsNewFor.current === editing.id;
+
     try {
-      if (editing) {
+      if (editing && !asNew) {
         await updateQuestion(editing.id, draft);
         setNotice("Question updated.");
         backToList();
@@ -442,10 +461,23 @@ export function AdminPage() {
           paperYear: draft.paperYear,
           source: draft.source
         });
+        // An edit saved as a new question leaves edit mode, so the form is no
+        // longer tied to the deleted one and opens empty, as after any add.
+        setEditing(null);
         setFormKey((current) => current + 1);
       }
       await latestRefresh.current();
     } catch (cause) {
+      // Deleted somewhere else (another tab, another admin) since it was
+      // opened. "Question not found." left the changes nowhere to go: they
+      // stay in the form, with the offer to save them as a new question
+      // instead, and the list is read again without the deleted one.
+      if (editing && !asNew && cause instanceof ApiError && cause.status === 404) {
+        setDeletedWhileEditing(editing.id);
+        await latestRefresh.current();
+        return;
+      }
+
       // Kept to be sent again once the admin has signed back in, rather than
       // lost with the session.
       if (cause instanceof ApiError && cause.status === 401) pendingSave.current = draft;
@@ -454,6 +486,19 @@ export function AdminPage() {
       savingRef.current = false;
       setSaving(false);
     }
+  }
+
+  /**
+   * The way out offered when the question being edited has been deleted: the
+   * form, as it is now, is added as a new question. It goes through the form's
+   * own save, so it is checked like any other. Every save of this form after
+   * the choice is an add, the one made again after signing in included, while
+   * Save changes pressed before it only finds the question gone again.
+   */
+  function saveAsNew() {
+    if (!editing) return;
+    saveAsNewFor.current = editing.id;
+    formPanelRef.current?.querySelector("form")?.requestSubmit();
   }
 
   async function handleDelete(question: BankQuestion) {
@@ -678,8 +723,9 @@ export function AdminPage() {
         >
           <h2>{editing ? "Edit question" : "Add a question"}</h2>
           {/* Saving does not change this on its own: a question waiting for
-              its picture stays out of tests until one is uploaded below. */}
-          {editing && editing.status !== "ready" && (
+              its picture stays out of tests until one is uploaded below. Not
+              shown for a question that has been deleted: it is nowhere now. */}
+          {editing && !editingDeleted && editing.status !== "ready" && (
             <p className={`question-status question-status-${editing.status}`}>{statusLabel[editing.status]}</p>
           )}
           <QuestionForm
@@ -699,6 +745,17 @@ export function AdminPage() {
             // being typed or rejected.
             onEdited={() => setNotice(null)}
           />
+          {/* Under the buttons, like the notice below, and with the way out
+              beside it, since pressing Save changes again cannot help. Below
+              rather than above them, so the buttons stay where they were. */}
+          {editingDeleted && (
+            <p className="error-banner" role="alert" ref={deletedEditRef}>
+              {adminText.editDeleted}{" "}
+              <button type="button" className="link-button" onClick={saveAsNew}>
+                {adminText.saveAsNew}
+              </button>
+            </p>
+          )}
           {tab === "add" && notice && (
             <p className="success-banner" role="status" ref={noticeRef}>
               {notice}
