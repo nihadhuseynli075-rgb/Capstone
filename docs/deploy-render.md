@@ -108,6 +108,23 @@ before going further.
 These are baked into the files at build time, so changing one later needs a
 redeploy (**Manual Deploy → Clear build cache & deploy**) to take effect.
 
+**Headers** (once the site exists: its **Settings → Headers**). Render takes
+these from the dashboard only, so nothing in the repo sets them. Add one rule:
+
+| Path | Header | Value |
+| --- | --- | --- |
+| `/assets/*` | `Cache-Control` | `public, max-age=31536000, immutable` |
+
+Why: every file Vite writes to `assets/` has a fingerprint of its contents in
+its name (`index-0vOOxswI.js`), so a file of that name never changes, and a
+new build gives changed files new names, which the new `index.html` points
+at. Without the rule Render sends `max-age=0` with them, so every visit asks
+the server again about every script, stylesheet and font before the page can
+start. With it, a returning visitor's browser uses its own copy straight away
+for up to a year. Only `/assets/*`: `index.html`, `og-image.png` and the other
+files at the top keep their names when they change, so they must not be cached
+like this.
+
 No redirect or rewrite rules are needed: every route lives after the `#`
 (`/#/admin`, `/#/profile`), so the server only ever serves `index.html`.
 
