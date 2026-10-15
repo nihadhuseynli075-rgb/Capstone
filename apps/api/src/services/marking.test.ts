@@ -63,6 +63,49 @@ describe("isAnswerCorrect", () => {
     assert.equal(isAnswerCorrect(question({ type: "short-answer", correctAnswer: " " }), "   "), false);
     assert.equal(isAnswerCorrect(question(), ""), false);
   });
+
+  test("Azerbaijani answers ignore case the way an Azerbaijani reader does", () => {
+    const iki = question({ type: "short-answer", options: [], correctAnswer: "İki" });
+    assert.equal(isAnswerCorrect(iki, "iki"), true);
+    assert.equal(isAnswerCorrect(iki, "İKİ"), true);
+    assert.equal(isAnswerCorrect(iki, " İki "), true);
+    // "İ" typed as an "I" with a combining dot, as some keyboards send it.
+    assert.equal(isAnswerCorrect(iki, "I\u0307ki"), true);
+
+    const alti = question({ type: "short-answer", options: [], correctAnswer: "altı" });
+    assert.equal(isAnswerCorrect(alti, "ALTI"), true);
+    assert.equal(isAnswerCorrect(alti, "Altı"), true);
+    assert.equal(isAnswerCorrect(question({ type: "short-answer", options: [], correctAnswer: "ALTI" }), "altı"), true);
+    assert.equal(isAnswerCorrect(question({ type: "short-answer", options: [], correctAnswer: "İKİ" }), "iki"), true);
+  });
+
+  test("i and ı are still different letters", () => {
+    const alti = question({ type: "short-answer", options: [], correctAnswer: "altı" });
+    assert.equal(isAnswerCorrect(alti, "alti"), false);
+    assert.equal(isAnswerCorrect(alti, "ALTİ"), false);
+    assert.equal(isAnswerCorrect(question({ type: "short-answer", options: [], correctAnswer: "İki" }), "ıki"), false);
+    assert.equal(isAnswerCorrect(question({ type: "short-answer", options: [], correctAnswer: "iki" }), "ıkı"), false);
+  });
+
+  test("English and Russian answers are marked exactly as before", () => {
+    const english = question({ type: "short-answer", options: [], correctAnswer: "It is IN the box" });
+    assert.equal(isAnswerCorrect(english, "it is in the box"), true);
+    assert.equal(isAnswerCorrect(english, "IT IS IN THE BOX"), true);
+    assert.equal(isAnswerCorrect(english, "it is on the box"), false);
+    assert.equal(isAnswerCorrect(question({ type: "short-answer", options: [], correctAnswer: "I" }), "i"), true);
+    // Nothing says which language an answer is in, so a capital I is still
+    // the capital of i as well, as it always was.
+    assert.equal(isAnswerCorrect(question({ type: "short-answer", options: [], correctAnswer: "ALTI" }), "alti"), true);
+
+    const russian = question({ type: "short-answer", options: [], correctAnswer: "Ёлка" });
+    assert.equal(isAnswerCorrect(russian, "ёлка"), true);
+    assert.equal(isAnswerCorrect(russian, "ЁЛКА"), true);
+    assert.equal(isAnswerCorrect(russian, "елка"), false);
+
+    const units = question({ type: "short-answer", options: [], correctAnswer: "26 см" });
+    assert.equal(isAnswerCorrect(units, "26 СМ"), true);
+    assert.equal(isAnswerCorrect(units, "26 cm"), false);
+  });
 });
 
 describe("markAttempt", () => {

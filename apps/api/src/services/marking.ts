@@ -5,7 +5,7 @@ import type {
   SubmittedAnswer,
   TopicPerformance
 } from "@grade9/shared";
-import { attemptScoreValue, normalizeAnswer } from "@grade9/shared";
+import { answersMatch, attemptScoreValue } from "@grade9/shared";
 import type { AttemptQuestion } from "../repositories/attemptRepository";
 import type { WrittenMark } from "./writtenMarking";
 
@@ -13,8 +13,9 @@ import type { WrittenMark } from "./writtenMarking";
  * Marks one answer.
  *
  * Multiple choice has to match exactly, since the student picked from a list.
- * Short answer ignores case and extra spacing but nothing more; anything
- * cleverer risks marking a wrong answer correct.
+ * Short answer ignores case (Azerbaijani's included, see answersMatch) and
+ * extra spacing but nothing more; anything cleverer risks marking a wrong
+ * answer correct.
  */
 export function isAnswerCorrect(question: AttemptQuestion, answer: string): boolean {
   if (answer.trim().length === 0) return false;
@@ -23,7 +24,7 @@ export function isAnswerCorrect(question: AttemptQuestion, answer: string): bool
     return answer === question.correctAnswer;
   }
 
-  return normalizeAnswer(answer) === normalizeAnswer(question.correctAnswer);
+  return answersMatch(answer, question.correctAnswer);
 }
 
 export interface MarkedAttempt {

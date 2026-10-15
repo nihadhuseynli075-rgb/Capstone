@@ -706,7 +706,38 @@ export function repeatedOption(options: readonly string[]): string | null {
   return null;
 }
 
-/** Short-answer marking is lenient about case and spacing, nothing more. */
-export function normalizeAnswer(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
+/**
+ * A short answer as it is compared: the ends trimmed, any run of spacing made
+ * one space, and lowercased.
+ *
+ * Plain lowercasing turns the Azerbaijani "İ" into an "i" with a loose dot
+ * after it (U+0307), which an answer typed with an "i" never has, so that dot
+ * is taken off again. With `"az"` the answer is lowercased the Azerbaijani
+ * way instead, where "I" is the capital of "ı", not of "i". Compare answers
+ * with answersMatch, which tries both.
+ */
+export function normalizeAnswer(value: string, casing: "plain" | "az" = "plain"): string {
+  const spaced = value.trim().replace(/\s+/g, " ");
+  if (casing === "az") return spaced.toLocaleLowerCase("az");
+  return spaced.toLowerCase().replace(/i\u0307/g, "i");
+}
+
+/**
+ * Whether a short answer is the right one. Marking is lenient about case and
+ * spacing, nothing more.
+ *
+ * Case is compared two ways, and either will do. The plain way is how English
+ * and Russian answers have always been marked. It cannot do Azerbaijani, which
+ * has two i's with a capital each: "İ" for "i", and "I" for "ı". So "iki" was
+ * marked wrong against "İki", and "ALTI" against "altı". The Azerbaijani way
+ * pairs them as an Azerbaijani reader does. Neither way makes "i" and "ı" one
+ * letter, so "alti" is still wrong against "altı". A capital I still counts
+ * as the capital of "i" as well, as it always has, since nothing here says
+ * which language an answer is in: "ALTI" is right against "alti" too.
+ */
+export function answersMatch(answer: string, correctAnswer: string): boolean {
+  return (
+    normalizeAnswer(answer) === normalizeAnswer(correctAnswer) ||
+    normalizeAnswer(answer, "az") === normalizeAnswer(correctAnswer, "az")
+  );
 }
