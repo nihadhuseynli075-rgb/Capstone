@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Difficulty } from "@grade9/shared";
-import { subjects, topicName } from "@grade9/shared";
+import { subjects, titleCase, topicName } from "@grade9/shared";
 import { writtenMarkingEnabled } from "../lib/env";
 import { questionCounts } from "../repositories/questionRepository";
 
@@ -55,7 +55,7 @@ catalogRouter.get("/", async (_request, response, next) => {
       if (!subject) {
         subject = {
           id: entry.subjectId,
-          name: entry.subjectId.replace(/\b\w/g, (char) => char.toUpperCase()),
+          name: titleCase(entry.subjectId),
           topics: [],
           total: 0
         };

@@ -1,5 +1,5 @@
 import type { DifficultyMode, MockTest } from "@grade9/shared";
-import { topicName } from "@grade9/shared";
+import { titleCase, topicName } from "@grade9/shared";
 import { fill } from "../features/friends/fill";
 import { ApiError } from "../services/apiClient";
 import { isTranslationKey, type TranslationKey } from "./i18n";
@@ -20,7 +20,7 @@ type TranslateCount = (key: TranslationKey, count: number, values?: Record<strin
 export function subjectLabel(t: Translate, subjectId: string, fallback?: string): string {
   const key = `subject.${subjectId}`;
   if (isTranslationKey(key)) return t(key);
-  return fallback ?? subjectId.replace(/\b\w/g, (char) => char.toUpperCase());
+  return fallback ?? titleCase(subjectId);
 }
 
 /**

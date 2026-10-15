@@ -643,6 +643,33 @@ export const subjects: Subject[] = [
   }
 ];
 
+/**
+ * The first letter of each word, with any punctuation that opens the word
+ * ("(", a quote) and any accent written after the letter. A word starts the
+ * text or follows a space, a hyphen or a slash.
+ */
+const WORD_START = /(^|[\s/-])([^\p{L}\p{N}\s/-]*)(\p{L}\p{M}*)/gu;
+
+/**
+ * A name made from an id, with a capital at the start of each word:
+ * "vectors in space" is "Vectors In Space".
+ *
+ * Only a word's first letter changes; the rest is left as it is. The pattern
+ * this replaced (\b\w) knew only the English alphabet, so any other letter
+ * counted as a gap between words: "həndəsə" came out as "HəNdəSə", nothing in
+ * "тригонометрия" was capitalised at all, and the "s" after an apostrophe was
+ * taken for a new word, as in "Pupil'S Book". A word starting with a digit
+ * ("3rd") is left alone, as it was. The capital is put back together with an
+ * accent that follows it, so the "i" and loose dot that lowercasing the
+ * Azerbaijani "İ" leaves in an id come back as "İ".
+ */
+export function titleCase(text: string): string {
+  return text.replace(
+    WORD_START,
+    (_word, gap: string, opening: string, letter: string) => gap + opening + letter.toUpperCase().normalize("NFC")
+  );
+}
+
 export function subjectName(subjectId: string): string {
   return subjects.find((subject) => subject.id === subjectId)?.name ?? subjectId;
 }
@@ -651,8 +678,10 @@ export function topicName(subjectId: string, topicId: string): string {
   const subject = subjects.find((item) => item.id === subjectId);
   const topic = subject?.topics.find((item) => item.id === topicId);
   if (topic) return topic.name;
-  // Topic came from the bank rather than the starter list; make the id readable.
-  return topicId.replace(/[-_]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+  // Topic came from the bank rather than the starter list; make the id
+  // readable. The id is what was typed, lowercased (see topicIdFor), so this
+  // is as close as it gets to the name as it was typed.
+  return titleCase(topicId.replace(/[-_]/g, " "));
 }
 
 /**

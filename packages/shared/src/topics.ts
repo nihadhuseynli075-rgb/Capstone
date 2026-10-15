@@ -1,6 +1,13 @@
 import type { Topic } from "./index";
 
-/** A topic id as it is written: lowercase, a hyphen where there was a space. */
+/**
+ * A topic id as it is written: lowercase, a hyphen where there was a space.
+ *
+ * A topic with no name of its own is shown by its id, with a capital put back
+ * at the start of each word (topicName). Leave this as it is: questions
+ * already saved under an id keep it, and an id written any other way would be
+ * a second topic beside the first.
+ */
 function slugOf(text: string): string {
   return text.trim().toLowerCase().replace(/\s+/g, "-");
 }

@@ -31,6 +31,21 @@ describe("topicIdFor", () => {
     assert.equal(topicIdFor("coordinate-geometry", math), "coordinate-geometry");
   });
 
+  // Questions are already saved under these ids, so the way they are written
+  // must not change, whatever the names they are shown by.
+  test("a topic typed in any alphabet, or with an apostrophe, keeps the id it always had", () => {
+    assert.equal(topicIdFor("Həndəsə", math), "həndəsə");
+    assert.equal(topicIdFor("Тригонометрия", math), "тригонометрия");
+    assert.equal(topicIdFor("pupil's book", math), "pupil's-book");
+    assert.equal(topicIdFor("İkinci dərəcə", math), "i\u0307kinci-dərəcə");
+  });
+
+  test("a typed topic is found again by the name it is shown by", () => {
+    const typed = [{ id: "həndəsə", name: "Həndəsə" }, { id: "pupil's-book", name: "Pupil's Book" }];
+    assert.equal(topicIdFor("HƏNDƏSƏ", typed), "həndəsə");
+    assert.equal(topicIdFor("Pupil's Book", typed), "pupil's-book");
+  });
+
   test("only the subject's own topics count", () => {
     const english = subjects.find((subject) => subject.id === "english")!.topics;
     // "Functions and Graphs" is a maths topic; in English it is a new one.
