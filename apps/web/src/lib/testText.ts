@@ -2,7 +2,7 @@ import type { DifficultyMode, MockTest } from "@grade9/shared";
 import { titleCase, topicName } from "@grade9/shared";
 import { fill } from "../features/friends/fill";
 import { ApiError } from "../services/apiClient";
-import { isTranslationKey, type TranslationKey } from "./i18n";
+import { isTranslationKey, type Language, type TranslationKey } from "./i18n";
 
 /**
  * The test pages' words for subjects, topics, difficulties, the paper's title
@@ -34,6 +34,17 @@ export function topicLabel(t: Translate, subjectId: string, topicId: string, fal
   const key = `topic.${topicId}`;
   if (isTranslationKey(key)) return t(key);
   return fallback ?? topicName(subjectId, topicId);
+}
+
+/**
+ * A whole number written the site language's way: "4,000", "4 000", "4 000".
+ *
+ * Azerbaijani takes the Russian form, a space between the thousands, as
+ * formatPercent does with its decimal comma: Chrome has no Azerbaijani number
+ * data, and would write it the English way.
+ */
+export function formatCount(value: number, language: Language): string {
+  return new Intl.NumberFormat(language === "az" ? "ru" : language).format(value);
 }
 
 const DIFFICULTY_KEYS: Record<DifficultyMode, TranslationKey> = {

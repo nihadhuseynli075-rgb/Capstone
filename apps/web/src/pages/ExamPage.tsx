@@ -13,7 +13,7 @@ import {
   type ActiveTest
 } from "../lib/examSession";
 import { useLanguage } from "../lib/i18n";
-import { difficultyLabel, paperTitle, testErrorText, topicLabel } from "../lib/testText";
+import { difficultyLabel, formatCount, paperTitle, testErrorText, topicLabel } from "../lib/testText";
 import { ApiError } from "../services/apiClient";
 import { submitTest } from "../services/testsApi";
 
@@ -53,6 +53,22 @@ function wordCount(text: string): number {
   return text.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0;
 }
 
+/**
+ * How long a written answer gets before its length is shown against the limit.
+ * Most answers are a few hundred characters, and a count of those out of
+ * 4,000 would only be in the way.
+ */
+const LENGTH_SHOWN_FROM = 0.8 * writtenAnswerMaxLength;
+
+/**
+ * Whether cutting `text` at `index` would split a character written as two
+ * UTF-16 units, as an emoji is, and leave the answer ending in half of one.
+ */
+function splitsCharacter(text: string, index: number): boolean {
+  const unit = text.charCodeAt(index - 1);
+  return unit >= 0xd800 && unit <= 0xdbff;
+}
+
 function formatClock(totalSeconds: number): string {
   const safe = Math.max(0, totalSeconds);
   const minutes = Math.floor(safe / 60);
@@ -61,11 +77,16 @@ function formatClock(totalSeconds: number): string {
 }
 
 export function ExamPage() {
-  const { t, tn } = useLanguage();
+  const { language, t, tn } = useLanguage();
   const { user } = useAuth();
   const [active, setActive] = useState<ActiveTest | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // The question whose written answer a paste or typing last took over the
+  // length limit, so the note saying it was cut shows under that one.
+  const [cutQuestion, setCutQuestion] = useState<string | null>(null);
+
   const [now, setNow] = useState(() => Date.now());
   // The failure, and whether the timer sent it, rather than a sentence: the
   // sentence is put together when shown, in whatever language the site is in.
@@ -174,9 +195,9 @@ export function ExamPage() {
         // The paper's own numbering, which survives the question being deleted
         // from the bank while this test is open.
         position: index,
-        // Cut to what the API accepts. The boxes stop typing there, but an
-        // answer can also come back from saved progress, and one too long
-        // gets the whole paper refused on every retry.
+        // Cut to what the API accepts. The boxes keep to it, but an answer
+        // can also come back from saved progress, and one too long gets the
+        // whole paper refused on every retry.
         answer: (answers[question.id] ?? "").slice(0, writtenAnswerMaxLength)
       }));
 
@@ -380,6 +401,8 @@ export function ExamPage() {
   const question = questions[currentIndex];
   const answeredCount = questions.filter((item) => (answers[item.id] ?? "").trim().length > 0).length;
   const isLast = currentIndex === questions.length - 1;
+  const written = answers[question.id] ?? "";
+  const cut = cutQuestion === question.id;
 
   function goToQuestion(index: number) {
     const next = Math.max(0, Math.min(index, questions.length - 1));
@@ -395,6 +418,43 @@ export function ExamPage() {
   function setAnswer(value: string) {
     if (dead) return;
     setAnswers((current) => ({ ...current, [question.id]: value }));
+  }
+
+  /*
+   * A written answer as typed or pasted, kept to the most the API accepts.
+   *
+   * The box used to stop at the limit by itself (maxLength), which cut a long
+   * paste short without a word: the box looked full, and nothing said that the
+   * end of the paste was missing. The cut is made here instead, so the student
+   * can be told. As with maxLength, what goes is the end of what was just
+   * added, which finishes at the caret: what was already written stays.
+   */
+  function setWrittenAnswer(box: HTMLTextAreaElement) {
+    const typed = box.value;
+    const over = typed.length - writtenAnswerMaxLength;
+
+    if (over <= 0) {
+      // The note stays with its answer until that answer is changed.
+      setCutQuestion((current) => (current === question.id ? null : current));
+      setAnswer(typed);
+      return;
+    }
+
+    // An answer that was over the limit already (one saved by an older build)
+    // has no added part to take from, so it keeps its beginning instead.
+    const caret = box.selectionEnd;
+    const fromAdded = caret >= over && (answers[question.id] ?? "").length <= writtenAnswerMaxLength;
+    let cutAt = fromAdded ? caret - over : writtenAnswerMaxLength;
+    if (splitsCharacter(typed, cutAt)) cutAt -= 1;
+    const kept = fromAdded ? typed.slice(0, cutAt) + typed.slice(caret) : typed.slice(0, cutAt);
+
+    // Put in the box here rather than left for React to, which would move the
+    // caret to the very end of the answer, away from where the student was.
+    box.value = kept;
+    box.setSelectionRange(cutAt, cutAt);
+
+    setCutQuestion(question.id);
+    setAnswer(kept);
   }
 
   function confirmAndSubmit() {
@@ -516,21 +576,37 @@ export function ExamPage() {
             ))}
           </div>
         ) : question.type === "open-ended" ? (
-          <label className="short-answer written-answer">
-            {t("exam.yourAnswer")}
-            <textarea
-              value={answers[question.id] ?? ""}
-              disabled={dead}
-              onChange={(event) => setAnswer(event.target.value)}
-              placeholder={t("exam.writtenPlaceholder")}
-              rows={8}
-              maxLength={writtenAnswerMaxLength}
-            />
-            {/* Tasks set a minimum ("at least 35 words"), so show the count. */}
-            <span className="written-answer-count">
-              {tn("count.words", wordCount(answers[question.id] ?? ""))}
-            </span>
-          </label>
+          <div className="form-field">
+            <label className="short-answer written-answer">
+              {t("exam.yourAnswer")}
+              <textarea
+                value={written}
+                disabled={dead}
+                onChange={(event) => setWrittenAnswer(event.currentTarget)}
+                placeholder={t("exam.writtenPlaceholder")}
+                rows={8}
+                aria-describedby={cut ? "written-answer-cut" : undefined}
+              />
+              {/* Tasks set a minimum ("at least 35 words"), so show the count.
+                  The length joins it near the limit, before anything is cut. */}
+              <span className="written-answer-count">
+                {tn("count.words", wordCount(written))}
+                {written.length >= LENGTH_SHOWN_FROM &&
+                  ` · ${tn("exam.charCount", writtenAnswerMaxLength, {
+                    used: formatCount(written.length, language),
+                    max: formatCount(writtenAnswerMaxLength, language)
+                  })}`}
+              </span>
+            </label>
+
+            {/* Outside the label, which would otherwise read it out as part of
+                the box's name. A status, so it is read out when it appears. */}
+            {cut && (
+              <p className="warning-banner" id="written-answer-cut" role="status">
+                {tn("exam.answerCut", writtenAnswerMaxLength, { max: formatCount(writtenAnswerMaxLength, language) })}
+              </p>
+            )}
+          </div>
         ) : (
           <label className="short-answer">
             {t("exam.yourAnswer")}

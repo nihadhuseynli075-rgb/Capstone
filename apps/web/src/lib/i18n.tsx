@@ -516,6 +516,14 @@ const en = {
   "exam.finish": "Finish and see results",
   "exam.confirmUnanswered":
     "{n} question is still unanswered. Submit anyway?|{n} questions are still unanswered. Submit anyway?",
+  // A written answer's length against the most it may hold, shown as it nears
+  // it. The form goes by the limit, which the noun follows ("4 000 символов");
+  // {used} and {max} are both numbers written the site language's way.
+  "exam.charCount": "{used} / {max} character|{used} / {max} characters",
+  // Under a written answer that a paste or typing took over the limit. The
+  // form goes by the limit, as in exam.charCount.
+  "exam.answerCut":
+    "Your answer was cut at {max} character, the longest an answer can be. The part that did not fit was left out.|Your answer was cut at {max} characters, the longest an answer can be. The part that did not fit was left out.",
 
   "results.title": "Results",
   "results.backToHistory": "Back to history",
@@ -1078,6 +1086,10 @@ const ru: Dictionary = {
   "exam.finish": "Завершить и узнать результат",
   "exam.confirmUnanswered":
     "Без ответа остался {n} вопрос. Всё равно отправить?|Без ответа осталось {n} вопроса. Всё равно отправить?|Без ответа осталось {n} вопросов. Всё равно отправить?",
+  "exam.charCount": "{used} / {max} символ|{used} / {max} символа|{used} / {max} символов",
+  // "до 21 символа", but "до 4 000 символов".
+  "exam.answerCut":
+    "Ваш ответ обрезан до {max} символа: это наибольшая длина ответа. То, что не поместилось, не добавлено.|Ваш ответ обрезан до {max} символов: это наибольшая длина ответа. То, что не поместилось, не добавлено.|Ваш ответ обрезан до {max} символов: это наибольшая длина ответа. То, что не поместилось, не добавлено.",
 
   "results.title": "Результаты",
   "results.backToHistory": "К истории тестов",
@@ -1627,6 +1639,9 @@ const az: Dictionary = {
   "exam.stillMarking": "Testiniz hələ yoxlanılır... Nəticə yadda saxlanılana qədər cavablarınız bu səhifədə qalır.",
   "exam.finish": "Bitir və nəticəyə bax",
   "exam.confirmUnanswered": "{n} sual hələ cavabsızdır. Yenə də göndərilsin?",
+  "exam.charCount": "{used} / {max} simvol",
+  "exam.answerCut":
+    "Cavabınız {max} simvola qədər qısaldıldı: cavab bundan uzun ola bilməz. Sığmayan hissə əlavə olunmadı.",
 
   "results.title": "Nəticələr",
   "results.backToHistory": "Tarixçəyə qayıt",
