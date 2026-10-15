@@ -298,6 +298,81 @@ describe("a tab-separated sheet", () => {
   });
 });
 
+describe("a semicolon-separated sheet", () => {
+  // As Excel saves a CSV wherever the comma is the decimal mark, Azerbaijani
+  // and Russian Windows among them.
+  const header = ["subject", "topic", "question", "option_a", "option_b", "option_c", "correct_answer", "explanation"].join(";");
+
+  test("is read the same way, with semicolons where the commas would be", () => {
+    const rows = parseCsv(`${header}\nmath;algebra;"Solve x; then y";"1,5";2,5;3;A;"Add, then check"\n`);
+    assert.deepEqual(rows, [
+      ["subject", "topic", "question", "option_a", "option_b", "option_c", "correct_answer", "explanation"],
+      ["math", "algebra", "Solve x; then y", "1,5", "2,5", "3", "A", "Add, then check"]
+    ]);
+  });
+
+  test("imports like the comma version of the same sheet", () => {
+    // Excel's CSV UTF-8: a byte order mark and CRLF line endings.
+    const csv = [
+      header,
+      'math;algebra;"Solve x; then y";"1,5";2,5;3;B;"Add, then check"',
+      "math;algebra;What is 1,5 + 1?;2,5;3;3,5;A;"
+    ].join("\r\n");
+    const { drafts, errors } = importQuestionsFromCsv(`﻿${csv}\r\n`);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(
+      drafts.map((draft) => [draft.prompt, draft.options, draft.correctAnswer, draft.explanation]),
+      [
+        ["Solve x; then y", ["1,5", "2,5", "3"], "2,5", "Add, then check"],
+        ["What is 1,5 + 1?", ["2,5", "3", "3,5"], "2,5", ""]
+      ]
+    );
+  });
+
+  test("semicolons in the question text of a comma-separated sheet change nothing", () => {
+    const csv = [
+      "subject,topic,question,option_a,option_b,correct_answer",
+      'math,algebra,"Solve x; then y; then z",1;2,3,A',
+      "math,algebra,Pick one; or the other,yes,no,B"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(
+      drafts.map((draft) => [draft.prompt, draft.options]),
+      [
+        ["Solve x; then y; then z", ["1;2", "3"]],
+        ["Pick one; or the other", ["yes", "no"]]
+      ]
+    );
+  });
+
+  test("a comma-separated header with semicolons in its cells stays comma-separated", () => {
+    // Split by its semicolons, the last cell reads "paper", which is a name for
+    // source: the known names in the comma reading still outnumber it.
+    const { drafts, errors } = importQuestionsFromCsv(
+      'subject,topic,question,correct_answer,"notes; for me",source; paper\nmath,algebra,1 + 1,2,ok,DİM; 2024'
+    );
+    assert.deepEqual(errors, []);
+    assert.equal(drafts[0].prompt, "1 + 1");
+    assert.equal(drafts[0].correctAnswer, "2");
+  });
+
+  test("a header line far longer than any real one is decided by its start", () => {
+    const { drafts, errors } = importQuestionsFromCsv(`subject;topic;question;correct_answer;${"notes ".repeat(5000)}\nmath;algebra;1 + 1;2;`);
+    assert.deepEqual(errors, []);
+    assert.equal(drafts[0].prompt, "1 + 1");
+  });
+
+  test("a header of names this import does not know is still split by its semicolons", () => {
+    assert.deepEqual(parseCsv("Fənn;Mövzu;Sual\nRiyaziyyat;Cəbr;1 + 1"), [
+      ["Fənn", "Mövzu", "Sual"],
+      ["Riyaziyyat", "Cəbr", "1 + 1"]
+    ]);
+  });
+});
+
 describe("translation columns", () => {
   const translatedHeader = [
     "subject",

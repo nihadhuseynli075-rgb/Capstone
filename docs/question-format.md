@@ -139,7 +139,11 @@ answer itself in `correct_answer`.
 ## Importing
 
 1. In Google Sheets: **File → Download → Comma-separated values**
-   (or **Tab-separated values**, which imports just the same).
+   (or **Tab-separated values**, which imports just the same). A CSV saved
+   from Excel imports too, including one with semicolons between the columns,
+   which is how Excel saves it wherever the comma is the decimal mark
+   (Azerbaijani and Russian Windows, for example). Which separator a sheet
+   uses is read from its header row.
 2. In the app go to **Admin dashboard → Bulk import** and drag the downloaded
    `.csv` or `.tsv` file onto the drop zone, or use **choose a file**. It fills
    the box below, so you can check it. (Opening the file in a text editor,
@@ -148,7 +152,7 @@ answer itself in `correct_answer`.
 
 A quote mark inside a cell, as in `A 12" ruler`, is kept as part of the text.
 Only a cell that starts with a quote is read as a quoted cell, which is how
-spreadsheets export a cell holding commas, tabs or line breaks.
+spreadsheets export a cell holding commas, semicolons, tabs or line breaks.
 
 Rows that do not validate are reported back with their spreadsheet row number and
 skipped. The rest still import, so one bad cell does not block the other forty.

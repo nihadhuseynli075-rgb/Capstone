@@ -23,21 +23,85 @@ export interface ImportResult {
   errors: ImportRowError[];
 }
 
+/** The characters a sheet's columns can be separated by. Comma is first, so it wins a tie. */
+const delimiters = [",", "\t", ";"] as const;
+type Delimiter = (typeof delimiters)[number];
+
 /**
  * Which character separates the columns, read from the header row.
  *
  * Google Sheets offers a tab-separated download next to the CSV one, and copying
- * cells out of a sheet gives tabs too. The header row never contains a comma of
- * its own, so more tabs than commas in it means a tab-separated sheet. Anything
- * else is the comma-separated format this has always read.
+ * cells out of a sheet gives tabs too. Excel saves its CSV with semicolons
+ * wherever the comma is the decimal mark, Azerbaijani and Russian Windows among
+ * them, and a sheet saved there was read as one long column and refused for
+ * missing every column it has.
+ *
+ * The header is split by each separator in turn, and the one that turns the
+ * most of its cells into column names this import knows wins: a wrong one
+ * leaves the names run together in cells that match nothing. A header with no
+ * name it knows is split by the separator it holds most of, comma on a tie. A
+ * header with no tab or semicolon is one cell either of those ways, so it stays
+ * comma-separated, as it always was. Only the header decides, because the
+ * question text below it is full of commas and semicolons of its own.
  */
-function detectDelimiter(text: string): "," | "\t" {
+function detectDelimiter(text: string): Delimiter {
   // The first line with anything on it: blank rows above the header are
-  // skipped when the rows are read, so they must not decide this either.
-  const headerLine = text.split("\n").find((line) => line.trim().length > 0) ?? "";
-  const tabs = headerLine.split("\t").length - 1;
-  const commas = headerLine.split(",").length - 1;
-  return tabs > 0 && tabs >= commas ? "\t" : ",";
+  // skipped when the rows are read, so they must not decide this either. Only
+  // its start is weighed. A header is a few hundred characters, and a paste
+  // that is one enormous line was otherwise read three times over here, which
+  // held up the API for seconds before the import had even begun.
+  const headerLine = (text.split("\n").find((line) => line.trim().length > 0) ?? "").slice(0, 10_000);
+
+  let best = { delimiter: "," as Delimiter, known: -1, separators: -1 };
+  for (const delimiter of delimiters) {
+    const cells = headerCells(headerLine, delimiter);
+    const known = Object.keys(mapHeaders(cells)).length;
+    const separators = cells.length - 1;
+    if (known > best.known || (known === best.known && separators > best.separators)) {
+      best = { delimiter, known, separators };
+    }
+  }
+  return best.delimiter;
+}
+
+/**
+ * The header line's cells, split by one separator and read the way
+ * readSheetRows reads a row: a quote opens a quoted cell only at the start of
+ * one, and a separator inside a quoted cell is part of its text, not a column.
+ */
+function headerCells(line: string, delimiter: Delimiter): string[] {
+  const cells: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+  let atCellStart = true;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+
+    if (inQuotes) {
+      if (char === '"' && line[index + 1] === '"') {
+        cell += '"';
+        index += 1;
+      } else if (char === '"') {
+        inQuotes = false;
+      } else {
+        cell += char;
+      }
+    } else if (char === '"' && atCellStart) {
+      inQuotes = true;
+    } else if (char === delimiter) {
+      cells.push(cell);
+      cell = "";
+      atCellStart = true;
+      continue;
+    } else if (char !== "\r") {
+      cell += char;
+    }
+    atCellStart = false;
+  }
+
+  cells.push(cell);
+  return cells;
 }
 
 /**
@@ -45,8 +109,8 @@ function detectDelimiter(text: string): "," | "\t" {
  *
  * Handles quoted fields, escaped quotes, commas and newlines inside quotes, and
  * both LF and CRLF line endings. Written out rather than pulled from a package
- * so the whole import path stays readable in one file. A tab-separated sheet is
- * read the same way, with tabs where the commas would be.
+ * so the whole import path stays readable in one file. A sheet separated by
+ * tabs or semicolons is read the same way, with those where the commas would be.
  */
 export function parseCsv(input: string): string[][] {
   return parseCsvChecked(input).rows;
