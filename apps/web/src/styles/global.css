@@ -1709,6 +1709,37 @@ button:focus-visible {
     min-height: 48px;
   }
 
+  /*
+   * Moving focus scrolls the page only as far as it takes to bring a control
+   * on screen, and the browser counts a sticky bar as part of the page, not as
+   * something in the way: a focused answer could stop under the Previous/Next
+   * bar (41px of a 56px option on a 320px phone) or, on the way back up,
+   * under the timer bar. Padding at the top of the page keeps focus clear of
+   * the timer bar, which has nothing in it to focus, and the question that
+   * Next and Previous scroll to as well.
+   */
+  html:has(.exam-bar) {
+    scroll-padding-top: 72px;
+  }
+
+  /*
+   * The bottom is cleared from the other side, with a margin under each
+   * control above the Previous/Next bar. As padding on the page it also took
+   * in the bar's own buttons, and tabbing to one scrolled the whole page to
+   * its end. The bar is 73px tall, and up to 121px on the last question,
+   * where the Finish label wraps (to three lines in Russian at 320px); the
+   * rest is the part of an option below its radio button.
+   */
+  .app-main:has(.exam-actions) :is(a[href], button, input, select, textarea):not(.exam-actions *) {
+    scroll-margin-bottom: calc(144px + env(safe-area-inset-bottom));
+  }
+
+  /* The radio button is what takes the focus, halfway down its option, and
+     the option above it has to clear the timer bar too. */
+  .option input {
+    scroll-margin-top: 40px;
+  }
+
   /* The error banner is the exception: its buttons stack rather than squeeze. */
   .exam-error {
     flex-direction: column;
