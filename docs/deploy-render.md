@@ -125,8 +125,25 @@ for up to a year. Only `/assets/*`: `index.html`, `og-image.png` and the other
 files at the top keep their names when they change, so they must not be cached
 like this.
 
-No redirect or rewrite rules are needed: every route lives after the `#`
-(`/#/admin`, `/#/profile`), so the server only ever serves `index.html`.
+**Redirects/Rewrites** (the site's **Redirects/Rewrites** page, also in the
+dashboard only). Add one rule:
+
+| Source | Destination | Action |
+| --- | --- | --- |
+| `/*` | `/index.html` | Rewrite |
+
+Every route lives after the `#` (`/#/admin`, `/#/profile`), but people type
+and share addresses without it, and Render answers those (`/admin`, `/login`)
+with a bare "Not Found" page. With the rule it serves the app's `index.html`
+instead, and a script at the top of that page turns the address into the route
+it means: `/admin` becomes `/#/admin`, `/login?next=%2Fprofile` becomes
+`/#/login?next=%2Fprofile`. It has to be Rewrite, not Redirect: a redirect
+would send the browser to `/index.html` and the route would be lost on the
+way. Files that exist should still be served as themselves; check afterwards
+that `/admin` opens the admin page and that `/robots.txt` still shows the
+robots file. (`404.html` does the same job on a host that serves it for a
+missing page; Render's documentation does not say whether it does, so the
+rule is what to rely on.)
 
 ## Step 3: connect the two
 

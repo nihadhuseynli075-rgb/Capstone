@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- For a host that answers an address it has no file for with this page
+         (Render's rewrite rule, in docs/deploy-render.md, is what makes it
+         unnecessary there). An address typed without the "#", /admin or
+         /login?next=%2Fprofile, goes on to the route it means, /#/admin: the
+         same rule as the script at the top of index.html, which has to stay
+         in step with this one. Only a missing file (a dot in the last part of
+         its name) stays here, on the page below. -->
+    <script>
+      (function () {
+        var path = window.location.pathname;
+        if (path === "/" || /\.[^/]*$/.test(path)) return;
+        window.location.replace("/#" + path.replace(/\/+$/, "") + window.location.search);
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Page not found - Exampeak</title>
+    <!-- Everything inline: this page cannot know the names of the built
+         stylesheets. The colours are the app's own (src/styles/global.css). -->
+    <style>
+      :root {
+        --bg: #f4f8fc;
+        --surface: #ffffff;
+        --text: #0a3a58;
+        --muted: #4f6d88;
+        --border: #d1e2ef;
+        --brand: #0a70ad;
+        --brand-edge: #0a3a58;
+        --on-brand: #ffffff;
+        color-scheme: light;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #07202f;
+          --surface: #0d2e44;
+          --text: #e4f1fa;
+          --muted: #8dabc4;
+          --border: #1d465f;
+          --brand: #3aa6e6;
+          --brand-edge: #1d6f9f;
+          --on-brand: #08192b;
+          color-scheme: dark;
+        }
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        min-height: 100dvh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px 16px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+
+      main {
+        width: min(460px, 100%);
+        display: grid;
+        justify-items: start;
+        gap: 12px;
+        padding: clamp(22px, 4vw, 34px);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: var(--surface);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.5rem, 4vw, 1.9rem);
+        line-height: 1.2;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 10px 18px;
+        border-radius: 13px;
+        background: var(--brand);
+        color: var(--on-brand);
+        box-shadow: 0 4px 0 var(--brand-edge);
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      a:focus-visible {
+        outline: 2px solid var(--brand);
+        outline-offset: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Page not found</h1>
+      <p>There is nothing at this address. The link may have a typing mistake in it, or the page may have moved.</p>
+      <a href="/">Go to the home page</a>
+    </main>
+  </body>
+</html>

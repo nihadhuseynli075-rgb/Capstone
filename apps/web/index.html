@@ -2,6 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Every route lives after the "#", but people type and share addresses
+         without it: /admin, /login?next=%2Fprofile. The host sends those to
+         this page (its rewrite rule, in docs/deploy-render.md), and this turns
+         them into the route they mean, /#/admin, before anything reads the
+         address. Changing the address in place keeps the page that is already
+         loading. A file name (a dot in its last part, index.html included) is
+         left alone. public/404.html does the same for a host that answers a
+         missing page with it instead. -->
+    <script>
+      (function () {
+        var path = window.location.pathname;
+        if (path === "/" || /\.[^/]*$/.test(path)) return;
+        window.history.replaceState(window.history.state, "", "/#" + path.replace(/\/+$/, "") + window.location.search);
+      })();
+    </script>
     <!-- viewport-fit=cover is what gives env(safe-area-inset-*) a real value,
          so the exam page's bottom action bar clears a phone's home indicator. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
