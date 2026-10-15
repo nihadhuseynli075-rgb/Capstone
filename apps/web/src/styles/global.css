@@ -1608,6 +1608,12 @@ button:focus-visible {
     min-height: 44px;
   }
 
+  /* The box and its words are one label, so the whole row is what is tapped:
+     it was 23px tall, around a 13px box. Still centred, as in a shorter row. */
+  .checkbox-row {
+    min-height: 44px;
+  }
+
   /* ---------------------------------------------------------------- exam */
 
   /*
