@@ -4,6 +4,7 @@ import type { MockTest, QuestionType, TestResult, TestSettings } from "@grade9/s
 import {
   customLimits,
   difficultyPresets,
+  handInLimits,
   resolveSettings,
   siteLanguages,
   studentKeyLimits,
@@ -207,9 +208,10 @@ testsRouter.post("/generate", async (request, response, next) => {
  * Covers a slow network, a clock that is slightly out, and the second or two
  * between the countdown hitting zero and the request arriving. Anything beyond
  * this is not lag, it is a test that was left open, unless it is a paper
- * already taken in on time being sent again (see admittedOnTime).
+ * already taken in on time being sent again (see admittedOnTime). Shared with
+ * the browser, whose resume banner has to agree on when a paper is too late.
  */
-const SUBMIT_GRACE_SECONDS = 60;
+const SUBMIT_GRACE_SECONDS = handInLimits.graceSeconds;
 
 /**
  * The largest time taken the browser may send.
@@ -235,7 +237,7 @@ const MAX_CLAIMED_SECONDS = 60 * 60 * 6;
  * goes once the paper is saved, and old ones are swept when another is added.
  * Kept in memory, like the limits above, so a restart forgets it.
  */
-const ON_TIME_RETRY_WINDOW_MS = 15 * 60 * 1000;
+const ON_TIME_RETRY_WINDOW_MS = handInLimits.onTimeRetryMinutes * 60 * 1000;
 const admittedOnTime = new Map<string, number>();
 
 function admitOnTime(attemptId: string, at: number): void {

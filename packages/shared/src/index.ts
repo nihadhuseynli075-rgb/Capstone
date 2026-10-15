@@ -156,6 +156,21 @@ export const studentKeyLimits = {
   max: 100
 } as const;
 
+/**
+ * How long the API keeps taking a timed paper after its time limit.
+ *
+ * `graceSeconds` is the slack past the limit for a slow network or a clock
+ * that is a little out. `onTimeRetryMinutes` is how long a paper taken in on
+ * time is taken again, as the retry of a hand-in whose save failed: marking
+ * written answers can outlast the grace by minutes. Shared because the browser
+ * decides from the same figures whether a paper left part way can still be
+ * handed in, and a copy on each side had to be kept in step by hand.
+ */
+export const handInLimits = {
+  graceSeconds: 60,
+  onTimeRetryMinutes: 15
+} as const;
+
 export const customLimits = {
   minQuestions: 5,
   maxQuestions: 50,

@@ -17,6 +17,12 @@ export interface ActiveTest {
   answers: Record<string, string>;
   /** The question on screen. */
   currentIndex: number;
+  /**
+   * When this tab first sent the paper in, by its own clock. Absent until
+   * then. A timed paper taken in on time is taken again for a while after its
+   * time runs out (handInLimits), and the resume banner reads this to know so.
+   */
+  handedInAt?: number;
 }
 
 /**
@@ -26,8 +32,9 @@ export interface ActiveTest {
  *
  * The paper and the student's progress through it are kept apart. The paper
  * never changes once the test starts and can be large (without Supabase,
- * diagrams travel inside it as data URLs), so it is written once, here. Every
- * answer after that rewrites only the small progress record (saveProgress).
+ * diagrams travel inside it as data URLs), so it is written once, here, and
+ * once more when it is first handed in (markHandedIn). Every answer after
+ * that rewrites only the small progress record (saveProgress).
  *
  * The paper carries who it was saved for, and so does the last result below.
  * Signing out does not empty session storage, so without that the next person
@@ -42,6 +49,23 @@ export function saveActiveTest(active: ActiveTest): void {
 /** Records the answers and the question on screen for the paper in progress. */
 export function saveProgress(testId: string, answers: Record<string, string>, currentIndex: number): void {
   safeSessionStorage.setItem(PROGRESS_KEY, JSON.stringify({ testId, answers, currentIndex }));
+}
+
+/**
+ * Notes on the saved paper when it was first sent in.
+ *
+ * The API takes a timed paper handed in on time again for a while after its
+ * time has run out, as the retry of a hand-in whose save failed. Without this
+ * note the resume banner took such a paper for one simply left too long, said
+ * its time had run out and threw its answers away. Only the first send counts,
+ * as the API's window runs from that one.
+ */
+export function markHandedIn(testId: string, at: number): void {
+  const raw = safeSessionStorage.getItem(ACTIVE_TEST_KEY);
+  const stored = raw === null ? null : parseStored(raw);
+  if (!isRecord(stored) || !isRecord(stored.test) || stored.test.id !== testId || stored.handedInAt !== undefined) return;
+
+  safeSessionStorage.setItem(ACTIVE_TEST_KEY, JSON.stringify({ ...stored, handedInAt: at }));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -132,7 +156,8 @@ function readActiveTest(value: unknown, progress: unknown): ActiveTest | null {
     currentIndex:
       typeof index === "number" && Number.isInteger(index)
         ? Math.min(Math.max(index, 0), questions.length - 1)
-        : 0
+        : 0,
+    ...(isFiniteNumber(value.handedInAt) ? { handedInAt: value.handedInAt } : {})
   };
 }
 
@@ -170,7 +195,18 @@ export function loadActiveTest(): ActiveTest | null {
   return active;
 }
 
-export function clearActiveTest(): void {
+/**
+ * Forgets the paper in progress. Given a test id, only while the saved paper
+ * is still that one: a hand-in that finishes after its page was left must not
+ * take a newer paper, started since, with it.
+ */
+export function clearActiveTest(testId?: string): void {
+  if (testId !== undefined) {
+    const raw = safeSessionStorage.getItem(ACTIVE_TEST_KEY);
+    const stored = raw === null ? null : parseStored(raw);
+    if (isRecord(stored) && isRecord(stored.test) && stored.test.id !== testId) return;
+  }
+
   safeSessionStorage.removeItem(ACTIVE_TEST_KEY);
   safeSessionStorage.removeItem(PROGRESS_KEY);
 }

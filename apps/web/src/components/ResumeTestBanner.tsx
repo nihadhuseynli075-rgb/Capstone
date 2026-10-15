@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { handInLimits } from "@grade9/shared";
 import { navigate } from "../app/router";
 import { fill } from "../features/friends/fill";
 import { clearActiveTest, loadActiveTest, type ActiveTest } from "../lib/examSession";
@@ -6,15 +7,20 @@ import { useLanguage } from "../lib/i18n";
 import { paperTitle } from "../lib/testText";
 
 /**
- * How long past its time limit the API still takes a timed paper: the
- * minute's grace in its submit route (SUBMIT_GRACE_SECONDS in routes/tests.ts).
+ * When the API stops taking a paper, or null for an untimed one, which it
+ * always takes. A timed paper is taken until a minute past its limit. One this
+ * tab handed in on time is taken for longer: as the retry of a hand-in whose
+ * save failed, for a while after it was first sent (both in handInLimits).
  */
-const SUBMIT_GRACE_MS = 60_000;
-
-/** When the API stops taking a paper, or null for an untimed one, which it always takes. */
 function closesAt(paper: ActiveTest): number | null {
   const limit = paper.test.settings.timeLimitMinutes;
-  return limit === null ? null : paper.startedAt + limit * 60_000 + SUBMIT_GRACE_MS;
+  if (limit === null) return null;
+
+  const graceEnds = paper.startedAt + limit * 60_000 + handInLimits.graceSeconds * 1000;
+  const handedIn = paper.handedInAt;
+  return handedIn !== undefined && handedIn <= graceEnds
+    ? Math.max(graceEnds, handedIn + handInLimits.onTimeRetryMinutes * 60_000)
+    : graceEnds;
 }
 
 /**
@@ -29,7 +35,9 @@ function closesAt(paper: ActiveTest): number | null {
  * it, so resuming it only ever led to being told the time was up. The banner
  * says so at once instead, points to a new test, and forgets the paper. On the
  * builder (`inBuilder`) the new test is started right below, so it says that
- * rather than offering a button to the page it is on.
+ * rather than offering a button to the page it is on. A paper handed in on
+ * time and left while it was being marked is still offered: if that hand-in
+ * fails, resuming sends it again, and the API takes it.
  */
 export function ResumeTestBanner({ inBuilder = false }: { inBuilder?: boolean }) {
   const { t, tn } = useLanguage();

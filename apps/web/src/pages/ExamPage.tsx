@@ -8,6 +8,7 @@ import { fill } from "../features/friends/fill";
 import {
   clearActiveTest,
   loadActiveTest,
+  markHandedIn,
   saveLastResult,
   saveProgress,
   type ActiveTest
@@ -190,6 +191,11 @@ export function ExamPage() {
       setSubmitting(true);
       setError(null);
 
+      // Noted on the saved paper before it goes. A timed paper taken in on
+      // time is taken again after its time runs out, as the retry of a hand-in
+      // whose save failed, so the resume banner keeps offering it after this.
+      markHandedIn(active.test.id, Date.now());
+
       const payload: SubmittedAnswer[] = active.test.questions.map((question, index) => ({
         questionId: question.id,
         // The paper's own numbering, which survives the question being deleted
@@ -235,10 +241,14 @@ export function ExamPage() {
         }
 
         closedRef.current = true;
-        clearActiveTest();
+        // This paper only, and on to its results only from its own page. A
+        // student who left while it was being marked may have started another
+        // test since, which clearing whatever was saved wiped, and been taken
+        // out of it to these results.
+        clearActiveTest(active.test.id);
         // The finished paper's step becomes the results, so Back from them
         // goes to the builder and not to a paper that no longer exists.
-        replaceRoute(stored ? "/results" : `/results/${active.test.id}`);
+        if (mountedRef.current) replaceRoute(stored ? "/results" : `/results/${active.test.id}`);
       } catch (cause) {
         setStillMarking(false);
         const code = cause instanceof ApiError ? cause.code : null;
@@ -249,8 +259,8 @@ export function ExamPage() {
         // that hand-in can still fail (see isStillMarking).
         if (code === "already-submitted") {
           closedRef.current = true;
-          clearActiveTest();
-          replaceRoute(`/results/${active.test.id}`);
+          clearActiveTest(active.test.id);
+          if (mountedRef.current) replaceRoute(`/results/${active.test.id}`);
           return;
         }
 
@@ -260,7 +270,7 @@ export function ExamPage() {
         // that cannot be left without an "are you sure".
         if (isFinalRefusal(cause)) {
           closedRef.current = true;
-          clearActiveTest();
+          clearActiveTest(active.test.id);
           setSubmitting(false);
           setDead(true);
           setError({ cause, timeUp: false });
