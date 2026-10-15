@@ -61,15 +61,6 @@ function wordCount(text: string): number {
  */
 const LENGTH_SHOWN_FROM = 0.8 * writtenAnswerMaxLength;
 
-/**
- * Whether cutting `text` at `index` would split a character written as two
- * UTF-16 units, as an emoji is, and leave the answer ending in half of one.
- */
-function splitsCharacter(text: string, index: number): boolean {
-  const unit = text.charCodeAt(index - 1);
-  return unit >= 0xd800 && unit <= 0xdbff;
-}
-
 function formatClock(totalSeconds: number): string {
   const safe = Math.max(0, totalSeconds);
   const minutes = Math.floor(safe / 60);
@@ -87,6 +78,11 @@ export function ExamPage() {
   // The question whose written answer a paste or typing last took over the
   // length limit, so the note saying it was cut shows under that one.
   const [cutQuestion, setCutQuestion] = useState<string | null>(null);
+  // Set just before the box cuts what is going in, so the change the cut makes
+  // keeps the note; and while an input method is composing, since what it
+  // will put in is not known until it has finished.
+  const cutPendingRef = useRef(false);
+  const composingRef = useRef(false);
 
   const [now, setNow] = useState(() => Date.now());
   // The failure, and whether the timer sent it, rather than a sentence: the
@@ -431,40 +427,38 @@ export function ExamPage() {
   }
 
   /*
-   * A written answer as typed or pasted, kept to the most the API accepts.
+   * Text about to go into the written-answer box that will not all fit.
    *
-   * The box used to stop at the limit by itself (maxLength), which cut a long
-   * paste short without a word: the box looked full, and nothing said that the
-   * end of the paste was missing. The cut is made here instead, so the student
-   * can be told. As with maxLength, what goes is the end of what was just
-   * added, which finishes at the caret: what was already written stays.
+   * The box keeps to the most the API accepts by itself (maxLength): the
+   * browser cuts the end off what is added, never half an emoji, and leaves
+   * the student's undo and an input method's composing alone. Cutting in a
+   * script instead lost both. But the browser cuts a long paste short without
+   * a word, and the box only looks full, so text that will not fit is spotted
+   * here, just before the browser cuts it, and the note is shown.
    */
-  function setWrittenAnswer(box: HTMLTextAreaElement) {
-    const typed = box.value;
-    const over = typed.length - writtenAnswerMaxLength;
-
-    if (over <= 0) {
-      // The note stays with its answer until that answer is changed.
-      setCutQuestion((current) => (current === question.id ? null : current));
-      setAnswer(typed);
-      return;
-    }
-
-    // An answer that was over the limit already (one saved by an older build)
-    // has no added part to take from, so it keeps its beginning instead.
-    const caret = box.selectionEnd;
-    const fromAdded = caret >= over && (answers[question.id] ?? "").length <= writtenAnswerMaxLength;
-    let cutAt = fromAdded ? caret - over : writtenAnswerMaxLength;
-    if (splitsCharacter(typed, cutAt)) cutAt -= 1;
-    const kept = fromAdded ? typed.slice(0, cutAt) + typed.slice(caret) : typed.slice(0, cutAt);
-
-    // Put in the box here rather than left for React to, which would move the
-    // caret to the very end of the answer, away from where the student was.
-    box.value = kept;
-    box.setSelectionRange(cutAt, cutAt);
+  function noteIfCut(box: HTMLTextAreaElement, added: string) {
+    // The box keeps a line break as one character, whatever the clipboard had.
+    const length = added.replace(/\r\n?/g, "\n").length;
+    const room = writtenAnswerMaxLength - (box.value.length - Math.abs(box.selectionEnd - box.selectionStart));
+    if (length <= room) return;
 
     setCutQuestion(question.id);
-    setAnswer(kept);
+    // The cut changes the box straight after this, and that change must not
+    // take the note away again. A box with no room left does not change.
+    cutPendingRef.current = true;
+    window.setTimeout(() => {
+      cutPendingRef.current = false;
+    }, 0);
+  }
+
+  function setWrittenAnswer(value: string) {
+    if (cutPendingRef.current) {
+      cutPendingRef.current = false;
+    } else {
+      // The note stays with its answer until that answer is changed.
+      setCutQuestion((current) => (current === question.id ? null : current));
+    }
+    setAnswer(value);
   }
 
   function confirmAndSubmit() {
@@ -592,7 +586,22 @@ export function ExamPage() {
               <textarea
                 value={written}
                 disabled={dead}
-                onChange={(event) => setWrittenAnswer(event.currentTarget)}
+                maxLength={writtenAnswerMaxLength}
+                onChange={(event) => setWrittenAnswer(event.currentTarget.value)}
+                onPaste={(event) => noteIfCut(event.currentTarget, event.clipboardData.getData("text"))}
+                onDrop={(event) => noteIfCut(event.currentTarget, event.dataTransfer.getData("text"))}
+                onBeforeInput={(event) => {
+                  if (!composingRef.current) noteIfCut(event.currentTarget, event.data ?? "");
+                }}
+                onCompositionStart={() => {
+                  composingRef.current = true;
+                }}
+                onCompositionEnd={() => {
+                  // After what the composition puts in, which comes with this event.
+                  window.setTimeout(() => {
+                    composingRef.current = false;
+                  }, 0);
+                }}
                 placeholder={t("exam.writtenPlaceholder")}
                 rows={8}
                 aria-describedby={cut ? "written-answer-cut" : undefined}
