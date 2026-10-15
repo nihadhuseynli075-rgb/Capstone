@@ -93,6 +93,11 @@ export function RegisterPage() {
     }
   }
 
+  // The effect above sends a signed-in student on, but only once this has been
+  // drawn: the form showed "Create your account" for a moment on the way.
+  // Nothing is drawn instead (see LoginPage).
+  if (user) return null;
+
   // Confirmation is on for this project, so signing up ends here rather than on
   // the main page. Saying nothing would look like the sign-up simply failed.
   if (confirmationSent) {

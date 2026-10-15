@@ -67,6 +67,11 @@ export function LoginPage() {
     }
   }
 
+  // The first effect sends a signed-in student on, but only once this has been
+  // drawn: the form showed "Welcome back" for a moment on the way. Nothing is
+  // drawn instead.
+  if (user) return null;
+
   return (
     <AuthLayout
       title={t("auth.loginTitle")}
