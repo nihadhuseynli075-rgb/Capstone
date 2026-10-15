@@ -47,6 +47,17 @@ export function isReadableToken(token: string): boolean {
   }
 }
 
+/** The algorithm a token's header names, for the log: the sender wrote it, so it is quoted and kept short. */
+function headerAlgorithm(token: string): string {
+  try {
+    const header: unknown = JSON.parse(utf8.decode(Buffer.from(token.split(".")[0] ?? "", "base64url")));
+    const alg = typeof header === "object" && header !== null ? (header as Record<string, unknown>).alg : undefined;
+    return typeof alg === "string" ? JSON.stringify(alg.slice(0, 20)) : "none";
+  } catch {
+    return "none";
+  }
+}
+
 /**
  * The account a request's access token belongs to, if it is a live one.
  *
@@ -61,23 +72,39 @@ export async function signedInAccount(request: Request): Promise<SignedInAccount
   const token = bearerToken(request);
   if (!token) return null;
 
+  return accountFromToken(supabaseAdmin.auth, token);
+}
+
+/**
+ * The account `token` belongs to, as `auth` checks it. Apart from
+ * signedInAccount so the checks can be run against a stand-in auth server.
+ */
+export async function accountFromToken(auth: SupabaseClient["auth"], token: string): Promise<SignedInAccount | null> {
   let checked: Awaited<ReturnType<SupabaseClient["auth"]["getClaims"]>>;
 
   try {
-    checked = await supabaseAdmin.auth.getClaims(token);
+    checked = await auth.getClaims(token);
   } catch (thrown) {
-    // getClaims returns what is wrong with a token as `error`, below, except
-    // when it cannot decode the token at all, and then it throws: "abc.def.ghi"
-    // is three parts of base64url whose bytes are not UTF-8 text. Nobody
-    // issued that, so it means signed out, as an expired token does; answered
-    // as a 500, every made-up header left a stack trace in the log. A throw
-    // over a token that does decode is passed on. Every token Supabase issues
-    // decodes, so that is this end failing (an algorithm this version of the
-    // library does not know, say), and "sign in again" would only send every
-    // student round in a loop. A failed request to the auth server is passed
-    // on too, should a later version throw one; today it comes back as
-    // `error`, below.
-    if (isReadableToken(token) || isAuthRetryableFetchError(thrown)) throw thrown;
+    // getClaims returns what is wrong with a token as `error`, below, but
+    // throws over one it cannot check at all: parts that are not UTF-8 JSON
+    // ("abc.def.ghi"), or a header naming an algorithm the project's key is
+    // not for (EdDSA or PS256, or RS256 against an elliptic-curve key). The
+    // header is whatever the sender wrote, so neither is a token anyone
+    // issued, and both mean signed out, as an expired token does. Answered as
+    // a 500, each one left a stack trace in the log, and the second kind can
+    // be made by anyone from the project's published key id.
+    //
+    // A failed request to the auth server is passed on, should a later
+    // version throw one; today it comes back as `error`, below. A genuine
+    // token this version of the library cannot check, one signed with an
+    // algorithm newer than it say, would also read as signed out and ask every
+    // student to sign in again. So a token that does decode is noted in the
+    // log with the algorithm it names, where that would show at once.
+    if (isAuthRetryableFetchError(thrown)) throw thrown;
+    if (isReadableToken(token)) {
+      const reason = (thrown instanceof Error ? thrown.message : String(thrown)).replace(/\s+/g, " ").slice(0, 120);
+      console.warn(`[auth] A sign-in token naming algorithm ${headerAlgorithm(token)} could not be checked, so it was treated as signed out: ${reason}`);
+    }
     return null;
   }
 

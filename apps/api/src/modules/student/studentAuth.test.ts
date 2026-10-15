@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
-import { describe, test } from "node:test";
-import { isReadableToken } from "./studentAuth";
+import { generateKeyPairSync } from "node:crypto";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
+import { after, before, describe, test } from "node:test";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { accountFromToken, isReadableToken } from "./studentAuth";
 
 /** One part of a token: what it says, in base64url. */
 const part = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -53,5 +57,60 @@ describe("isReadableToken", () => {
       assert.equal(isReadableToken(`${part(value)}.${payload}.${signature}`), false, JSON.stringify(value));
       assert.equal(isReadableToken(`${header}.${part(value)}.${signature}`), false, JSON.stringify(value));
     }
+  });
+});
+
+describe("accountFromToken", () => {
+  // A project that signs with an elliptic-curve key publishes it, and getClaims
+  // checks tokens against it here without asking the auth server. Anyone can
+  // read its key id, so anyone can put it in a token's header.
+  const { publicKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
+  const jwk = { ...publicKey.export({ format: "jwk" }), kid: "project-key", alg: "ES256", use: "sig" };
+  const claims = part({ sub: "00000000-0000-4000-8000-00000000000b", role: "authenticated", aud: "authenticated", exp: 4102444800 });
+
+  let server: http.Server;
+  let auth: SupabaseClient["auth"];
+
+  before(async () => {
+    server = http.createServer((request, response) => {
+      response.setHeader("content-type", "application/json");
+      if (request.url === "/auth/v1/.well-known/jwks.json") {
+        response.writeHead(200);
+        response.end(JSON.stringify({ keys: [jwk] }));
+        return;
+      }
+      // As the auth server answers a token it did not issue.
+      response.writeHead(401);
+      response.end(JSON.stringify({ code: 401, error_code: "bad_jwt", msg: "invalid JWT" }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address() as AddressInfo;
+    auth = createClient(`http://127.0.0.1:${port}`, "stand-in-key", {
+      auth: { persistSession: false, autoRefreshToken: false }
+    }).auth;
+  });
+
+  after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  test("a made-up token naming the project's key with another algorithm means signed out", async (t) => {
+    // getClaims threw over each of these, and every signed-in route answered
+    // 500 with a stack trace: the bug hunt's BUG-035, through another door.
+    const warn = t.mock.method(console, "warn", () => {});
+    for (const alg of ["EdDSA", "PS256", "RS256"]) {
+      const token = `${part({ alg, typ: "JWT", kid: "project-key" })}.${claims}.${signature}`;
+      assert.equal(await accountFromToken(auth, token), null, alg);
+    }
+    // Noted in the log, naming the algorithm, in case a real one ever reads so.
+    assert.equal(warn.mock.callCount(), 3);
+    assert.match(String(warn.mock.calls[0]?.arguments[0]), /"EdDSA"/);
+  });
+
+  test("so does a forged signature, and a token that cannot be read at all", async (t) => {
+    const warn = t.mock.method(console, "warn", () => {});
+    const forged = `${part({ alg: "ES256", typ: "JWT", kid: "project-key" })}.${claims}.${signature}`;
+    assert.equal(await accountFromToken(auth, forged), null);
+    assert.equal(await accountFromToken(auth, "abc.def.ghi"), null);
+    // Neither is a puzzle worth a line in the log.
+    assert.equal(warn.mock.callCount(), 0);
   });
 });
