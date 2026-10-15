@@ -26,6 +26,21 @@ const refusalText: Record<string, TranslationKey> = {
 };
 
 /**
+ * Who is in which list, as one string. It changes when somebody becomes a
+ * friend or stops being one, or a request is sent, answered or taken back, and
+ * not when a friend merely sits another test or is renamed.
+ */
+function membership(overview: FriendsOverview): string {
+  return [
+    overview.friends.map((friend) => friend.friendshipId),
+    overview.incoming.map((request) => request.requestId),
+    overview.outgoing.map((request) => request.requestId)
+  ]
+    .map((ids) => [...ids].sort().join(","))
+    .join("|");
+}
+
+/**
  * The signed-in student's friends, kept in step with the server.
  *
  * Every change is followed by reading the whole list again rather than patching
@@ -43,16 +58,32 @@ export function useFriends() {
   const [status, setStatus] = useState<FriendsStatus>("loading");
   /** Why the last read failed, worded by explain; null once one works. */
   const [error, setError] = useState<unknown>(null);
+  /**
+   * Counts the reads that found the lists changed by something done
+   * elsewhere: a request answered or sent, or a friend removed, in another
+   * browser. The add-a-friend panel's message is about the lists as they
+   * were, so the page drops it on these as it does on an action taken here.
+   */
+  const [changedElsewhere, setChangedElsewhere] = useState(0);
 
   // Reads can overlap, and an older answer arriving last must not win.
   const latestRead = useRef(0);
+  // Who was in which list at the last read, to tell whether the next differs.
+  const lastMembership = useRef<string | null>(null);
 
-  const load = useCallback(async () => {
+  /** `afterChangeHere` for the read that follows a change made on this page, which has its own message. */
+  const load = useCallback(async (afterChangeHere = false) => {
     const turn = (latestRead.current += 1);
 
     try {
       const next = await friendsApi.fetchFriends();
       if (turn !== latestRead.current) return;
+
+      const lists = membership(next);
+      if (!afterChangeHere && lastMembership.current !== null && lists !== lastMembership.current) {
+        setChangedElsewhere((count) => count + 1);
+      }
+      lastMembership.current = lists;
 
       setOverview(next);
       setStatus("ready");
@@ -105,17 +136,20 @@ export function useFriends() {
       try {
         return await run();
       } finally {
-        await load();
+        await load(true);
       }
     },
     [load]
   );
 
+  const reload = useCallback(() => load(), [load]);
+
   return {
     overview,
     status,
     error,
-    reload: load,
+    changedElsewhere,
+    reload,
     explain,
     send: (emailOrUsername: string) => change(() => friendsApi.sendFriendRequest(emailOrUsername)),
     accept: (requestId: string) => change(() => friendsApi.acceptFriendRequest(requestId)),

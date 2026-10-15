@@ -144,7 +144,9 @@ export function FriendsPage() {
           <AddFriendPanel
             onSend={send}
             explain={friends.explain}
-            resetSignal={actionCount}
+            // Both only ever go up, so the sum moves whenever either does: an
+            // action here, or a read that found the lists changed elsewhere.
+            resetSignal={actionCount + friends.changedElsewhere}
             // The field shows its own failure, but not one the page already
             // says in a banner above it.
             bannerText={showLoad ? loadText : showAction ? actionText : null}

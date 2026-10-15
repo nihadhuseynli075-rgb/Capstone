@@ -17,7 +17,7 @@ export function AddFriendPanel({
 }: {
   onSend: (emailOrUsername: string) => Promise<SentFriendRequest>;
   explain: (cause: unknown) => string;
-  /** Changes whenever something else is done on the page (see FriendsPage). */
+  /** Changes whenever something else is done on the page, or the lists change in another browser (see FriendsPage). */
   resetSignal: number;
   /** What the page already says in a banner, so the field does not say it again. */
   bannerText?: string | null;
@@ -28,11 +28,13 @@ export function AddFriendPanel({
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<string | null>(null);
 
-  // Once a request has been answered or a friend removed, "Request sent to
-  // Aysel" or "You and Aysel are now friends" is old news, and could say the
+  // Once a request has been answered or a friend removed, here or in another
+  // browser, "Request sent to Aysel", "You and Aysel are now friends" or the
+  // field's "You are already friends." is old news, and could say the
   // opposite of what the page now shows.
   useEffect(() => {
     setSent(null);
+    setError(null);
   }, [resetSignal]);
 
   async function handleSubmit(event: FormEvent) {
