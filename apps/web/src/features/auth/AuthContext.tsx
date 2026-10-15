@@ -320,7 +320,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     if (!supabase) return;
-    const { error } = await supabase.auth.signOut();
+    // This browser's session only. supabase-js ends every session the account
+    // has unless told otherwise, so signing out of a school computer signed
+    // the student's phone out too, and whatever the phone sent next was
+    // refused. Deleting the account is no different: deleting the user ends
+    // all of its sessions on the server, so its sign-out here only has this
+    // tab left to clear.
+    const { error } = await supabase.auth.signOut({ scope: "local" });
 
     // The session change this causes already settles the tab (see applySession).
     // Said again so that does not depend on the event arriving.
