@@ -161,6 +161,22 @@ On the live site:
       `strict-transport-security` and `x-content-type-options: nosniff`, and
       no `x-powered-by`.
 
+## The site's address
+
+Link previews and search engines need the site's address written out in
+full, so `https://exampeak.onrender.com` is in the site's own files. If the
+site moves (to `exampeak.app`, say), change every one of these together:
+
+- `apps/web/index.html`: the `canonical` link and the `og:url`, `og:image` and
+  `twitter:image` tags
+- `apps/web/public/robots.txt`: the `Sitemap:` line
+- `apps/web/public/sitemap.xml`: the one `<loc>`
+- on Render, the API's `WEB_ORIGIN` (step 3)
+- in Supabase, the **Site URL** and **Redirect URLs** (step 4)
+
+`git grep -n "exampeak.onrender.com" -- apps` should then find nothing. The
+files are built into the site, so push them and let the static site redeploy.
+
 ## Things to know
 
 - **The free plan sleeps.** A free Web Service stops after 15 minutes with no
@@ -169,8 +185,8 @@ On the live site:
   Fine for a capstone demo; open the site a minute before showing it. The
   Starter plan (about $7 a month) stays awake.
 - **Custom domain**: when one is bought, add it under each service's
-  **Settings → Custom Domains**, then update `WEB_ORIGIN` on the API, the
-  static site URL in Supabase (step 4), and, if the API gets its own domain,
+  **Settings → Custom Domains**, then change the address everywhere listed
+  under "The site's address" above, and, if the API gets its own domain,
   `VITE_API_BASE_URL` followed by a static site redeploy.
 - **Logs** are under each service's **Logs** tab. A CORS failure shows up in
   the browser console as a blocked request and in the API log as

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- One address: every page of the app is this one with a route after the
+     "#", and crawlers do not count those as separate pages. The address is
+     also in index.html and robots.txt: see docs/deploy-render.md. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://exampeak.onrender.com/</loc>
+  </url>
+</urlset>

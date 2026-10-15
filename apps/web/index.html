@@ -6,6 +6,9 @@
          so the exam page's bottom action bar clears a phone's home indicator. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- For a phone's home screen, where an SVG icon is not used: the logo on
+         white, square, since the phone rounds the corners itself. -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f8fc" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#07202f" />
     <!-- The saved theme, put on the page before anything is drawn. Left to
@@ -38,11 +41,16 @@
       name="description"
       content="Exampeak generates Grade 9 mock tests from past-paper questions, marks them, and shows the right answer to every mistake."
     />
+    <!-- The one address search engines should list the site under. Every
+         page is this one address with a route after the "#", which they do
+         not treat as a page of its own. -->
+    <link rel="canonical" href="https://exampeak.onrender.com/" />
     <!-- What a link to the site shows when it is pasted into WhatsApp,
-         Telegram and the like. No og:image yet: Open Graph needs an absolute
-         URL for the picture, and there is no real site address to give it.
-         Once there is, add og:image (a 1200x630 card made from the logo) and
-         og:url, and change twitter:card to summary_large_image. -->
+         Telegram and the like: the card in public/og-image.png, made from the
+         logo and the landing page's own words. Open Graph wants absolute
+         addresses, so the site's address is written out here; it is also in
+         public/robots.txt and public/sitemap.xml, and docs/deploy-render.md
+         lists everywhere to change it if the site moves. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Exampeak" />
     <meta property="og:title" content="Exampeak - Grade 9 mock tests" />
@@ -50,7 +58,14 @@
       property="og:description"
       content="Build a Grade 9 mock test from past-paper questions, sit it start to finish, and see your score and every mistake, with the right answer, at the end."
     />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:url" content="https://exampeak.onrender.com/" />
+    <meta property="og:image" content="https://exampeak.onrender.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Exampeak. Grade 9 exam preparation: reach your peak." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://exampeak.onrender.com/og-image.png" />
+    <meta name="twitter:image:alt" content="Exampeak. Grade 9 exam preparation: reach your peak." />
     <title>Exampeak - Grade 9 mock tests</title>
   </head>
   <body>

@@ -1,0 +1,6 @@
+# Everything on the site may be crawled. The site's address is also in
+# index.html and sitemap.xml: see docs/deploy-render.md before changing it.
+User-agent: *
+Allow: /
+
+Sitemap: https://exampeak.onrender.com/sitemap.xml
