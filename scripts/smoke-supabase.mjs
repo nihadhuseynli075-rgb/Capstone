@@ -945,6 +945,27 @@ async function main() {
       JSON.stringify(authDown.body)
     );
 
+    section("A token that cannot be read");
+    // Three parts of base64url whose bytes are not UTF-8: getClaims throws
+    // over it rather than returning an error, and every signed-in route
+    // answered 500. Nobody issued it, so it is no sign-in at all.
+    const unreadable = "abc.def.ghi";
+    for (const [label, route, options] of [
+      ["reading the profile", "/api/profile", {}],
+      ["the friends list", "/api/friends", {}],
+      ["deleting the account", "/api/profile", { method: "DELETE", body: { confirmEmail: "bob@standin.test" } }],
+      ["an account's history", `/api/tests/history?studentKey=${bob.user.id}`, {}]
+    ]) {
+      const refused = await call(route, { ...options, token: unreadable });
+      check(`${label} answers it 401, not 500`, refused.status === 401, `${refused.status} ${JSON.stringify(refused.body)}`);
+    }
+    const junkGuestKey = randomUUID();
+    const junkGuestTest = await generate(junkGuestKey, unreadable);
+    check("a guest who sends one is a guest, and gets a test", junkGuestTest.status === 200, `${junkGuestTest.status} ${JSON.stringify(junkGuestTest.body).slice(0, 160)}`);
+    const junkGuestHistory = await call(`/api/tests/history?studentKey=${junkGuestKey}`, { token: unreadable });
+    check("and their history", junkGuestHistory.status === 200, `${junkGuestHistory.status} ${JSON.stringify(junkGuestHistory.body).slice(0, 160)}`);
+    check("and Bob's own token still works, so nothing was deleted", (await call("/api/profile", { token: bobToken })).status === 200);
+
     section("Database errors stay in the log");
     // The stand-in fails with "injected failure", where a real project would
     // put Postgres or PostgREST wording: table and column names, filter

@@ -1,5 +1,5 @@
 import type { Request } from "express";
-import { isAuthRetryableFetchError } from "@supabase/supabase-js";
+import { isAuthRetryableFetchError, type SupabaseClient } from "@supabase/supabase-js";
 import { bearerToken } from "../../lib/bearerToken";
 import { isUuid } from "../../lib/ids";
 import { PublicError } from "../../lib/publicError";
@@ -26,6 +26,27 @@ export interface SignedInAccount {
   metadata: Record<string, unknown>;
 }
 
+const utf8 = new TextDecoder("utf-8", { fatal: true });
+
+/**
+ * Whether a token can be read at all: three parts of base64url, the first two
+ * of them JSON objects in UTF-8, as every token Supabase issues is. It says
+ * nothing about whether the token is genuine; getClaims decides that.
+ */
+export function isReadableToken(token: string): boolean {
+  const parts = token.split(".");
+  if (parts.length !== 3 || !parts.every((part) => /^[A-Za-z0-9_-]+$/.test(part))) return false;
+
+  try {
+    return parts.slice(0, 2).every((part) => {
+      const decoded: unknown = JSON.parse(utf8.decode(Buffer.from(part, "base64url")));
+      return typeof decoded === "object" && decoded !== null && !Array.isArray(decoded);
+    });
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The account a request's access token belongs to, if it is a live one.
  *
@@ -40,7 +61,27 @@ export async function signedInAccount(request: Request): Promise<SignedInAccount
   const token = bearerToken(request);
   if (!token) return null;
 
-  const { data, error } = await supabaseAdmin.auth.getClaims(token);
+  let checked: Awaited<ReturnType<SupabaseClient["auth"]["getClaims"]>>;
+
+  try {
+    checked = await supabaseAdmin.auth.getClaims(token);
+  } catch (thrown) {
+    // getClaims returns what is wrong with a token as `error`, below, except
+    // when it cannot decode the token at all, and then it throws: "abc.def.ghi"
+    // is three parts of base64url whose bytes are not UTF-8 text. Nobody
+    // issued that, so it means signed out, as an expired token does; answered
+    // as a 500, every made-up header left a stack trace in the log. A throw
+    // over a token that does decode is passed on. Every token Supabase issues
+    // decodes, so that is this end failing (an algorithm this version of the
+    // library does not know, say), and "sign in again" would only send every
+    // student round in a loop. A failed request to the auth server is passed
+    // on too, should a later version throw one; today it comes back as
+    // `error`, below.
+    if (isReadableToken(token) || isAuthRetryableFetchError(thrown)) throw thrown;
+    return null;
+  }
+
+  const { data, error } = checked;
 
   if (error) {
     // A bad, expired or signed-out token simply means not signed in. The auth
