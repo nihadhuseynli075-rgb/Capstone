@@ -112,6 +112,16 @@ function LoginScreen({
       )}
 
       <form className="panel" onSubmit={handleSubmit}>
+        {/* There is only a password, but password managers file it under a
+            username: without one they could not save or fill it reliably. */}
+        <input
+          type="text"
+          name="username"
+          value="admin"
+          autoComplete="username"
+          readOnly
+          hidden
+        />
         <label>
           Admin password
           <input
