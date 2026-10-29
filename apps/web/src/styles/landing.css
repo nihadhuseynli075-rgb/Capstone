@@ -452,16 +452,40 @@
     width: calc(100% - 22px);
   }
 
+  /*
+   * Two deliberate rows instead of a ragged wrap: the mark with the language
+   * and theme beside it, then Log In and Sign Up side by side at full width.
+   * landing-actions steps out of the way (display: contents) so its two groups
+   * sit on the grid directly; the markup order, and so the Tab order, is
+   * already the order they are drawn in.
+   */
   .landing-header {
-    min-height: 74px;
-    padding-block: 10px;
-    /* The mark follows the first control row instead of floating between two rows. */
-    align-items: flex-start;
+    min-height: 0;
+    padding-block: 12px 4px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 12px 10px;
   }
 
-  /* The 34px mark is centred within the first row's 44px tap-target height. */
-  .landing-header .wordmark {
-    margin-top: 5px;
+  .landing-actions {
+    display: contents;
+  }
+
+  .landing-controls {
+    justify-self: end;
+  }
+
+  .landing-controls .language-select {
+    max-width: 128px;
+    min-height: 44px;
+  }
+
+  .landing-nav {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
 
   /* Hidden from view but still read out: the mark beside it is decoration
@@ -530,14 +554,10 @@
   }
 }
 
-/* The smallest phones: both buttons and the mark on one row, each still 44px tall. */
+/* The smallest phones: the same two rows, a little tighter, each still 44px tall. */
 @media (max-width: 360px) {
-  .landing-header {
-    gap: 10px;
-  }
-
   .landing-nav {
-    gap: 6px;
+    gap: 8px;
   }
 
   .landing-nav button {

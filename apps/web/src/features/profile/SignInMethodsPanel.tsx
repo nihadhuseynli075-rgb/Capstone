@@ -4,6 +4,7 @@ import { GoogleMark, useLeavingForGoogle } from "../auth/GoogleButton";
 import { useLanguage } from "../../lib/i18n";
 import { errorText, redirectErrorText } from "./profileText";
 import { useProfile } from "./ProfileContext";
+import { IconEmail } from "../../components/icons";
 
 /**
  * How this account can sign in, and connecting or disconnecting Google.
@@ -81,12 +82,7 @@ export function SignInMethodsPanel() {
 
       <ul className="method-list">
         <li className="method">
-          <svg className="method-icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path
-              fill="currentColor"
-              d="M3 5h18a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm1 2.4V17h16V7.4l-8 5.6-8-5.6zM5.2 7 12 11.8 18.8 7H5.2z"
-            />
-          </svg>
+          <span className="method-icon"><IconEmail /></span>
 
           <div className="method-text">
             <strong>{t("profile.methodEmail")}</strong>

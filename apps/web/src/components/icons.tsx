@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 
 /**
- * Line icons for the header buttons and the dashboard tiles.
+ * ExamPeak icons for header buttons, dashboard tiles and profile actions.
  *
- * They share one drawing grid (24px, 2px round strokes, no fill), the same
- * rules as the menu icon in the header and the icon family in
- * docs/design/asset-brief.md, so a new icon drawn on that grid sits with these.
- * The stroke is `currentColor`, which means an icon takes its colour from the
- * button or tile that holds it and works in both themes without a variant.
+ * This bespoke line-plus-fill family echoes the logo through climbing ridges,
+ * folded pages and a summit flag. Each drawing uses a 24px grid, 2px round
+ * currentColor strokes and one soft currentColor fill at 18% opacity; the menu
+ * uses lines only. The family follows docs/design/asset-brief.md and inherits
+ * its colour from the surrounding UI, so both themes use the same drawings.
  *
  * Icons are decoration: the button or tile around one carries the label, so
  * each is hidden from screen readers. Size comes from the surrounding CSS.
@@ -31,85 +31,143 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
-/** Shown while the page is light. */
+/** A sun with eight short rays: the light theme. */
 export function IconSun() {
   return (
     <Icon>
+      <circle cx="12" cy="12" r="4" fill="currentColor" opacity="0.18" stroke="none" />
       <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+      <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5" />
     </Icon>
   );
 }
 
-/** Shown while the page is dark. */
+/** A broad crescent with a gently curled tip: the dark theme. */
 export function IconMoon() {
   return (
     <Icon>
-      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+      <path d="M13 3C7 2 3 6 3 12a9 9 0 0 0 18 1c-2 2-5 2-7 0s-3-6-1-10Z" fill="currentColor" opacity="0.18" stroke="none" />
+      <path d="M13 3C7 2 3 6 3 12a9 9 0 0 0 18 1c-2 2-5 2-7 0s-3-6-1-10Z" />
     </Icon>
   );
 }
 
-/** A test paper with a tick: start a mock test. */
+/** A folded test sheet and a rising tick: start a mock test. */
 export function IconTest() {
   return (
     <Icon>
-      <rect x="5" y="4" width="14" height="17" rx="2" />
-      <rect x="9" y="2" width="6" height="4" rx="1" />
-      <path d="M9 14l2 2 4-4" />
+      <path d="M14 3v6h6Z" fill="currentColor" opacity="0.18" stroke="none" />
+      <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
+      <path d="M14 3v6h6M8 14l3 3 5-5" />
     </Icon>
   );
 }
 
-/** A clock turning back: tests already taken. */
+/** A returning clock with ridge-shaped hands: previous climbs. */
 export function IconHistory() {
   return (
     <Icon>
-      <path d="M3 12a9 9 0 1 0 3-6.7" />
-      <path d="M3 4v5h5" />
-      <path d="M12 7v5l3 2" />
+      <path d="M7.5 15l4.5-3 4.5 3Z" fill="currentColor" opacity="0.18" stroke="none" />
+      <path d="M3 8a9 9 0 1 1 0 8M3 3v5h5" />
+      <path d="M7.5 15l4.5-3 4.5 3" />
     </Icon>
   );
 }
 
-/** Two people: friends. */
+/** Two people with arched shoulders, one smaller behind: friends. */
 export function IconFriends() {
   return (
     <Icon>
-      <circle cx="9" cy="8" r="3.5" />
-      <path d="M2.5 20v-1.5a4.5 4.5 0 0 1 4.5-4.5h4a4.5 4.5 0 0 1 4.5 4.5V20" />
-      <path d="M16 4.6a3.5 3.5 0 0 1 0 6.8" />
-      <path d="M18.5 14.3a4.5 4.5 0 0 1 3 4.2V20" />
+      <circle cx="17" cy="7" r="2.5" />
+      <path d="M16 12a5 5 0 0 1 6 5v1" />
+      <circle cx="8" cy="8" r="3" />
+      <path d="M2 20v-2a6 6 0 0 1 12 0v2" />
     </Icon>
   );
 }
 
-/** Sliders: language, theme and the other preferences. */
+/** A peak knob and a round knob: tune personal preferences. */
 export function IconSettings() {
   return (
     <Icon>
-      <path d="M3 6h7M14 6h7M3 12h3M10 12h11M3 18h9M16 18h5" />
-      <path d="M12 3.5v5M8 9.5v5M14 15.5v5" />
+      <path d="M3 11l3-5 3 5Z" fill="currentColor" opacity="0.18" stroke="none" />
+      <path d="M6 3v3m0 5v10M18 3v10m0 6v2M3 11l3-5 3 5Z" />
+      <circle cx="18" cy="16" r="3" />
     </Icon>
   );
 }
 
-/** A person in a circle: the student's own profile. */
+/** One person against a soft circle: their profile. */
 export function IconProfile() {
   return (
     <Icon>
-      <circle cx="12" cy="12" r="9.5" />
-      <circle cx="12" cy="9.5" r="3" />
-      <path d="M6 18.4a7 7 0 0 1 12 0" />
+      <circle cx="12" cy="12" r="9" fill="currentColor" opacity="0.18" stroke="none" />
+      <circle cx="12" cy="8" r="3" />
+      <path d="M6 19a6 6 0 0 1 12 0" />
     </Icon>
   );
 }
 
-/** Points the way on a tile that opens a page. */
+/** A clean rounded chevron pointing right: move to the next page. */
 export function IconChevron() {
   return (
     <Icon>
       <path d="M9 6l6 6-6 6" />
+    </Icon>
+  );
+}
+
+/** Three calm menu lines become a cross when the menu is open. */
+export function IconMenu({ open }: { open: boolean }) {
+  return (
+    <Icon>
+      <path d={open ? "M5 5l14 14" : "M4 6h16"} />
+      <path d={open ? "M5 19L19 5" : "M4 12h16"} />
+      <path d="M4 18h16" opacity={open ? 0 : 1} />
+    </Icon>
+  );
+}
+
+/** An envelope with a folded, peak-shaped flap: email details. */
+export function IconEmail() {
+  return (
+    <Icon>
+      <path d="M3 18l7.5-6h3l7.5 6Z" fill="currentColor" opacity="0.18" stroke="none" />
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 7l8 6a1.7 1.7 0 0 0 2 0l8-6" />
+    </Icon>
+  );
+}
+
+/** A welcoming roof over a mountain doorway: return home. */
+export function IconHome() {
+  return (
+    <Icon>
+      <path d="M8 21l4-7 4 7Z" fill="currentColor" opacity="0.18" stroke="none" />
+      <path d="M3 11l9-8 9 8M5 10v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-9" />
+      <path d="M8 21l4-7 4 7" />
+    </Icon>
+  );
+}
+
+/** An inward arrow through a folded doorway: sign in. */
+export function IconSignIn() {
+  return (
+    <Icon>
+      <path d="M15 3v6h6Z" fill="currentColor" opacity="0.18" stroke="none" />
+      <path d="M11 3h4l6 6v10a2 2 0 0 1-2 2h-8M15 3v6h6" />
+      <path d="M3 12h11m-4-4 4 4-4 4" />
+    </Icon>
+  );
+}
+
+/** An outward arrow from a folded doorway: sign out. */
+export function IconSignOut() {
+  return (
+    <Icon>
+      <path d="M8 3v6h6Z" fill="currentColor" opacity="0.18" stroke="none" />
+      <path d="M14 9 8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7M8 3v6h6" />
+      <path d="M11 14h10m-4-4 4 4-4 4" />
     </Icon>
   );
 }

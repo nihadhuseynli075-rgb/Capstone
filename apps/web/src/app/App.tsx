@@ -1,6 +1,18 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 
 import { LanguageSelect, ThemeToggle } from "../components/SiteControls";
+import {
+  IconEmail,
+  IconFriends,
+  IconHistory,
+  IconHome,
+  IconMenu,
+  IconProfile,
+  IconSettings,
+  IconSignIn,
+  IconSignOut,
+  IconTest
+} from "../components/icons";
 import { Wordmark } from "../lib/brand";
 import { applyTheme, useTheme } from "../lib/theme";
 import { LanguageScope, useLanguage, usePinnedLanguage, type TranslationKey } from "../lib/i18n";
@@ -37,22 +49,6 @@ import { useRouteFocus } from "./useRouteFocus";
  */
 const AdminPage = lazy(() => import("../pages/AdminPage").then((module) => ({ default: module.AdminPage })));
 
-
-/**
- * Three lines that fold into a cross while the menu is open. The stroke
- * follows the text colour, so it suits both themes.
- */
-function HamburgerIcon({ open }: { open: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      {open ? (
-        <path d="M6 6l12 12M18 6L6 18" />
-      ) : (
-        <path d="M4 7h16M4 12h16M4 17h16" />
-      )}
-    </svg>
-  );
-}
 
 
 function AccountMenu() {
@@ -138,9 +134,10 @@ function AccountMenu() {
     return (
       <button
         type="button"
-        className="ghost-button"
+        className="ghost-button nav-sign-in"
         onClick={() => navigate(signInRoute("login", currentRoute()))}
       >
+        <span className="nav-icon"><IconSignIn /></span>
         {t("nav.signIn")}
       </button>
     );
@@ -216,6 +213,7 @@ function AccountMenu() {
               navigate("/profile");
             }}
           >
+            <IconProfile />
             {t("nav.profile")}
           </button>
 
@@ -228,6 +226,7 @@ function AccountMenu() {
               navigate("/friends");
             }}
           >
+            <IconFriends />
             {t("main.friends")}
           </button>
 
@@ -239,6 +238,7 @@ function AccountMenu() {
               navigate("/settings");
             }}
           >
+            <IconSettings />
             {t("nav.settings")}
           </button>
 
@@ -253,6 +253,7 @@ function AccountMenu() {
               navigate("/");
             }}
           >
+            <IconSignOut />
             {t("nav.signOut")}
           </button>
         </div>
@@ -483,12 +484,13 @@ function Shell() {
   const isExam =
     path === "/exam";
 
-  const navItems: Array<{ path: string; label: TranslationKey; active: boolean }> = [
-    { path: "/", label: user ? "nav.dashboard" : "nav.home", active: path === "/" },
-    { path: "/build", label: "nav.newTest", active: path === "/build" },
+  const navItems: Array<{ path: string; label: TranslationKey; active: boolean; icon: () => JSX.Element }> = [
+    { path: "/", label: user ? "nav.dashboard" : "nav.home", active: path === "/", icon: IconHome },
+    { path: "/build", label: "nav.newTest", active: path === "/build", icon: IconTest },
     {
       path: "/history",
       label: "nav.history",
+      icon: IconHistory,
       active: isKnownRoute(path) && (path === "/history" || path.startsWith("/results"))
     }
   ];
@@ -608,7 +610,7 @@ function Shell() {
               )
             }
           >
-            <HamburgerIcon open={navOpen} />
+            <IconMenu open={navOpen} />
           </button>
         )}
 
@@ -639,6 +641,8 @@ function Shell() {
                   navigate(item.path)
                 }
               >
+                {/* Shown on a phone only, where the links are a list of rows. */}
+                <span className="nav-icon"><item.icon /></span>
                 {t(item.label)}
               </button>
             ))}

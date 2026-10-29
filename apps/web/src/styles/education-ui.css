@@ -111,6 +111,11 @@ body {
   display: none;
 }
 
+/* The menu's icons are for the phone list only; the wide bar is words alone. */
+.app-nav .nav-icon {
+  display: none;
+}
+
 @media (max-width: 760px) {
   .app-header .wordmark-text {
     display: none;
@@ -146,6 +151,62 @@ body {
   .app-header .theme-toggle:hover:not(:disabled) {
     border-color: var(--brand);
     color: var(--brand);
+  }
+
+  /*
+   * The open menu reads as a list of rows, each with its icon in a soft tile,
+   * rather than bare words floating in the panel.
+   */
+  .app-nav .ghost-button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px;
+    padding-left: 8px;
+    font-weight: 650;
+  }
+
+  .app-nav .nav-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    background: var(--brand-soft);
+    color: var(--brand-strong);
+  }
+
+  .app-nav .nav-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .app-nav .ghost-button[aria-current="page"] .nav-icon {
+    background: var(--brand);
+    color: #ffffff;
+  }
+
+  /* Signed out, the last row is the way in, so it looks like one. */
+  .app-nav .nav-sign-in {
+    margin-top: 6px;
+    justify-content: center;
+    padding-left: 14px;
+    background: var(--brand);
+    color: #ffffff;
+  }
+
+  .app-nav .nav-sign-in:hover:not(:disabled) {
+    background: var(--brand-strong);
+    color: #ffffff;
+  }
+
+  .app-nav .nav-sign-in .nav-icon {
+    width: auto;
+    height: auto;
+    background: none;
+    color: inherit;
   }
 }
 
@@ -738,4 +799,13 @@ textarea:focus-visible {
 
   box-shadow:
     0 14px 30px rgba(12, 130, 200, 0.15);
+}
+/* The dark theme's brand blue is light, so what sits on it is dark, as on
+   the primary buttons. */
+@media (max-width: 640px) {
+  [data-theme="dark"] .app-nav .ghost-button[aria-current="page"] .nav-icon,
+  [data-theme="dark"] .app-nav .nav-sign-in,
+  [data-theme="dark"] .app-nav .nav-sign-in:hover:not(:disabled) {
+    color: #08192b;
+  }
 }

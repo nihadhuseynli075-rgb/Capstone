@@ -348,6 +348,19 @@
   color: var(--danger);
 }
 
+/* Each row leads with its icon, in the row's own colour. */
+.account-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.account-item svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
 /* ------------------------------------------------------------- main page */
 
 .main-greeting {
@@ -719,6 +732,11 @@
   display: inline-flex;
   flex: none;
   color: var(--muted);
+}
+
+.method-icon svg {
+  width: 20px;
+  height: 20px;
 }
 
 .method-text {
