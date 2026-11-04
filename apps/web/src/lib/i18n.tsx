@@ -89,8 +89,8 @@ const en = {
   "landing.logIn": "Sign in",
   "landing.signUp": "Create account",
   "landing.label": "GRADE 9 EXAM PREPARATION",
-  "landing.titleLead": "REACH YOUR",
-  "landing.titlePeak": "PEAK.",
+  "landing.titleLead": "Reach your",
+  "landing.titlePeak": "peak.",
   "landing.intro":
     "Exampeak helps Grade 9 students prepare for final exams through mock tests and detailed results.",
   "landing.introMore":
@@ -488,6 +488,8 @@ const en = {
   "builder.noTopic": "Choose at least one topic.",
   "builder.building": "Building your test...",
   "builder.start": "Start mock test",
+  "builder.summaryTitle": "Your test",
+  "builder.summaryNote": "Answers and marks stay hidden until you submit, just like exam day.",
   // The full mock: Maths, English and the sector's language in one paper.
   "builder.fullMock": "Full mock",
   "builder.sector": "Sector",
@@ -697,8 +699,8 @@ const ru: Dictionary = {
   "landing.logIn": "Войти",
   "landing.signUp": "Создать аккаунт",
   "landing.label": "ПОДГОТОВКА К ЭКЗАМЕНАМ 9 КЛАССА",
-  "landing.titleLead": "ДОСТИГНИТЕ СВОЕЙ",
-  "landing.titlePeak": "ВЕРШИНЫ.",
+  "landing.titleLead": "Достигните своей",
+  "landing.titlePeak": "вершины.",
   "landing.intro":
     "Exampeak помогает девятиклассникам готовиться к выпускным экзаменам: пробные тесты и подробные результаты.",
   "landing.introMore":
@@ -1082,6 +1084,8 @@ const ru: Dictionary = {
   "builder.noTopic": "Выберите хотя бы одну тему.",
   "builder.building": "Составляем тест...",
   "builder.start": "Начать пробный тест",
+  "builder.summaryTitle": "Ваш тест",
+  "builder.summaryNote": "Ответы и баллы скрыты до отправки, как на настоящем экзамене.",
   "builder.fullMock": "Полный тест",
   "builder.sector": "Сектор",
   "builder.sectorHint":
@@ -1270,8 +1274,8 @@ const az: Dictionary = {
   "landing.logIn": "Daxil ol",
   "landing.signUp": "Hesab yarat",
   "landing.label": "9-CU SİNİF İMTAHANLARINA HAZIRLIQ",
-  "landing.titleLead": "ZİRVƏNİZƏ",
-  "landing.titlePeak": "ÇATIN.",
+  "landing.titleLead": "Zirvənizə",
+  "landing.titlePeak": "çatın.",
   "landing.intro":
     "Exampeak 9-cu sinif şagirdlərinə sınaq testləri və ətraflı nəticələrlə buraxılış imtahanlarına hazırlaşmağa kömək edir.",
   "landing.introMore":
@@ -1654,6 +1658,8 @@ const az: Dictionary = {
   "builder.noTopic": "Ən azı bir mövzu seçin.",
   "builder.building": "Test hazırlanır...",
   "builder.start": "Sınaq testinə başla",
+  "builder.summaryTitle": "Testiniz",
+  "builder.summaryNote": "Cavablar və ballar təhvil verənə qədər gizli qalır, əsl imtahan günündəki kimi.",
   "builder.fullMock": "Tam sınaq",
   "builder.sector": "Bölmə",
   "builder.sectorHint":

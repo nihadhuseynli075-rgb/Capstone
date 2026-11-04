@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { AttemptComparison, QuestionReview, TopicPerformance } from "@grade9/shared";
 import { fullMockSector, subjectsCovered } from "@grade9/shared";
 import { navigate, replaceRoute } from "../app/router";
@@ -266,7 +266,12 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
 
   return (
     <div className="stack">
-      <section className="score-hero">
+      {/* --score drives the ring around the figure (redesign.css): the share
+          of the marks, 0 to 100, drawn as a conic arc. */}
+      <section
+        className="score-hero"
+        style={{ "--score": scored ? Math.max(0, Math.min(100, view.percentage)) : 0 } as CSSProperties}
+      >
         <div className="score-figure">
           {scored ? (
             <>

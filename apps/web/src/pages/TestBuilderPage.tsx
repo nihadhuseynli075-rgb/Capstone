@@ -400,6 +400,10 @@ export function TestBuilderPage() {
       <div className="stack" aria-busy="true">
         {intro}
 
+        {/* The same two columns as the loaded page below: the steps, then the
+            summary beside them on a wide screen. */}
+        <div className="builder-layout">
+        <div className="builder-steps">
         <section className="panel" key="subject">
           <h2>{t("builder.subject")}</h2>
           <p className="panel-hint" role="status">
@@ -429,11 +433,13 @@ export function TestBuilderPage() {
             ))}
           </div>
         </section>
+        </div>
 
         <section className="panel summary-panel" key="summary" aria-hidden="true">
           <span className="skeleton skeleton-line" />
           <span className="skeleton skeleton-button" />
         </section>
+        </div>
       </div>
     );
   }
@@ -457,6 +463,10 @@ export function TestBuilderPage() {
         </p>
       )}
 
+      {/* Steps on the left, the summary and Start beside them (redesign.css
+          numbers the steps and keeps the summary in view while scrolling). */}
+      <div className="builder-layout">
+      <div className="builder-steps">
       <section className="panel" key="subject">
         <h2>{t("builder.subject")}</h2>
         <div className="chip-row">
@@ -712,8 +722,10 @@ export function TestBuilderPage() {
           </div>
         )}
       </section>
+      </div>
 
       <section className="panel summary-panel" key="summary">
+        <h2>{t("builder.summaryTitle")}</h2>
         {/* With nothing ticked the real problem is the topics, not the size of
             the bank: "the bank only has 0" sent students looking for missing
             questions, and the button it disabled kept the right message from
@@ -771,7 +783,10 @@ export function TestBuilderPage() {
         >
           {generating ? t("builder.building") : t("builder.start")}
         </button>
+
+        <p className="summary-note">{t("builder.summaryNote")}</p>
       </section>
+      </div>
     </div>
   );
 }

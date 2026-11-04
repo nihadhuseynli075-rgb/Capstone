@@ -565,6 +565,13 @@ export function ExamPage() {
       )}
 
       <div className="question-palette" ref={paletteRef} role="navigation" aria-label={t("exam.palette")}>
+        {/* The map's visible title, beside the questions on a wide screen. The
+            region is already named by aria-label, so this is hidden from
+            screen readers rather than read twice. */}
+        <p className="palette-title" aria-hidden="true">
+          <span>{t("exam.palette")}</span>
+          <span className="palette-count">{answeredCount} / {questions.length}</span>
+        </p>
         {questions.map((item, index) => (
           <button
             key={item.id}

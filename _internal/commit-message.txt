@@ -1,0 +1,36 @@
+feat: rebuild the web UI on the Figma redesign
+
+The Nov 2026 Figma redesign (https://www.figma.com/design/0tp25p9ug0nok38i4qYZyv)
+applied to apps/web, presentation only: routes, data, auth and marking are
+unchanged.
+
+- styles/redesign.css, loaded last: the Figma tokens under the names the older
+  sheets already read (light and dark), new --hero/--on-hero/--summit tokens,
+  and the shared pieces (full-width header, pill buttons, fields with a focus
+  ring, chips, segmented tabs, panels, banners). Inter is now bundled
+  (@fontsource-variable/inter) beside Onest.
+- New test: two columns, numbered step cards on the left, a sticky summary with
+  a "Your test" title and a note that marks stay hidden until submit; on a phone
+  the summary rides the bottom edge with Start. New keys builder.summaryTitle
+  and builder.summaryNote in en, ru and az.
+- Exam: the question map moves to a side panel on wide screens (CSS grid, DOM
+  order unchanged) with a visible title and answered count; answer rows with a
+  lettered disc; the timer as a pill beside Finish test. Phones keep the
+  scrolling strip.
+- Results: a navy score panel with the score in a ring (--score set by
+  ResultsPage), restyled topic bars and review cards.
+- Dashboard, history, auth, profile and admin restyled to the Figma cards;
+  dashboard overrides sit one selector deeper because dashboard.css loads after.
+- Landing rewritten to the Figma layout: copy and CTA left, the three-step
+  climb on a navy panel right, feature cards with icons, a navy closing band.
+  No invented scores or counts. Headline in sentence case in all three
+  languages; new IconSpark and IconCheck.
+
+Verified: npm ci, npm run typecheck (all workspaces), npm test (335 pass),
+npm run build, npm run smoke:supabase (406 passed, 0 failed). Production
+preview (vite preview + local API) checked with Playwright: 11 routes plus a
+full build -> exam -> results run at 375 and 1440, light and dark, 48 checks
+with no console errors, no failed requests and no horizontal scroll. Signed-in
+pages checked against the Supabase stand-in.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

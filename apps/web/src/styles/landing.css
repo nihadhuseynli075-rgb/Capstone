@@ -1,376 +1,292 @@
+/*
+ * Landing page (Figma "Landing", Nov 2026 redesign).
+ *
+ * A plain page in the shared tokens (redesign.css): copy on the left, the climb
+ * on a navy hero panel on the right, three feature cards and a navy closing
+ * band. Imported by LandingPage only, so these rules load after the shared
+ * sheets and win their ties.
+ */
+
 .landing-page {
   min-height: 100vh;
-  overflow-x: hidden;
-  background:
-    radial-gradient(circle at 82% 12%, rgba(12, 130, 200, 0.08), transparent 24rem),
-    #f7f9fc;
-  color: #0a3a58;
+  background: var(--bg);
+  color: var(--text);
 }
 
-.landing-header {
-  width: min(1180px, calc(100% - 32px));
-  min-height: 86px;
+.landing-page > main {
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+  width: min(var(--page-width), calc(100% - 32px));
   margin: 0 auto;
+  padding: 32px 0 48px;
+}
+
+/* ------------------------------------------------------------------ header */
+
+.landing-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
+  gap: 16px;
+  padding: 16px max(16px, calc((100% - var(--page-width)) / 2));
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .landing-header .wordmark-text {
-  color: #0a3a58;
+  color: var(--brand-strong);
+  font-size: 1.35rem;
+  font-weight: 600;
 }
 
-/*
- * The language and theme, then Log In and Sign Up. On a narrow phone the group
- * wraps onto two rows, at the right, rather than pushing the page sideways.
- */
-.landing-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.landing-controls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
+.landing-actions,
+.landing-controls,
 .landing-nav {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
-.landing-nav button {
-  min-height: 44px;
-  padding: 0 19px;
-  border-radius: 999px;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 750;
-  /* "Create account" broke over two lines on a 320px phone. */
-  white-space: nowrap;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+.landing-actions {
+  gap: 16px;
 }
 
-.landing-login {
-  border: 1px solid #d8e6f0;
-  background: #ffffff;
-  color: #0a3a58;
-  box-shadow: 0 6px 18px rgba(10, 58, 88, 0.06);
-}
-
-/*
- * The words and fills here use #0a70ad, a step darker than the logo's
- * #0c82c8: white on the logo blue, and the logo blue on white or its pale
- * tints, only reach 3.5-4.2:1, under the 4.5:1 small text needs. The logo
- * blue stays in the artwork and the hero circle, which carry no small text.
- */
-.landing-signup {
-  border: 1px solid #0a70ad;
-  background: #0a70ad;
-  color: #ffffff;
-  box-shadow: 0 7px 18px rgba(12, 130, 200, 0.2);
-}
-
-.landing-nav button:hover {
-  transform: translateY(-2px);
-}
-
-/* ---------------------------------------------------------------- hero */
+/* -------------------------------------------------------------------- hero */
 
 .landing-hero {
-  width: min(1180px, calc(100% - 32px));
-  margin: 18px auto 24px;
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
-  gap: 22px;
-  align-items: stretch;
-}
-
-.landing-left,
-.landing-right {
-  min-width: 0;
-  border-radius: 32px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 560px);
+  gap: 64px;
+  align-items: center;
 }
 
 .landing-left {
-  position: relative;
-  overflow: hidden;
-  padding: clamp(30px, 5vw, 54px);
-  /*
-   * Dark enough behind the small white text to clear 4.5:1 everywhere, the
-   * glow included. On a phone the label and the first lines of the intro run
-   * the whole width, under the glow, and with the old start (#0b78bd) and a
-   * stronger glow they fell to 3.8:1. The start is now the text blue the
-   * buttons use, and the glow is lighter.
-   */
-  background:
-    radial-gradient(circle at 90% 12%, rgba(255, 255, 255, 0.1), transparent 14rem),
-    linear-gradient(145deg, #0a70ad 0%, #0a6aa6 62%, #085a8e 100%);
-  color: #ffffff;
-  /* The headline is sized against this box, not the window: see :lang below. */
-  container-type: inline-size;
-  box-shadow: 0 22px 48px rgba(12, 130, 200, 0.22);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 24px;
 }
 
-/* The default brand-blue ring vanishes on the blue hero. */
-.landing-left :focus-visible {
-  outline-color: #ffffff;
-}
-
-/* The small words on the blue are solid white: a see-through white takes on
-   the blue behind it and loses the contrast the background was chosen for. */
 .landing-label {
-  margin: 0 0 16px;
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 850;
-  letter-spacing: 0.16em;
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--summit-soft);
+  color: var(--warning);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
 }
 
 .landing-left h1 {
   margin: 0;
-  max-width: 650px;
-  color: #ffffff;
-  font-size: clamp(52px, 6vw, 84px);
-  font-weight: 850;
-  line-height: 0.93;
-  letter-spacing: -0.055em;
-}
-
-/*
- * Russian and Azerbaijani put one long word on a line ("ДОСТИГНИТЕ",
- * "ZİRVƏNİZƏ") that cannot wrap, so the size follows the hero's width. The
- * extra line height keeps the breve on Й clear of the line above.
- */
-:lang(ru) .landing-left h1,
-:lang(az) .landing-left h1 {
-  font-size: clamp(32px, 14cqi, 78px);
-  line-height: 1.12;
+  font-size: clamp(2.75rem, 1.6rem + 3.6vw, 4rem);
+  line-height: 1.06;
+  letter-spacing: -0.03em;
 }
 
 .landing-left h1 span {
-  display: block;
-  margin-top: 8px;
-  color: #ffffff;
+  color: var(--brand);
 }
 
-/* Plain text on the blue, no frosted panel: the panel added a second box
-   inside the hero without saying anything the words did not. */
 .landing-intro {
-  max-width: 540px;
-  margin-top: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 54ch;
 }
 
 .landing-intro p {
   margin: 0;
-  color: #ffffff;
-  font-size: 16px;
-  line-height: 1.65;
-}
-
-.landing-intro p + p {
-  margin-top: 10px;
+  color: var(--muted);
+  font-size: 1.125rem;
+  line-height: 1.55;
 }
 
 .landing-start {
-  margin-top: 24px;
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 12px 16px;
+  align-items: center;
+  gap: 16px;
+  padding-top: 8px;
 }
 
 .landing-cta {
-  min-height: 50px;
-  padding: 0 24px;
-  border: none;
-  border-radius: 999px;
-  background: #ffffff;
-  color: #0a70ad;
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 6px 0 rgba(10, 58, 88, 0.18), 0 14px 26px rgba(4, 50, 78, 0.14);
-  transition: transform 0.08s ease, box-shadow 0.08s ease;
-}
-
-.landing-cta:hover {
-  transform: translateY(-2px);
-}
-
-.landing-cta:active {
-  transform: translateY(3px);
-  box-shadow: 0 2px 0 rgba(10, 58, 88, 0.18);
+  min-height: 52px;
+  padding: 14px 28px;
+  font-size: 1rem;
 }
 
 .landing-cta-note {
-  color: #ffffff;
-  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
-/* Subject tiles inside the blue hero mimic the app cards in the reference. */
-.landing-subjects {
-  position: relative;
-  z-index: 1;
-  max-width: 610px;
-  margin-top: 30px;
+.landing-cta-note svg {
+  width: 18px;
+  height: 18px;
+  color: var(--success);
 }
 
-.landing-subjects .subject-shortcuts-title {
-  color: #ffffff;
-}
-
-.landing-subjects .subject-grid {
-  /* Four subjects: all in a row where they fit, two by two where they do not. */
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-}
-
-/* Narrow cards: glyph, name, then the count on its own row. */
-.landing-subjects .subject-card {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas:
-    "glyph"
-    "name"
-    "count";
-  min-height: 108px;
-  border-color: rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.96);
-  color: #0a3a58;
-  box-shadow: 0 12px 24px rgba(3, 56, 88, 0.12);
-}
-
-.landing-subjects .subject-card:hover:not(:disabled) {
-  background: #ffffff;
-  border-color: #ffffff;
-}
-
-.landing-subjects .subject-glyph,
-.landing-subjects .subject-card:hover:not(:disabled) .subject-glyph {
-  background: #e6f4fd;
-  color: #0a70ad;
-}
-
-.landing-subjects .subject-count {
-  justify-self: start;
-  background: #edf5fa;
-  color: #46637a;
-}
-
-/* Not offered yet: an outline on the blue rather than a faded white card. */
-.landing-subjects .subject-card:disabled {
-  border-color: rgba(255, 255, 255, 0.34);
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-  box-shadow: none;
-}
-
-.landing-subjects .subject-card:disabled .subject-name {
-  color: #ffffff;
-}
-
-.landing-subjects .subject-card:disabled .subject-glyph,
-.landing-subjects .subject-card:disabled .subject-count {
-  background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
-}
-
-/* -------------------------------------------------------------- visual side */
-
-/* The climb card: the Ascent's path variant fills it (styles/ascent.css). */
+/* The climb sits on a navy hero panel, as in the Figma hero visual. */
 .landing-right {
-  position: relative;
-  min-height: 560px;
-  padding: clamp(24px, 4vw, 40px);
+  display: flex;
+  min-height: 460px;
+  padding: 40px;
+  border-radius: var(--radius-xl);
+  background: var(--hero);
+  color: var(--on-hero);
   overflow: hidden;
-  border: 1px solid #e1ebf2;
-  background: #ffffff;
-  box-shadow: 0 18px 42px rgba(10, 58, 88, 0.09);
 }
 
-.landing-right .ascent-path {
-  /* Room above the summit for its flag. */
-  padding-top: 28px;
+.landing-right .ascent {
+  --ascent-peak: #0a70ad;
+  --ascent-foot: #0c5a8a;
+  --ascent-back: color-mix(in srgb, #45aeeb 26%, var(--hero));
+  --ascent-flag: var(--summit);
+  --ascent-camp: #45aeeb;
+  flex: 1;
 }
 
-/* ------------------------------------------------------------- feature cards */
+.landing-right .ascent-steps li {
+  color: var(--on-hero);
+  font-weight: 600;
+}
+
+.landing-right .ascent-step-number {
+  background: color-mix(in srgb, var(--on-hero) 14%, transparent);
+  color: var(--on-hero);
+}
+
+/* -------------------------------------------------------- subjects, features */
+
+.landing-subjects {
+  margin: 0;
+}
 
 .landing-features {
-  width: min(1180px, calc(100% - 32px));
-  margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 28px;
+  gap: 24px;
 }
 
-/* Three short notes under a rule rather than three numbered cards: they are
-   what the site offers, not steps, and the steps are on the climb above. */
 .landing-feature {
-  min-width: 0;
-  padding: 20px 4px 4px;
-  border-top: 3px solid #0c82c8;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
 }
 
 .landing-feature h2 {
-  margin: 0 0 8px;
-  color: #0a3a58;
-  font-size: 20px;
-}
-
-.feature-head h2 {
-  margin-bottom: 8px;
-}
-
-.feature-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  margin: 0;
+  font-size: 1.5rem;
 }
 
 .landing-feature p {
   margin: 0;
-  color: #4f6b80;
-  font-size: 14px;
-  line-height: 1.65;
+  color: var(--muted);
+  line-height: 1.55;
 }
+
+.landing-feature-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius);
+}
+
+.landing-feature-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.landing-feature-icon.is-brand {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.landing-feature-icon.is-summit {
+  background: var(--summit-soft);
+  color: var(--warning);
+}
+
+.landing-feature-icon.is-success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.feature-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.soon-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ---------------------------------------------------------- closing band */
 
 .landing-bottom {
-  width: min(1180px, calc(100% - 32px));
-  margin: 18px auto 0;
-  padding: 24px 4px 46px;
   display: flex;
-  align-items: flex-start;
-  /* The privacy and terms links take a line of their own when the row is full. */
-  flex-wrap: wrap;
-  gap: 22px;
-}
-
-/* At the right-hand end on a wide screen; at the start once the row wraps. */
-.landing-bottom .landing-legal {
-  margin-left: auto;
-  justify-content: flex-start;
-}
-
-.landing-bottom span {
-  color: #0a70ad;
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.16em;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 48px 64px;
+  border-radius: var(--radius-xl);
+  background: var(--hero);
+  color: var(--on-hero);
 }
 
 .landing-bottom p {
-  max-width: 650px;
+  max-width: 34ch;
   margin: 0;
-  color: #56728a;
-  font-size: 13px;
-  line-height: 1.7;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2rem);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.landing-legal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.landing-legal span {
+  margin-right: auto;
+}
+
+.landing-legal a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.landing-legal a:hover {
+  color: var(--text);
 }
 
 /* Shown on every load, signed in or not, so it follows the theme. */
@@ -382,186 +298,55 @@
   color: var(--muted);
 }
 
-/* ----------------------------------------------------------------- dark theme */
+/* ------------------------------------------------------------------ phones */
 
-[data-theme="dark"] .landing-page {
-  background:
-    radial-gradient(circle at 82% 12%, rgba(58, 166, 230, 0.1), transparent 24rem),
-    var(--bg);
-  color: var(--text);
-}
-
-[data-theme="dark"] .landing-header .wordmark-text {
-  color: var(--brand-strong);
-}
-
-[data-theme="dark"] .landing-login {
-  border-color: var(--border);
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: none;
-}
-
-[data-theme="dark"] .landing-left {
-  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.35);
-}
-
-[data-theme="dark"] .landing-right {
-  border-color: var(--border);
-  background: var(--surface);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3);
-}
-
-[data-theme="dark"] .landing-feature {
-  border-top-color: var(--brand);
-}
-
-[data-theme="dark"] .landing-feature h2 {
-  color: var(--text);
-}
-
-[data-theme="dark"] .landing-feature p,
-[data-theme="dark"] .landing-bottom p {
-  color: var(--muted);
-}
-
-[data-theme="dark"] .landing-bottom span {
-  color: var(--brand);
-}
-
-/* ---------------------------------------------------------------- responsive */
-
-@media (max-width: 900px) {
+@media (max-width: 960px) {
   .landing-hero {
     grid-template-columns: 1fr;
+    gap: 32px;
   }
 
   .landing-right {
-    min-height: 420px;
+    min-height: 360px;
+    padding: 24px;
   }
 
   .landing-features {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 620px) {
-  .landing-header,
-  .landing-hero,
-  .landing-features,
-  .landing-bottom {
-    width: calc(100% - 22px);
-  }
-
-  /*
-   * Two deliberate rows instead of a ragged wrap: the mark with the language
-   * and theme beside it, then Log In and Sign Up side by side at full width.
-   * landing-actions steps out of the way (display: contents) so its two groups
-   * sit on the grid directly; the markup order, and so the Tab order, is
-   * already the order they are drawn in.
-   */
-  .landing-header {
-    min-height: 0;
-    padding-block: 12px 4px;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-    gap: 12px 10px;
-  }
-
-  .landing-actions {
-    display: contents;
-  }
-
-  .landing-controls {
-    justify-self: end;
-  }
-
-  .landing-controls .language-select {
-    max-width: 128px;
-    min-height: 44px;
-  }
-
-  .landing-nav {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  /* Hidden from view but still read out: the mark beside it is decoration
-     (an empty alt), so this is what names the brand on a phone. */
-  .landing-header .wordmark-text {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-
-  /* Still a 44px tap target on a phone, the floor the app header keeps too. */
-  .landing-nav button {
-    min-height: 44px;
-    padding: 0 14px;
-  }
-
-  .landing-left,
-  .landing-right {
-    border-radius: 25px;
-  }
-
-  .landing-left {
-    padding: 28px 22px;
-  }
-
-  .landing-left h1 {
-    font-size: clamp(38px, 13vw, 52px);
-  }
-
-
-  .landing-subjects .subject-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .landing-subjects .subject-card {
-    min-height: 74px;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas: "glyph name count";
-    align-items: center;
-  }
-
-  .landing-subjects .subject-count {
-    justify-self: end;
-  }
-
-  .landing-right {
-    min-height: 0;
-    padding: 22px 18px;
-  }
-
-  .landing-right .ascent-path .ascent-canvas {
-    min-height: 200px;
+    gap: 16px;
   }
 
   .landing-bottom {
     flex-direction: column;
-    gap: 8px;
-  }
-
-  /* Stacked under the closing line, so no longer pushed to the far side. */
-  .landing-bottom .landing-legal {
-    margin-left: 0;
+    align-items: stretch;
+    padding: 32px 24px;
   }
 }
 
-/* The smallest phones: the same two rows, a little tighter, each still 44px tall. */
-@media (max-width: 360px) {
-  .landing-nav {
-    gap: 8px;
+@media (max-width: 640px) {
+  .landing-page > main {
+    gap: 40px;
+    padding-top: 24px;
   }
 
-  .landing-nav button {
-    padding: 0 10px;
+  .landing-header .wordmark-text {
+    display: none;
+  }
+
+  .landing-controls .language-select {
+    max-width: 120px;
+  }
+
+  .landing-nav .landing-login {
+    display: none;
+  }
+
+  .landing-start {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .landing-feature {
+    padding: 24px;
   }
 }
