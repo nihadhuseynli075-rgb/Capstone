@@ -1,6 +1,6 @@
 # Handoff: Figma redesign rebuild (4 Nov 2026)
 
-Branch: `feat/figma-redesign`. All changes are uncommitted in the working tree (the commit gate
+Branch: `master` (the feature branch was folded in and deleted). All changes are uncommitted in the working tree (the commit gate
 blocks agent commits); `overhaul-2026-11-04.patch` beside this file is the same diff. Nothing is
 pushed.
 
