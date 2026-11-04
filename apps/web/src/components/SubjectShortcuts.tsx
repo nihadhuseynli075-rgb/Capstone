@@ -11,7 +11,8 @@ import { fetchCatalog } from "../services/testsApi";
 const subjectShortcuts: Array<{ id: SubjectId; glyph: string; label: TranslationKey }> = [
   { id: "math", glyph: "π", label: "subject.math" },
   { id: "english", glyph: "Aa", label: "subject.english" },
-  { id: "russian", glyph: "Яя", label: "subject.russian" }
+  { id: "russian", glyph: "Яя", label: "subject.russian" },
+  { id: "azerbaijani", glyph: "Əə", label: "subject.azerbaijani" }
 ];
 
 /**

@@ -337,7 +337,8 @@ function mapHeaders(headerRow: string[]): Record<string, number> {
 const subjectAliases: Record<string, string[]> = {
   math: ["maths", "mathematics", "математика", "riyaziyyat"],
   english: ["english language", "английский язык", "ingilis dili", "\u0130ngilis dili".toLowerCase()],
-  russian: ["russian language", "русский язык", "rus dili"]
+  russian: ["russian language", "русский язык", "rus dili"],
+  azerbaijani: ["azerbaijani", "azerbaijani language", "азербайджанский язык", "azərbaycan dili"]
 };
 
 /** The known subject id a cell means, matched without regard to case, or null. */

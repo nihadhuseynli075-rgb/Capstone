@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { PasswordField, focusFirstError } from "../features/auth/AuthLayout";
 import { passwordProblem } from "../features/auth/authValidation";
@@ -9,13 +9,25 @@ import { DetailsPanel } from "../features/profile/DetailsPanel";
 import { EmailPanel } from "../features/profile/EmailPanel";
 import { PhotoPanel } from "../features/profile/PhotoPanel";
 import { useProfile } from "../features/profile/ProfileContext";
+import { AppearancePanel, LanguagePanel } from "../features/profile/PreferencePanels";
 import { SignInMethodsPanel } from "../features/profile/SignInMethodsPanel";
 import { SignInAgainButton } from "../features/auth/SignInAgainButton";
 import { errorText, passwordProblemText, redirectErrorText } from "../features/profile/profileText";
 import { formatDay, useLanguage } from "../lib/i18n";
+import "../styles/profile.css";
 
 /**
- * Everything about the student's account, in one place.
+ * Profile and settings: everything about the student's account, and how the
+ * site looks, in one place. It used to be two pages, a profile and a settings
+ * page that only held the theme and the language; testers kept looking for
+ * one on the other. "/settings" still lands here (see App).
+ *
+ * Two columns on a wide screen, one on a phone (styles/profile.css):
+ * - the side column: the photo card, then Appearance and Language;
+ * - the main column: the account panels below.
+ *
+ * A guest gets the same page with Appearance and Language working, since
+ * those are kept in this browser, and one Account panel asking them to sign in.
  *
  * Read: the photo, name, username, email and when the account was made.
  * Update: the name, the username, the photo, the email, the password, and
@@ -80,13 +92,10 @@ export function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="stack">
-        <section>
-          <h1>{t("profile.title")}</h1>
-        </section>
-
+      <ProfileLayout>
         <section className="panel settings-panel">
-          <p className="panel-hint">{configured ? t("profile.signedOut") : t("settings.notConfigured")}</p>
+          <h2>{t("settings.account")}</h2>
+          <p className="panel-hint">{configured ? t("settings.signedOut") : t("settings.notConfigured")}</p>
           {configured && (
             <div className="settings-actions">
               <a className="primary-button" href={`#${signInRoute("login", "/profile")}`}>
@@ -95,7 +104,7 @@ export function ProfilePage() {
             </div>
           )}
         </section>
-      </div>
+      </ProfileLayout>
     );
   }
 
@@ -109,13 +118,18 @@ export function ProfilePage() {
   // Signed up with Google and never set a password: Google is the only way in.
   const googleOnly = !user.providers.includes("email");
 
-  return (
-    <div className="stack">
-      <section>
-        <h1>{t("profile.title")}</h1>
-        <p className="lede">{t("profile.subtitle")}</p>
-      </section>
+  const photoCard = (
+    <PhotoPanel
+      name={name}
+      username={profile?.username ?? null}
+      email={email}
+      memberSince={memberSince}
+      editable={editable}
+    />
+  );
 
+  return (
+    <ProfileLayout side={photoCard}>
       {status === "loading" && !profile && (
         <p className="panel-hint" role="status">
           {t("profile.loading")}
@@ -155,19 +169,40 @@ export function ProfilePage() {
         )
       )}
 
-      <div className="settings-grid">
-        <PhotoPanel
-          name={name}
-          username={profile?.username ?? null}
-          email={email}
-          memberSince={memberSince}
-          editable={editable}
-        />
-        <DetailsPanel currentName={name} currentUsername={profile?.username ?? ""} editable={editable} />
-        <EmailPanel email={email} googleOnly={googleOnly} />
-        <SignInMethodsPanel />
-        <PasswordPanel googleOnly={googleOnly} onSave={updatePassword} />
-        <DeleteAccountPanel email={email} editable={editable} onDeleted={() => setDeleted(true)} />
+      <DetailsPanel currentName={name} currentUsername={profile?.username ?? ""} editable={editable} />
+      <EmailPanel email={email} googleOnly={googleOnly} />
+      <SignInMethodsPanel />
+      <PasswordPanel googleOnly={googleOnly} onSave={updatePassword} />
+      <DeleteAccountPanel email={email} editable={editable} onDeleted={() => setDeleted(true)} />
+    </ProfileLayout>
+  );
+}
+
+/**
+ * The page's frame, the same for a guest and a student: the title, then the
+ * two columns. `side` goes above Appearance and Language in the side column
+ * (the photo card, when signed in); `children` fill the main column.
+ *
+ * On a phone the side column comes first, so the photo card, and for a guest
+ * the theme and language they came for, are at the top.
+ */
+function ProfileLayout({ side, children }: { side?: ReactNode; children: ReactNode }) {
+  const { t } = useLanguage();
+
+  return (
+    <div className="stack">
+      <section>
+        <h1>{t("profile.title")}</h1>
+        <p className="lede">{t("profile.subtitle")}</p>
+      </section>
+
+      <div className="profile-layout">
+        <div className="profile-side">
+          {side}
+          <AppearancePanel />
+          <LanguagePanel />
+        </div>
+        <div className="profile-main">{children}</div>
       </div>
     </div>
   );

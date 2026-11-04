@@ -1,30 +1,188 @@
 /*
- * The signed-in dashboard (MainPage): icon tiles, built phone first.
+ * The signed-in dashboard (MainPage), built phone first.
  *
  * Imported by MainPage, so it loads after education-ui.css and wins ties with
- * the card styles there. The tile rules below describe a phone (two columns,
- * icon and name); the 641px block adds what a wider screen has room for (the
- * description under each name, and the big "start" tile beside the others).
- * 640px is the app's phone breakpoint, the same one the header menu uses.
+ * the card styles there. The rules below describe a phone; the 641px block
+ * adds what a wider screen has room for. 640px is the app's phone breakpoint,
+ * the same one the header menu uses.
  *
- * Colours come from the tokens in global.css, so both themes work without a
- * second set of rules. The few hard-coded blues are the greeting banner's own.
+ * Testers (4 Nov 2026) found the page plain: one dark colour from edge to edge.
+ * So the page gets a backdrop of coloured light and faint contour lines, the
+ * banner a range of peaks, and every tile and subject a colour of its own.
+ * The colours are the brand's blue plus a small set of companions defined
+ * here, each with a dark-theme value, so both themes keep the same family.
  */
 
 .dashboard {
   /* The numbers most likely to be tuned, in one place. */
-  --tile-gap: 12px;
+  --tile-gap: 14px;
   /* An icon and a one- or two-line name, and well clear of the 44px tap minimum. */
   --tile-min-height: 120px;
   /* The coloured disc an icon sits on, and the icon drawn inside it. */
   --tile-disc: 52px;
   --tile-glyph: 26px;
-  /* The greeting banner's blue (see .main-greeting), so the start tile pairs with it. */
+
+  /* The banner and the start tile share this blue, so they read as a pair. */
   --tile-blue: linear-gradient(135deg, #0b74b5, #0a5f95);
+
+  /* The companion colours: a tile's accent and the soft fill behind it. */
+  --tone-amber: #b45309;
+  --tone-amber-soft: #fff1dc;
+  --tone-green: #15803d;
+  --tone-green-soft: #e1f6e8;
+  --tone-teal: #0f766e;
+  --tone-teal-soft: #dcf4f1;
+  --tone-violet: #6d28d9;
+  --tone-violet-soft: #efe7fd;
+  --tone-rose: #be123c;
+  --tone-rose-soft: #fde6ec;
 }
 
 [data-theme="dark"] .dashboard {
   --tile-blue: linear-gradient(135deg, #0a70ad, #0a3a58);
+
+  --tone-amber: #fbbf24;
+  --tone-amber-soft: #3a2c10;
+  --tone-green: #4ade80;
+  --tone-green-soft: #11352a;
+  --tone-teal: #2dd4bf;
+  --tone-teal-soft: #0f3437;
+  --tone-violet: #a78bfa;
+  --tone-violet-soft: #2a2350;
+  --tone-rose: #fb7185;
+  --tone-rose-soft: #3b1a28;
+}
+
+/* -------------------------------------------------------------- backdrop */
+
+/*
+ * Coloured light behind the page and a faint contour map, the kind printed on
+ * a climbing chart. Only while the dashboard is on screen: the exam and the
+ * forms keep their quiet background. Fixed, so it stays put as the page scrolls.
+ */
+body:has(.dashboard) {
+  background:
+    radial-gradient(42rem 30rem at 0% 0%, rgba(12, 130, 200, 0.16), transparent 70%),
+    radial-gradient(36rem 28rem at 100% 18%, rgba(45, 212, 191, 0.13), transparent 70%),
+    radial-gradient(40rem 30rem at 70% 100%, rgba(251, 191, 36, 0.12), transparent 70%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='480' viewBox='0 0 480 480'%3E%3Cg fill='none' stroke='%230a70ad' stroke-opacity='0.07' stroke-width='1.2'%3E%3Cpath d='M-20 120 C 80 60 160 180 260 110 S 420 40 500 100'/%3E%3Cpath d='M-20 160 C 90 100 170 220 270 150 S 430 80 500 140'/%3E%3Cpath d='M-20 200 C 100 140 180 260 280 190 S 440 120 500 180'/%3E%3Cpath d='M-20 330 C 70 280 150 380 250 320 S 410 260 500 310'/%3E%3Cpath d='M-20 370 C 80 320 160 420 260 360 S 420 300 500 350'/%3E%3Cpath d='M-20 410 C 90 360 170 460 270 400 S 430 340 500 390'/%3E%3C/g%3E%3C/svg%3E"),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+[data-theme="dark"] body:has(.dashboard) {
+  background:
+    radial-gradient(42rem 30rem at 0% 0%, rgba(58, 166, 230, 0.22), transparent 70%),
+    radial-gradient(36rem 28rem at 100% 18%, rgba(45, 212, 191, 0.14), transparent 70%),
+    radial-gradient(40rem 30rem at 70% 100%, rgba(167, 139, 250, 0.14), transparent 70%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='480' viewBox='0 0 480 480'%3E%3Cg fill='none' stroke='%233aa6e6' stroke-opacity='0.09' stroke-width='1.2'%3E%3Cpath d='M-20 120 C 80 60 160 180 260 110 S 420 40 500 100'/%3E%3Cpath d='M-20 160 C 90 100 170 220 270 150 S 430 80 500 140'/%3E%3Cpath d='M-20 200 C 100 140 180 260 280 190 S 440 120 500 180'/%3E%3Cpath d='M-20 330 C 70 280 150 380 250 320 S 410 260 500 310'/%3E%3Cpath d='M-20 370 C 80 320 160 420 260 360 S 420 300 500 350'/%3E%3Cpath d='M-20 410 C 90 360 170 460 270 400 S 430 340 500 390'/%3E%3C/g%3E%3C/svg%3E"),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* ---------------------------------------------------------------- banner */
+
+.dashboard .main-greeting {
+  position: relative;
+  overflow: hidden;
+  align-items: stretch;
+  /* Room on the right for the peaks, which sit under the text on a phone. */
+  padding-right: clamp(30px, 34%, 420px);
+  background:
+    radial-gradient(circle at 92% 0%, rgba(255, 255, 255, 0.16), transparent 16rem),
+    radial-gradient(circle at 60% 120%, rgba(45, 212, 191, 0.28), transparent 18rem),
+    linear-gradient(135deg, #0b74b5, #0a5f95 55%, #0a4a75);
+}
+
+[data-theme="dark"] .dashboard .main-greeting {
+  background:
+    radial-gradient(circle at 92% 0%, rgba(255, 255, 255, 0.1), transparent 16rem),
+    radial-gradient(circle at 60% 120%, rgba(45, 212, 191, 0.22), transparent 18rem),
+    linear-gradient(135deg, #0a70ad, #0a3a58);
+}
+
+.main-greeting-text {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dashboard .main-lede {
+  max-width: 52ch;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* Two figures on frosted glass, so they belong to the banner. */
+.greeting-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 6px 0 0;
+}
+
+.greeting-stat {
+  min-width: 128px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(6px);
+}
+
+.greeting-stat dt {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.greeting-stat dd {
+  margin: 2px 0 0;
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.greeting-ridge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: min(46%, 520px);
+  height: auto;
+  pointer-events: none;
+}
+
+.greeting-ridge .ridge-far {
+  fill: rgba(255, 255, 255, 0.1);
+}
+
+.greeting-ridge .ridge-mid {
+  fill: rgba(255, 255, 255, 0.16);
+}
+
+.greeting-ridge .ridge-near {
+  fill: rgba(7, 32, 47, 0.35);
+}
+
+.greeting-ridge .ridge-snow {
+  fill: rgba(255, 255, 255, 0.85);
+}
+
+.greeting-ridge .ridge-pole {
+  stroke: #ffffff;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.greeting-ridge .ridge-flag {
+  fill: #fbbf24;
 }
 
 /* ----------------------------------------------------------------- tiles */
@@ -41,6 +199,7 @@
   --tile-accent-soft: var(--brand-soft);
 
   position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -49,9 +208,12 @@
   gap: 12px;
   min-height: var(--tile-min-height);
   padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tile-accent) 22%, var(--border));
   border-radius: var(--ui-radius);
-  background: var(--surface);
+  /* A wash of the tile's own colour from the corner its icon is in. */
+  background:
+    radial-gradient(circle at 0% 0%, var(--tile-accent-soft), transparent 75%),
+    var(--surface);
   box-shadow: var(--ui-shadow-card);
   color: var(--text);
   text-align: left;
@@ -59,11 +221,22 @@
   transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
 }
 
+/* A bar of the tile's colour along the top: which page is which at a glance. */
+.dash-tile:not(.is-primary)::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: var(--tile-accent);
+  opacity: 0.85;
+}
+
 /* Lift on hover only where there is a hover: on a touch screen it would stick after a tap. */
 @media (hover: hover) {
   .dash-tile:hover {
     transform: translateY(-3px);
-    border-color: color-mix(in srgb, var(--tile-accent) 45%, var(--border));
+    border-color: color-mix(in srgb, var(--tile-accent) 55%, var(--border));
+    box-shadow: 0 16px 30px color-mix(in srgb, var(--tile-accent) 18%, transparent);
   }
 }
 
@@ -76,21 +249,28 @@
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
 
-/* Which page is which, by colour as well as by picture. These are the
-   semantic tokens borrowed for decoration; swap in a proper palette freely. */
+/* Which page is which, by colour as well as by picture. */
 .dash-tile.is-history {
-  --tile-accent: var(--warning);
-  --tile-accent-soft: var(--warning-soft);
+  --tile-accent: var(--tone-amber);
+  --tile-accent-soft: var(--tone-amber-soft);
 }
 
 .dash-tile.is-friends {
-  --tile-accent: var(--success);
-  --tile-accent-soft: var(--success-soft);
+  --tile-accent: var(--tone-green);
+  --tile-accent-soft: var(--tone-green-soft);
 }
 
-.dash-tile.is-settings {
-  --tile-accent: var(--muted);
-  --tile-accent-soft: var(--surface-alt);
+/* Profile, which now holds the settings too, takes a whole row of the grid:
+   the three small tiles then fill it with no gap. Its icon sits beside the
+   text, as a wide tile has room for. */
+.dash-tile.is-profile {
+  --tile-accent: var(--tone-violet);
+  --tile-accent-soft: var(--tone-violet-soft);
+
+  grid-column: span 2;
+  flex-direction: row;
+  align-items: center;
+  min-height: 0;
 }
 
 .dash-tile-icon {
@@ -99,9 +279,10 @@
   flex: none;
   width: var(--tile-disc);
   height: var(--tile-disc);
-  border-radius: 50%;
+  border-radius: 16px;
   background: var(--tile-accent-soft);
   color: var(--tile-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tile-accent) 25%, transparent);
 }
 
 .dash-tile-icon svg {
@@ -132,7 +313,8 @@
   line-height: 1.45;
 }
 
-.dash-tile-go {
+.dash-tile-go,
+.dash-tile-steps {
   display: none;
 }
 
@@ -152,15 +334,19 @@
   margin-bottom: 4px;
   padding: 18px;
   border-color: transparent;
-  background: var(--tile-blue);
+  background:
+    radial-gradient(circle at 100% 100%, rgba(45, 212, 191, 0.3), transparent 60%),
+    radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.14), transparent 50%),
+    var(--tile-blue);
   color: #ffffff;
   /* The dark edge the primary buttons stand on, so it reads as the thing to press. */
-  box-shadow: 0 4px 0 var(--brand-edge), 0 14px 28px rgba(12, 130, 200, 0.18);
+  box-shadow: 0 4px 0 var(--brand-edge), 0 14px 28px rgba(12, 130, 200, 0.22);
 }
 
 @media (hover: hover) {
   .dash-tile.is-primary:hover {
     border-color: transparent;
+    box-shadow: 0 4px 0 var(--brand-edge), 0 20px 36px rgba(12, 130, 200, 0.3);
   }
 }
 
@@ -173,6 +359,7 @@
 .dash-tile.is-primary .dash-tile-go {
   background: var(--tile-glass);
   color: #ffffff;
+  box-shadow: none;
 }
 
 .dash-tile.is-primary .dash-tile-title {
@@ -180,7 +367,7 @@
 }
 
 .dash-tile.is-primary .dash-tile-body {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .dash-tile.is-primary .dash-tile-go {
@@ -198,141 +385,55 @@
   height: 20px;
 }
 
-/* ------------------------------------------------------------- the climb */
-
-.dash-climb {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  /* Under the four tiles on a phone, which stay the first screen. */
-  order: 1;
-  grid-column: 1 / -1;
-  padding: 18px 18px 16px;
-  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  border-radius: var(--ui-radius);
-  background: var(--surface);
-  box-shadow: var(--ui-shadow-card);
-}
-
-.dash-climb-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.dash-climb-head h2 {
-  margin: 0;
-  font-size: 1.05rem;
-}
-
-.dash-climb-head .link-button {
-  min-height: 44px;
-  color: var(--brand);
-  font-size: 0.9rem;
-}
-
-/* The compact ridge needs headroom for the flag on its highest point. */
-.dash-climb .ascent {
-  margin-top: 14px;
-}
-
-.dash-climb .ascent.is-empty {
-  margin-top: 0;
-}
-
-.dash-climb-loading {
-  height: 110px;
-}
-
-.dash-climb-facts {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+/* Build, sit, review: numbered chips along the bottom of the start tile. */
+.dash-tile-steps {
+  flex-wrap: wrap;
   gap: 8px;
-  margin: 0;
 }
 
-.dash-climb-facts dt {
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.dash-climb-facts dd {
-  font-family: var(--font-display);
-  margin: 2px 0 0;
-  font-size: 1.15rem;
-  font-weight: 800;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
-}
-
-/* The subject under the score, small, so the number is what is read. */
-.dash-climb-facts dd span {
-  display: block;
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-/* One tap to a test on the topic the last paper went worst on. */
-.dash-next {
-  display: flex;
+.dash-tile-step {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-height: 48px;
-  padding: 10px 14px;
-  border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
-  border-radius: 12px;
-  background: var(--warning-soft);
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 650;
 }
 
-.dash-next-label {
-  flex: none;
-  color: var(--warning);
-  font-size: 0.8rem;
+.dash-tile-step-n {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #0a5f95;
+  font-size: 0.78rem;
   font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.dash-next-topic {
-  flex: 1;
-  min-width: 0;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-.dash-next-score {
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.dash-next svg {
-  flex: none;
-  width: 20px;
-  height: 20px;
-}
-
-@media (hover: hover) {
-  .dash-next:hover {
-    border-color: var(--warning);
-  }
 }
 
 /* -------------------------------------------------------------- subjects */
 
-/* Three across, even on a phone: each is a glyph, a name and a count, and all
-   three fit one row, which leaves the first screen for the tiles above. */
+/*
+ * One row, however many subjects there are (three now, four once Azerbaijani
+ * Language is in): each is a glyph, a name and a count. Each subject has its
+ * own colour, given by position because the shortcuts are shared with the
+ * landing page and carry no subject class.
+ */
 .dash-subjects .subject-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: var(--tile-gap);
 }
 
 .dash-subjects .subject-card {
+  --subject-accent: var(--brand);
+  --subject-soft: var(--brand-soft);
+
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
     "glyph"
@@ -340,23 +441,64 @@
     "count";
   justify-items: center;
   min-height: 0;
-  padding: 14px 8px;
+  padding: 16px 8px 14px;
   gap: 8px;
+  border-color: color-mix(in srgb, var(--subject-accent) 22%, var(--border));
+  border-radius: var(--ui-radius);
+  background:
+    linear-gradient(180deg, var(--subject-soft), transparent 80%),
+    var(--surface);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--subject-accent) 30%, var(--border));
   text-align: center;
+}
+
+.dash-subjects .subject-card:nth-child(2) {
+  --subject-accent: var(--tone-teal);
+  --subject-soft: var(--tone-teal-soft);
+}
+
+.dash-subjects .subject-card:nth-child(3) {
+  --subject-accent: var(--tone-rose);
+  --subject-soft: var(--tone-rose-soft);
+}
+
+.dash-subjects .subject-card:nth-child(4) {
+  --subject-accent: var(--tone-amber);
+  --subject-soft: var(--tone-amber-soft);
+}
+
+.dash-subjects .subject-card:hover:not(:disabled) {
+  border-color: var(--subject-accent);
+  background:
+    linear-gradient(180deg, var(--subject-soft), var(--subject-soft)),
+    var(--surface);
+  box-shadow: 0 3px 0 var(--subject-accent);
 }
 
 .dash-subjects .subject-glyph {
   width: var(--tile-disc);
   height: var(--tile-disc);
+  border-radius: 16px;
+  background: var(--subject-accent);
+  color: #ffffff;
   font-size: 1.2rem;
 }
 
-/* Sized to the tile so no word is broken in the middle: Russian "Математика" is
-   the longest word and needs about 6 times the font size in width, and a tile
-   is a third of the screen. 100vw / 18 - 6px is that, worked out for phone
-   widths (about 14px at 360, the full 1rem from 393), with a floor to stay readable. */
+[data-theme="dark"] .dash-subjects .subject-glyph {
+  color: #07202f;
+}
+
+.dash-subjects .subject-card:hover:not(:disabled) .subject-glyph {
+  background: var(--subject-accent);
+}
+
+/* Sized to the tile so no word is broken in the middle: "Mathematics" and
+   Russian "Математика" are the longest words, about 6.6 times the font size
+   wide, and a tile is a third of a phone. 100vw / 21 - 4px is that, worked out
+   for phone widths (about 13px at 360 and 375), with a floor to stay readable;
+   from about 420px wide it is the full 1rem. */
 .dash-subjects .subject-name {
-  font-size: clamp(0.75rem, calc(100vw / 18 - 6px), 1rem);
+  font-size: clamp(0.75rem, calc(100vw / 21 - 4px), 1rem);
   overflow-wrap: anywhere;
 }
 
@@ -372,14 +514,19 @@
     gap: 18px;
   }
 
-  /* Shorter, so the start tile is on the first screen with the others under it. */
+  /* The peaks go under the text, as a strip along the bottom of the banner. */
   .dashboard .main-greeting {
     min-height: 0;
-    padding: 20px 22px;
+    padding: 20px 22px 84px;
   }
 
   .dashboard .main-greeting h1 {
     font-size: 1.6rem;
+  }
+
+  /* Small enough that the flag stays clear of a two-line name. */
+  .greeting-ridge {
+    width: 55%;
   }
 
   /* The tiles say the same thing in pictures. */
@@ -387,14 +534,34 @@
     display: none;
   }
 
-  .dashboard .stat {
-    min-height: 0;
-    padding: 14px 16px;
+  .greeting-stat {
+    min-width: 0;
+    flex: 1;
+  }
+
+  /* A little more width for each subject's name. */
+  .dash-subjects .subject-grid {
+    gap: 10px;
+  }
+
+  .dash-subjects .subject-card {
+    padding-inline: 6px;
+  }
+
+  /* Four subjects in a row leave a quarter of a phone each, too narrow for
+     "Математика": two rows of two instead. */
+  .dash-subjects .subject-grid:has(> :nth-child(4)) {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dash-subjects .subject-grid:has(> :nth-child(4)) .subject-name {
+    font-size: 1rem;
   }
 }
 
-/* The narrowest phones (320px): Azerbaijani "Tənzimləmələr" would otherwise be
-   cut in two. */
+/* The narrowest phones (320px): a long tile name in Russian or Azerbaijani
+   would otherwise be cut in two. */
 @media (max-width: 340px) {
   .dash-tile-title {
     font-size: 0.92rem;
@@ -417,14 +584,15 @@
     display: block;
   }
 
-  /* The start tile and the climb share the top row; the other four tiles make
-     the row under them. The start tile used to be two rows tall beside the
-     four, which left most of it empty blue. */
+  /* The start tile is two columns wide and two rows tall, with the other four
+     tiles in a square beside it. The build-sit-review chips fill its lower
+     half, which used to be empty blue. */
   .dash-tile.is-primary {
     --tile-disc: 72px;
     --tile-glyph: 36px;
 
     grid-column: span 2;
+    grid-row: span 2;
     flex-direction: column;
     align-items: flex-start;
     justify-content: space-between;
@@ -443,9 +611,8 @@
     max-width: 34ch;
   }
 
-  .dash-climb {
-    order: 0;
-    grid-column: span 2;
+  .dash-tile.is-primary .dash-tile-steps {
+    display: flex;
   }
 
   .dash-tile.is-primary .dash-tile-go {
@@ -453,5 +620,18 @@
     top: 22px;
     right: 22px;
     margin: 0;
+  }
+}
+
+/* Between a phone and a laptop the banner is too narrow for text and peaks
+   side by side, so the peaks shrink into the corner. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .dashboard .main-greeting {
+    padding-right: 30px;
+    padding-bottom: 90px;
+  }
+
+  .greeting-ridge {
+    width: 50%;
   }
 }

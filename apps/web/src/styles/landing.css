@@ -228,7 +228,8 @@
 }
 
 .landing-subjects .subject-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* Four subjects: all in a row where they fit, two by two where they do not. */
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 /* Narrow cards: glyph, name, then the count on its own row. */

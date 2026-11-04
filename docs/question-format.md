@@ -7,7 +7,7 @@ imported in one paste, rather than typed into the form question by question.
 
 | Column           | Required | Notes                                                       |
 | ---------------- | -------- | ----------------------------------------------------------- |
-| `subject`        | yes      | `math`, `english` or `russian` (see below)                  |
+| `subject`        | yes      | `math`, `english`, `russian` or `azerbaijani` (see below)   |
 | `topic`          | yes      | A topic's id or name, e.g. `functions` or `Functions and Graphs`. Anything new becomes a new topic, with spaces turned into dashes. |
 | `difficulty`     | no       | `easy`, `medium` or `hard`. Defaults to `medium` if blank.  |
 | `type`           | no       | `multiple-choice`, `short-answer`, or `open-ended` for a written answer marked by the AI marker (put its marking guide in `correct_answer`). Worked out from whether options are filled in if blank. |
@@ -30,7 +30,7 @@ for `marks`. Column order does not matter.
 
 ## Subjects and topics
 
-Only the site's three subjects can be imported. The cell is matched without
+Only the site's four subjects can be imported. The cell is matched without
 regard to case, by id or by name, and these spellings are accepted too:
 
 | Subject   | Accepted                                                               |
@@ -38,6 +38,7 @@ regard to case, by id or by name, and these spellings are accepted too:
 | `math`    | `Mathematics`, `Maths`, `Математика`, `Riyaziyyat`                     |
 | `english` | `English`, `English Language`, `Английский язык`, `İngilis dili`       |
 | `russian` | `Russian`, `Russian Language`, `Русский язык`, `Rus dili`              |
+| `azerbaijani` | `Azerbaijani`, `Azerbaijani Language`, `Азербайджанский язык`, `Azərbaycan dili` |
 
 Any other subject (`physics`, say) skips that row with an error naming the row
 and the value. It is not stored as a subject of its own, because that would put
@@ -67,8 +68,8 @@ column would otherwise weight one question above the rest of the paper.
 ## Translations (maths)
 
 Maths is shown in the language the student chose for the site, so a maths
-question can carry its text in more than one language. English and Russian
-questions never do: they are always in their own language, and translation
+question can carry its text in more than one language. English, Russian and
+Azerbaijani Language questions never do: they are always in their own language, and translation
 columns on those rows are reported as a bad row rather than saved and ignored.
 
 The columns above are the question as first written (for maths, English). A
@@ -113,7 +114,7 @@ are taken as the question itself and only the Russian ones become a translation.
 
 A row is reported and skipped, with the rest of the paste still importing, when
 `subject`, `topic`, `question` or `correct_answer` is empty, when `subject` is
-not one of the three subjects (a new subject would appear in front of students
+not one of the four subjects (a new subject would appear in front of students
 with no way to filter it in the dashboard), when a
 multiple-choice row has fewer than two options, when `correct_answer` matches
 none of them, when `difficulty` or `marks` is filled in with something

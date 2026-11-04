@@ -1,5 +1,5 @@
 import type { DifficultyMode, MockTest } from "@grade9/shared";
-import { titleCase, topicName } from "@grade9/shared";
+import { fullMockSector, titleCase, topicName } from "@grade9/shared";
 import { fill } from "../features/friends/fill";
 import { ApiError } from "../services/apiClient";
 import { isTranslationKey, type Language, type TranslationKey } from "./i18n";
@@ -68,6 +68,10 @@ export function difficultyLabel(t: Translate, mode: string): string {
  */
 export function paperTitle(test: MockTest, t: Translate, tn: TranslateCount): string {
   const { subjectId, topicIds } = test.settings as { subjectId?: unknown; topicIds?: unknown };
+
+  // A full mock covers every topic of its subjects, so it has no topics to
+  // name: its own name says what it is.
+  if (typeof subjectId === "string" && fullMockSector(subjectId)) return subjectLabel(t, subjectId);
 
   if (
     typeof subjectId !== "string" ||

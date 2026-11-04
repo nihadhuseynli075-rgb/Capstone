@@ -5,7 +5,7 @@
  * model, the question-bank record, and the result shapes.
  */
 
-export type SubjectId = "math" | "english" | "russian";
+export type SubjectId = "math" | "english" | "russian" | "azerbaijani";
 
 /** The languages the site is offered in, which is also the languages a question can be translated into. */
 export const siteLanguages = ["en", "ru", "az"] as const;
@@ -19,8 +19,9 @@ export function isSiteLanguage(value: unknown): value is SiteLanguage {
 /**
  * The subjects whose questions follow the language the student chose for the site.
  *
- * English questions are always in English and Russian ones always in Russian,
- * because reading the language is the thing being tested. Maths is the only
+ * English questions are always in English, Russian ones always in Russian and
+ * Azerbaijani ones always in Azerbaijani, because reading the language is the
+ * thing being tested. Maths is the only
  * subject where the language is just the wrapper around the problem.
  *
  * This is the one place that says so. Serving, the admin form and the importer
@@ -44,6 +45,55 @@ export type Difficulty = "easy" | "medium" | "hard";
  * It is one or the other, never both.
  */
 export type DifficultyMode = Difficulty | "custom";
+
+/**
+ * Which questions a custom test draws from. "mixed" is every difficulty, as
+ * custom tests always did; the others keep to that one band, while the count
+ * and the timer stay the student's own.
+ */
+export const customDifficulties = ["mixed", "easy", "medium", "hard"] as const;
+
+export type CustomDifficulty = (typeof customDifficulties)[number];
+
+/**
+ * The two sectors of the Grade 9 exam, by the language the school teaches in.
+ *
+ * A student sits Maths, English and the sector's own language: Azerbaijani
+ * Language in the Azerbaijani sector, Russian Language in the Russian one.
+ * The choice only matters for a full mock, which covers all three; a test of
+ * one subject is the same whichever sector the student is in.
+ */
+export type Sector = "az" | "ru";
+
+export const sectors: readonly Sector[] = ["az", "ru"];
+
+export const sectorSubjects: Record<Sector, readonly SubjectId[]> = {
+  az: ["math", "english", "azerbaijani"],
+  ru: ["math", "english", "russian"]
+};
+
+/**
+ * A full mock is stored on its attempt under one subject id of its own,
+ * "mock-az" or "mock-ru", rather than under any one of its three subjects.
+ * The attempt row has a single subject column, and history, the personal best
+ * and the subject filter all read it: a mock kept as "math" would have been
+ * counted as a maths test. Each question still carries its own subject.
+ */
+export function fullMockId(sector: Sector): string {
+  return `mock-${sector}`;
+}
+
+/** The sector a full mock's subject id stands for, or null for an ordinary subject. */
+export function fullMockSector(subjectId: string): Sector | null {
+  const sector = subjectId.startsWith("mock-") ? subjectId.slice("mock-".length) : "";
+  return (sectors as readonly string[]).includes(sector) ? (sector as Sector) : null;
+}
+
+/** The subjects a test's subject id covers: a full mock's three, or just the one. */
+export function subjectsCovered(subjectId: string): string[] {
+  const sector = fullMockSector(subjectId);
+  return sector ? [...sectorSubjects[sector]] : [subjectId];
+}
 
 /**
  * How a question is answered, and so how it is marked.
@@ -263,11 +313,19 @@ export interface StudentProfile {
  * from custom mode.
  */
 export interface TestSettings {
+  /** A subject, or a full mock's own id (see fullMockId). */
   subjectId: string;
+  /** Empty for a full mock, which covers every topic of its three subjects. */
   topicIds: string[];
   difficultyMode: DifficultyMode;
   questionCount: number;
   timeLimitMinutes: number | null;
+  /**
+   * Custom mode only: which difficulty the questions are drawn from. Absent
+   * means mixed. It is not kept on the attempt row (the questions each keep
+   * their own difficulty), so a test read back from history does not have it.
+   */
+  customDifficulty?: CustomDifficulty;
 }
 
 /** Resolves a difficulty mode into a concrete count and timer. */
@@ -410,6 +468,11 @@ export interface SubmittedAnswer {
 export interface QuestionReview {
   questionId: string;
   prompt: string;
+  /**
+   * The question's own subject, which on a full mock is not the paper's.
+   * Optional so a review from an API that predates it still reads.
+   */
+  subjectId?: string;
   topicId: string;
   options: string[];
   imageUrl: string | null;
@@ -440,6 +503,12 @@ export interface QuestionReview {
  * attempt missing a four-mark question is 3/7.
  */
 export interface TopicPerformance {
+  /**
+   * The topic's subject. A full mock has English and Russian "grammar" side by
+   * side, so a topic is told apart by its subject too. Optional so a figure
+   * from an API that predates it, or saved in the browser, still reads.
+   */
+  subjectId?: string;
   topicId: string;
   score: number;
   marks: number;
@@ -655,8 +724,29 @@ export const subjects: Subject[] = [
       { id: "vocabulary", name: "Vocabulary" },
       { id: "writing", name: "Writing" }
     ]
+  },
+  {
+    // The Azerbaijani sector's language paper. The bank has none of its
+    // questions yet: the topics are the language-paper topics Russian has,
+    // until the real papers say otherwise.
+    id: "azerbaijani",
+    name: "Azerbaijani Language",
+    topics: [
+      { id: "grammar", name: "Grammar" },
+      { id: "spelling", name: "Spelling" },
+      { id: "punctuation", name: "Punctuation" },
+      { id: "reading", name: "Reading Comprehension" },
+      { id: "phonetics", name: "Phonetics" },
+      { id: "vocabulary", name: "Vocabulary" },
+      { id: "writing", name: "Writing" }
+    ]
   }
 ];
+
+const fullMockNames: Record<Sector, string> = {
+  az: "Full mock (Azerbaijani sector)",
+  ru: "Full mock (Russian sector)"
+};
 
 /**
  * The first letter of each word, with any punctuation that opens the word
@@ -686,6 +776,8 @@ export function titleCase(text: string): string {
 }
 
 export function subjectName(subjectId: string): string {
+  const sector = fullMockSector(subjectId);
+  if (sector) return fullMockNames[sector];
   return subjects.find((subject) => subject.id === subjectId)?.name ?? subjectId;
 }
 

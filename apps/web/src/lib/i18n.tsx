@@ -30,7 +30,7 @@ const en = {
   "nav.dashboard": "Dashboard",
   "nav.newTest": "New test",
   "nav.history": "History",
-  "nav.settings": "Settings",
+  "nav.profileSettings": "Profile and settings",
   "nav.profile": "Profile",
   "nav.signIn": "Sign in",
   "nav.signOut": "Sign out",
@@ -55,8 +55,6 @@ const en = {
   "main.historyBody": "Every test you have taken, your best result so far, and what you got wrong.",
   "main.friends": "Friends",
   "main.friendsBody": "Add friends by email or username and compare your results.",
-  "main.settings": "Settings",
-  "main.settingsBody": "The site language, and light or dark mode.",
   "main.soon": "Coming soon",
   "main.guestBanner":
     "You are taking tests as a guest. Create an account to keep your history on any device.",
@@ -74,12 +72,16 @@ const en = {
   "subject.math": "Mathematics",
   "subject.english": "English",
   "subject.russian": "Russian",
+  "subject.azerbaijani": "Azerbaijani Language",
+  // A full mock's own ids (see fullMockId in the shared package).
+  "subject.mock-az": "Full mock (Azerbaijani sector)",
+  "subject.mock-ru": "Full mock (Russian sector)",
 
   // Header and dashboard
   // The theme button's label says what a tap does, so it names the other theme.
   "nav.themeToDark": "Switch to dark mode",
   "nav.themeToLight": "Switch to light mode",
-  "main.profileBody": "Your name, your photo and the ways you sign in.",
+  "main.profileBody": "Your name, photo and sign-in, plus the site language and theme.",
 
   // The names every other screen gives these two actions. Daily quizzes are
   // left out of the intro until they exist: their card already says "Coming
@@ -108,25 +110,20 @@ const en = {
   "landing.closing":
     "One place to practise, measure your progress and prepare with confidence for your Grade 9 final exams.",
 
-  "settings.title": "Settings",
-  "settings.subtitle": "How the site looks on this device, and where your account lives.",
   "settings.account": "Account",
-  "settings.accountBody": "Your name, photo, password and ways to sign in are all on your profile.",
-  "settings.openProfile": "Go to your profile",
   "settings.appearance": "Appearance",
   "settings.theme": "Theme",
   "settings.themeLight": "Light",
   "settings.themeDark": "Dark",
   "settings.language": "Language",
   "settings.languageHint": "Changes the site straight away.",
+  "settings.deviceHint": "Kept on this device, so it works without an account too.",
   "settings.signedOut": "Sign in to change your name, photo or password.",
-  "settings.signInCta": "Sign in",
   "settings.notConfigured":
     "Accounts are not switched on yet because Supabase is not connected.",
 
-  "profile.title": "Your profile",
-  "profile.subtitle": "Your name and photo, the ways you sign in, and your account.",
-  "profile.signedOut": "Sign in to see your profile.",
+  "profile.title": "Profile and settings",
+  "profile.subtitle": "Your account, and how the site looks on this device.",
   "profile.loading": "Loading your profile...",
   "profile.unavailable":
     "Changes to your name, photo and account cannot be saved right now, because the server is not connected to the database yet.",
@@ -491,6 +488,20 @@ const en = {
   "builder.noTopic": "Choose at least one topic.",
   "builder.building": "Building your test...",
   "builder.start": "Start mock test",
+  // The full mock: Maths, English and the sector's language in one paper.
+  "builder.fullMock": "Full mock",
+  "builder.sector": "Sector",
+  "builder.sectorHint":
+    "A full mock has questions from Maths, English and your sector's language, in that order, from every topic. Choose your sector.",
+  "builder.sector.az": "Azerbaijani sector",
+  "builder.sector.ru": "Russian sector",
+  "builder.mockMissing":
+    "There are no {subject} questions yet, so for now this mock has questions from the other subjects only.",
+  // A subject with nothing in the bank, such as one whose questions are still being collected.
+  "builder.subjectEmpty": "There are no {subject} questions yet. They are being added, so try another subject for now.",
+  "builder.customDifficulty": "Question difficulty",
+  "builder.customDifficulty.mixed": "Mixed",
+  "builder.customDifficultyHint": "Mixed takes every difficulty",
 
   "exam.loading": "Loading your test...",
   // One line that is cut short on a phone, so every language puts the subject
@@ -520,8 +531,17 @@ const en = {
   // still being marked, and this one is sent again on its own until it is done.
   "exam.stillMarking": "Still marking your test... Your answers stay on this page until the result is saved.",
   "exam.finish": "Finish and see results",
+  // The header button, on every question, and the step it opens.
+  "exam.finishEarly": "Finish test",
+  "exam.finishTitle": "Finish the test?",
   "exam.confirmUnanswered":
-    "{n} question is still unanswered. Submit anyway?|{n} questions are still unanswered. Submit anyway?",
+    "{n} question is still unanswered. You can go back to it, or submit the test as it is.|{n} questions are still unanswered. You can go back to them, or submit the test as it is.",
+  "exam.allAnswered":
+    "You have answered the {n} question. Submit it for marking?|You have answered all {n} questions. Submit them for marking?",
+  "exam.goToUnanswered": "Go to question {n}",
+  "exam.submitAnyway": "Submit anyway",
+  "exam.submitNow": "Submit test",
+  "exam.keepGoing": "Keep going",
   // A written answer's length against the most it may hold, shown as it nears
   // it. The form goes by the limit, which the noun follows ("4 000 символов");
   // {used} and {max} are both numbers written the site language's way.
@@ -609,8 +629,7 @@ const en = {
   "title.results": "Results",
   "title.history": "Test history",
   "title.friends": "Friends",
-  "title.profile": "Your profile",
-  "title.settings": "Settings",
+  "title.profile": "Profile and settings",
   "title.admin": "Admin dashboard",
   "title.notFound": "Page not found",
   "title.privacy": "Privacy",
@@ -627,7 +646,7 @@ const ru: Dictionary = {
   "nav.dashboard": "Главная",
   "nav.newTest": "Новый тест",
   "nav.history": "История",
-  "nav.settings": "Настройки",
+  "nav.profileSettings": "Профиль и настройки",
   "nav.profile": "Профиль",
   "nav.signIn": "Войти",
   "nav.signOut": "Выйти",
@@ -651,8 +670,6 @@ const ru: Dictionary = {
   "main.historyBody": "Все пройденные тесты, ваш лучший результат и допущенные ошибки.",
   "main.friends": "Друзья",
   "main.friendsBody": "Добавляйте друзей по почте или имени пользователя и сравнивайте результаты.",
-  "main.settings": "Настройки",
-  "main.settingsBody": "Язык сайта и светлая или тёмная тема.",
   "main.soon": "Скоро",
   "main.guestBanner":
     "Вы проходите тесты как гость. Создайте аккаунт, чтобы история сохранялась на любом устройстве.",
@@ -668,11 +685,14 @@ const ru: Dictionary = {
   "subject.math": "Математика",
   "subject.english": "Английский язык",
   "subject.russian": "Русский язык",
+  "subject.azerbaijani": "Азербайджанский язык",
+  "subject.mock-az": "Полный пробный тест (азербайджанский сектор)",
+  "subject.mock-ru": "Полный пробный тест (русский сектор)",
 
   // Header and dashboard
   "nav.themeToDark": "Включить тёмную тему",
   "nav.themeToLight": "Включить светлую тему",
-  "main.profileBody": "Ваше имя, фото и способы входа.",
+  "main.profileBody": "Имя, фото и вход, а также язык сайта и тема.",
 
   "landing.logIn": "Войти",
   "landing.signUp": "Создать аккаунт",
@@ -698,25 +718,20 @@ const ru: Dictionary = {
   "landing.closing":
     "Всё в одном месте: тренируйтесь, следите за прогрессом и уверенно готовьтесь к выпускным экзаменам 9 класса.",
 
-  "settings.title": "Настройки",
-  "settings.subtitle": "Как выглядит сайт на этом устройстве и где найти ваш аккаунт.",
   "settings.account": "Аккаунт",
-  "settings.accountBody": "Имя, фото, пароль и способы входа находятся в вашем профиле.",
-  "settings.openProfile": "Перейти в профиль",
   "settings.appearance": "Внешний вид",
   "settings.theme": "Тема",
   "settings.themeLight": "Светлая",
   "settings.themeDark": "Тёмная",
   "settings.language": "Язык",
   "settings.languageHint": "Меняет язык сайта сразу.",
+  "settings.deviceHint": "Сохраняется на этом устройстве, поэтому работает и без аккаунта.",
   "settings.signedOut": "Войдите, чтобы изменить имя, фото или пароль.",
-  "settings.signInCta": "Войти",
   "settings.notConfigured":
     "Аккаунты пока не подключены, так как Supabase не настроен.",
 
-  "profile.title": "Ваш профиль",
-  "profile.subtitle": "Ваше имя и фото, способы входа и ваш аккаунт.",
-  "profile.signedOut": "Войдите, чтобы увидеть свой профиль.",
+  "profile.title": "Профиль и настройки",
+  "profile.subtitle": "Ваш аккаунт и то, как сайт выглядит на этом устройстве.",
   "profile.loading": "Загружаем профиль...",
   "profile.unavailable":
     "Изменения имени, фото и аккаунта сейчас нельзя сохранить: сервер ещё не подключён к базе данных.",
@@ -1067,6 +1082,18 @@ const ru: Dictionary = {
   "builder.noTopic": "Выберите хотя бы одну тему.",
   "builder.building": "Составляем тест...",
   "builder.start": "Начать пробный тест",
+  "builder.fullMock": "Полный тест",
+  "builder.sector": "Сектор",
+  "builder.sectorHint":
+    "В полном тесте есть вопросы по математике, английскому и языку вашего сектора, в этом порядке, по всем темам. Выберите свой сектор.",
+  "builder.sector.az": "Азербайджанский сектор",
+  "builder.sector.ru": "Русский сектор",
+  "builder.mockMissing":
+    "Вопросов по предмету «{subject}» пока нет, поэтому сейчас в этом тесте только вопросы по другим предметам.",
+  "builder.subjectEmpty": "Вопросов по предмету «{subject}» пока нет. Их добавляют, а пока выберите другой предмет.",
+  "builder.customDifficulty": "Сложность вопросов",
+  "builder.customDifficulty.mixed": "Смешанная",
+  "builder.customDifficultyHint": "Смешанная: вопросы любой сложности",
 
   "exam.loading": "Загружаем тест...",
   "exam.title": "{subject}, {topic} — пробный тест",
@@ -1093,8 +1120,16 @@ const ru: Dictionary = {
   "exam.marking": "Проверяем...",
   "exam.stillMarking": "Тест ещё проверяется... Ваши ответы останутся на этой странице, пока результат не будет сохранён.",
   "exam.finish": "Завершить и узнать результат",
+  "exam.finishEarly": "Завершить тест",
+  "exam.finishTitle": "Завершить тест?",
   "exam.confirmUnanswered":
-    "Без ответа остался {n} вопрос. Всё равно отправить?|Без ответа осталось {n} вопроса. Всё равно отправить?|Без ответа осталось {n} вопросов. Всё равно отправить?",
+    "Без ответа остался {n} вопрос. Можно вернуться к нему или отправить тест как есть.|Без ответа осталось {n} вопроса. Можно вернуться к ним или отправить тест как есть.|Без ответа осталось {n} вопросов. Можно вернуться к ним или отправить тест как есть.",
+  "exam.allAnswered":
+    "Вы ответили на {n} вопрос. Отправить на проверку?|Вы ответили на все {n} вопроса. Отправить на проверку?|Вы ответили на все {n} вопросов. Отправить на проверку?",
+  "exam.goToUnanswered": "К вопросу {n}",
+  "exam.submitAnyway": "Всё равно отправить",
+  "exam.submitNow": "Отправить тест",
+  "exam.keepGoing": "Продолжить",
   "exam.charCount": "{used} / {max} символ|{used} / {max} символа|{used} / {max} символов",
   // "до 21 символа", but "до 4 000 символов".
   "exam.answerCut":
@@ -1171,8 +1206,7 @@ const ru: Dictionary = {
   "title.results": "Результаты",
   "title.history": "История тестов",
   "title.friends": "Друзья",
-  "title.profile": "Ваш профиль",
-  "title.settings": "Настройки",
+  "title.profile": "Профиль и настройки",
   "title.admin": "Панель администратора",
   "title.notFound": "Страница не найдена",
   "title.privacy": "Конфиденциальность",
@@ -1185,7 +1219,7 @@ const az: Dictionary = {
   "nav.dashboard": "Ana səhifə",
   "nav.newTest": "Yeni test",
   "nav.history": "Tarixçə",
-  "nav.settings": "Tənzimləmələr",
+  "nav.profileSettings": "Profil və tənzimləmələr",
   "nav.profile": "Profil",
   "nav.signIn": "Daxil ol",
   "nav.signOut": "Çıxış",
@@ -1209,8 +1243,6 @@ const az: Dictionary = {
   "main.historyBody": "İştirak etdiyiniz bütün testlər, ən yaxşı nəticəniz və səhvləriniz.",
   "main.friends": "Dostlar",
   "main.friendsBody": "E-poçt və ya istifadəçi adı ilə dost əlavə edin və nəticələri müqayisə edin.",
-  "main.settings": "Tənzimləmələr",
-  "main.settingsBody": "Saytın dili və işıqlı ya qaranlıq rejim.",
   "main.soon": "Tezliklə",
   "main.guestBanner":
     "Testləri qonaq kimi həll edirsiniz. Tarixçənizin hər cihazda saxlanması üçün hesab yaradın.",
@@ -1226,11 +1258,14 @@ const az: Dictionary = {
   "subject.math": "Riyaziyyat",
   "subject.english": "İngilis dili",
   "subject.russian": "Rus dili",
+  "subject.azerbaijani": "Azərbaycan dili",
+  "subject.mock-az": "Tam sınaq (Azərbaycan bölməsi)",
+  "subject.mock-ru": "Tam sınaq (rus bölməsi)",
 
   // Header and dashboard
   "nav.themeToDark": "Qaranlıq rejimə keç",
   "nav.themeToLight": "İşıqlı rejimə keç",
-  "main.profileBody": "Adınız, şəkliniz və giriş üsulları.",
+  "main.profileBody": "Adınız, şəkliniz, giriş üsulları, saytın dili və rejimi.",
 
   "landing.logIn": "Daxil ol",
   "landing.signUp": "Hesab yarat",
@@ -1256,25 +1291,20 @@ const az: Dictionary = {
   "landing.closing":
     "Məşq etmək, inkişafınızı ölçmək və 9-cu sinif buraxılış imtahanlarına inamla hazırlaşmaq üçün hər şey bir yerdə.",
 
-  "settings.title": "Tənzimləmələr",
-  "settings.subtitle": "Saytın bu cihazda görünüşü və hesabınızın harada olduğu.",
   "settings.account": "Hesab",
-  "settings.accountBody": "Adınız, şəkliniz, şifrəniz və giriş üsullarınız profilinizdədir.",
-  "settings.openProfile": "Profilə keçin",
   "settings.appearance": "Görünüş",
   "settings.theme": "Rejim",
   "settings.themeLight": "İşıqlı",
   "settings.themeDark": "Qaranlıq",
   "settings.language": "Dil",
   "settings.languageHint": "Saytın dilini dərhal dəyişir.",
+  "settings.deviceHint": "Bu cihazda saxlanılır, ona görə hesab olmadan da işləyir.",
   "settings.signedOut": "Adınızı, şəklinizi və ya şifrənizi dəyişmək üçün daxil olun.",
-  "settings.signInCta": "Daxil ol",
   "settings.notConfigured":
     "Supabase qoşulmadığı üçün hesablar hələ aktiv deyil.",
 
-  "profile.title": "Profiliniz",
-  "profile.subtitle": "Adınız və şəkliniz, giriş üsullarınız və hesabınız.",
-  "profile.signedOut": "Profilinizi görmək üçün daxil olun.",
+  "profile.title": "Profil və tənzimləmələr",
+  "profile.subtitle": "Hesabınız və saytın bu cihazda necə göründüyü.",
   "profile.loading": "Profiliniz yüklənir...",
   "profile.unavailable":
     "Server hələ verilənlər bazasına qoşulmadığı üçün adınız, şəkliniz və hesabınızla bağlı dəyişiklikləri indi yadda saxlamaq mümkün deyil.",
@@ -1624,6 +1654,18 @@ const az: Dictionary = {
   "builder.noTopic": "Ən azı bir mövzu seçin.",
   "builder.building": "Test hazırlanır...",
   "builder.start": "Sınaq testinə başla",
+  "builder.fullMock": "Tam sınaq",
+  "builder.sector": "Bölmə",
+  "builder.sectorHint":
+    "Tam sınaqda riyaziyyat, ingilis dili və bölmənizin dilindən, bu ardıcıllıqla, bütün mövzulardan suallar var. Bölmənizi seçin.",
+  "builder.sector.az": "Azərbaycan bölməsi",
+  "builder.sector.ru": "Rus bölməsi",
+  "builder.mockMissing":
+    "Hələlik “{subject}” üzrə sual yoxdur, ona görə bu sınaqda indilik yalnız digər fənlərdən suallar var.",
+  "builder.subjectEmpty": "Hələlik “{subject}” üzrə sual yoxdur. Suallar əlavə olunur, indilik başqa fənn seçin.",
+  "builder.customDifficulty": "Sualların çətinliyi",
+  "builder.customDifficulty.mixed": "Qarışıq",
+  "builder.customDifficultyHint": "Qarışıq: hər çətinlikdən suallar",
 
   "exam.loading": "Test yüklənir...",
   "exam.title": "{subject}, {topic} — sınaq testi",
@@ -1650,7 +1692,14 @@ const az: Dictionary = {
   "exam.marking": "Yoxlanılır...",
   "exam.stillMarking": "Testiniz hələ yoxlanılır... Nəticə yadda saxlanılana qədər cavablarınız bu səhifədə qalır.",
   "exam.finish": "Bitir və nəticəyə bax",
-  "exam.confirmUnanswered": "{n} sual hələ cavabsızdır. Yenə də göndərilsin?",
+  "exam.finishEarly": "Testi bitir",
+  "exam.finishTitle": "Test bitirilsin?",
+  "exam.confirmUnanswered": "{n} sual hələ cavabsızdır. Ona qayıda və ya testi olduğu kimi göndərə bilərsiniz.",
+  "exam.allAnswered": "Bütün {n} suala cavab verdiniz. Yoxlanışa göndərilsin?",
+  "exam.goToUnanswered": "{n} nömrəli suala keç",
+  "exam.submitAnyway": "Yenə də göndər",
+  "exam.submitNow": "Testi göndər",
+  "exam.keepGoing": "Davam et",
   "exam.charCount": "{used} / {max} simvol",
   "exam.answerCut":
     "Cavabınız {max} simvola qədər qısaldıldı: cavab bundan uzun ola bilməz. Sığmayan hissə əlavə olunmadı.",
@@ -1726,8 +1775,7 @@ const az: Dictionary = {
   "title.results": "Nəticələr",
   "title.history": "Test tarixçəsi",
   "title.friends": "Dostlar",
-  "title.profile": "Profiliniz",
-  "title.settings": "Tənzimləmələr",
+  "title.profile": "Profil və tənzimləmələr",
   "title.admin": "Admin paneli",
   "title.notFound": "Səhifə tapılmadı",
   "title.privacy": "Məxfilik",

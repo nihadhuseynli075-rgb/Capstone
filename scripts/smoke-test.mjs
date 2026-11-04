@@ -144,7 +144,7 @@ async function main() {
   const catalogAfterRefusals = await call("/api/catalog");
   const strayIds = (catalogAfterRefusals.body.subjects ?? [])
     .map((subject) => subject.id)
-    .filter((id) => !["math", "english", "russian"].includes(id));
+    .filter((id) => !["math", "english", "russian", "azerbaijani"].includes(id));
   check("none of those added a subject for students", strayIds.length === 0, strayIds.join(", "));
 
   section("Creating questions");
@@ -1174,7 +1174,7 @@ async function main() {
   const subjectCatalog = await call("/api/catalog");
   check(
     "so the catalog shows no subject the bank should not have",
-    (subjectCatalog.body.subjects ?? []).every((subject) => ["math", "english", "russian"].includes(subject.id)),
+    (subjectCatalog.body.subjects ?? []).every((subject) => ["math", "english", "russian", "azerbaijani"].includes(subject.id)),
     JSON.stringify((subjectCatalog.body.subjects ?? []).map((subject) => subject.id))
   );
 
@@ -1491,6 +1491,209 @@ async function main() {
     "a sheet with Russian columns imports them as translations",
     importedTranslations.body.questions?.[0]?.translations?.ru?.prompt === "Что больше?",
     JSON.stringify(importedTranslations.body)
+  );
+
+  section("Azerbaijani Language, full mocks and custom difficulty");
+  const mockStamp = Date.now().toString(36);
+
+  const fourSubjects = await call("/api/catalog");
+  const azerbaijani = (fourSubjects.body.subjects ?? []).find((subject) => subject.id === "azerbaijani");
+  check(
+    "the catalog lists Azerbaijani Language next to the other three",
+    ["math", "english", "russian", "azerbaijani"].every((id) =>
+      (fourSubjects.body.subjects ?? []).some((subject) => subject.id === id)
+    ) && azerbaijani?.name === "Azerbaijani Language",
+    JSON.stringify((fourSubjects.body.subjects ?? []).map((subject) => [subject.id, subject.name]))
+  );
+
+  const azerbaijaniCount = azerbaijani?.total ?? 0;
+  const noAzerbaijaniYet = await call("/api/tests/generate", {
+    method: "POST",
+    body: { studentKey, subjectId: "azerbaijani", topicIds: ["grammar"], difficultyMode: "custom", questionCount: 5 }
+  });
+  if (azerbaijaniCount === 0) {
+    check(
+      "a test of Azerbaijani Language with none in the bank is a clear 409, not an error",
+      noAzerbaijaniYet.status === 409 && noAzerbaijaniYet.body.code === "no-questions",
+      JSON.stringify(noAzerbaijaniYet.body)
+    );
+  }
+
+  // Three questions each in English and Russian "grammar": the same topic id
+  // in two subjects, which a full mock has to keep apart.
+  for (const subjectId of ["english", "russian"]) {
+    for (let index = 0; index < 3; index += 1) {
+      const saved = await call("/api/admin/questions", {
+        method: "POST",
+        token,
+        body: mcq({
+          subjectId,
+          topicId: "grammar",
+          prompt: `Mock ${subjectId} grammar ${index} ${mockStamp}`,
+          options: ["one", "two", "three"],
+          correctAnswer: "two"
+        })
+      });
+      check(`a ${subjectId} grammar question saves (${index + 1})`, saved.status === 201, JSON.stringify(saved.body).slice(0, 200));
+    }
+  }
+
+  const generateMock = (body) => call("/api/tests/generate", { method: "POST", body: { studentKey, ...body } });
+
+  const ruMock = await generateMock({ sector: "ru", difficultyMode: "custom", questionCount: 9, timeLimitMinutes: null });
+  check("a full mock of the Russian sector generates", ruMock.status === 200, JSON.stringify(ruMock.body).slice(0, 300));
+  const ruQuestions = ruMock.body.test?.questions ?? [];
+  const ruSubjects = ruQuestions.map((question) => question.subjectId);
+  check(
+    "it is stored under the mock's own id, with no topics",
+    ruMock.body.test?.settings?.subjectId === "mock-ru" && ruMock.body.test?.settings?.topicIds?.length === 0,
+    JSON.stringify(ruMock.body.test?.settings)
+  );
+  check(
+    "it draws an even share from Maths, English and Russian Language",
+    ruQuestions.length === 9 &&
+      ["math", "english", "russian"].every((id) => ruSubjects.filter((subject) => subject === id).length === 3),
+    ruSubjects.join(",")
+  );
+  check(
+    "subject by subject, Maths first, the way the paper is printed",
+    ruSubjects.join(",") === [...ruSubjects].sort((a, b) => ["math", "english", "russian"].indexOf(a) - ["math", "english", "russian"].indexOf(b)).join(","),
+    ruSubjects.join(",")
+  );
+  check(
+    "and still never sends the answers",
+    ruQuestions.every((question) => question.correctAnswer === undefined && question.explanation === undefined)
+  );
+
+  const azMock = await generateMock({ sector: "az", difficultyMode: "custom", questionCount: 6, timeLimitMinutes: null });
+  const azSubjects = (azMock.body.test?.questions ?? []).map((question) => question.subjectId);
+  check(
+    "a full mock of the Azerbaijani sector takes Maths, English and Azerbaijani Language only",
+    azMock.status === 200 &&
+      azMock.body.test?.settings?.subjectId === "mock-az" &&
+      azSubjects.every((id) => ["math", "english", "azerbaijani"].includes(id)),
+    `${azMock.status} ${azSubjects.join(",")}`
+  );
+  if (azerbaijaniCount === 0) {
+    check(
+      "with no Azerbaijani questions yet, the other two make up its share",
+      azSubjects.length === 6 && azMock.body.short === false,
+      azSubjects.join(",")
+    );
+  }
+
+  const mockRefusals = await Promise.all([
+    generateMock({ sector: "ru", subjectId: "math", topicIds: ["algebra"], difficultyMode: "easy" }),
+    generateMock({ sector: "ru", topicIds: ["algebra"], difficultyMode: "easy" }),
+    generateMock({ subjectId: "mock-ru", topicIds: ["algebra"], difficultyMode: "easy" }),
+    generateMock({ sector: "de", difficultyMode: "easy" }),
+    generateMock({ difficultyMode: "easy", topicIds: ["algebra"] })
+  ]);
+  check(
+    "a mock asked for with a subject, topics, its own id or an unknown sector is a 400, as is no subject at all",
+    mockRefusals.every((response) => response.status === 400),
+    mockRefusals.map((response) => response.status).join(",")
+  );
+
+  // Hand the mock in blank: its topics come back by subject as well as topic.
+  const ruSubmitted = await call(`/api/tests/${ruMock.body.test?.id}/submit`, {
+    method: "POST",
+    body: {
+      studentKey,
+      timeTakenSeconds: 30,
+      answers: ruQuestions.map((question, position) => ({ questionId: question.id, position, answer: "" }))
+    }
+  });
+  check("the full mock hands in", ruSubmitted.status === 200, JSON.stringify(ruSubmitted.body).slice(0, 300));
+  const grammarBars = (ruSubmitted.body.topicBreakdown ?? []).filter((topic) => topic.topicId === "grammar");
+  check(
+    "English and Russian grammar are two bars, not one",
+    grammarBars.length === 2 && grammarBars.map((topic) => topic.subjectId).sort().join(",") === "english,russian",
+    JSON.stringify(ruSubmitted.body.topicBreakdown)
+  );
+  check(
+    "each review says which subject its question was in",
+    (ruSubmitted.body.reviews ?? []).map((review) => review.subjectId).join(",") === ruSubjects.join(","),
+    JSON.stringify((ruSubmitted.body.reviews ?? []).map((review) => review.subjectId))
+  );
+
+  const reopenedMock = await call(`/api/tests/attempts/${ruMock.body.test?.id}?studentKey=${encodeURIComponent(studentKey)}`);
+  check(
+    "reopened, the mock keeps its id and each question's subject",
+    reopenedMock.status === 200 &&
+      reopenedMock.body.settings?.subjectId === "mock-ru" &&
+      (reopenedMock.body.reviews ?? []).map((review) => review.subjectId).join(",") === ruSubjects.join(","),
+    JSON.stringify(reopenedMock.body).slice(0, 300)
+  );
+
+  const mockHistory = await call(`/api/tests/history?studentKey=${encodeURIComponent(studentKey)}`);
+  const mockRow = (mockHistory.body.attempts ?? []).find((attempt) => attempt.id === ruMock.body.test?.id);
+  check(
+    "history lists it as a full mock, with its topics by subject",
+    mockRow?.subjectId === "mock-ru" &&
+      (mockRow?.topicBreakdown ?? []).filter((topic) => topic.topicId === "grammar").length === 2,
+    JSON.stringify(mockRow)
+  );
+
+  // Custom difficulty: two hard and two easy questions in a topic of their own.
+  const difficultyTopic = `difficulty-${mockStamp}`;
+  for (const [index, difficulty] of ["hard", "hard", "easy", "easy"].entries()) {
+    await call("/api/admin/questions", {
+      method: "POST",
+      token,
+      body: mcq({ topicId: difficultyTopic, difficulty, prompt: `Difficulty ${difficulty} ${index} ${mockStamp}` })
+    });
+  }
+  const customAt = (customDifficulty) =>
+    generateMock({
+      subjectId: "math",
+      topicIds: [difficultyTopic],
+      difficultyMode: "custom",
+      questionCount: 5,
+      timeLimitMinutes: 20,
+      ...(customDifficulty ? { customDifficulty } : {})
+    });
+  const [customHard, customEasy, customMixed, customUnset] = await Promise.all([
+    customAt("hard"),
+    customAt("easy"),
+    customAt("mixed"),
+    customAt(undefined)
+  ]);
+  check(
+    "a custom Hard test draws only hard questions",
+    customHard.status === 200 &&
+      customHard.body.test.questions.length === 2 &&
+      customHard.body.test.questions.every((question) => question.difficulty === "hard") &&
+      customHard.body.short === true,
+    JSON.stringify(customHard.body).slice(0, 300)
+  );
+  check(
+    "a custom Easy test draws only easy ones",
+    customEasy.status === 200 && customEasy.body.test.questions.every((question) => question.difficulty === "easy"),
+    JSON.stringify(customEasy.body).slice(0, 300)
+  );
+  check(
+    "Mixed, or no choice at all, draws from every difficulty as before",
+    customMixed.body.test?.questions?.length === 4 && customUnset.body.test?.questions?.length === 4,
+    `${customMixed.body.test?.questions?.length} ${customUnset.body.test?.questions?.length}`
+  );
+  check(
+    "the custom test keeps its count and timer",
+    customHard.body.test?.settings?.timeLimitMinutes === 20 && customHard.body.test?.settings?.customDifficulty === "hard",
+    JSON.stringify(customHard.body.test?.settings)
+  );
+
+  const presetWithDifficulty = await generateMock({
+    subjectId: "math",
+    topicIds: [difficultyTopic],
+    difficultyMode: "easy",
+    customDifficulty: "hard"
+  });
+  const unknownDifficulty = await customAt("impossible");
+  check(
+    "a difficulty of its own is only for custom tests, and only one of ours",
+    presetWithDifficulty.status === 400 && unknownDifficulty.status === 400,
+    `${presetWithDifficulty.status} ${unknownDifficulty.status}`
   );
 
   section("Sign out");

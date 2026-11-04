@@ -1,0 +1,60 @@
+/*
+ * The profile and settings page.
+ *
+ * Its own file, loaded by ProfilePage after the shared sheets, so the page can
+ * be redesigned without touching them. The panels themselves still use the
+ * shared .panel and .settings-panel rules; this only places them.
+ */
+
+/*
+ * One column on a phone. The side column comes first in the page, so the photo
+ * card (or, for a guest, the theme and language) is at the top.
+ */
+.profile-layout {
+  display: grid;
+  gap: 20px;
+  align-items: start;
+}
+
+.profile-side,
+.profile-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  /* Lets a long email or name wrap instead of widening its column. */
+  min-width: 0;
+}
+
+/*
+ * Two columns on a wide screen: a narrow side column, and the account panels
+ * taking the rest.
+ */
+@media (min-width: 901px) {
+  .profile-layout {
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  /*
+   * The side column is narrow, so the photo card puts the photo above the
+   * name rather than beside it. Beside it, the email had about 150px and
+   * broke in the middle.
+   */
+  .profile-side .profile-identity {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+
+/*
+ * Only on a screen tall enough to show the whole side column (about 800px of
+ * it, under the 96px header). On a shorter one a sticky column would hide its
+ * own bottom, the language, until the very end of the page.
+ */
+@media (min-width: 901px) and (min-height: 900px) {
+  .profile-side {
+    position: sticky;
+    top: 96px;
+  }
+}

@@ -1,9 +1,11 @@
 import type {
   AttemptSummary,
+  CustomDifficulty,
   Difficulty,
   DifficultyMode,
   MockTest,
   QuestionReview,
+  Sector,
   SiteLanguage,
   SubmittedAnswer,
   TestResult,
@@ -125,10 +127,17 @@ async function asStudent<T>(send: (identity: StudentIdentity) => Promise<T>): Pr
   return send(identity);
 }
 
-export interface GenerateRequest {
-  subjectId: string;
-  topicIds: string[];
+/**
+ * One subject and its topics, or a sector for a full mock of its three
+ * subjects, which takes no topics: it covers every one.
+ */
+export type GenerateRequest = (
+  | { subjectId: string; topicIds: string[]; sector?: never }
+  | { sector: Sector; subjectId?: never; topicIds?: never }
+) & {
   difficultyMode: DifficultyMode;
+  /** Custom mode only. Left out means mixed. */
+  customDifficulty?: CustomDifficulty;
   questionCount?: number;
   timeLimitMinutes?: number | null;
   /**
@@ -137,7 +146,7 @@ export interface GenerateRequest {
    * switched to afterwards.
    */
   language: SiteLanguage;
-}
+};
 
 export interface GenerateResponse {
   test: MockTest;

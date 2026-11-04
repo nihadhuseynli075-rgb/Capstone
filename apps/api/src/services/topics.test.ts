@@ -15,7 +15,7 @@ function seededTopics(): Array<[string, string]> {
   );
   const pairs = new Set<string>();
 
-  for (const match of seed.matchAll(/'(math|english|russian)', '([a-z0-9-]+)'/g)) {
+  for (const match of seed.matchAll(/'(math|english|russian|azerbaijani)', '([a-z0-9-]+)'/g)) {
     pairs.add(`${match[1]}:${match[2]}`);
   }
 

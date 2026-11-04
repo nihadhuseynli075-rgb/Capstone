@@ -169,8 +169,8 @@ describe("markAttempt", () => {
     ]);
 
     assert.deepEqual(result.topicBreakdown, [
-      { topicId: "algebra", score: 2, marks: 3 },
-      { topicId: "geometry", score: 1, marks: 1 }
+      { subjectId: "math", topicId: "algebra", score: 2, marks: 3 },
+      { subjectId: "math", topicId: "geometry", score: 1, marks: 1 }
     ]);
   });
 

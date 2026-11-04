@@ -256,7 +256,7 @@ describe("markAttempt with written answers", () => {
       score: null,
       feedback: null
     });
-    assert.deepEqual(result.topicBreakdown, [{ topicId: "grammar", score: 1, marks: 1 }]);
+    assert.deepEqual(result.topicBreakdown, [{ subjectId: "russian", topicId: "grammar", score: 1, marks: 1 }]);
   });
 
   test("a written answer with no verdict at all is treated the same way", () => {

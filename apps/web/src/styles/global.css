@@ -81,6 +81,22 @@
   box-sizing: border-box;
 }
 
+/* On a phone, the browser shades whatever it thinks was tapped. React listens
+   for clicks on the root element, so the browser counts the whole page as
+   tappable, and a single tap anywhere shaded every line of text as if it had
+   been selected (testers' report, 4 Nov 2026). Turning that shading off
+   everywhere stops it; buttons and links get their own pressed state below,
+   so a tap still shows. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: none) {
+  :is(button, a[href], [role="button"]):active:not(:disabled) {
+    filter: brightness(0.9);
+  }
+}
+
 body {
   margin: 0;
   background: var(--bg);

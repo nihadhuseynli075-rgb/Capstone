@@ -95,6 +95,7 @@ function reviewOf(question: AttemptQuestion, studentAnswer: string) {
   return {
     questionId: question.questionId ?? `position-${question.position}`,
     prompt: question.prompt,
+    subjectId: question.subjectId,
     topicId: question.topicId,
     options: question.options,
     imageUrl: question.imageUrl,
@@ -106,11 +107,16 @@ function reviewOf(question: AttemptQuestion, studentAnswer: string) {
   };
 }
 
+/**
+ * Keyed by subject as well as topic: a full mock has English and Russian
+ * "grammar" on one paper, and they are not one topic.
+ */
 function addToTopic(topics: Map<string, TopicPerformance>, question: AttemptQuestion, score: number) {
-  const topic = topics.get(question.topicId) ?? { topicId: question.topicId, score: 0, marks: 0 };
+  const key = `${question.subjectId}|${question.topicId}`;
+  const topic = topics.get(key) ?? { subjectId: question.subjectId, topicId: question.topicId, score: 0, marks: 0 };
   topic.marks += question.marks;
   topic.score += score;
-  topics.set(question.topicId, topic);
+  topics.set(key, topic);
 }
 
 /**

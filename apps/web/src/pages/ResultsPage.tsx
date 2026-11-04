@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AttemptComparison, QuestionReview, TopicPerformance } from "@grade9/shared";
+import { fullMockSector, subjectsCovered } from "@grade9/shared";
 import { navigate, replaceRoute } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
 import { SignInAgainButton } from "../features/auth/SignInAgainButton";
@@ -46,10 +47,12 @@ function breakdownFromReviews(reviews: QuestionReview[]): TopicPerformance[] {
     // where the result straight after submitting said 12/12.
     if (review.counted === false) continue;
 
-    const entry = topics.get(review.topicId) ?? { topicId: review.topicId, score: 0, marks: 0 };
+    // By subject as well: a full mock has English and Russian "grammar".
+    const key = `${review.subjectId ?? ""}|${review.topicId}`;
+    const entry = topics.get(key) ?? { subjectId: review.subjectId, topicId: review.topicId, score: 0, marks: 0 };
     entry.marks += review.marks;
     entry.score += review.score;
-    topics.set(review.topicId, entry);
+    topics.set(key, entry);
   }
 
   return [...topics.values()];
@@ -244,6 +247,23 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
   // no comparison and no topics, which have nothing in them either.
   const scored = isScored(view);
 
+  // A full mock's topics come from three subjects, so each bar names its
+  // subject too ("English · Grammar"), and they are kept in the paper's own
+  // order of subjects, Maths first.
+  const mockSubjects = view.subjectId ? subjectsCovered(view.subjectId) : [];
+  const isMock = view.subjectId !== null && fullMockSector(view.subjectId) !== null;
+  const breakdownInOrder = isMock
+    ? [...view.topicBreakdown].sort(
+        (a, b) => mockSubjects.indexOf(a.subjectId ?? "") - mockSubjects.indexOf(b.subjectId ?? "")
+      )
+    : view.topicBreakdown;
+
+  function topicTitle(topic: TopicPerformance): string {
+    const topicSubject = topic.subjectId ?? view?.subjectId ?? "";
+    const name = topicLabel(t, topicSubject, topic.topicId);
+    return isMock && topic.subjectId ? `${subjectLabel(t, topic.subjectId)} · ${name}` : name;
+  }
+
   return (
     <div className="stack">
       <section className="score-hero">
@@ -303,14 +323,14 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
         <section className="panel">
           <h2>{t("results.byTopic")}</h2>
           <ul className="topic-bars">
-            {view.topicBreakdown.map((topic) => {
+            {breakdownInOrder.map((topic) => {
               const percent =
                 topic.marks === 0 ? 0 : Math.round((topic.score / topic.marks) * 100);
 
               return (
-                <li key={topic.topicId}>
+                <li key={`${topic.subjectId ?? ""}|${topic.topicId}`}>
                   <div className="topic-bar-header">
-                    <span>{topicLabel(t, view.subjectId ?? "", topic.topicId)}</span>
+                    <span>{topicTitle(topic)}</span>
                     <span>
                       {topic.score}/{topic.marks}
                     </span>

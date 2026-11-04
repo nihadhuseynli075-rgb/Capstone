@@ -77,10 +77,14 @@ export async function createAttempt(input: {
   settings: TestSettings;
   questions: AttemptQuestion[];
 }): Promise<StoredAttempt> {
+  // The custom difficulty is not a column (see TestSettings), so the memory
+  // store does not keep it either: an attempt reads back the same from both.
+  const { customDifficulty: _notStored, ...settings } = input.settings;
+
   const attempt: StoredAttempt = {
     id: randomUUID(),
     studentKey: input.studentKey,
-    settings: input.settings,
+    settings,
     questions: input.questions,
     score: null,
     totalMarks: input.questions.reduce((sum, question) => sum + question.marks, 0),
@@ -362,7 +366,13 @@ export function isMidSave(
 
 /** Marks earned and available per topic, from an attempt's marked questions. */
 function breakdownOf(
-  questions: Array<{ topicId: string; marks: number; score: number | null; isCorrect: boolean | null }>
+  questions: Array<{
+    subjectId: string;
+    topicId: string;
+    marks: number;
+    score: number | null;
+    isCorrect: boolean | null;
+  }>
 ): TopicPerformance[] {
   const topics = new Map<string, TopicPerformance>();
 
@@ -371,12 +381,14 @@ function breakdownOf(
     // total, so out of its topic's too.
     if (question.score === null && question.isCorrect === null) continue;
 
-    const topic = topics.get(question.topicId) ?? { topicId: question.topicId, score: 0, marks: 0 };
+    // By subject too, as in marking: a full mock has two "grammar"s.
+    const key = `${question.subjectId}|${question.topicId}`;
+    const topic = topics.get(key) ?? { subjectId: question.subjectId, topicId: question.topicId, score: 0, marks: 0 };
     topic.marks += question.marks;
     // Older rows predate per-question scores, as on the results screen: a
     // correct answer was worth the question's marks.
     topic.score += question.score ?? (question.isCorrect ? question.marks : 0);
-    topics.set(question.topicId, topic);
+    topics.set(key, topic);
   }
 
   return [...topics.values()];
@@ -416,7 +428,7 @@ export async function listAttempts(
   // Only the columns the breakdown needs from each question, not the prompts,
   // options and explanations of every paper the student has sat.
   const columns: string = topicBreakdown
-    ? "*, attempt_questions(topic_id, marks, score, is_correct)"
+    ? "*, attempt_questions(subject_id, topic_id, marks, score, is_correct)"
     : "*";
 
   const client = supabaseAdmin;
@@ -455,6 +467,7 @@ export async function listAttempts(
     topicBreakdown: topicBreakdown
       ? breakdownOf(
           ((row.attempt_questions ?? []) as Array<Record<string, unknown>>).map((question) => ({
+            subjectId: question.subject_id as string,
             topicId: question.topic_id as string,
             marks: (question.marks ?? 1) as number,
             score: (question.score ?? null) as number | null,

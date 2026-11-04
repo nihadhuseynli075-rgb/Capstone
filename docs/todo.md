@@ -1,5 +1,39 @@
 # Action list
 
+## Session on 4 November 2026
+
+Next session: **Saturday 7 November, 5:00-5:30pm Nihad's time (Baku)**.
+
+### Decided
+
+- **All four subjects show on the dashboard** (Maths, English, Russian
+  Language, Azerbaijani Language). The sector (Russian or Azerbaijani) is only
+  chosen when building a full mock test of a sector's three subjects.
+- **Azerbaijani questions go in a separate sheet for now**, not the main one.
+- **Herdy designs the dashboard; Nihad redesigns the other pages** (profile,
+  history, test builder), so we don't edit the same files. Nihad notes each
+  change in the timeline document (with images) first, then codes it.
+- Render's `WEB_ORIGIN` pointed at the wrong origin; fixed during the call.
+
+### Nihad
+
+- [ ] **Fill in the user-testing form** with the feedback you have now, then
+      find two more testers.
+- [ ] **Put every tester request in a document** and tell Herdy.
+- [ ] **Update the timeline template**: mark what's done, add new items.
+- [ ] **Redesign plan for the other pages** in the timeline document: the
+      profile page (right half empty), history, and any page that wastes space.
+- [ ] **Azerbaijani Language questions** in their own sheet, ready to import.
+
+### Herdy
+
+- [ ] Dashboard redesign: more colour and detail than the flat dark background.
+- [ ] Phone: one tap selects all the text on the landing page.
+- [ ] Azerbaijani Language as a fourth subject; full three-subject mock with a
+      Russian/Azerbaijani choice; a difficulty choice for custom tests.
+- [ ] A "Finish test" button reachable from any question, not just the last.
+- [ ] Settings and Profile merged into one page.
+
 ## Session on 30 September 2026
 
 Next session: **Saturday 3 October, 4:30pm Nihad's time (Baku)**, 30 minutes.

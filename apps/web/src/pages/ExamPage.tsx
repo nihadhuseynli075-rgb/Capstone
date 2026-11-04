@@ -118,6 +118,16 @@ export function ExamPage() {
   // back, to be reopened on the next visit to this page.
   const closedRef = useRef(false);
 
+  /*
+   * The "finish now?" step. It used to be a window.confirm on the last
+   * question only, so a student who had done what they could had to page to
+   * the end to hand in (all three testers, Nov 2026). Now Finish test sits in
+   * the header on every question, and asks here: how many are still blank,
+   * with a way straight back to the first of them, or hand in anyway.
+   */
+  const finishDialogRef = useRef<HTMLDialogElement>(null);
+  const [finishOpen, setFinishOpen] = useState(false);
+
   const paletteRef = useRef<HTMLDivElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const stillMarkingRef = useRef<HTMLParagraphElement>(null);
@@ -398,6 +408,17 @@ export function ExamPage() {
     stillMarkingRef.current?.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
   }, [stillMarking]);
 
+  // The dialog is opened modally, so focus stays inside it and Escape closes
+  // it. It also closes on its own once the paper is going or refused for
+  // good - the timer can hand the paper in while it is open.
+  useEffect(() => {
+    const dialog = finishDialogRef.current;
+    if (!dialog) return;
+    const show = finishOpen && !submitting && !dead;
+    if (show && !dialog.open) dialog.showModal();
+    if (!show && dialog.open) dialog.close();
+  }, [finishOpen, submitting, dead]);
+
   if (!active) {
     // A status, like every other loading line, so it is read out.
     return <p role="status">{t("exam.loading")}</p>;
@@ -461,14 +482,28 @@ export function ExamPage() {
     setAnswer(value);
   }
 
-  function confirmAndSubmit() {
-    if (dead) return;
+  const unanswered = questions.length - answeredCount;
+  const firstUnanswered = questions.findIndex((item) => (answers[item.id] ?? "").trim().length === 0);
 
-    const unanswered = questions.length - answeredCount;
-    if (unanswered > 0 && !window.confirm(tn("exam.confirmUnanswered", unanswered))) {
-      return;
-    }
+  // Every Finish - the header's on any question and the last question's own -
+  // asks first, then goes through the one hand-in path, handleSubmit.
+  function askToFinish() {
+    if (dead || submitting) return;
+    setFinishOpen(true);
+  }
+
+  function submitFromDialog() {
+    setFinishOpen(false);
     void handleSubmit("manual");
+  }
+
+  function goToFirstUnanswered() {
+    // Closed here and now, not by the effect after the render: closing hands
+    // focus back to the button that opened it, and it must do that before the
+    // move puts focus on the question, not after.
+    finishDialogRef.current?.close();
+    setFinishOpen(false);
+    if (firstUnanswered >= 0) goToQuestion(firstUnanswered);
   }
 
   // The banner's sentence. A send the timer made that failed says so first,
@@ -493,6 +528,20 @@ export function ExamPage() {
             })}
           </p>
         </div>
+
+        {/* Reachable from every question, not only the last. Gone with the
+            paper's other buttons once the server has refused it for good. */}
+        {!dead && (
+          <button
+            type="button"
+            className="ghost-button exam-finish-early"
+            onClick={askToFinish}
+            disabled={submitting}
+            aria-haspopup="dialog"
+          >
+            {submitting ? t("exam.marking") : t("exam.finishEarly")}
+          </button>
+        )}
 
         <div className={`exam-timer ${secondsLeft !== null && secondsLeft <= 60 ? "urgent" : ""}`}>
           {secondsLeft === null ? (
@@ -713,8 +762,9 @@ export function ExamPage() {
             <button
               type="button"
               className="primary-button"
-              onClick={confirmAndSubmit}
+              onClick={askToFinish}
               disabled={submitting}
+              aria-haspopup="dialog"
             >
               {submitting ? t("exam.marking") : t("exam.finish")}
             </button>
@@ -729,6 +779,48 @@ export function ExamPage() {
           )}
         </div>
       )}
+
+      {/* Escape (the dialog's cancel) and the backdrop both mean "keep going". */}
+      <dialog
+        ref={finishDialogRef}
+        className="exam-finish-dialog"
+        aria-labelledby="exam-finish-title"
+        aria-describedby="exam-finish-text"
+        onClose={() => setFinishOpen(false)}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) setFinishOpen(false);
+        }}
+      >
+        <div className="exam-finish-body">
+          <h2 id="exam-finish-title">{t("exam.finishTitle")}</h2>
+          <p id="exam-finish-text">
+            {unanswered > 0
+              ? tn("exam.confirmUnanswered", unanswered)
+              : tn("exam.allAnswered", questions.length)}
+          </p>
+          <div className="exam-finish-actions">
+            {firstUnanswered >= 0 ? (
+              <>
+                <button type="button" className="primary-button" onClick={goToFirstUnanswered}>
+                  {fill(t("exam.goToUnanswered"), { n: String(firstUnanswered + 1) })}
+                </button>
+                <button type="button" className="ghost-button" onClick={submitFromDialog}>
+                  {t("exam.submitAnyway")}
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" className="primary-button" onClick={submitFromDialog}>
+                  {t("exam.submitNow")}
+                </button>
+                <button type="button" className="ghost-button" onClick={() => setFinishOpen(false)}>
+                  {t("exam.keepGoing")}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </dialog>
     </div>
   );
 }

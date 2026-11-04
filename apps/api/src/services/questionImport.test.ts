@@ -742,7 +742,11 @@ describe("subjects and topics are the site's own", () => {
       Russian: "russian",
       "Russian Language": "russian",
       "Русский язык": "russian",
-      "Rus dili": "russian"
+      "Rus dili": "russian",
+      azerbaijani: "azerbaijani",
+      "Azerbaijani Language": "azerbaijani",
+      "Azərbaycan dili": "azerbaijani",
+      "Азербайджанский язык": "azerbaijani"
     };
     for (const [typed, id] of Object.entries(expected)) {
       const { drafts, errors } = importQuestionsFromCsv([header, rowFor(typed, "grammar")].join("\n"));
@@ -758,7 +762,7 @@ describe("subjects and topics are the site's own", () => {
     assert.deepEqual(drafts.map((draft) => draft.subjectId), ["math", "math"]);
     assert.equal(errors.length, 1);
     assert.equal(errors[0].row, 3);
-    assert.equal(errors[0].message, 'Subject "physics" is not one of math, english, russian.');
+    assert.equal(errors[0].message, 'Subject "physics" is not one of math, english, russian, azerbaijani.');
   });
 
   test("a topic given by name becomes the known topic's id", () => {

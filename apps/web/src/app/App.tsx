@@ -8,7 +8,6 @@ import {
   IconHome,
   IconMenu,
   IconProfile,
-  IconSettings,
   IconSignIn,
   IconSignOut,
   IconTest
@@ -36,7 +35,6 @@ import { MainPage } from "../pages/MainPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { ProfilePage } from "../pages/ProfilePage";
 import { ResultsPage } from "../pages/ResultsPage";
-import { SettingsPage } from "../pages/SettingsPage";
 import { TestBuilderPage } from "../pages/TestBuilderPage";
 
 import { navigate, navigateAway, replaceRoute, useRoute } from "./router";
@@ -214,7 +212,7 @@ function AccountMenu() {
             }}
           >
             <IconProfile />
-            {t("nav.profile")}
+            {t("nav.profileSettings")}
           </button>
 
           {/* Here rather than in the bar: the bar is already full at tablet width. */}
@@ -228,18 +226,6 @@ function AccountMenu() {
           >
             <IconFriends />
             {t("main.friends")}
-          </button>
-
-          <button
-            type="button"
-            className="account-item"
-            onClick={() => {
-              setOpen(false);
-              navigate("/settings");
-            }}
-          >
-            <IconSettings />
-            {t("nav.settings")}
           </button>
 
           <button
@@ -306,7 +292,8 @@ function titleKeyFor(path: string, signedIn: boolean): TranslationKey {
     "/history": "title.history",
     "/friends": "title.friends",
     "/profile": "title.profile",
-    "/settings": "title.settings",
+    // Only for the moment before it is sent on to "/profile".
+    "/settings": "title.profile",
     "/admin": "title.admin",
     "/privacy": "title.privacy",
     "/terms": "title.terms",
@@ -314,6 +301,19 @@ function titleKeyFor(path: string, signedIn: boolean): TranslationKey {
   };
 
   return titles[path] ?? "title.home";
+}
+
+
+/**
+ * Sends the address on to `path` as soon as it renders, replacing the current
+ * history entry so Back does not bounce through the old address again.
+ */
+function RedirectTo({ path }: { path: string }) {
+  useEffect(() => {
+    replaceRoute(path);
+  }, [path]);
+
+  return null;
 }
 
 
@@ -521,8 +521,10 @@ function Shell() {
       return <ProfilePage />;
     }
 
+    // Settings and the profile are one page now. Old links and bookmarks to
+    // "/settings" are sent on to it, without leaving a step in the history.
     if (path === "/settings") {
-      return <SettingsPage />;
+      return <RedirectTo path="/profile" />;
     }
 
     if (path.startsWith("/results")) {

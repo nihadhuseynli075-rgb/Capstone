@@ -1,8 +1,12 @@
 import { Router, type Request } from "express";
 import { z } from "zod";
-import type { MockTest, QuestionType, TestResult, TestSettings } from "@grade9/shared";
+import type { MockTest, QuestionType, Sector, TestResult, TestSettings } from "@grade9/shared";
 import {
+  customDifficulties,
   customLimits,
+  fullMockId,
+  fullMockSector,
+  sectors,
   difficultyPresets,
   handInLimits,
   resolveSettings,
@@ -70,12 +74,18 @@ const generateSchema = z
     studentKey: studentKeySchema,
     // Bounded because both end up in the query string of the read that draws
     // the paper (see testScopeLimits).
-    subjectId: z.string().min(1).max(testScopeLimits.maxIdLength),
+    // One subject, or a sector for a full mock of its three subjects: one or
+    // the other, never both (checked below).
+    subjectId: z.string().min(1).max(testScopeLimits.maxIdLength).optional(),
+    sector: z.enum(sectors as [Sector, ...Sector[]]).optional(),
+    // A full mock covers every topic of its subjects, so it sends none.
     topicIds: z
       .array(z.string().min(1).max(testScopeLimits.maxIdLength))
-      .min(1, "Choose at least one topic.")
-      .max(testScopeLimits.maxTopics, `Choose at most ${testScopeLimits.maxTopics} topics.`),
+      .max(testScopeLimits.maxTopics, `Choose at most ${testScopeLimits.maxTopics} topics.`)
+      .default([]),
     difficultyMode: z.enum(["easy", "medium", "hard", "custom"]),
+    // Custom mode only: which difficulty to draw from. Absent is mixed.
+    customDifficulty: z.enum(customDifficulties).optional(),
     // The language the student has the site in. It is fixed for the paper: the
     // questions are copied onto the attempt in it, so changing the site language
     // halfway through does not change a question under their hands. Optional so
@@ -97,6 +107,44 @@ const generateSchema = z
       .optional()
   })
   .superRefine((value, context) => {
+    if ((value.subjectId === undefined) === (value.sector === undefined)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["subjectId"],
+        message: "Choose a subject, or a sector for a full mock."
+      });
+    }
+
+    // A mock's own id is what the attempt is stored under, not something to
+    // ask for: the sector is how a full mock is asked for.
+    if (value.subjectId !== undefined && fullMockSector(value.subjectId) !== null) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["subjectId"],
+        message: "Ask for a full mock by its sector."
+      });
+    }
+
+    if (value.subjectId !== undefined && value.topicIds.length === 0) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["topicIds"], message: "Choose at least one topic." });
+    }
+
+    if (value.sector !== undefined && value.topicIds.length > 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["topicIds"],
+        message: "A full mock covers every topic, so it takes none."
+      });
+    }
+
+    if (value.customDifficulty !== undefined && value.difficultyMode !== "custom") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["customDifficulty"],
+        message: "Only a custom test takes a difficulty of its own."
+      });
+    }
+
     // Difficulty presets carry their own count and timer; custom must supply one.
     if (value.difficultyMode === "custom" && value.questionCount === undefined) {
       context.addIssue({
@@ -145,7 +193,9 @@ testsRouter.post("/generate", async (request, response, next) => {
     });
   }
 
-  const { studentKey, subjectId, difficultyMode } = parsed.data;
+  const { studentKey, difficultyMode } = parsed.data;
+  // Checked above: exactly one of the two is there.
+  const subjectId = parsed.data.sector ? fullMockId(parsed.data.sector) : (parsed.data.subjectId as string);
 
   // A topic named twice is still one topic. The list is kept on the attempt
   // and the paper's heading counts it, so a repeat would read as "5 topics"
@@ -157,7 +207,15 @@ testsRouter.post("/generate", async (request, response, next) => {
     timeLimitMinutes: parsed.data.timeLimitMinutes ?? null
   });
 
-  const settings: TestSettings = { subjectId, topicIds, difficultyMode, ...resolved };
+  const settings: TestSettings = {
+    subjectId,
+    topicIds,
+    difficultyMode,
+    ...resolved,
+    ...(difficultyMode === "custom" && parsed.data.customDifficulty
+      ? { customDifficulty: parsed.data.customDifficulty }
+      : {})
+  };
 
   try {
     if (!(await canUseStudentKey(request, studentKey))) {
@@ -168,6 +226,9 @@ testsRouter.post("/generate", async (request, response, next) => {
 
     if (generated.questions.length === 0) {
       return response.status(409).json({
+        // A subject whose questions are still being collected lands here, so
+        // the browser can say so rather than treat it as a failure.
+        code: "no-questions",
         message:
           "There are no questions in the bank for that subject, topic and difficulty yet. Add some in the admin dashboard first.",
         availableCount: 0
@@ -624,6 +685,7 @@ testsRouter.get("/attempts/:attemptId", async (request, response, next) => {
       reviews: attempt.questions.map((question) => ({
         questionId: question.questionId ?? `position-${question.position}`,
         prompt: question.prompt,
+        subjectId: question.subjectId,
         topicId: question.topicId,
         options: question.options,
         imageUrl: question.imageUrl,

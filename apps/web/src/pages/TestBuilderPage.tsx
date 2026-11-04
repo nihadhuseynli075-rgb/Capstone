@@ -1,6 +1,13 @@
 import { useEffect, useId, useMemo, useState } from "react";
-import type { AttemptSummary, Difficulty, DifficultyMode } from "@grade9/shared";
-import { customLimits, difficultyPresets } from "@grade9/shared";
+import type { AttemptSummary, CustomDifficulty, Difficulty, DifficultyMode, Sector } from "@grade9/shared";
+import {
+  customDifficulties,
+  customLimits,
+  difficultyPresets,
+  fullMockSector,
+  sectorSubjects,
+  sectors
+} from "@grade9/shared";
 import { navigate, useRouteParam } from "../app/router";
 import { ResumeTestBanner } from "../components/ResumeTestBanner";
 import { useAuth } from "../features/auth/AuthContext";
@@ -23,11 +30,18 @@ const difficultyModes: DifficultyMode[] = ["easy", "medium", "hard", "custom"];
 type CatalogTopic = CatalogSubject["topics"][number];
 
 /**
- * How many questions a topic can supply at this difficulty. A preset draws
- * only questions of its own difficulty; custom draws from all three.
+ * The one difficulty a test draws from, or null for every difficulty. A
+ * preset draws only questions of its own difficulty; custom draws from all
+ * three unless the student chose one for it.
  */
-function questionsAt(topic: CatalogTopic, mode: DifficultyMode): number {
-  return mode === "custom" ? topic.total : topic.counts[mode];
+function bandOf(mode: DifficultyMode, customDifficulty: CustomDifficulty): Difficulty | null {
+  if (mode !== "custom") return mode;
+  return customDifficulty === "mixed" ? null : customDifficulty;
+}
+
+/** How many questions a topic can supply in this band. */
+function questionsAt(topic: CatalogTopic, band: Difficulty | null): number {
+  return band === null ? topic.total : topic.counts[band];
 }
 
 /**
@@ -37,16 +51,16 @@ function questionsAt(topic: CatalogTopic, mode: DifficultyMode): number {
  */
 function topicCountText(
   topic: CatalogTopic,
-  mode: DifficultyMode,
+  band: Difficulty | null,
   t: (key: TranslationKey) => string,
   tn: (key: TranslationKey, count: number) => string
 ): string {
   if (topic.total === 0) return t("builder.noQuestions");
 
-  const count = questionsAt(topic, mode);
-  if (mode === "custom") return tn("count.questions", count);
+  const count = questionsAt(topic, band);
+  if (band === null) return tn("count.questions", count);
 
-  const difficulty = difficultyLabel(t, mode);
+  const difficulty = difficultyLabel(t, band);
   if (count === 0) return fill(t("builder.topicNoneAt"), { difficulty });
   return fill(t("builder.topicCountAt"), { questions: tn("count.questions", count), difficulty });
 }
@@ -62,25 +76,44 @@ const presetModes: Difficulty[] = ["easy", "medium", "hard"];
 
 /**
  * How many questions a test of this kind can draw from these topics: the
- * questions of that difficulty, or every question for a custom test. The same
+ * questions of that band, or every question for a mixed custom test. The same
  * pool the API draws from (see mockTestGenerator), so the two cannot disagree.
  */
-function drawableCount(subject: CatalogSubject | null, topicIds: string[], mode: DifficultyMode): number {
+function drawableCount(subject: CatalogSubject | null, topicIds: string[], band: Difficulty | null): number {
   if (!subject) return 0;
 
   return subject.topics
     .filter((topic) => topicIds.includes(topic.id))
-    .reduce((total, topic) => total + questionsAt(topic, mode), 0);
+    .reduce((total, topic) => total + questionsAt(topic, band), 0);
+}
+
+/** What a test of the whole subject could draw: a full mock takes every topic. */
+function wholeSubjectCount(subject: CatalogSubject | undefined, band: Difficulty | null): number {
+  return subject ? drawableCount(subject, subject.topics.map((topic) => topic.id), band) : 0;
+}
+
+/** A sector's three subjects as the catalog has them, Maths first. */
+function sectorCatalog(catalog: CatalogSubject[], sector: Sector) {
+  return sectorSubjects[sector].map((id) => ({ id, subject: catalog.find((item) => item.id === id) }));
 }
 
 /**
- * The difficulty to start a subject on: the one already chosen if it can draw
- * anything there, otherwise the first that can. Opening a subject on a
- * difficulty it has no questions for only showed a dead Start button.
+ * What a full mock of this sector can draw: every topic of its three
+ * subjects. The API shares the paper out between them and gives one's
+ * shortfall to the others, so the whole of what they hold is what counts.
  */
-function usableMode(subject: CatalogSubject, topicIds: string[], current: DifficultyMode): DifficultyMode {
-  if (current === "custom" || drawableCount(subject, topicIds, current) > 0) return current;
-  return presetModes.find((mode) => drawableCount(subject, topicIds, mode) > 0) ?? current;
+function mockCount(catalog: CatalogSubject[], sector: Sector, band: Difficulty | null): number {
+  return sectorCatalog(catalog, sector).reduce((total, { subject }) => total + wholeSubjectCount(subject, band), 0);
+}
+
+/**
+ * The difficulty to start on: the one already chosen if it can draw anything
+ * there, otherwise the first that can. Opening a subject on a difficulty it
+ * has no questions for only showed a dead Start button.
+ */
+function usableMode(count: (band: Difficulty) => number, current: DifficultyMode): DifficultyMode {
+  if (current === "custom" || count(current) > 0) return current;
+  return presetModes.find((mode) => count(mode) > 0) ?? current;
 }
 
 /** The same bands as the topic bars on the results screen. */
@@ -148,13 +181,20 @@ export function TestBuilderPage() {
 
   const [subjectId, setSubjectId] = useState("math");
   const [topicIds, setTopicIds] = useState<string[]>([]);
+  // A full mock of a sector's three subjects instead of one subject. The
+  // sector is chosen only here: a test of one subject is the same in both.
+  const [fullMock, setFullMock] = useState(false);
+  const [sector, setSector] = useState<Sector>("az");
   const [difficultyMode, setDifficultyMode] = useState<DifficultyMode>("easy");
+  const [customDifficulty, setCustomDifficulty] = useState<CustomDifficulty>("mixed");
+  const drawBand = bandOf(difficultyMode, customDifficulty);
 
   const countBox = useNumberBox(10, customLimits.minQuestions, customLimits.maxQuestions);
   const minutesBox = useNumberBox(20, customLimits.minMinutes, customLimits.maxMinutes);
   const [untimed, setUntimed] = useState(false);
   const countHintId = useId();
   const minutesHintId = useId();
+  const difficultyHintId = useId();
 
   const [generating, setGenerating] = useState(false);
   // What went wrong rather than its sentence, so switching the site language
@@ -178,6 +218,15 @@ export function TestBuilderPage() {
   useEffect(() => {
     if (!catalog) return;
 
+    // A link to a full mock: ?subject=mock-az or mock-ru.
+    const requestedSector = requestedSubject ? fullMockSector(requestedSubject) : null;
+    if (requestedSector) {
+      setFullMock(true);
+      setSector(requestedSector);
+      setDifficultyMode((current) => usableMode((mode) => mockCount(catalog, requestedSector, mode), current));
+      return;
+    }
+
     const first =
       catalog.find((subject) => subject.id === requestedSubject) ??
       catalog.find((subject) => subject.total > 0) ??
@@ -191,9 +240,10 @@ export function TestBuilderPage() {
         first.id === requestedSubject && requestedTopic && available.includes(requestedTopic)
           ? [requestedTopic]
           : available;
+      setFullMock(false);
       setSubjectId(first.id);
       setTopicIds(topics);
-      setDifficultyMode((current) => usableMode(first, topics, current));
+      setDifficultyMode((current) => usableMode((mode) => drawableCount(first, topics, mode), current));
     }
   }, [catalog, requestedSubject, requestedTopic]);
 
@@ -227,15 +277,17 @@ export function TestBuilderPage() {
   /**
    * The latest percentage on each topic of this subject. History comes newest
    * first, so the first result found for a topic is the one to keep. Only this
-   * subject's attempts count: English and Russian both have a "grammar".
+   * subject's topics count: English and Russian both have a "grammar". A full
+   * mock says which subject each of its topics was in, so its topics count
+   * towards their own subject.
    */
   const lastScores = useMemo(() => {
     const scores = new Map<string, number>();
 
     for (const attempt of history ?? []) {
-      if (attempt.subjectId !== subjectId) continue;
-
       for (const topic of attempt.topicBreakdown ?? []) {
+        if ((topic.subjectId ?? attempt.subjectId) !== subjectId) continue;
+
         if (topic.marks > 0 && !scores.has(topic.topicId)) {
           scores.set(topic.topicId, Math.round((topic.score / topic.marks) * 100));
         }
@@ -245,11 +297,11 @@ export function TestBuilderPage() {
     return scores;
   }, [history, subjectId]);
 
-  /** How many questions the bank can actually supply for the current choices. */
-  const availableCount = useMemo(
-    () => drawableCount(subject, topicIds, difficultyMode),
-    [subject, topicIds, difficultyMode]
-  );
+  /** How many questions the bank can actually supply for the current choices, in this band. */
+  const countFor = (chosen: Difficulty | null) =>
+    fullMock && catalog ? mockCount(catalog, sector, chosen) : drawableCount(subject, topicIds, chosen);
+
+  const availableCount = countFor(drawBand);
 
   // The count the test will be asked for: the custom box as it would settle
   // now, so the line below never promises a number that starting would change.
@@ -275,7 +327,7 @@ export function TestBuilderPage() {
     const questionCount = countBox.settle();
     const minutes = minutesBox.settle();
 
-    if (topicIds.length === 0) {
+    if (!fullMock && topicIds.length === 0) {
       setError({ key: "builder.noTopic" });
       return;
     }
@@ -288,9 +340,9 @@ export function TestBuilderPage() {
 
     try {
       const response = await generateMockTest({
-        subjectId,
-        topicIds,
+        ...(fullMock ? { sector } : { subjectId, topicIds }),
         difficultyMode,
+        customDifficulty: difficultyMode === "custom" && customDifficulty !== "mixed" ? customDifficulty : undefined,
         questionCount: difficultyMode === "custom" ? questionCount : undefined,
         timeLimitMinutes: difficultyMode === "custom" ? (untimed ? null : minutes) : undefined,
         language
@@ -412,27 +464,89 @@ export function TestBuilderPage() {
             <button
               key={item.id}
               type="button"
-              className={`chip ${item.id === subjectId ? "selected" : ""}`}
+              className={`chip ${!fullMock && item.id === subjectId ? "selected" : ""}`}
               // The chosen subject was shown by colour alone, so a screen
               // reader heard three identical buttons. Pressed, like the
               // difficulty cards below.
-              aria-pressed={item.id === subjectId}
+              aria-pressed={!fullMock && item.id === subjectId}
               onClick={() => {
                 const topics = item.topics.filter((topic) => topic.total > 0).map((topic) => topic.id);
+                setFullMock(false);
                 setSubjectId(item.id);
                 setTopicIds(topics);
-                setDifficultyMode((current) => usableMode(item, topics, current));
+                setDifficultyMode((current) => usableMode((mode) => drawableCount(item, topics, mode), current));
               }}
             >
               {subjectLabel(t, item.id, item.name)}
               <span className="chip-count">{item.total}</span>
             </button>
           ))}
+          {/* Maths, English and a language in one paper: the sector is
+              chosen below, once this is picked. */}
+          <button
+            type="button"
+            className={`chip ${fullMock ? "selected" : ""}`}
+            aria-pressed={fullMock}
+            onClick={() => {
+              setFullMock(true);
+              setDifficultyMode((current) => usableMode((mode) => mockCount(catalog, sector, mode), current));
+            }}
+          >
+            {t("builder.fullMock")}
+          </button>
         </div>
       </section>
 
+      {fullMock ? (
+        <section className="panel" key="sector">
+          <h2>{t("builder.sector")}</h2>
+          <p className="panel-hint">{t("builder.sectorHint")}</p>
+          <div className="difficulty-grid">
+            {sectors.map((item) => {
+              const selected = item === sector;
+
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  className={`difficulty-card ${selected ? "selected" : ""}`}
+                  aria-pressed={selected}
+                  onClick={() => {
+                    setSector(item);
+                    setDifficultyMode((current) => usableMode((mode) => mockCount(catalog, item, mode), current));
+                  }}
+                >
+                  <span className="difficulty-label">{t(item === "az" ? "builder.sector.az" : "builder.sector.ru")}</span>
+                  {/* Each subject with what it holds, so a sector whose
+                      language has no questions yet says so on its card. */}
+                  <span className="difficulty-detail">
+                    {sectorCatalog(catalog, item)
+                      .map(({ id, subject: entry }) => `${subjectLabel(t, id, entry?.name)} (${entry?.total ?? 0})`)
+                      .join(" · ")}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {sectorCatalog(catalog, sector)
+            .filter(({ subject: entry }) => (entry?.total ?? 0) === 0)
+            .map(({ id, subject: entry }) => (
+              <p key={id} className="warning-banner" role="status">
+                {fill(t("builder.mockMissing"), { subject: subjectLabel(t, id, entry?.name) })}
+              </p>
+            ))}
+        </section>
+      ) : (
       <section className="panel" key="topics">
         <h2>{t("builder.topics")}</h2>
+        {/* A subject with nothing in the bank yet, such as one whose
+            questions are still being collected: said plainly, rather than
+            leaving a page of empty topics and "choose a topic". */}
+        {subject.total === 0 && (
+          <p className="warning-banner" role="status">
+            {fill(t("builder.subjectEmpty"), { subject: subjectLabel(t, subject.id, subject.name) })}
+          </p>
+        )}
         <div className="topic-grid">
           {subject.topics.map((topic) => {
             const selected = topicIds.includes(topic.id);
@@ -442,14 +556,14 @@ export function TestBuilderPage() {
             return (
               <label
                 key={topic.id}
-                className={`topic-option ${questionsAt(topic, difficultyMode) === 0 ? "empty" : ""} ${
+                className={`topic-option ${questionsAt(topic, drawBand) === 0 ? "empty" : ""} ${
                   selected ? "selected" : ""
                 }`}
               >
                 <input type="checkbox" checked={selected} onChange={() => toggleTopic(topic.id)} />
                 <span className="topic-name">{topicLabel(t, subject.id, topic.id, topic.name)}</span>
                 <span className="topic-count">
-                  {topicCountText(topic, difficultyMode, t, tn)}
+                  {topicCountText(topic, drawBand, t, tn)}
                   {/* "Not tried yet" only once something in this subject has
                       been: on a first visit it would be on every tile and say
                       nothing. Nor on a topic with no questions to try. */}
@@ -473,6 +587,7 @@ export function TestBuilderPage() {
           })}
         </div>
       </section>
+      )}
 
       <section className="panel" key="difficulty">
         <h2>{t("builder.difficulty")}</h2>
@@ -483,7 +598,7 @@ export function TestBuilderPage() {
         <div className="difficulty-grid">
           {difficultyModes.map((mode) => {
             const selected = mode === difficultyMode;
-            const drawable = drawableCount(subject, topicIds, mode);
+            const drawable = countFor(bandOf(mode, customDifficulty));
             const empty = mode !== "custom" && drawable === 0;
 
             return (
@@ -524,6 +639,26 @@ export function TestBuilderPage() {
 
         {difficultyMode === "custom" && (
           <div className="custom-settings">
+            {/* Which difficulty a custom test draws from. Mixed is every
+                difficulty, as custom tests always were. */}
+            <label>
+              {t("builder.customDifficulty")}
+              <select
+                value={customDifficulty}
+                aria-describedby={difficultyHintId}
+                onChange={(event) => setCustomDifficulty(event.target.value as CustomDifficulty)}
+              >
+                {customDifficulties.map((item) => (
+                  <option key={item} value={item}>
+                    {item === "mixed" ? t("builder.customDifficulty.mixed") : difficultyLabel(t, item)}
+                  </option>
+                ))}
+              </select>
+              <span className="field-hint" id={difficultyHintId}>
+                {t("builder.customDifficultyHint")}
+              </span>
+            </label>
+
             {/* Text boxes rather than number ones, which clamp, round and
                 swallow an empty value on their own terms in each browser.
                 inputMode still brings up the number pad on a phone. */}
@@ -583,7 +718,11 @@ export function TestBuilderPage() {
             the bank: "the bank only has 0" sent students looking for missing
             questions, and the button it disabled kept the right message from
             ever showing. */}
-        {topicIds.length === 0 ? (
+        {!fullMock && subject.total === 0 ? (
+          <div className="summary-warning" role="status">
+            {fill(t("builder.subjectEmpty"), { subject: subjectLabel(t, subject.id, subject.name) })}
+          </div>
+        ) : !fullMock && topicIds.length === 0 ? (
           <div className="summary-warning" role="status">
             {t("builder.noTopic")}
           </div>

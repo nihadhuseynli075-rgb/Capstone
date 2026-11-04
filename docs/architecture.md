@@ -24,7 +24,8 @@ bad cell is easy to find and does not block the other forty rows.
 ### Getting questions out
 
 ```text
-Student picks subject, topics, and difficulty (or custom length and timer)
+Student picks subject and topics, or a sector for a full mock, and difficulty
+  (or custom length, timer and question difficulty)
   -> API draws matching questions from the bank at random
   -> answers and explanations are stripped, then the test is sent
   -> the attempt and its questions are recorded straight away
@@ -102,6 +103,24 @@ again rather than leaving files or tests behind that no account can reach.
 count and a timer. Custom means the student sets the count and the timer
 themselves, and can turn the timer off. Offering difficulty *and* separate count
 and timer controls would have been three ways to say the same thing.
+
+**Custom tests can keep to one difficulty.** Custom mode also has a
+"question difficulty" choice: Mixed (every difficulty, as before) or Easy,
+Medium or Hard. It only narrows which questions are drawn; the count and the
+timer stay the student's. It is not stored on the attempt row, since every
+attempt question keeps its own difficulty.
+
+**A full mock is one paper across a sector's three subjects.** Students in the
+Azerbaijani sector sit Maths, English and Azerbaijani Language; those in the
+Russian sector sit Maths, English and Russian Language. The sector is chosen
+only when building a full mock (`sector` on `POST /api/tests/generate`). The
+generator gives each subject an even share of the paper, hands one subject's
+shortfall to the others, and serves them subject by subject, Maths first. The
+attempt row has one subject column, so a mock is stored under its own id,
+`mock-az` or `mock-ru` (`fullMockId` in the shared package): history, the best
+attempt and the subject filter then treat it as its own kind of test, while
+each attempt question keeps its real subject. Topic results are kept by
+subject and topic, because English and Russian both have a "grammar".
 
 **Everything at the end, not per question.** This is an exam, so nothing is
 revealed until the whole paper is submitted. A per-question quiz mode would be a

@@ -1,5 +1,5 @@
 import type { BankQuestion, ExamQuestion, SiteLanguage, TestSettings } from "@grade9/shared";
-import { subjectName, topicName } from "@grade9/shared";
+import { fullMockSector, subjectName, subjectsCovered, topicName } from "@grade9/shared";
 import { writtenMarkingEnabled } from "../lib/env";
 import type { AttemptQuestion } from "../repositories/attemptRepository";
 import { listQuestions } from "../repositories/questionRepository";
@@ -24,11 +24,45 @@ function shuffle<T>(items: T[]): T[] {
 }
 
 /**
+ * How many questions each subject gives a paper of `count`, given how many
+ * each can supply: as even a share as the bank allows. The share one subject
+ * cannot fill goes to the others, so a full mock is short only when the bank
+ * as a whole is. Any question left over after an even split goes to the
+ * subjects first in the list (Maths, then English), as a paper prints them.
+ */
+export function shareQuestions(count: number, available: number[]): number[] {
+  const shares = available.map(() => 0);
+  let left = Math.min(
+    count,
+    available.reduce((total, n) => total + n, 0)
+  );
+
+  while (left > 0) {
+    const open = available.map((n, index) => index).filter((index) => shares[index] < available[index]);
+    const each = Math.max(1, Math.floor(left / open.length));
+
+    for (const index of open) {
+      if (left === 0) break;
+      const take = Math.min(each, available[index] - shares[index], left);
+      shares[index] += take;
+      left -= take;
+    }
+  }
+
+  return shares;
+}
+
+/**
  * Draws a test out of the question bank.
  *
  * Picking a named difficulty restricts the pool to that difficulty. Custom mode
- * draws from every difficulty, since the student chose length and timing rather
- * than a difficulty band.
+ * draws from every difficulty, unless the student chose one for it
+ * (`customDifficulty`), when it keeps to that one.
+ *
+ * A full mock (see fullMockId) draws from each of its three subjects in turn,
+ * every topic of each, an even share apiece (see shareQuestions). Its
+ * questions come subject by subject, Maths first, the way the exam is printed,
+ * and in random order within each.
  *
  * `language` is the student's site language when they asked for the test. The
  * questions come back already in it, where their subject follows the site
@@ -39,20 +73,42 @@ export async function generateMockTest(
   settings: TestSettings,
   language?: SiteLanguage
 ): Promise<GeneratedTest> {
-  const pool = await listQuestions({
-    subjectId: settings.subjectId,
-    topicIds: settings.topicIds.length > 0 ? settings.topicIds : undefined,
-    difficulty: settings.difficultyMode === "custom" ? undefined : settings.difficultyMode,
-    // A draft has no options or answer yet, and an image-pending one is missing
-    // the diagram it is about.
-    readyOnly: true,
-    // A written answer needs the AI marker. Without one, never serve a
-    // question nobody can mark.
-    excludeTypes: writtenMarkingEnabled ? [] : ["open-ended"]
-  });
+  const difficulty =
+    settings.difficultyMode === "custom"
+      ? settings.customDifficulty === undefined || settings.customDifficulty === "mixed"
+        ? undefined
+        : settings.customDifficulty
+      : settings.difficultyMode;
 
-  const picked = shuffle(pool)
-    .slice(0, settings.questionCount)
+  const sector = fullMockSector(settings.subjectId);
+  const subjectIds = subjectsCovered(settings.subjectId);
+
+  const pools = await Promise.all(
+    subjectIds.map(async (subjectId) =>
+      shuffle(
+        await listQuestions({
+          subjectId,
+          // A full mock covers every topic; only a single subject is narrowed.
+          topicIds: !sector && settings.topicIds.length > 0 ? settings.topicIds : undefined,
+          difficulty,
+          // A draft has no options or answer yet, and an image-pending one is missing
+          // the diagram it is about.
+          readyOnly: true,
+          // A written answer needs the AI marker. Without one, never serve a
+          // question nobody can mark.
+          excludeTypes: writtenMarkingEnabled ? [] : ["open-ended"]
+        })
+      )
+    )
+  );
+
+  const shares = shareQuestions(
+    settings.questionCount,
+    pools.map((pool) => pool.length)
+  );
+
+  const picked = pools
+    .flatMap((pool, index) => pool.slice(0, shares[index]))
     .map((question) => localizeQuestion(question, language));
 
   const topicLabel =
@@ -61,7 +117,7 @@ export async function generateMockTest(
       : `${settings.topicIds.length} topics`;
 
   return {
-    title: `${subjectName(settings.subjectId)} - ${topicLabel} mock test`,
+    title: sector ? subjectName(settings.subjectId) : `${subjectName(settings.subjectId)} - ${topicLabel} mock test`,
     questions: picked,
     requestedCount: settings.questionCount,
     short: picked.length < settings.questionCount

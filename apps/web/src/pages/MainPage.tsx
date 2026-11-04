@@ -7,7 +7,6 @@ import {
   IconFriends,
   IconHistory,
   IconProfile,
-  IconSettings,
   IconTest
 } from "../components/icons";
 import { ResumeTestBanner } from "../components/ResumeTestBanner";
@@ -20,6 +19,8 @@ import "../styles/dashboard.css";
 
 /**
  * The pages the dashboard opens besides the test builder, one tile each.
+ * Settings has no tile of its own: the language and theme are on the profile
+ * page now, so a second tile would open the same page.
  *
  * `tone` only picks the tile's accent colour in dashboard.css. A tile should
  * read as its icon first and its name second: a student can tell which page it
@@ -47,13 +48,6 @@ const destinations: Array<{
     body: "main.friendsBody"
   },
   {
-    path: "/settings",
-    tone: "settings",
-    icon: <IconSettings />,
-    title: "main.settings",
-    body: "main.settingsBody"
-  },
-  {
     path: "/profile",
     tone: "profile",
     icon: <IconProfile />,
@@ -68,9 +62,10 @@ const NEW_ACCOUNT_MS = 24 * 60 * 60 * 1000;
 /**
  * The signed-in landing page. A guest gets the landing page instead (see App).
  *
- * Icon tiles for the main jobs: Create Test (the big one, a single tap away),
- * History, Friends, Settings and Profile. Then a shortcut per subject and the
- * student's figures. On a phone the tiles are the first screen.
+ * A greeting banner that carries the student's figures, then icon tiles for
+ * the main jobs: Create Test (the big one, a single tap away), History,
+ * Friends and Profile. Then a shortcut per subject. On a phone the
+ * tiles are the first screen.
  */
 export function MainPage() {
   const { t } = useLanguage();
@@ -143,7 +138,7 @@ export function MainPage() {
   return (
     <div className="stack dashboard">
       <section className="main-greeting">
-        <div>
+        <div className="main-greeting-text">
           <p className="eyebrow">
             {t("main.eyebrow")}
           </p>
@@ -158,15 +153,45 @@ export function MainPage() {
               user.fullName
             }.`}
           </h1>
+
+          {/* The tiles say the same thing in pictures, so a phone drops this. */}
+          <p className="main-lede">
+            {t("main.lede")}
+          </p>
+
+          {/* The student's figures sit in the banner, where they are read with
+              the greeting, rather than in two plain boxes at the bottom of the
+              page. Placeholders while loading so the banner does not jump when
+              the figures arrive, and nothing once it is known there is nothing
+              to show: "0" and "No tests yet" told a new student nothing. */}
+          {(attempts === null ||
+            hasHistory) && (
+            <dl className="greeting-stats">
+              <div className="greeting-stat">
+                <dt>{t("main.testsTaken")}</dt>
+                <dd>
+                  {scored === null
+                    ? "-"
+                    : scored.length}
+                </dd>
+              </div>
+
+              <div className="greeting-stat">
+                <dt>{t("main.bestScore")}</dt>
+                <dd>
+                  {best
+                    ? `${best.score}/${best.totalMarks}`
+                    : "-"}
+                </dd>
+              </div>
+            </dl>
+          )}
         </div>
+
+        <GreetingRidge />
       </section>
 
       <ResumeTestBanner />
-
-      {/* The tiles say the same thing in pictures, so a phone drops this. */}
-      <p className="lede main-lede">
-        {t("main.lede")}
-      </p>
 
       {/* Starting a test is the main job, so its tile is the biggest and the
           first one in reach: one tap to the builder, from any width. */}
@@ -190,6 +215,20 @@ export function MainPage() {
             <span className="dash-tile-body">
               {t("main.createTestBody")}
             </span>
+          </span>
+
+          {/* The three stages of a test, as on the landing page. Only on a
+              wide screen, where this tile is two rows tall and would otherwise
+              be mostly empty blue. */}
+          <span className="dash-tile-steps" aria-hidden="true">
+            {[t("landing.stepBuild"), t("landing.stepSit"), t("landing.stepReview")].map(
+              (step, index) => (
+                <span key={step} className="dash-tile-step">
+                  <span className="dash-tile-step-n">{index + 1}</span>
+                  {step}
+                </span>
+              )
+            )}
           </span>
 
           <span className="dash-tile-go">
@@ -234,49 +273,40 @@ export function MainPage() {
       </section>
 
       <SubjectShortcuts className="dash-subjects" />
-
-      {/* Placeholders while loading so the page does not jump when the figures
-          arrive, and nothing once it is known there is nothing to show: two
-          tiles reading "0" and "No tests yet" told a new student nothing. */}
-      {(attempts === null ||
-        hasHistory) && (
-        <section className="stat-row">
-          <div className="stat">
-            <div className="stat-value">
-              {scored === null
-                ? "-"
-                : scored.length}
-            </div>
-
-            <div className="stat-label">
-              {t("main.testsTaken")}
-            </div>
-          </div>
-
-          <div className="stat">
-            {/* A score is a number and is set like one. "No tests yet" is a
-                sentence, and at the same size it wrapped across three lines and
-                read as the headline of the page. */}
-            <div
-              className={
-                `stat-value ${
-                  best
-                    ? ""
-                    : "stat-value-empty"
-                }`
-              }
-            >
-              {best
-                ? `${best.score}/${best.totalMarks}`
-                : t("main.noTests")}
-            </div>
-
-            <div className="stat-label">
-              {t("main.bestScore")}
-            </div>
-          </div>
-        </section>
-      )}
     </div>
+  );
+}
+
+/**
+ * The banner's picture: the name drawn as a range of peaks, the nearest one
+ * with a flag on its summit. Testers found the dashboard plain and dark; this
+ * gives the banner depth without words a screen reader would have to read.
+ */
+function GreetingRidge() {
+  return (
+    <svg
+      className="greeting-ridge"
+      viewBox="0 0 520 220"
+      preserveAspectRatio="xMaxYMax meet"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        className="ridge-far"
+        d="M0 220 L70 150 L120 175 L200 90 L260 140 L330 70 L400 130 L460 95 L520 140 L520 220 Z"
+      />
+      <path
+        className="ridge-mid"
+        d="M40 220 L130 160 L185 185 L280 105 L340 150 L390 120 L470 175 L520 165 L520 220 Z"
+      />
+      <path
+        className="ridge-near"
+        d="M150 220 L250 165 L300 180 L370 60 L430 150 L470 135 L520 175 L520 220 Z"
+      />
+      {/* The snow cap and the flag on the nearest summit (370, 60). */}
+      <path className="ridge-snow" d="M370 60 L392 98 L380 92 L370 104 L360 92 L350 98 Z" />
+      <path className="ridge-pole" d="M370 60 L370 26" />
+      <path className="ridge-flag" d="M370 26 L396 34 L370 42 Z" />
+    </svg>
   );
 }
