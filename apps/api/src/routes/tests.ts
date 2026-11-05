@@ -12,6 +12,7 @@ import {
   maxPapers,
   resolveSettings,
   subjectsCovered,
+  timeForServed,
   siteLanguages,
   studentKeyLimits,
   testScopeLimits,
@@ -243,18 +244,25 @@ testsRouter.post("/generate", async (request, response, next) => {
       });
     }
 
+    // Record the size actually served, so a short test still marks out of the
+    // right total, and give it the time its questions are worth: a mock that
+    // found 14 of 75 questions should not leave 90 minutes on the clock.
+    const served: TestSettings = {
+      ...settings,
+      questionCount: generated.questions.length,
+      timeLimitMinutes: timeForServed(settings.timeLimitMinutes, generated.questions.length, settings.questionCount)
+    };
+
     const attempt = await createAttempt({
       studentKey,
-      // Record the size actually served, so a short test still marks out of the
-      // right total.
-      settings: { ...settings, questionCount: generated.questions.length },
+      settings: served,
       questions: generated.questions.map(toAttemptQuestion)
     });
 
     const test: MockTest = {
       id: attempt.id,
       title: generated.title,
-      settings: { ...settings, questionCount: generated.questions.length },
+      settings: served,
       questions: generated.questions.map(toExamQuestion),
       createdAt: attempt.createdAt
     };

@@ -359,6 +359,19 @@ export function resolveSettings(
   };
 }
 
+/**
+ * The time limit for a test the bank could not fill: the same minutes per
+ * question as was asked for, rounded up, so 14 questions of a 75-question,
+ * 90-minute mock get 17 minutes rather than all 90. It never drops below the
+ * shortest custom timer or rises above the original limit, and an untimed
+ * test stays untimed.
+ */
+export function timeForServed(limitMinutes: number | null, served: number, requested: number): number | null {
+  if (limitMinutes === null || requested <= 0 || served >= requested) return limitMinutes;
+  const scaled = Math.ceil((limitMinutes * served) / requested);
+  return Math.min(limitMinutes, Math.max(customLimits.minMinutes, scaled));
+}
+
 /** The most papers one test can cover: a full mock's subjects. */
 export const maxPapers = Math.max(...Object.values(sectorSubjects).map((subjects) => subjects.length));
 

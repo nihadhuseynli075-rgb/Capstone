@@ -48,8 +48,10 @@ dashboard shows a banner, so this is never a silent surprise.
    has been handed in, and closes the `leaderboard` view, which lists every
    student and which no page uses yet, to students. `0015` gives the
    `question-images` bucket the limits the API already holds a question
-   picture to: 2 MB, and PNG, JPG or WebP only.) If `0001`-`0014` are already in, running
-   [`0015_question_images_limits.sql`](supabase/migrations/0015_question_images_limits.sql)
+   picture to: 2 MB, and PNG, JPG or WebP only. `0016` stops anyone calling the
+   three sign-up and username trigger functions directly.) If `0001`-`0015` are
+   already in, running
+   [`0016_definer_function_privileges.sql`](supabase/migrations/0016_definer_function_privileges.sql)
    on its own is enough.
 6. Under **Authentication → Providers**, make sure Email is enabled. Google is
    optional and has its own steps, below.

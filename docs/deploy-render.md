@@ -13,7 +13,7 @@ buckets and sign-in all stay in Nihad's Supabase project.
 ## Before you start
 
 - Supabase is set up as in the README (`supabase/run-all.sql` run, which is
-  migrations 0001 to 0015, and the Email provider on). **Do not deploy the
+  migrations 0001 to 0016, and the Email provider on). **Do not deploy the
   API without Supabase credentials.** It would run in memory mode, and Render
   restarts services often (every deploy, and every time a free service wakes
   up), so every question and result would vanish.

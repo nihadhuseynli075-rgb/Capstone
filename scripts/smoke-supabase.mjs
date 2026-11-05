@@ -25,7 +25,9 @@ import { createChecks, request } from "./smoke-kit.mjs";
 import { startStandin } from "./supabase-standin.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "capstone123";
+// This script starts its own API, so it can make up the admin password for that
+// API each run rather than lean on a known one. ADMIN_PASSWORD still wins when set.
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || `smoke-${randomUUID()}`;
 
 const { check, section, counts } = createChecks();
 

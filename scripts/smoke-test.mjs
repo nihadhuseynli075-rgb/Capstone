@@ -13,7 +13,21 @@
 import { createChecks, request } from "./smoke-kit.mjs";
 
 const BASE_URL = process.env.SMOKE_API_URL ?? "http://localhost:4000";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "capstone123";
+// The API's built-in development password only exists on an API run locally
+// without ADMIN_PASSWORD. Pointed anywhere else, the real password must be given:
+// guessing the default against a deployed API is refused rather than tried.
+const isLocalApi = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(BASE_URL);
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || (isLocalApi ? devAdminPassword() : undefined);
+
+if (!ADMIN_PASSWORD) {
+  console.error(`Set ADMIN_PASSWORD to run the smoke checks against ${BASE_URL}.`);
+  process.exit(1);
+}
+
+/** The development default the API falls back to (apps/api/src/lib/env.ts). */
+function devAdminPassword() {
+  return "capstone123";
+}
 
 const { check, section, counts } = createChecks();
 const call = (path, options) => request(BASE_URL, path, options);
@@ -1686,8 +1700,8 @@ async function main() {
     `${customMixed.body.test?.questions?.length} ${customUnset.body.test?.questions?.length}`
   );
   check(
-    "the custom test keeps its count and timer",
-    customHard.body.test?.settings?.timeLimitMinutes === 20 && customHard.body.test?.settings?.customDifficulty === "hard",
+    "the short custom test keeps its difficulty, and the time its 2 of 5 questions are worth (8 of 20 minutes)",
+    customHard.body.test?.settings?.timeLimitMinutes === 8 && customHard.body.test?.settings?.customDifficulty === "hard",
     JSON.stringify(customHard.body.test?.settings)
   );
 

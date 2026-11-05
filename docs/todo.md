@@ -40,6 +40,13 @@ Next session: **Saturday 7 November, 5:00-5:30pm Nihad's time (Baku)**.
       (5 Nov).
 - [ ] **Nihad: test these on your phone** (5-6 Nov), especially that a tap no
       longer shades the text.
+- [x] A full mock's pace is for each paper: Medium is 3 x 25 questions in
+      3 x 30 minutes (5 Nov).
+- [x] A test the bank could not fill gets the time its questions are worth,
+      not the full limit (5 Nov).
+- [ ] **Run `supabase/migrations/0016_definer_function_privileges.sql`** in the
+      Supabase SQL editor (or all of `run-all.sql`, now 0001-0016). It only
+      stops the sign-up and username trigger functions being called directly.
 
 ## Session on 30 September 2026
 

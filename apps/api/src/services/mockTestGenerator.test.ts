@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { fullMockId, fullMockSector, resolveSettings, subjectName, subjectsCovered } from "@grade9/shared";
+import { fullMockId, fullMockSector, resolveSettings, subjectName, subjectsCovered, timeForServed } from "@grade9/shared";
 import { shareQuestions } from "./mockTestGenerator";
 
 describe("a full mock's share of each subject", () => {
@@ -65,5 +65,21 @@ describe("a pace is for each paper", () => {
       questionCount: 15,
       timeLimitMinutes: null
     });
+  });
+});
+
+describe("a test the bank could not fill", () => {
+  test("keeps the minutes per question it was asked for", () => {
+    assert.equal(timeForServed(90, 14, 75), 17);
+    assert.equal(timeForServed(30, 20, 25), 24);
+  });
+
+  test("keeps its full time when it is not short", () => {
+    assert.equal(timeForServed(30, 25, 25), 30);
+  });
+
+  test("never drops below the shortest timer, and untimed stays untimed", () => {
+    assert.equal(timeForServed(30, 1, 25), 5);
+    assert.equal(timeForServed(null, 3, 25), null);
   });
 });
