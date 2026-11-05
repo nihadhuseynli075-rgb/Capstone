@@ -114,6 +114,9 @@ attempt question keeps its own difficulty.
 Azerbaijani sector sit Maths, English and Azerbaijani Language; those in the
 Russian sector sit Maths, English and Russian Language. The sector is chosen
 only when building a full mock (`sector` on `POST /api/tests/generate`). The
+pace is for each paper, as the exam times each subject on its own: a Medium
+full mock asks for 3 x 25 questions in 3 x 30 minutes, and a custom count and
+timer are multiplied the same way (`resolveSettings` in the shared package). The
 generator gives each subject an even share of the paper, hands one subject's
 shortfall to the others, and serves them subject by subject, Maths first. The
 attempt row has one subject column, so a mock is stored under its own id,

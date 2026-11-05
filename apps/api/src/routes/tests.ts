@@ -9,7 +9,9 @@ import {
   sectors,
   difficultyPresets,
   handInLimits,
+  maxPapers,
   resolveSettings,
+  subjectsCovered,
   siteLanguages,
   studentKeyLimits,
   testScopeLimits,
@@ -202,10 +204,16 @@ testsRouter.post("/generate", async (request, response, next) => {
   // for a test drawn from two.
   const topicIds = [...new Set(parsed.data.topicIds)];
 
-  const resolved = resolveSettings(difficultyMode, {
-    questionCount: parsed.data.questionCount ?? customLimits.minQuestions,
-    timeLimitMinutes: parsed.data.timeLimitMinutes ?? null
-  });
+  // The pace, or the custom count and timer, is for each paper: a full mock's
+  // three subjects each get the whole of it (see resolveSettings).
+  const resolved = resolveSettings(
+    difficultyMode,
+    {
+      questionCount: parsed.data.questionCount ?? customLimits.minQuestions,
+      timeLimitMinutes: parsed.data.timeLimitMinutes ?? null
+    },
+    subjectsCovered(subjectId).length
+  );
 
   const settings: TestSettings = {
     subjectId,
@@ -359,14 +367,14 @@ function takeMarking(studentKey: string, address: string, count: number): "stude
 }
 
 /**
- * The most questions any paper can have: the largest custom test, or the
- * largest a difficulty preset sets, whichever is more. A hand-in carries one
- * answer per question, so it never needs more answers than this.
+ * The most questions any test can have: the largest custom test, or the
+ * largest a difficulty preset sets, whichever is more, for each paper of a
+ * full mock. A hand-in carries one answer per question, so it never needs more
+ * answers than this.
  */
-const MAX_PAPER_QUESTIONS = Math.max(
-  customLimits.maxQuestions,
-  ...Object.values(difficultyPresets).map((preset) => preset.questionCount)
-);
+const MAX_PAPER_QUESTIONS =
+  Math.max(customLimits.maxQuestions, ...Object.values(difficultyPresets).map((preset) => preset.questionCount)) *
+  maxPapers;
 
 const submitSchema = z.object({
   studentKey: studentKeySchema,

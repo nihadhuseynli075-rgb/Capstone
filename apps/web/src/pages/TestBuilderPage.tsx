@@ -305,8 +305,11 @@ export function TestBuilderPage() {
 
   // The count the test will be asked for: the custom box as it would settle
   // now, so the line below never promises a number that starting would change.
+  // A pace is for each paper, so a full mock asks for it three times over
+  // (resolveSettings in the shared package does the same on the server).
+  const papers = fullMock ? sectorSubjects[sector].length : 1;
   const requestedCount =
-    difficultyMode === "custom" ? countBox.value : difficultyPresets[difficultyMode].questionCount;
+    (difficultyMode === "custom" ? countBox.value : difficultyPresets[difficultyMode].questionCount) * papers;
 
   function toggleTopic(topicId: string) {
     setTopicIds((current) =>
@@ -629,7 +632,7 @@ export function TestBuilderPage() {
                       in the shared package retunes this line in every language. */}
                   {mode === "custom"
                     ? t("builder.customDetail")
-                    : fill(t("builder.presetDetail"), {
+                    : fill(t(papers > 1 ? "builder.presetDetailPerPaper" : "builder.presetDetail"), {
                         questions: tn("count.questions", difficultyPresets[mode].questionCount),
                         minutes: tn("count.minutes", difficultyPresets[mode].timeLimitMinutes)
                       })}
@@ -640,8 +643,8 @@ export function TestBuilderPage() {
                     : empty
                       ? t(noQuestionsYet[mode])
                       : fill(t("builder.presetReady"), {
-                          available: String(Math.min(drawable, difficultyPresets[mode].questionCount)),
-                          asked: String(difficultyPresets[mode].questionCount)
+                          available: String(Math.min(drawable, difficultyPresets[mode].questionCount * papers)),
+                          asked: String(difficultyPresets[mode].questionCount * papers)
                         })}
                 </span>
               </button>
@@ -721,6 +724,10 @@ export function TestBuilderPage() {
               />
               {t("builder.untimed")}
             </label>
+
+            {/* The boxes keep their one-paper limits, so a full mock says the
+                numbers are multiplied rather than showing totals to type. */}
+            {papers > 1 && <p className="field-hint">{t("builder.customPerPaper")}</p>}
           </div>
         )}
       </section>

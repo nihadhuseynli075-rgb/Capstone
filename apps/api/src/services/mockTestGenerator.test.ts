@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { fullMockId, fullMockSector, subjectName, subjectsCovered } from "@grade9/shared";
+import { fullMockId, fullMockSector, resolveSettings, subjectName, subjectsCovered } from "@grade9/shared";
 import { shareQuestions } from "./mockTestGenerator";
 
 describe("a full mock's share of each subject", () => {
@@ -44,5 +44,26 @@ describe("full mock ids", () => {
   test("a mock has a name of its own", () => {
     assert.equal(subjectName("mock-az"), "Full mock (Azerbaijani sector)");
     assert.equal(subjectName("azerbaijani"), "Azerbaijani Language");
+  });
+});
+
+describe("a pace is for each paper", () => {
+  test("one subject keeps the preset as it is", () => {
+    assert.deepEqual(resolveSettings("medium"), { questionCount: 25, timeLimitMinutes: 30 });
+  });
+
+  test("a full mock's three papers each get the whole pace", () => {
+    assert.deepEqual(resolveSettings("medium", undefined, 3), { questionCount: 75, timeLimitMinutes: 90 });
+    assert.deepEqual(resolveSettings("custom", { questionCount: 10, timeLimitMinutes: 20 }, 3), {
+      questionCount: 30,
+      timeLimitMinutes: 60
+    });
+  });
+
+  test("an untimed custom mock stays untimed", () => {
+    assert.deepEqual(resolveSettings("custom", { questionCount: 5, timeLimitMinutes: null }, 3), {
+      questionCount: 15,
+      timeLimitMinutes: null
+    });
   });
 });

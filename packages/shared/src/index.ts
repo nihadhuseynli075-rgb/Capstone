@@ -328,24 +328,39 @@ export interface TestSettings {
   customDifficulty?: CustomDifficulty;
 }
 
-/** Resolves a difficulty mode into a concrete count and timer. */
+/**
+ * Resolves a difficulty mode into a concrete count and timer.
+ *
+ * `papers` is how many subjects the test covers: three for a full mock, one
+ * otherwise. A pace (or a custom count and timer) is for each paper, as the
+ * real exam times each subject on its own (Herdy, 5 Nov 2026), so a Medium full
+ * mock is 3 x 25 questions in 3 x 30 minutes rather than 25 shared by three.
+ */
 export function resolveSettings(
   mode: DifficultyMode,
-  custom?: { questionCount: number; timeLimitMinutes: number | null }
+  custom?: { questionCount: number; timeLimitMinutes: number | null },
+  papers = 1
 ): Pick<TestSettings, "questionCount" | "timeLimitMinutes"> {
-  if (mode === "custom") {
-    return {
-      questionCount: custom?.questionCount ?? customLimits.minQuestions,
-      timeLimitMinutes: custom?.timeLimitMinutes ?? null
-    };
-  }
+  const perPaper =
+    mode === "custom"
+      ? {
+          questionCount: custom?.questionCount ?? customLimits.minQuestions,
+          timeLimitMinutes: custom?.timeLimitMinutes ?? null
+        }
+      : {
+          questionCount: difficultyPresets[mode].questionCount,
+          timeLimitMinutes: difficultyPresets[mode].timeLimitMinutes
+        };
 
-  const preset = difficultyPresets[mode];
   return {
-    questionCount: preset.questionCount,
-    timeLimitMinutes: preset.timeLimitMinutes
+    questionCount: perPaper.questionCount * papers,
+    // An untimed test stays untimed however many papers it has.
+    timeLimitMinutes: perPaper.timeLimitMinutes === null ? null : perPaper.timeLimitMinutes * papers
   };
 }
+
+/** The most papers one test can cover: a full mock's subjects. */
+export const maxPapers = Math.max(...Object.values(sectorSubjects).map((subjects) => subjects.length));
 
 /**
  * One language's version of a question's text.

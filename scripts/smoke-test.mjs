@@ -1519,10 +1519,11 @@ async function main() {
     );
   }
 
-  // Three questions each in English and Russian "grammar": the same topic id
-  // in two subjects, which a full mock has to keep apart.
+  // Five questions each in English and Russian "grammar": the same topic id
+  // in two subjects, which a full mock has to keep apart. Five, because a
+  // full mock's count is per paper and the smallest custom count is five.
   for (const subjectId of ["english", "russian"]) {
-    for (let index = 0; index < 3; index += 1) {
+    for (let index = 0; index < 5; index += 1) {
       const saved = await call("/api/admin/questions", {
         method: "POST",
         token,
@@ -1540,7 +1541,7 @@ async function main() {
 
   const generateMock = (body) => call("/api/tests/generate", { method: "POST", body: { studentKey, ...body } });
 
-  const ruMock = await generateMock({ sector: "ru", difficultyMode: "custom", questionCount: 9, timeLimitMinutes: null });
+  const ruMock = await generateMock({ sector: "ru", difficultyMode: "custom", questionCount: 5, timeLimitMinutes: null });
   check("a full mock of the Russian sector generates", ruMock.status === 200, JSON.stringify(ruMock.body).slice(0, 300));
   const ruQuestions = ruMock.body.test?.questions ?? [];
   const ruSubjects = ruQuestions.map((question) => question.subjectId);
@@ -1550,9 +1551,9 @@ async function main() {
     JSON.stringify(ruMock.body.test?.settings)
   );
   check(
-    "it draws an even share from Maths, English and Russian Language",
-    ruQuestions.length === 9 &&
-      ["math", "english", "russian"].every((id) => ruSubjects.filter((subject) => subject === id).length === 3),
+    "the count is for each paper: five each from Maths, English and Russian Language",
+    ruQuestions.length === 15 &&
+      ["math", "english", "russian"].every((id) => ruSubjects.filter((subject) => subject === id).length === 5),
     ruSubjects.join(",")
   );
   check(
@@ -1565,7 +1566,14 @@ async function main() {
     ruQuestions.every((question) => question.correctAnswer === undefined && question.explanation === undefined)
   );
 
-  const azMock = await generateMock({ sector: "az", difficultyMode: "custom", questionCount: 6, timeLimitMinutes: null });
+  const timedMock = await generateMock({ sector: "ru", difficultyMode: "custom", questionCount: 5, timeLimitMinutes: 20 });
+  check(
+    "a full mock's timer is for each paper too: 20 minutes a paper is 60 in all",
+    timedMock.status === 200 && timedMock.body.test?.settings?.timeLimitMinutes === 60,
+    JSON.stringify(timedMock.body.test?.settings)
+  );
+
+  const azMock = await generateMock({ sector: "az", difficultyMode: "custom", questionCount: 5, timeLimitMinutes: null });
   const azSubjects = (azMock.body.test?.questions ?? []).map((question) => question.subjectId);
   check(
     "a full mock of the Azerbaijani sector takes Maths, English and Azerbaijani Language only",
@@ -1577,7 +1585,7 @@ async function main() {
   if (azerbaijaniCount === 0) {
     check(
       "with no Azerbaijani questions yet, the other two make up its share",
-      azSubjects.length === 6 && azMock.body.short === false,
+      azSubjects.length === 15 && azMock.body.short === false,
       azSubjects.join(",")
     );
   }
