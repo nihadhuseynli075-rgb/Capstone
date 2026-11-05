@@ -35,6 +35,18 @@
   /* The amber of the summit flag: highlights, best scores and the eyebrow on dark panels. */
   --summit: #e8a317;
   --summit-soft: #fdf3dc;
+  /* Figma: level/*. One colour per test level, so Easy, Medium, Hard and Custom
+     read apart at a glance (testers asked for more colour, 4 Nov 2026). Hard is
+     violet rather than red because red already means a wrong answer. Medium is
+     a darker amber than the summit so a chosen card's edge still reaches 3:1. */
+  --level-easy: #178a57;
+  --level-easy-soft: #e4f6ec;
+  --level-medium: #b87500;
+  --level-medium-soft: #fff4dc;
+  --level-hard: #6b47d6;
+  --level-hard-soft: #efeafd;
+  --level-custom: var(--brand);
+  --level-custom-soft: var(--brand-soft);
   /* Dark panels (welcome card, score hero, auth side panel) stay dark in both themes. */
   --hero: #0a2e47;
   --on-hero: #ffffff;
@@ -80,6 +92,14 @@
   --warning-soft: #33290f;
   --summit: #f2b940;
   --summit-soft: #3a2e12;
+  --level-easy: #4cc38a;
+  --level-easy-soft: #0f3426;
+  --level-medium: #f2b940;
+  --level-medium-soft: #3a2e12;
+  --level-hard: #a890f7;
+  --level-hard-soft: #271f4d;
+  --level-custom: var(--brand);
+  --level-custom-soft: var(--brand-soft);
   --hero: #0f3753;
   --on-hero: #eaf4fb;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -4px rgba(0, 0, 0, 0.35);
@@ -607,6 +627,69 @@ label {
 
 .difficulty-card.selected .difficulty-detail {
   color: var(--brand);
+}
+
+/*
+ * Level colours. Each element that names a level carries data-level, which
+ * picks its colour here; everything else reads --level and --level-soft.
+ */
+[data-level="easy"] {
+  --level: var(--level-easy);
+  --level-soft: var(--level-easy-soft);
+}
+
+[data-level="medium"] {
+  --level: var(--level-medium);
+  --level-soft: var(--level-medium-soft);
+}
+
+[data-level="hard"] {
+  --level: var(--level-hard);
+  --level-soft: var(--level-hard-soft);
+}
+
+[data-level="custom"] {
+  --level: var(--level-custom);
+  --level-soft: var(--level-custom-soft);
+}
+
+/* A pace card gets a strip of its colour along the top, drawn as an inset
+   shadow so it follows the rounded corners; chosen, the whole card takes the
+   colour. The detail line goes back to body text, since amber text on its
+   own soft fill would be too faint to read. */
+.difficulty-card[data-level] {
+  box-shadow: inset 0 5px 0 var(--level);
+}
+
+.difficulty-card[data-level]:hover {
+  border-color: var(--level);
+}
+
+.difficulty-card[data-level].selected {
+  border-color: var(--level);
+  background: var(--level-soft);
+}
+
+.difficulty-card[data-level].selected .difficulty-detail {
+  color: var(--text);
+}
+
+/* A level named in running text (history rows, the exam's question line, the
+   admin list) gets a dot of its colour in front. The word stays, so the
+   colour is never the only sign. */
+.level-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.level-tag::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--level, currentColor);
 }
 
 @media (max-width: 960px) {

@@ -27,12 +27,19 @@ Next session: **Saturday 7 November, 5:00-5:30pm Nihad's time (Baku)**.
 
 ### Herdy
 
-- [ ] Dashboard redesign: more colour and detail than the flat dark background.
-- [ ] Phone: one tap selects all the text on the landing page.
-- [ ] Azerbaijani Language as a fourth subject; full three-subject mock with a
+- [x] Dashboard redesign: more colour and detail than the flat dark background
+      (the Figma redesign, rebuilt on 4 Nov).
+- [x] Phone: one tap selects all the text on the landing page (the browser's
+      tap shading, turned off in `global.css`).
+- [x] Azerbaijani Language as a fourth subject; full three-subject mock with a
       Russian/Azerbaijani choice; a difficulty choice for custom tests.
-- [ ] A "Finish test" button reachable from any question, not just the last.
-- [ ] Settings and Profile merged into one page.
+- [x] A "Finish test" button reachable from any question, not just the last.
+- [x] Settings and Profile merged into one page.
+- [x] A colour per level (Easy green, Medium amber, Hard violet, Custom blue)
+      on the pace cards, history, the exam's question line and the admin list
+      (5 Nov).
+- [ ] **Nihad: test these on your phone** (5-6 Nov), especially that a tap no
+      longer shades the text.
 
 ## Session on 30 September 2026
 

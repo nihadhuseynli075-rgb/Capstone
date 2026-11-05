@@ -592,7 +592,10 @@ export function ExamPage() {
 
       <section className="question-card">
         <p className="question-meta">
-          {topicLabel(t, question.subjectId, question.topicId)} - {difficultyLabel(t, question.difficulty)}
+          {topicLabel(t, question.subjectId, question.topicId)} -{" "}
+          <span className="level-tag" data-level={question.difficulty}>
+            {difficultyLabel(t, question.difficulty)}
+          </span>
           {" - "}
           <span className="question-marks">{tn("count.marks", question.marks)}</span>
         </p>

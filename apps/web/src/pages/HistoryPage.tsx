@@ -147,7 +147,11 @@ export function HistoryPage() {
             <span className="best-percent">{formatPercent(best.percentage, language)}</span>
           </p>
           <p className="best-meta">
-            {subjectLabel(t, best.subjectId)} - {difficultyLabel(t, best.difficultyMode)} -{" "}
+            {subjectLabel(t, best.subjectId)} -{" "}
+            <span className="level-tag" data-level={best.difficultyMode}>
+              {difficultyLabel(t, best.difficultyMode)}
+            </span>{" "}
+            -{" "}
             {formatDayTime(best.submittedAt, language)}
           </p>
         </section>
@@ -216,7 +220,9 @@ export function HistoryPage() {
                     two columns, and they are one line of small print under the
                     subject rather than two cells of a puzzle. */}
                 <span className="attempt-meta">
-                  <span className="attempt-mode">{difficultyLabel(t, attempt.difficultyMode)}</span>
+                  <span className="attempt-mode level-tag" data-level={attempt.difficultyMode}>
+                    {difficultyLabel(t, attempt.difficultyMode)}
+                  </span>
                   <span className="attempt-date">{formatDayTime(attempt.submittedAt, language)}</span>
                 </span>
                 {isScored(attempt) ? (

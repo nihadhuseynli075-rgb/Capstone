@@ -616,6 +616,8 @@ export function TestBuilderPage() {
                 key={mode}
                 type="button"
                 className={`difficulty-card ${selected ? "selected" : ""}`}
+                // Picks the level's colour in redesign.css.
+                data-level={mode}
                 onClick={() => setDifficultyMode(mode)}
                 aria-pressed={selected}
                 // Left pressable while chosen, so it still shows why nothing can start.

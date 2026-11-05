@@ -833,7 +833,11 @@ export function AdminPage() {
                       <p className="question-row-prompt">{question.prompt}</p>
                       <p className="question-row-meta">
                         {subjectName(question.subjectId)} - {topicName(question.subjectId, question.topicId)}{" "}
-                        - {difficultyNames[question.difficulty]} - {questionTypeNames[question.type]}
+                        -{" "}
+                        <span className="level-tag" data-level={question.difficulty}>
+                          {difficultyNames[question.difficulty]}
+                        </span>{" "}
+                        - {questionTypeNames[question.type]}
                         {question.paperYear ? ` - ${question.paperYear}` : ""}
                         {question.subtopic ? ` - ${question.subtopic}` : ""}
                       </p>
