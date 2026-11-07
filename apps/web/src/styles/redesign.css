@@ -1826,6 +1826,11 @@ html[data-theme="dark"] body:has(.dashboard) {
   border-radius: 8px;
 }
 
+/* Shown only where the text sits above the question (below). */
+.passage-toggle {
+  display: none;
+}
+
 @media (max-width: 1180px) {
   .passage-layout {
     grid-template-columns: 1fr;
@@ -1834,6 +1839,17 @@ html[data-theme="dark"] body:has(.dashboard) {
   .passage-panel {
     position: static;
     max-height: 45vh;
+    padding-bottom: 20px;
+  }
+
+  .passage-toggle {
+    display: inline-flex;
+    align-self: flex-start;
+    min-height: 44px;
+  }
+
+  .passage-body.is-collapsed {
+    display: none;
   }
 }
 

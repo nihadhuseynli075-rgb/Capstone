@@ -76,6 +76,11 @@ export function ExamPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  // Whether the student has opened or closed a reading passage's text on a
+  // narrow screen, by question. Absent means as it starts: open on the first
+  // question about the text, closed on the rest (see passageOpen below).
+  const [passageToggled, setPassageToggled] = useState<Record<string, boolean>>({});
+
   // The question whose written answer a paste or typing last took over the
   // length limit, so the note saying it was cut shows under that one.
   const [cutQuestion, setCutQuestion] = useState<string | null>(null);
@@ -528,6 +533,15 @@ export function ExamPage() {
     while (last < questions.length - 1 && questions[last + 1].passage?.id === passage.id) last += 1;
     return { first: first + 1, last: last + 1 };
   })();
+
+  /*
+   * On a phone the text sits above the question and filled the first screen,
+   * so the student scrolled past it on every question about it. It is open on
+   * the first of them and closed on the rest, with a button to open it again.
+   * On a wide screen it is always shown beside the question, and the button
+   * is hidden (see redesign.css).
+   */
+  const passageOpen = passageToggled[question.id] ?? (passageRun !== null && passageRun.first === currentIndex + 1);
   const chosenOptions = question.type === "multiple-select" ? decodeAnswerSet(answers[question.id] ?? "") : [];
 
   // The banner's sentence. A send the timer made that failed says so first,
@@ -628,7 +642,21 @@ export function ExamPage() {
             {passage.title}
           </h2>
           {/* Its own scroll, so a long text never pushes the question away. */}
-          <div className="passage-body" tabIndex={0} aria-label={passage.title}>
+          <button
+            type="button"
+            className="ghost-button passage-toggle"
+            aria-expanded={passageOpen}
+            aria-controls="passage-body"
+            onClick={() => setPassageToggled((current) => ({ ...current, [question.id]: !passageOpen }))}
+          >
+            {passageOpen ? t("exam.hideText") : t("exam.showText")}
+          </button>
+          <div
+            className={`passage-body${passageOpen ? "" : " is-collapsed"}`}
+            id="passage-body"
+            tabIndex={0}
+            aria-label={passage.title}
+          >
             <PassageText body={passage.body} />
           </div>
         </aside>

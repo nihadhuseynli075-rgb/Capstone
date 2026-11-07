@@ -542,6 +542,8 @@ const en = {
   "exam.selectAll": "Choose every right answer. There may be more than one.",
   "exam.passageOne": "Question {n} is about this text",
   "exam.passageRange": "Questions {first}–{last} are about this text",
+  "exam.showText": "Show the text",
+  "exam.hideText": "Hide the text",
   "exam.finishTitle": "Finish the test?",
   "exam.confirmUnanswered":
     "{n} question is still unanswered. You can go back to it, or submit the test as it is.|{n} questions are still unanswered. You can go back to them, or submit the test as it is.",
@@ -1139,6 +1141,8 @@ const ru: Dictionary = {
   "exam.selectAll": "Выберите все верные ответы. Их может быть несколько.",
   "exam.passageOne": "Вопрос {n} относится к этому тексту",
   "exam.passageRange": "Вопросы {first}–{last} относятся к этому тексту",
+  "exam.showText": "Показать текст",
+  "exam.hideText": "Скрыть текст",
   "exam.finishTitle": "Завершить тест?",
   "exam.confirmUnanswered":
     "Без ответа остался {n} вопрос. Можно вернуться к нему или отправить тест как есть.|Без ответа осталось {n} вопроса. Можно вернуться к ним или отправить тест как есть.|Без ответа осталось {n} вопросов. Можно вернуться к ним или отправить тест как есть.",
@@ -1720,6 +1724,8 @@ const az: Dictionary = {
   "exam.selectAll": "Bütün doğru cavabları seçin. Bir neçə ola bilər.",
   "exam.passageOne": "Sual {n} bu mətnə aiddir",
   "exam.passageRange": "Suallar {first}–{last} bu mətnə aiddir",
+  "exam.showText": "Mətni göstər",
+  "exam.hideText": "Mətni gizlət",
   "exam.finishTitle": "Test bitirilsin?",
   "exam.confirmUnanswered": "{n} sual hələ cavabsızdır. Ona qayıda və ya testi olduğu kimi göndərə bilərsiniz.",
   "exam.allAnswered": "Bütün {n} suala cavab verdiniz. Yoxlanışa göndərilsin?",
