@@ -38,6 +38,9 @@ interface QuestionRow {
   status: string | null;
   subtopic: string | null;
   translations: unknown;
+  /** 0017; absent on a database from before it. */
+  passage_id?: string | null;
+  passage_order?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -64,13 +67,23 @@ function toQuestion(row: QuestionRow): BankQuestion {
     subtopic: row.subtopic ?? null,
     // A database from before 0010 has no such column, and no translations.
     translations: readTranslations(row.translations),
+    // A database from before 0017 has no passages.
+    passageId: row.passage_id ?? null,
+    passageOrder: row.passage_order ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
 }
 
-function toRow(draft: QuestionDraft, status: QuestionStatus = "ready") {
+/**
+ * The row to write. The passage columns are left out while there is no passage
+ * to write or to clear, so a database that has not had 0017 yet still takes
+ * every other save: the API can go live before Nihad runs the migration.
+ */
+function toRow(draft: QuestionDraft, status: QuestionStatus = "ready", writePassage = draft.passageId !== null) {
+  const passage = writePassage ? { passage_id: draft.passageId, passage_order: draft.passageOrder } : {};
   return {
+    ...passage,
     subject_id: draft.subjectId,
     topic_id: draft.topicId,
     difficulty: draft.difficulty,
@@ -147,6 +160,26 @@ export async function readAllPages(
   return rows;
 }
 
+/**
+ * Each question once, the first time it is read.
+ *
+ * Nihad found questions listed twice on the admin page (7 Nov 2026), where
+ * deleting either copy took both away: one row, read twice. A page read can
+ * land on the same row twice when the bank changes between two page reads (a
+ * save or an import moving rows between pages), and the list keyed every row
+ * by its id, so React drew the pair as one row it could not keep apart. Taking
+ * repeats out here means no reader (the admin list, the pool a test is drawn
+ * from) ever sees one row twice, whatever caused it.
+ */
+export function withoutRepeats(questions: BankQuestion[]): BankQuestion[] {
+  const seen = new Set<string>();
+  return questions.filter((question) => {
+    if (seen.has(question.id)) return false;
+    seen.add(question.id);
+    return true;
+  });
+}
+
 export async function listQuestions(filter: QuestionFilter = {}): Promise<BankQuestion[]> {
   if (!supabaseAdmin) {
     return [...memoryQuestions.values()]
@@ -180,7 +213,7 @@ export async function listQuestions(filter: QuestionFilter = {}): Promise<BankQu
     return query.range(from, to);
   }, "list questions");
 
-  const questions = (rows as QuestionRow[]).map(toQuestion);
+  const questions = withoutRepeats((rows as QuestionRow[]).map(toQuestion));
 
   // A "*" went to Postgres as "any one character", so only the rows with the
   // "*" itself in that place are kept.
@@ -228,6 +261,100 @@ export async function createQuestions(drafts: QuestionDraft[]): Promise<BankQues
   return (data as QuestionRow[]).map(toQuestion);
 }
 
+/** One row of a spreadsheet import, with what an import decides that the admin form does not. */
+export interface ImportedQuestion {
+  draft: QuestionDraft;
+  /** A row still missing its options, answer or picture comes in as a draft, out of tests. */
+  status: QuestionStatus;
+  subtopic: string | null;
+  /**
+   * The question's paper and number ("dim-2026-04-05-az-c:q37"), or null.
+   * A row whose ref is already in the bank updates that question instead of
+   * adding a second copy, so a sheet can be fixed and imported again.
+   */
+  externalRef: string | null;
+}
+
+/** The memory store's external_ref column: ref to question id. */
+const memoryRefs = new Map<string, string>();
+
+/** Saves an import: questions whose ref is already in the bank are updated, the rest added. */
+export async function saveImportedQuestions(
+  items: ImportedQuestion[]
+): Promise<{ created: BankQuestion[]; updated: BankQuestion[] }> {
+  const created: BankQuestion[] = [];
+  const updated: BankQuestion[] = [];
+  if (items.length === 0) return { created, updated };
+
+  if (!supabaseAdmin) {
+    const now = new Date().toISOString();
+    for (const item of items) {
+      const existingId = item.externalRef ? memoryRefs.get(item.externalRef) : undefined;
+      const existing = existingId ? memoryQuestions.get(existingId) : undefined;
+      if (existing) {
+        const question: BankQuestion = { ...existing, ...item.draft, status: item.status, subtopic: item.subtopic, updatedAt: now };
+        memoryQuestions.set(question.id, question);
+        updated.push(question);
+      } else {
+        const question: BankQuestion = {
+          ...item.draft,
+          status: item.status,
+          subtopic: item.subtopic,
+          id: randomUUID(),
+          createdAt: now,
+          updatedAt: now
+        };
+        memoryQuestions.set(question.id, question);
+        if (item.externalRef) memoryRefs.set(item.externalRef, question.id);
+        created.push(question);
+      }
+    }
+    return { created, updated };
+  }
+
+  const client = supabaseAdmin;
+  const refs = [...new Set(items.flatMap((item) => (item.externalRef ? [item.externalRef] : [])))];
+  const idByRef = new Map<string, string>();
+
+  for (let start = 0; start < refs.length; start += 200) {
+    const { data, error } = await client
+      .from("questions")
+      .select("id, external_ref")
+      .in("external_ref", refs.slice(start, start + 200));
+    if (error) throw new Error(`Failed to save questions: ${error.message}`);
+    for (const row of (data ?? []) as Array<{ id: string; external_ref: string }>) idByRef.set(row.external_ref, row.id);
+  }
+
+  const row = (item: ImportedQuestion) => ({
+    ...toRow(item.draft, item.status),
+    subtopic: item.subtopic,
+    external_ref: item.externalRef
+  });
+
+  const fresh = items.filter((item) => !item.externalRef || !idByRef.has(item.externalRef));
+  if (fresh.length > 0) {
+    const { data, error } = await client.from("questions").insert(fresh.map(row)).select("*");
+    if (error) throw new Error(`Failed to save questions: ${error.message}`);
+    created.push(...(data as QuestionRow[]).map(toQuestion));
+  }
+
+  for (const item of items) {
+    const id = item.externalRef ? idByRef.get(item.externalRef) : undefined;
+    if (!id) continue;
+    // Written in full, passage included, so a passage taken off in the sheet goes.
+    const { data, error } = await client
+      .from("questions")
+      .update({ ...row(item), ...toRow(item.draft, item.status, true) })
+      .eq("id", id)
+      .select("*")
+      .maybeSingle();
+    if (error) throw new Error(`Failed to update question: ${error.message}`);
+    if (data) updated.push(toQuestion(data as QuestionRow));
+  }
+
+  return { created, updated };
+}
+
 export async function updateQuestion(id: string, draft: QuestionDraft): Promise<BankQuestion | null> {
   if (!supabaseAdmin) {
     const existing = memoryQuestions.get(id);
@@ -247,20 +374,25 @@ export async function updateQuestion(id: string, draft: QuestionDraft): Promise<
 
   // The status it has now decides the one it is saved with: a question still
   // waiting for its picture must not be made ready by an edit without one.
+  // Every column, not just the two wanted: naming passage_id would fail on a
+  // database from before 0017.
   const { data: current, error: readError } = await supabaseAdmin
     .from("questions")
-    .select("status")
+    .select("*")
     .eq("id", id)
     .maybeSingle();
 
   if (readError) throw new Error(`Failed to update question: ${readError.message}`);
   if (!current) return null;
 
-  const status = statusAfterSave(((current as { status: string | null }).status ?? "ready") as QuestionStatus, draft);
+  const saved = current as { status: string | null; passage_id?: string | null };
+  const status = statusAfterSave((saved.status ?? "ready") as QuestionStatus, draft);
+  // A passage taken off the question has to be cleared, not left out.
+  const writePassage = draft.passageId !== null || (saved.passage_id ?? null) !== null;
 
   const { data, error } = await supabaseAdmin
     .from("questions")
-    .update(toRow(draft, status))
+    .update(toRow(draft, status, writePassage))
     .eq("id", id)
     .select("*")
     .maybeSingle();
@@ -268,6 +400,13 @@ export async function updateQuestion(id: string, draft: QuestionDraft): Promise<
   if (error) throw new Error(`Failed to update question: ${error.message}`);
 
   return data ? toQuestion(data as QuestionRow) : null;
+}
+
+/** The memory store's "on delete set null": a deleted passage's questions keep going without it. */
+export function forgetPassage(passageId: string): void {
+  for (const [id, question] of memoryQuestions) {
+    if (question.passageId === passageId) memoryQuestions.set(id, { ...question, passageId: null, passageOrder: null });
+  }
 }
 
 export async function deleteQuestion(id: string): Promise<boolean> {

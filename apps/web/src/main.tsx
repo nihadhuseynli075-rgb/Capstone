@@ -13,6 +13,8 @@ import "./styles/components.css";
 import "./styles/education-ui.css";
 // The redesign layer goes last of the shared sheets (see its header comment).
 import "./styles/redesign.css";
+// The admin question list and Passages tab (7 Nov 2026), built on the redesign tokens.
+import "./styles/admin.css";
 import { App } from "./app/App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LanguageProvider } from "./lib/i18n";

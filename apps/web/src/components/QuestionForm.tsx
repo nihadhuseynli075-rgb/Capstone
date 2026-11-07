@@ -2,12 +2,24 @@ import { forwardRef, Fragment, useEffect, useImperativeHandle, useRef, useState,
 import type {
   BankQuestion,
   Difficulty,
+  Passage,
   QuestionDraft,
   QuestionTranslation,
   QuestionTranslations,
   QuestionType
 } from "@grade9/shared";
-import { followsSiteLanguage, markLimits, paperYearLimits, repeatedOption, subjects, testScopeLimits, topicIdFor } from "@grade9/shared";
+import {
+  decodeAnswerSet,
+  encodeAnswerSet,
+  followsSiteLanguage,
+  hasOptions as isChoiceType,
+  markLimits,
+  paperYearLimits,
+  repeatedOption,
+  subjects,
+  testScopeLimits,
+  topicIdFor
+} from "@grade9/shared";
 import { adminLanguageNames, adminText } from "./adminText";
 import { uploadQuestionImage } from "../services/adminApi";
 import { ApiError } from "../services/apiClient";
@@ -75,11 +87,11 @@ function checkPictureLink(
 const quotedLink = (link: string) => (link.length > 60 ? `${link.slice(0, 57)}...` : link);
 
 /**
- * The languages the form offers a translation in. Azerbaijani has none yet, so
- * a student reading the site in it gets the question as first written; any that
- * a question already has are kept when it is saved.
+ * The languages the form offers a translation in: every site language. Maths
+ * is shown in the student's own language, so each needs its own wording
+ * (Azerbaijani added 7 Nov 2026, for the Azerbaijani sector).
  */
-const translationLanguages = ["en", "ru"] as const;
+const translationLanguages = ["en", "ru", "az"] as const;
 
 type TranslationLanguage = (typeof translationLanguages)[number];
 
@@ -101,7 +113,7 @@ function emptyTranslation(): TranslationInput {
 }
 
 function emptyTranslations(): TranslationInputs {
-  return { en: emptyTranslation(), ru: emptyTranslation() };
+  return { en: emptyTranslation(), ru: emptyTranslation(), az: emptyTranslation() };
 }
 
 function translationInputs(saved: QuestionTranslations): TranslationInputs {
@@ -234,9 +246,12 @@ export const QuestionForm = forwardRef(function QuestionForm(
     error,
     onEdited,
     onSessionEnded,
-    inlinePictures = false
+    inlinePictures = false,
+    passages = []
   }: {
     initial: BankQuestion | null;
+    /** The bank's reading passages, for the "About a passage" choice. */
+    passages?: Passage[];
     /** Only used when there is no `initial`. */
     carryOver?: QuestionCarryOver | null;
     /** Whether a picture may be kept in the question itself: only while no Supabase storage is connected. */
@@ -275,10 +290,25 @@ export const QuestionForm = forwardRef(function QuestionForm(
     initial && initial.type === "multiple-choice" && initial.correctAnswer.trim() && !initial.options.includes(initial.correctAnswer)
       ? initial.correctAnswer.trim()
       : null;
+  // The options ticked as right, for a question with more than one right
+  // answer. Kept by slot, like correctIndex.
+  const [correctSlots, setCorrectSlots] = useState<number[]>(() =>
+    initial?.type === "multiple-select"
+      ? decodeAnswerSet(initial.correctAnswer)
+          .map((answer) => initial.options.indexOf(answer))
+          .filter((slot) => slot >= 0)
+      : []
+  );
   // Short answers and written questions both keep their text here: the answer
   // for one, the marking guide for the other.
   const [shortAnswer, setShortAnswer] = useState(
-    initial && initial.type !== "multiple-choice" ? initial.correctAnswer : ""
+    initial && !isChoiceType(initial.type) ? initial.correctAnswer : ""
+  );
+  // The reading passage the question is about, and its place among the
+  // passage's questions ("" while not given).
+  const [passageId, setPassageId] = useState(initial?.passageId ?? "");
+  const [passageOrder, setPassageOrder] = useState(
+    initial?.passageOrder === null || initial?.passageOrder === undefined ? "" : String(initial.passageOrder)
   );
   const [explanation, setExplanation] = useState(initial?.explanation ?? "");
   // The picture the question was saved with, written out in full as the API
@@ -327,7 +357,7 @@ export const QuestionForm = forwardRef(function QuestionForm(
   // What the form holds apart from its picture, which is compared on its own:
   // a picture kept in the question can be megabytes of text.
   const contents = () =>
-    JSON.stringify([subjectId, topicId, difficulty, type, prompt, options, correctIndex, shortAnswer, explanation, marks, paperYear, source, translations]);
+    JSON.stringify([subjectId, topicId, difficulty, type, prompt, options, correctIndex, correctSlots, shortAnswer, explanation, marks, paperYear, source, translations, passageId, passageOrder]);
   // Taken once, as the form opened, for hasChanges to compare against.
   const [openedWith] = useState(contents);
 
@@ -345,6 +375,16 @@ export const QuestionForm = forwardRef(function QuestionForm(
   }));
 
   const knownTopics = subjects.find((subject) => subject.id === subjectId)?.topics ?? [];
+  // A passage is shown beside its questions in that subject's paper, so only
+  // the subject's own are offered. One already chosen for another subject
+  // stays listed, to be changed, rather than vanishing from the box.
+  const subjectPassages = passages.filter((passage) => passage.subjectId === subjectId || passage.id === passageId);
+
+  function toggleCorrectSlot(slot: number) {
+    setCorrectSlots((current) =>
+      current.includes(slot) ? current.filter((item) => item !== slot) : [...current, slot].sort((a, b) => a - b)
+    );
+  }
 
   // Only the link the question was saved with is checked: an upload's own
   // link is the API's, and always one it takes.
@@ -384,8 +424,7 @@ export const QuestionForm = forwardRef(function QuestionForm(
       const correctAnswer = type === "short-answer" ? typed.correctAnswer.trim() : "";
       // A slot the translation was never given is empty, not missing: a question
       // can have more options than the translation was sized for.
-      const translatedOptions =
-        type === "multiple-choice" ? filledSlots.map((slot) => (typed.options[slot] ?? "").trim()) : [];
+      const translatedOptions = isChoiceType(type) ? filledSlots.map((slot) => (typed.options[slot] ?? "").trim()) : [];
       const hasOptions = translatedOptions.some((option) => option.length > 0);
 
       if (prompt.length === 0 && explanation.length === 0 && correctAnswer.length === 0 && !hasOptions) continue;
@@ -567,6 +606,26 @@ export const QuestionForm = forwardRef(function QuestionForm(
         fail("Mark which option is the correct answer.", "correct", Math.max(0, correctIndex));
         return;
       }
+    } else if (type === "multiple-select") {
+      if (filledOptions.length < 2) {
+        fail("Fill in at least two options.", "option", options[0].trim() ? 1 : 0);
+        return;
+      }
+      const repeated = repeatedOption(filledOptions);
+      if (repeated !== null) {
+        const second = options.map((option) => option.trim()).lastIndexOf(repeated);
+        fail(`Two options are the same ("${repeated}"). Each option has to be different.`, "option", second);
+        return;
+      }
+      if (correctSlots.length === 0) {
+        fail("Tick every option that is a right answer.", "correct", 0);
+        return;
+      }
+      const emptyTicked = correctSlots.find((slot) => (options[slot] ?? "").trim().length === 0);
+      if (emptyTicked !== undefined) {
+        fail("A ticked option has no text. Type it, or untick it.", "correct", emptyTicked);
+        return;
+      }
     } else if (shortAnswer.trim().length === 0) {
       fail(type === "open-ended" ? "Write the marking guide." : "Type the correct answer.", "answer");
       return;
@@ -580,6 +639,12 @@ export const QuestionForm = forwardRef(function QuestionForm(
     }
 
     const year = Number.parseInt(paperYear, 10);
+
+    const order = passageOrder.trim() === "" ? null : Number(passageOrder);
+    if (passageId && order !== null && (!Number.isInteger(order) || order < 1 || order > 1000)) {
+      fail("The place among the passage's questions has to be a whole number from 1, or left blank.", null);
+      return;
+    }
 
     const builtTranslations = buildTranslations();
 
@@ -615,15 +680,24 @@ export const QuestionForm = forwardRef(function QuestionForm(
       difficulty,
       type,
       prompt: prompt.trim(),
-      options: type === "multiple-choice" ? filledOptions : [],
+      options: isChoiceType(type) ? filledOptions : [],
       correctAnswer:
-        type === "multiple-choice" ? (options[correctIndex] ?? "").trim() : shortAnswer.trim(),
+        type === "multiple-choice"
+          ? (options[correctIndex] ?? "").trim()
+          : type === "multiple-select"
+            ? encodeAnswerSet(
+                filledOptions,
+                correctSlots.map((slot) => (options[slot] ?? "").trim())
+              )
+            : shortAnswer.trim(),
       explanation: explanation.trim(),
       imageUrl,
       marks: markValue,
       paperYear: Number.isFinite(year) ? year : null,
       source: source.trim() || null,
-      translations: builtTranslations
+      translations: builtTranslations,
+      passageId: passageId || null,
+      passageOrder: passageId ? order : null
     });
   }
 
@@ -688,6 +762,7 @@ export const QuestionForm = forwardRef(function QuestionForm(
           Answer type
           <select value={type} onChange={(event) => setType(event.target.value as QuestionType)}>
             <option value="multiple-choice">Multiple choice</option>
+            <option value="multiple-select">Multiple answers (tick all right)</option>
             <option value="short-answer">Short answer</option>
             <option value="open-ended">Written answer (AI-marked)</option>
           </select>
@@ -709,9 +784,11 @@ export const QuestionForm = forwardRef(function QuestionForm(
         <FieldProblem problem={problem} field="prompt" />
       </div>
 
-      {type === "multiple-choice" ? (
+      {isChoiceType(type) ? (
         <fieldset className="options-fieldset">
-          <legend>Options - select the correct one</legend>
+          <legend>
+            {type === "multiple-select" ? "Options - tick every right answer" : "Options - select the correct one"}
+          </legend>
           {unmatchedAnswer !== null && (
             <p className="panel-hint">
               The answer recorded for this question is "{unmatchedAnswer}", which is not one of the options
@@ -724,15 +801,26 @@ export const QuestionForm = forwardRef(function QuestionForm(
                 {/* The radio and its letter are one label, so the whole 44px
                     square around them picks the answer, not just a 13px dot. */}
                 <label className="option-correct">
-                  <input
-                    type="radio"
-                    name="correct-option"
-                    data-field="correct"
-                    checked={correctIndex === index}
-                    onChange={() => setCorrectIndex(index)}
-                    aria-label={`Option ${String.fromCharCode(65 + index)} is correct`}
-                    {...problemProps("correct", index)}
-                  />
+                  {type === "multiple-select" ? (
+                    <input
+                      type="checkbox"
+                      data-field="correct"
+                      checked={correctSlots.includes(index)}
+                      onChange={() => toggleCorrectSlot(index)}
+                      aria-label={`Option ${String.fromCharCode(65 + index)} is a right answer`}
+                      {...problemProps("correct", index)}
+                    />
+                  ) : (
+                    <input
+                      type="radio"
+                      name="correct-option"
+                      data-field="correct"
+                      checked={correctIndex === index}
+                      onChange={() => setCorrectIndex(index)}
+                      aria-label={`Option ${String.fromCharCode(65 + index)} is correct`}
+                      {...problemProps("correct", index)}
+                    />
+                  )}
                   <span className="option-letter" aria-hidden="true">
                     {String.fromCharCode(65 + index)}
                   </span>
@@ -806,6 +894,40 @@ export const QuestionForm = forwardRef(function QuestionForm(
         />
       </label>
 
+      <div className="form-row passage-row">
+        <label>
+          Reading passage
+          <select value={passageId} onChange={(event) => setPassageId(event.target.value)}>
+            <option value="">None - the question stands on its own</option>
+            {subjectPassages.map((passage) => (
+              <option key={passage.id} value={passage.id}>
+                {passage.title}
+              </option>
+            ))}
+          </select>
+          <span className="field-hint">
+            {subjectPassages.length === 0
+              ? "No passages for this subject yet. Add one under the Passages tab."
+              : "Students see the passage beside the question, and its questions come one after another."}
+          </span>
+        </label>
+
+        {passageId && (
+          <label>
+            Place among its questions
+            <input
+              type="number"
+              min={1}
+              max={1000}
+              value={passageOrder}
+              onChange={(event) => setPassageOrder(event.target.value)}
+              placeholder="e.g. 1"
+            />
+            <span className="field-hint">1 comes first. Blank goes after the numbered ones.</span>
+          </label>
+        )}
+      </div>
+
       {followsSiteLanguage(subjectId) && (
         // Open when the question already has some, so they are not hidden from
         // the person who put them there. Keyed so another question starts shut.
@@ -826,7 +948,7 @@ export const QuestionForm = forwardRef(function QuestionForm(
               language={language}
               type={type}
               baseOptions={options}
-              correctIndex={correctIndex}
+              correctSlots={type === "multiple-select" ? correctSlots : [correctIndex]}
               value={translations[language]}
               onChange={(changes) => changeTranslation(language, changes)}
             />
@@ -990,14 +1112,15 @@ function TranslationBlock({
   language,
   type,
   baseOptions,
-  correctIndex,
+  correctSlots,
   value,
   onChange
 }: {
   language: TranslationLanguage;
   type: QuestionType;
   baseOptions: string[];
-  correctIndex: number;
+  /** The slots of the right option, or options. */
+  correctSlots: number[];
   value: TranslationInput;
   onChange: (changes: Partial<TranslationInput>) => void;
 }) {
@@ -1013,7 +1136,7 @@ function TranslationBlock({
         <textarea rows={2} value={value.prompt} onChange={(event) => onChange({ prompt: event.target.value })} />
       </label>
 
-      {type === "multiple-choice" && (
+      {isChoiceType(type) && (
         <fieldset className="options-fieldset">
           <legend>{adminText.translationOptions}</legend>
 
@@ -1035,7 +1158,7 @@ function TranslationBlock({
               />
               <span className="field-hint translation-option-base">
                 {adminText.translationOptionFor} {baseOptions[slot].trim()}
-                {slot === correctIndex && (
+                {correctSlots.includes(slot) && (
                   <strong className="translation-correct"> - {adminText.translationCorrectOption}</strong>
                 )}
               </span>

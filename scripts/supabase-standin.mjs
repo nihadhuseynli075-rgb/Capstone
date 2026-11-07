@@ -201,11 +201,14 @@ const SCHEMA = {
       external_ref: column("text"),
       subtopic: column("text"),
       // 0010. Other-language versions of a question, keyed by language code.
-      translations: column("jsonb", { notNull: true, default: () => ({}) })
+      translations: column("jsonb", { notNull: true, default: () => ({}) }),
+      // 0017. The reading passage the question is about, and its place among them.
+      passage_id: column("uuid"),
+      passage_order: column("int")
     },
     checks: [
       ["questions_difficulty_check", (row) => oneOf(["easy", "medium", "hard"])(row.difficulty)],
-      ["questions_type_check", (row) => oneOf(["multiple-choice", "short-answer", "open-ended"])(row.type)],
+      ["questions_type_check", (row) => oneOf(["multiple-choice", "multiple-select", "short-answer", "open-ended"])(row.type)],
       ["questions_marks_positive", (row) => row.marks > 0],
       ["questions_status_check", (row) => oneOf(["draft", "image-pending", "ready"])(row.status)],
       // 0010: only that it is a JSON object, as the migration checks.
@@ -223,6 +226,26 @@ const SCHEMA = {
       ]
     ],
     // The set_updated_at trigger from 0001.
+    beforeUpdate: (row) => ({ ...row, updated_at: nowIso() })
+  },
+  // 0017. Reading texts that several questions are about.
+  passages: {
+    columns: {
+      id: column("uuid", { notNull: true, default: () => randomUUID() }),
+      subject_id: column("text", { notNull: true }),
+      title: column("text", { notNull: true }),
+      body: column("text", { notNull: true }),
+      paper_year: column("int"),
+      source: column("text"),
+      external_ref: column("text"),
+      created_at: column("timestamptz", { notNull: true, default: nowIso }),
+      updated_at: column("timestamptz", { notNull: true, default: nowIso })
+    },
+    unique: [["passages_external_ref_key", ["external_ref"]]],
+    checks: [
+      ["passages_title_check", (row) => String(row.title).trim() !== "" && String(row.title).length <= 200],
+      ["passages_body_check", (row) => String(row.body).trim() !== "" && String(row.body).length <= 20000]
+    ],
     beforeUpdate: (row) => ({ ...row, updated_at: nowIso() })
   },
   test_attempts: {
@@ -302,6 +325,7 @@ const FOREIGN_KEYS = [
   { table: "test_attempts", column: "student_id", references: "profiles", onDelete: "cascade" },
   { table: "attempt_questions", column: "attempt_id", references: "test_attempts", onDelete: "cascade" },
   { table: "attempt_questions", column: "question_id", references: "questions", onDelete: "set null" },
+  { table: "questions", column: "passage_id", references: "passages", onDelete: "set null" },
   { table: "friendships", column: "user_id", references: "profiles", onDelete: "cascade" },
   { table: "friendships", column: "friend_id", references: "profiles", onDelete: "cascade" }
 ];

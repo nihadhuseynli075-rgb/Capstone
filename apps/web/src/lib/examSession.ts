@@ -1,5 +1,5 @@
 import type { AttemptComparison, MockTest, TestResult } from "@grade9/shared";
-import { recordOwner, storedRecordFate } from "@grade9/shared";
+import { questionTypes, recordOwner, storedRecordFate } from "@grade9/shared";
 import { safeSessionStorage } from "./safeStorage";
 import { peekIdentity } from "./studentKey";
 
@@ -87,12 +87,21 @@ function isExamQuestion(value: unknown): value is Record<string, unknown> {
     typeof value.subjectId === "string" &&
     typeof value.topicId === "string" &&
     typeof value.difficulty === "string" &&
-    (value.type === "multiple-choice" || value.type === "short-answer" || value.type === "open-ended") &&
+    // Every type the API serves: a paper with one it did not know was thrown
+    // away whole on loading, as if nothing were saved.
+    (questionTypes as readonly unknown[]).includes(value.type) &&
     typeof value.prompt === "string" &&
     Array.isArray(value.options) &&
     value.options.every((option) => typeof option === "string") &&
     (value.marks === undefined || typeof value.marks === "number") &&
-    (value.imageUrl === undefined || value.imageUrl === null || typeof value.imageUrl === "string")
+    (value.imageUrl === undefined || value.imageUrl === null || typeof value.imageUrl === "string") &&
+    // A reading passage (7 Nov 2026), absent on a paper saved before then.
+    (value.passage === undefined ||
+      value.passage === null ||
+      (isRecord(value.passage) &&
+        typeof value.passage.id === "string" &&
+        typeof value.passage.title === "string" &&
+        typeof value.passage.body === "string"))
   );
 }
 

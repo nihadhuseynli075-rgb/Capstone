@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from "react";
 import type { SubjectId } from "@grade9/shared";
 import { navigate } from "../app/router";
 import { useLanguage, type TranslationKey } from "../lib/i18n";
+import { sectorNote } from "../lib/testText";
 import { fetchCatalog } from "../services/testsApi";
 
 /**
@@ -66,6 +67,9 @@ export function SubjectShortcuts({ className = "" }: { className?: string }) {
                 {subject.glyph}
               </span>
               <span className="subject-name">{t(subject.label)}</span>
+              {/* Which sector the paper is for, so a student does not take the
+                  other sector's language paper for their own. */}
+              {sectorNote(t, subject.id) && <span className="subject-sector">{sectorNote(t, subject.id)}</span>}
               {count !== undefined && (
                 <span className="subject-count">{empty ? t("main.soon") : count}</span>
               )}

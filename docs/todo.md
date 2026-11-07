@@ -1,5 +1,65 @@
 # Action list
 
+## Session on 7 November 2026
+
+Next session: **Wednesday 11 November, 5:00pm Nihad's time (Baku)**. Nihad
+checks the changes below and the admin redesign then.
+
+### Decided
+
+- **Reading passages are kept once and linked to their questions.** A test
+  shows the passage beside its questions, which come one after another in
+  their passage's order, never scattered through the paper.
+- **A new answer type: multiple answers** (tick every right option, right only
+  when exactly those are ticked), for questions where both "as" and "because"
+  fit.
+- **Russian Language and Azerbaijani Language are labelled with their sector**
+  ("Russian sector only" / "Azerbaijani sector only"): a Russian-sector student
+  can sit Azerbaijani, but as a second language, which is another paper.
+- **Maths gets an Azerbaijani translation** alongside English and Russian.
+- **Nihad's workbook goes in through Bulk import as it is**: the Questions
+  sheet exported as CSV, with the passage text repeated on each of its rows
+  for now. Mock-exam questions from unofficial sources are Nihad's call.
+
+### Herdy
+
+- [x] Passages: a Passages tab in the admin dashboard, a passage choice on the
+      question form, the passage beside its questions in a test (7 Nov).
+- [x] Multiple-answer questions in the form, the exam, marking and results.
+- [x] Numbered statements ("1) ... 2) ...") set out as a list under the
+      question, so they no longer read as the options.
+- [x] Sector labels on the language subjects (dashboard and builder).
+- [x] Admin list: a question listed twice, where deleting one took both. The
+      list now shows each question once, and flags real copies.
+- [x] Azerbaijani translation fields in the question form, `_az` columns in
+      the import.
+- [x] Dashboard background: more detail on wide screens (contours, peaks).
+- [x] Bulk import reads Nihad's workbook columns as they are, links passages,
+      saves unfinished rows as drafts, and updates rather than duplicates on a
+      second import.
+- [x] Admin "All questions" redesigned: filters by subject, status, type and
+      passage; questions grouped under their passage; cards with the right
+      options marked. Figma updated.
+
+### Nihad
+
+- [ ] **Run `supabase/migrations/0017_passages_and_multiple_answers.sql`** in
+      the Supabase SQL editor (or all of `run-all.sql`, now 0001-0017) before
+      using passages or multiple answers. Everything else works without it.
+- [ ] **Finish the workbook**: difficulties, translations, and these rows of the
+      Questions sheet (header is row 1):
+      - rows 45, 58, 160, 173: Excel turned the keys 1,4 / 1,5 / 2,4 / 1,4
+        into 1.4 / 1.5 / 2.4 / 1.4. Type them as text.
+      - rows 26, 85, 87, 95, 98, 99, 105, 122, 125, 132, 136: fill the A-E
+        columns (the options are not a lettered list in "Answer Options").
+      - the 22 rows with "Не опубликован в кратком ключе": a key or marking
+        guide when DİM publishes it.
+- [ ] **Import it**: File, Download, CSV of the Questions sheet, drop it on
+      Bulk import with "Save unfinished rows as drafts" ticked. Importing it
+      again later updates the same questions.
+- [ ] **Test on Wednesday**: a reading test, a multiple-answer question, the
+      admin list and the passages tab.
+
 ## Session on 4 November 2026
 
 Next session: **Saturday 7 November, 5:00-5:30pm Nihad's time (Baku)**.

@@ -1,7 +1,8 @@
-import type { BankQuestion, ExamQuestion, SiteLanguage, TestSettings } from "@grade9/shared";
+import type { BankQuestion, ExamPassage, ExamQuestion, SiteLanguage, TestSettings } from "@grade9/shared";
 import { fullMockSector, subjectName, subjectsCovered, topicName } from "@grade9/shared";
 import { writtenMarkingEnabled } from "../lib/env";
 import type { AttemptQuestion } from "../repositories/attemptRepository";
+import { examPassages } from "../repositories/passageRepository";
 import { listQuestions } from "../repositories/questionRepository";
 import { localizeQuestion } from "./questionTranslations";
 
@@ -11,6 +12,8 @@ export interface GeneratedTest {
   requestedCount: number;
   /** True when the bank did not hold enough questions to fill the request. */
   short: boolean;
+  /** The reading passages the questions point at, by id, to be shown beside them. */
+  passages: Map<string, ExamPassage>;
 }
 
 /** Fisher-Yates, so every question has an equal chance of being picked. */
@@ -21,6 +24,56 @@ function shuffle<T>(items: T[]): T[] {
     [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
   }
   return result;
+}
+
+/**
+ * A subject's questions as the units a paper is drawn in, in random order:
+ * each passage's questions together, in the passage's own order (numbered
+ * ones first, then the rest by id), and every other question on its own.
+ *
+ * Nihad asked for this on 7 Nov 2026: drawn one by one, five questions on one
+ * text came scattered through the paper, between maths questions, and the
+ * student had to go back and find the text again each time.
+ */
+export function drawingUnits(questions: BankQuestion[]): BankQuestion[][] {
+  const byPassage = new Map<string, BankQuestion[]>();
+  const units: BankQuestion[][] = [];
+
+  for (const question of questions) {
+    if (!question.passageId) {
+      units.push([question]);
+      continue;
+    }
+    const group = byPassage.get(question.passageId);
+    if (group) {
+      group.push(question);
+    } else {
+      const fresh = [question];
+      byPassage.set(question.passageId, fresh);
+      units.push(fresh);
+    }
+  }
+
+  const order = (question: BankQuestion) => question.passageOrder ?? Number.MAX_SAFE_INTEGER;
+  for (const group of byPassage.values()) {
+    group.sort((a, b) => order(a) - order(b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }
+
+  return shuffle(units);
+}
+
+/**
+ * The first `count` questions of a subject's units, a whole unit at a time
+ * where it fits. A passage with more questions than are left gives its first
+ * ones, so the paper is still exactly the size asked for.
+ */
+export function takeFromUnits(units: BankQuestion[][], count: number): BankQuestion[] {
+  const picked: BankQuestion[] = [];
+  for (const unit of units) {
+    if (picked.length >= count) break;
+    picked.push(...unit.slice(0, count - picked.length));
+  }
+  return picked;
 }
 
 /**
@@ -85,7 +138,7 @@ export async function generateMockTest(
 
   const pools = await Promise.all(
     subjectIds.map(async (subjectId) =>
-      shuffle(
+      drawingUnits(
         await listQuestions({
           subjectId,
           // A full mock covers every topic; only a single subject is narrowed.
@@ -104,12 +157,14 @@ export async function generateMockTest(
 
   const shares = shareQuestions(
     settings.questionCount,
-    pools.map((pool) => pool.length)
+    pools.map((units) => units.reduce((total, unit) => total + unit.length, 0))
   );
 
   const picked = pools
-    .flatMap((pool, index) => pool.slice(0, shares[index]))
+    .flatMap((units, index) => takeFromUnits(units, shares[index]))
     .map((question) => localizeQuestion(question, language));
+
+  const passages = await examPassages(picked.flatMap((question) => (question.passageId ? [question.passageId] : [])));
 
   const topicLabel =
     settings.topicIds.length === 1
@@ -120,7 +175,8 @@ export async function generateMockTest(
     title: sector ? subjectName(settings.subjectId) : `${subjectName(settings.subjectId)} - ${topicLabel} mock test`,
     questions: picked,
     requestedCount: settings.questionCount,
-    short: picked.length < settings.questionCount
+    short: picked.length < settings.questionCount,
+    passages
   };
 }
 
@@ -153,9 +209,14 @@ export function toAttemptQuestion(question: BankQuestion, position: number): Att
   };
 }
 
-/** Strips answers and explanations before a question is sent to the browser. */
-export function toExamQuestion(question: BankQuestion): ExamQuestion {
+/**
+ * Strips answers and explanations before a question is sent to the browser,
+ * and puts its passage beside it. A passage that could not be found (deleted
+ * a moment ago) leaves the question without one rather than failing the test.
+ */
+export function toExamQuestion(question: BankQuestion, passages?: Map<string, ExamPassage>): ExamQuestion {
   return {
+    passage: (question.passageId && passages?.get(question.passageId)) || null,
     id: question.id,
     subjectId: question.subjectId,
     topicId: question.topicId,

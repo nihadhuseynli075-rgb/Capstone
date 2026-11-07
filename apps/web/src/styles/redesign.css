@@ -1687,3 +1687,162 @@ html[data-theme="dark"] body:has(.dashboard) {
 .question-row-actions .danger-button:hover:not(:disabled) {
   background: var(--danger-soft);
 }
+
+/* ===================================================== 7 Nov 2026 additions */
+
+/* "Russian sector only" under a language paper's name (SubjectShortcuts) and
+   beside it in the builder's chips. */
+.subject-sector {
+  justify-self: center;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.chip .chip-sector {
+  color: inherit;
+  font-size: 0.75rem;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+/* A question on a reading text: the text on the left, the question on the
+   right, each scrolling on its own (Nihad, 7 Nov 2026). */
+.passage-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.passage-layout > .question-card {
+  padding: 32px;
+}
+
+.passage-panel {
+  position: sticky;
+  top: 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100vh - 120px);
+  padding: 28px 28px 0;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--brand);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+}
+
+.passage-kicker {
+  margin: 0;
+  color: var(--brand);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.passage-title {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+.passage-body {
+  overflow-y: auto;
+  padding: 4px 4px 28px 0;
+  font-size: 1.0625rem;
+  line-height: 1.7;
+}
+
+.passage-body p {
+  margin: 0 0 1em;
+  white-space: pre-line;
+}
+
+.passage-body:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+/* Numbered statements the options name by number ("1, 2, 4"). */
+.prompt-statements {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 16px 20px;
+  list-style: none;
+  border-radius: var(--radius-lg);
+  background: var(--surface-alt);
+}
+
+.prompt-statements li {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 1.0625rem;
+  line-height: 1.45;
+}
+
+.prompt-statement-number {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--brand);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+/* More than one right answer: square boxes instead of round letters. */
+.option-list-multi {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.option-hint {
+  margin-bottom: 4px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.option-list .option input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.option-list .option .option-letter.option-box {
+  border-radius: 8px;
+}
+
+@media (max-width: 1180px) {
+  .passage-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .passage-panel {
+    position: static;
+    max-height: 45vh;
+  }
+}
+
+@media (max-width: 960px) {
+  .passage-layout > .question-card {
+    padding: 20px;
+  }
+
+  .passage-panel {
+    padding: 20px 20px 0;
+  }
+}

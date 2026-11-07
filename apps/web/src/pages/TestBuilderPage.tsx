@@ -17,7 +17,7 @@ import { fill } from "../features/friends/fill";
 import { needsSignInAgain } from "../features/profile/profileText";
 import { saveActiveTest } from "../lib/examSession";
 import { formatPercent, useLanguage, type TranslationKey } from "../lib/i18n";
-import { difficultyLabel, subjectLabel, testErrorText, topicLabel } from "../lib/testText";
+import { difficultyLabel, sectorNote, subjectLabel, testErrorText, topicLabel } from "../lib/testText";
 import {
   fetchCatalog,
   fetchHistory,
@@ -491,6 +491,7 @@ export function TestBuilderPage() {
               }}
             >
               {subjectLabel(t, item.id, item.name)}
+              {sectorNote(t, item.id) && <span className="chip-sector">({sectorNote(t, item.id)})</span>}
               <span className="chip-count">{item.total}</span>
             </button>
           ))}

@@ -76,6 +76,8 @@ const en = {
   // A full mock's own ids (see fullMockId in the shared package).
   "subject.mock-az": "Full mock (Azerbaijani sector)",
   "subject.mock-ru": "Full mock (Russian sector)",
+  "subject.sectorOnly.ru": "Russian sector only",
+  "subject.sectorOnly.az": "Azerbaijani sector only",
 
   // Header and dashboard
   // The theme button's label says what a tap does, so it names the other theme.
@@ -537,6 +539,9 @@ const en = {
   "exam.finish": "Finish and see results",
   // The header button, on every question, and the step it opens.
   "exam.finishEarly": "Finish test",
+  "exam.selectAll": "Choose every right answer. There may be more than one.",
+  "exam.passageOne": "Question {n} is about this text",
+  "exam.passageRange": "Questions {first}–{last} are about this text",
   "exam.finishTitle": "Finish the test?",
   "exam.confirmUnanswered":
     "{n} question is still unanswered. You can go back to it, or submit the test as it is.|{n} questions are still unanswered. You can go back to them, or submit the test as it is.",
@@ -692,6 +697,8 @@ const ru: Dictionary = {
   "subject.azerbaijani": "Азербайджанский язык",
   "subject.mock-az": "Полный пробный тест (азербайджанский сектор)",
   "subject.mock-ru": "Полный пробный тест (русский сектор)",
+  "subject.sectorOnly.ru": "Только для русского сектора",
+  "subject.sectorOnly.az": "Только для азербайджанского сектора",
 
   // Header and dashboard
   "nav.themeToDark": "Включить тёмную тему",
@@ -1129,6 +1136,9 @@ const ru: Dictionary = {
   "exam.stillMarking": "Тест ещё проверяется... Ваши ответы останутся на этой странице, пока результат не будет сохранён.",
   "exam.finish": "Завершить и узнать результат",
   "exam.finishEarly": "Завершить тест",
+  "exam.selectAll": "Выберите все верные ответы. Их может быть несколько.",
+  "exam.passageOne": "Вопрос {n} относится к этому тексту",
+  "exam.passageRange": "Вопросы {first}–{last} относятся к этому тексту",
   "exam.finishTitle": "Завершить тест?",
   "exam.confirmUnanswered":
     "Без ответа остался {n} вопрос. Можно вернуться к нему или отправить тест как есть.|Без ответа осталось {n} вопроса. Можно вернуться к ним или отправить тест как есть.|Без ответа осталось {n} вопросов. Можно вернуться к ним или отправить тест как есть.",
@@ -1269,6 +1279,8 @@ const az: Dictionary = {
   "subject.azerbaijani": "Azərbaycan dili",
   "subject.mock-az": "Tam sınaq (Azərbaycan bölməsi)",
   "subject.mock-ru": "Tam sınaq (rus bölməsi)",
+  "subject.sectorOnly.ru": "Yalnız rus bölməsi üçün",
+  "subject.sectorOnly.az": "Yalnız Azərbaycan bölməsi üçün",
 
   // Header and dashboard
   "nav.themeToDark": "Qaranlıq rejimə keç",
@@ -1705,6 +1717,9 @@ const az: Dictionary = {
   "exam.stillMarking": "Testiniz hələ yoxlanılır... Nəticə yadda saxlanılana qədər cavablarınız bu səhifədə qalır.",
   "exam.finish": "Bitir və nəticəyə bax",
   "exam.finishEarly": "Testi bitir",
+  "exam.selectAll": "Bütün doğru cavabları seçin. Bir neçə ola bilər.",
+  "exam.passageOne": "Sual {n} bu mətnə aiddir",
+  "exam.passageRange": "Suallar {first}–{last} bu mətnə aiddir",
   "exam.finishTitle": "Test bitirilsin?",
   "exam.confirmUnanswered": "{n} sual hələ cavabsızdır. Ona qayıda və ya testi olduğu kimi göndərə bilərsiniz.",
   "exam.allAnswered": "Bütün {n} suala cavab verdiniz. Yoxlanışa göndərilsin?",

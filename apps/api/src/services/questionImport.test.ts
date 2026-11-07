@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { importQuestionsFromCsv, parseCsv, resolveCorrectAnswer, withoutDuplicates } from "./questionImport";
+import { decodeAnswerSet } from "@grade9/shared";
+import {
+  importPassagesFromCsv,
+  importQuestionsFromCsv,
+  looksLikePassageSheet,
+  parseCsv,
+  planImport,
+  resolveCorrectAnswer,
+  withoutDuplicates
+} from "./questionImport";
 
 const header = "subject,topic,question,option_a,option_b,option_c,option_d,correct_answer";
 
@@ -76,7 +85,9 @@ describe("importQuestionsFromCsv", () => {
         imageUrl: null,
         paperYear: null,
         source: null,
-        translations: {}
+        translations: {},
+        passageId: null,
+        passageOrder: null
       }
     ]);
   });
@@ -904,5 +915,380 @@ describe("withoutDuplicates", () => {
       [header, "math,geometry,Solve 2x = 4,1,2,3,4,B", "math,algebra,Solve 2x = 4,1,2,3,5,B"].join("\n")
     );
     assert.equal(withoutDuplicates(other, bank).drafts.length, 2);
+  });
+});
+
+/**
+ * Nihad's own workbook: the header below is the one his Questions sheet has,
+ * and the rows are shaped like real ones (shortened) from it.
+ */
+const workbookColumns = [
+  "Q#",
+  "Subject",
+  "Topic",
+  "Subtopic",
+  "Question (original AZ)",
+  "Difficulty",
+  "Answer Options (full)",
+  "Correct Answer (DİM)",
+  "Image / Page",
+  "Date",
+  "Status",
+  "Source",
+  "Sector",
+  "Variant",
+  "Official DİM Key",
+  "Key Check",
+  "Passage ID",
+  "Passage Title",
+  "Passage (separate column)",
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "Notes / exactness",
+  "Official source URL"
+];
+
+function workbookSheet(...rows: Array<Record<string, string>>): string {
+  const quote = (value: string) => `"${value.replace(/"/g, '""')}"`;
+  return [workbookColumns, ...rows.map((row) => workbookColumns.map((column) => row[column] ?? ""))]
+    .map((cells) => cells.map(quote).join(","))
+    .join("\n");
+}
+
+const azGrammar = {
+  "Q#": "27.0",
+  Subject: "Azərbaycan dili",
+  Topic: "Azərbaycan dili / Qrammatika",
+  Subtopic: "Выбор варианта",
+  "Question (original AZ)": "Nümunənin təhlilinə əsasən cədvəldəki uyğunluğu müəyyən edin.",
+  "Correct Answer (DİM)": "C",
+  Date: "05.04.2026",
+  Source: "Фото пользователя",
+  Sector: "AZ",
+  Variant: "C",
+  A: "2,3,5,6",
+  B: "1,3,4",
+  C: "1,3,5,6",
+  D: "1,2,4,5",
+  E: "2,4,6"
+};
+
+const mathLettered = {
+  "Q#": "59.0",
+  Subject: "Riyaziyyat",
+  Topic: "Riyaziyyat",
+  "Question (original AZ)": "(3y − 2)/4 − (3 − y)/5 + 3 = 0 tənliyini həll edin.",
+  Difficulty: "2.0",
+  "Answer Options (full)": "A) −2\nB) 3\nC) 1\nD) −3\nE) 2",
+  "Correct Answer (DİM)": "A",
+  Date: "26.04.2026",
+  Sector: "AZ",
+  Variant: "C"
+};
+
+const readingOnPassage = {
+  "Q#": "43.0",
+  Subject: "Azərbaycan dili",
+  Topic: "Oxu / Mətn",
+  "Question (original AZ)": "Mətnə görə əsaslandırılması mümkün olan fikri seçin.",
+  "Answer Options (full)": "1. Əvvəlki dövrlərdə əhalisiz torpaq bölgələri var idi.",
+  "Correct Answer (DİM)": "D",
+  Date: "12.04.2026",
+  Sector: "AZ",
+  Variant: "B",
+  "Passage ID": "12-P1",
+  "Passage Title": "“İlanlı”nın dərdi",
+  "Passage (separate column)": "Aslan torpağı suya həsrət qalan, qara yelin yandırdığı bir yurd.",
+  A: "1,2,4",
+  B: "1,3,4",
+  C: "3,4,5",
+  D: "1,2,5",
+  E: "2,3,5"
+};
+
+describe("importing Nihad's workbook", () => {
+  test("maps his columns without renaming them: topic, subtopic, difficulty, date, source and key", () => {
+    const { drafts, rows, errors } = importQuestionsFromCsv(workbookSheet(azGrammar, mathLettered));
+
+    assert.deepEqual(errors, []);
+    assert.equal(drafts[0].subjectId, "azerbaijani");
+    assert.equal(drafts[0].topicId, "grammar");
+    assert.equal(drafts[0].difficulty, "medium");
+    assert.equal(drafts[0].correctAnswer, "1,3,5,6");
+    assert.equal(drafts[0].paperYear, 2026);
+    assert.equal(drafts[0].source, "DİM 05.04.2026, AZ sector, Variant C, Q27");
+    assert.equal(rows[0].externalRef, "dim-2026-04-05-az-c:q27");
+    assert.equal(rows[0].subtopic, "Выбор варианта");
+    assert.equal(rows[0].status, "ready");
+
+    // "2.0" is how Excel writes a typed 2.
+    assert.equal(drafts[1].difficulty, "medium");
+    assert.equal(rows[1].externalRef, "dim-2026-04-26-az-c:q59");
+  });
+
+  test("reads the options from Answer Options (full) when the A to E columns are empty", () => {
+    const { drafts, errors } = importQuestionsFromCsv(workbookSheet(mathLettered));
+
+    assert.deepEqual(errors, []);
+    assert.equal(drafts[0].type, "multiple-choice");
+    assert.deepEqual(drafts[0].options, ["−2", "3", "1", "−3", "2"]);
+    assert.equal(drafts[0].correctAnswer, "−2");
+    // His topic is just the subject's own name: one general topic, not a crash.
+    assert.equal(drafts[0].topicId, "general");
+  });
+
+  test("difficulty 1, 2 and 3 (also written 1.0) are easy, medium and hard", () => {
+    const sheet = ["subject,topic,question,answer,difficulty", "english,grammar,a?,x,1.0", "english,grammar,b?,x,2", "english,grammar,c?,x,3", "english,grammar,d?,x,"].join("\n");
+    assert.deepEqual(
+      importQuestionsFromCsv(sheet).drafts.map((draft) => draft.difficulty),
+      ["easy", "medium", "hard", "medium"]
+    );
+  });
+
+  test("topic names in Azerbaijani, Russian and English map to the starter topics", () => {
+    const topics = (subject: string, ...names: string[]) =>
+      importQuestionsFromCsv(
+        ["subject,topic,question,answer", ...names.map((name, index) => `${subject},"${name}",q${index}?,x`)].join("\n")
+      ).drafts.map((draft) => draft.topicId);
+
+    assert.deepEqual(
+      topics("Azərbaycan dili", "Leksika", "Orfoqrafiya", "Durğu işarələri", "Fonetika", "Yazı", "Mətn", "Azərbaycan dili / Oxu"),
+      ["vocabulary", "spelling", "punctuation", "phonetics", "writing", "reading", "reading"]
+    );
+    assert.deepEqual(topics("math", "Sets & Logic", "Probability", "Вероятность", "Algebra"), [
+      "sets-logic",
+      "probability",
+      "probability",
+      "algebra"
+    ]);
+  });
+
+  test("a written answer without a published key is a draft only when drafts are kept", () => {
+    const row = {
+      ...azGrammar,
+      "Q#": "45.0",
+      Topic: "Oxu / Mətn",
+      Subtopic: "Открытый ответ",
+      "Answer Options (full)": "Yazılı açıq cavab.",
+      "Correct Answer (DİM)": "Не опубликован в кратком ключе",
+      A: "",
+      B: "",
+      C: "",
+      D: "",
+      E: ""
+    };
+
+    const strict = importQuestionsFromCsv(workbookSheet(row));
+    assert.deepEqual(strict.drafts, []);
+    assert.equal(strict.errors.length, 1);
+
+    const kept = importQuestionsFromCsv(workbookSheet(row), { keepDrafts: true });
+    assert.deepEqual(kept.errors, []);
+    assert.equal(kept.drafts[0].type, "open-ended");
+    assert.equal(kept.rows[0].status, "draft");
+    assert.match(kept.rows[0].reason ?? "", /marking guide/);
+  });
+
+  test("short answers: a number is a ready answer, an unpublished key is a draft", () => {
+    const short = {
+      Subject: "Riyaziyyat",
+      Topic: "Algebra",
+      "Question (original AZ)": "Bərabərsizliyin həllərinin sayını tapın.",
+      "Answer Options (full)": "No answer choices — short-answer response.",
+      Date: "12.04.2026",
+      Sector: "AZ",
+      Variant: "B"
+    };
+    const { drafts, rows, errors } = importQuestionsFromCsv(
+      workbookSheet(
+        { ...short, "Q#": "73.0", "Correct Answer (DİM)": "14" },
+        { ...short, "Q#": "78.0", "Correct Answer (DİM)": "Не опубликован в кратком ключе" }
+      ),
+      { keepDrafts: true }
+    );
+
+    assert.deepEqual(errors, []);
+    assert.equal(drafts[0].type, "short-answer");
+    assert.equal(drafts[0].correctAnswer, "14");
+    assert.equal(rows[0].status, "ready");
+    assert.equal(rows[1].status, "draft");
+    assert.match(rows[1].reason ?? "", /key not published/);
+  });
+
+  test("a key Excel turned from 1,4 into 1.4 is a draft that says so, not a guess", () => {
+    const row = {
+      "Q#": "12.0",
+      Subject: "İngilis dili",
+      Topic: "Reading",
+      "Question (original AZ)": "Based on the passage about Komodo dragons, match the sentences.",
+      "Answer Options (full)": "1) Komodo National Park was created at t\n2) another",
+      "Correct Answer (DİM)": "1.4",
+      Date: "12.04.2026",
+      Sector: "AZ",
+      Variant: "B"
+    };
+
+    const { rows, errors } = importQuestionsFromCsv(workbookSheet(row), { keepDrafts: true });
+    assert.deepEqual(errors, []);
+    assert.equal(rows[0].status, "draft");
+    assert.match(rows[0].reason ?? "", /Excel turned the answer 1,4 into 1\.4; check the key/);
+  });
+
+  test("a key letter pointing at an empty option is a draft, and an error when drafts are not kept", () => {
+    const row = { ...azGrammar, E: "", "Correct Answer (DİM)": "E" };
+    assert.equal(importQuestionsFromCsv(workbookSheet(row)).errors.length, 1);
+
+    const kept = importQuestionsFromCsv(workbookSheet(row), { keepDrafts: true });
+    assert.equal(kept.rows[0].status, "draft");
+    assert.match(kept.rows[0].reason ?? "", /option E is empty/);
+    assert.equal(kept.drafts[0].correctAnswer, "");
+  });
+
+  test("a choice question with no options yet is a draft", () => {
+    const row = { ...azGrammar, A: "", B: "", C: "", D: "", E: "" };
+    const kept = importQuestionsFromCsv(workbookSheet(row), { keepDrafts: true });
+    assert.equal(kept.drafts[0].type, "short-answer");
+    const typed = importQuestionsFromCsv(workbookSheet({ ...row, "Answer Options (full)": "1) as 2) if" }), { keepDrafts: true });
+    assert.equal(typed.drafts[0].type, "multiple-choice");
+    assert.match(typed.rows[0].reason ?? "", /no options yet/);
+  });
+
+  test("a question with no subject, topic or text is still an error with drafts kept", () => {
+    const { drafts, errors } = importQuestionsFromCsv(
+      workbookSheet({ ...azGrammar, Subject: "" }, { ...azGrammar, Topic: "" }, { ...azGrammar, "Question (original AZ)": "" }),
+      { keepDrafts: true }
+    );
+    assert.deepEqual(drafts, []);
+    assert.deepEqual(errors.map((error) => error.message), ["Subject is empty.", "Topic is empty.", "Question text is empty."]);
+  });
+
+  test("without date, sector, variant and Q# the old source column and no key are used", () => {
+    const { drafts, rows } = importQuestionsFromCsv("subject,topic,question,answer,source,year\nenglish,grammar,a?,x,Mock 3,2024");
+    assert.equal(drafts[0].source, "Mock 3");
+    assert.equal(drafts[0].paperYear, 2024);
+    assert.equal(rows[0].externalRef, null);
+  });
+});
+
+describe("multiple select in a sheet", () => {
+  const sheet = (answer: string, type = "multiple-select") =>
+    `subject,topic,question,option_a,option_b,option_c,option_d,correct_answer,type\nmath,algebra,Which are even?,2,3,4,5,"${answer}",${type}`;
+
+  test("A, D then A;D then AD all tick the same two options", () => {
+    for (const answer of ["A, D", "A;D", "AD", "a d"]) {
+      const { drafts, errors } = importQuestionsFromCsv(sheet(answer));
+      assert.deepEqual(errors, [], answer);
+      assert.equal(drafts[0].type, "multiple-select");
+      assert.deepEqual(decodeAnswerSet(drafts[0].correctAnswer), ["2", "5"]);
+    }
+  });
+
+  test("the type column accepts multi, select-all and multiple answers", () => {
+    for (const type of ["multi", "select-all", "multiple answers", "Multiple Select"]) {
+      assert.equal(importQuestionsFromCsv(sheet("A,B", `"${type}"`)).drafts[0]?.type, "multiple-select", type);
+    }
+  });
+
+  test("a letter with no option behind it is refused, or a draft when kept", () => {
+    const text = "subject,topic,question,option_a,option_b,option_c,correct_answer,type\nmath,algebra,Pick,1,2,3,\"A, E\",multi";
+    assert.equal(importQuestionsFromCsv(text).errors.length, 1);
+    assert.equal(importQuestionsFromCsv(text, { keepDrafts: true }).rows[0].status, "draft");
+  });
+});
+
+describe("translation columns in Azerbaijani", () => {
+  test("question_az and option_a_azerbaijani are read beside _ru and _en for maths", () => {
+    const csv = [
+      "subject,topic,question,option_a,option_b,correct_answer,question_az,option_a_az,option_b_az,question_ru,option_a_ru,option_b_ru",
+      "math,algebra,Solve 2x=4,1,2,B,2x=4 həll edin,1,2,Реши 2x=4,1,2"
+    ].join("\n");
+    const { drafts, errors } = importQuestionsFromCsv(csv);
+    assert.deepEqual(errors, []);
+    assert.equal(drafts[0].translations.az?.prompt, "2x=4 həll edin");
+    assert.deepEqual(drafts[0].translations.az?.options, ["1", "2"]);
+    assert.equal(drafts[0].translations.ru?.prompt, "Реши 2x=4");
+  });
+});
+
+describe("passages in a sheet", () => {
+  const second = { ...readingOnPassage, "Q#": "44.0", "Passage Title": "", "Passage (separate column)": "" };
+  const first = { ...readingOnPassage, "Q#": "43.0" };
+
+  test("the first row with text creates the passage; every row on it gets its order", () => {
+    // Listed out of order on purpose: the order follows the question number.
+    const { passages, rows, errors } = importQuestionsFromCsv(workbookSheet(second, first));
+
+    assert.deepEqual(errors, []);
+    assert.equal(passages.length, 1);
+    assert.equal(passages[0].externalRef, "12-P1");
+    assert.equal(passages[0].draft.title, "“İlanlı”nın dərdi");
+    assert.equal(passages[0].draft.subjectId, "azerbaijani");
+    assert.equal(passages[0].draft.paperYear, 2026);
+    assert.equal(passages[0].draft.source, "DİM 12.04.2026, AZ sector, Variant B");
+    assert.deepEqual(rows.map((row) => [row.passageRef, row.passageOrder]), [["12-P1", 2], ["12-P1", 1]]);
+  });
+
+  test("planImport links a question to its passage, or makes it a draft when the passage is missing", () => {
+    const result = importQuestionsFromCsv(workbookSheet(first, second), { keepDrafts: true });
+
+    const linked = planImport(result, { bank: [], passages: new Map([["12-P1", { id: "passage-1" }]]), keepDrafts: true });
+    assert.deepEqual(linked.items.map((item) => [item.draft.passageId, item.draft.passageOrder, item.status]), [
+      ["passage-1", 1, "ready"],
+      ["passage-1", 2, "ready"]
+    ]);
+
+    const missing = planImport(result, { bank: [], passages: new Map(), keepDrafts: true });
+    assert.equal(missing.items[0].status, "draft");
+    assert.equal(missing.items[0].draft.passageId, null);
+    assert.equal(missing.items[0].reason, "passage 12-P1 not in the bank yet; import the Reading texts sheet");
+
+    const strict = planImport(result, { bank: [], passages: new Map(), keepDrafts: false });
+    assert.deepEqual(strict.items, []);
+    assert.equal(strict.errors.length, 2);
+  });
+
+  test("a row with a sheet key is updated, not left out as a duplicate of the bank", () => {
+    const result = importQuestionsFromCsv(workbookSheet(azGrammar, azGrammar));
+    const bank = result.drafts;
+    const plan = planImport(result, { bank, passages: new Map(), keepDrafts: false });
+    assert.equal(plan.items.length, 1);
+    assert.deepEqual(plan.duplicateRows, [3]);
+  });
+});
+
+describe("Reading texts sheet", () => {
+  const readingTexts = [
+    "ID текста,Дата,Вариант,Вопросы,Название,Полный текст / перепечатка,Точность,Фото оригинала",
+    "05-P1,05.04.2026,C,37–46,Bir xatirə,Atam müharibəyə getdi. Anamla ikimiz qaldıq.,Частичная,стр. 6",
+    "05-P2,05.04.2026,C,47–56,Arxitektura,\"Arxitektura – binaların, digər tikinti obyektlərinin\",Ручная,стр. 7"
+  ].join("\n");
+
+  test("is recognised by its header, and the questions sheet is not", () => {
+    assert.equal(looksLikePassageSheet(readingTexts), true);
+    assert.equal(looksLikePassageSheet("passage_id,title,text\nP1,Title,Body"), true);
+    assert.equal(looksLikePassageSheet(workbookSheet(azGrammar)), false);
+    assert.equal(looksLikePassageSheet("subject,topic,question,answer\nmath,algebra,q,1"), false);
+  });
+
+  test("reads one passage per row, keyed by its id, in Azerbaijani by default", () => {
+    const { passages, errors } = importPassagesFromCsv(readingTexts);
+    assert.deepEqual(errors, []);
+    assert.deepEqual(passages.map((passage) => passage.externalRef), ["05-P1", "05-P2"]);
+    assert.equal(passages[0].draft.title, "Bir xatirə");
+    assert.equal(passages[0].draft.subjectId, "azerbaijani");
+    assert.equal(passages[0].draft.paperYear, 2026);
+    assert.equal(passages[0].draft.source, "DİM 05.04.2026, Variant C");
+    assert.equal(passages[1].draft.body, "Arxitektura – binaların, digər tikinti obyektlərinin");
+  });
+
+  test("reports a row with no text or a repeated id", () => {
+    const { passages, errors } = importPassagesFromCsv(
+      "passage_id,title,text,subject\nP1,One,,english\nP2,Two,Body,english\nP2,Again,Body,english\nP3,Three,Body,physics"
+    );
+    assert.deepEqual(passages.map((passage) => passage.externalRef), ["P2"]);
+    assert.deepEqual(errors.map((error) => error.row), [2, 4, 5]);
   });
 });

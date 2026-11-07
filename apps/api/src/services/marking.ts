@@ -5,7 +5,7 @@ import type {
   SubmittedAnswer,
   TopicPerformance
 } from "@grade9/shared";
-import { answersMatch, attemptScoreValue } from "@grade9/shared";
+import { answerSetsMatch, answersMatch, attemptScoreValue } from "@grade9/shared";
 import type { AttemptQuestion } from "../repositories/attemptRepository";
 import type { WrittenMark } from "./writtenMarking";
 
@@ -22,6 +22,11 @@ export function isAnswerCorrect(question: AttemptQuestion, answer: string): bool
 
   if (question.type === "multiple-choice") {
     return answer === question.correctAnswer;
+  }
+
+  // Exactly the right options, no more and no fewer.
+  if (question.type === "multiple-select") {
+    return answerSetsMatch(answer, question.correctAnswer);
   }
 
   return answersMatch(answer, question.correctAnswer);

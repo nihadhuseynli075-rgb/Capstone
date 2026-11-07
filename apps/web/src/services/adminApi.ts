@@ -88,16 +88,38 @@ export function deleteQuestion(id: string): Promise<{ ok: boolean }> {
 }
 
 export interface ImportResponse {
+  /** Questions added to the bank (drafts included). */
   importedCount: number;
+  /** Questions already in the bank under the same sheet key, updated rather than added again. */
+  updatedCount?: number;
   skippedCount: number;
   errors: Array<{ row: number; message: string }>;
   /** Rows left out because the question is already in the bank (or earlier in the paste). */
   duplicateRows?: number[];
+  /** Rows saved as drafts, kept out of tests, with what is still missing. Only with keepDrafts. */
+  draftRows?: Array<{ row: number; reason: string }>;
+  /** Reading passages created or updated, from the questions' passage columns or a Reading texts sheet. */
+  passagesCreated?: number;
+  passagesUpdated?: number;
   questions: BankQuestion[];
 }
 
-export function importQuestions(csv: string): Promise<ImportResponse> {
+/**
+ * `keepDrafts` saves a row that is not answerable yet (no options, a key the
+ * paper does not publish, a passage not in the bank) as a draft instead of
+ * skipping it. A Reading texts sheet sent here is imported as passages.
+ */
+export function importQuestions(csv: string, options: { keepDrafts?: boolean } = {}): Promise<ImportResponse> {
   return apiRequest("/api/admin/questions/import", {
+    method: "POST",
+    body: options.keepDrafts === undefined ? { csv } : { csv, keepDrafts: options.keepDrafts },
+    token: getAdminToken() ?? undefined
+  });
+}
+
+/** Sends a Reading texts sheet (ID, title, text) to be saved as passages. */
+export function importPassages(csv: string): Promise<ImportResponse> {
+  return apiRequest("/api/admin/passages/import", {
     method: "POST",
     body: { csv },
     token: getAdminToken() ?? undefined

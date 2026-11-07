@@ -263,7 +263,7 @@ testsRouter.post("/generate", async (request, response, next) => {
       id: attempt.id,
       title: generated.title,
       settings: served,
-      questions: generated.questions.map(toExamQuestion),
+      questions: generated.questions.map((question) => toExamQuestion(question, generated.passages)),
       createdAt: attempt.createdAt
     };
 

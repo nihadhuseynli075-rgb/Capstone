@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { AttemptComparison, QuestionReview, TopicPerformance } from "@grade9/shared";
-import { fullMockSector, subjectsCovered } from "@grade9/shared";
+import { fullMockSector, readableAnswer, subjectsCovered } from "@grade9/shared";
 import { navigate, replaceRoute } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
 import { SignInAgainButton } from "../features/auth/SignInAgainButton";
@@ -11,6 +11,7 @@ import { formatPercent, useLanguage, type TranslationKey } from "../lib/i18n";
 import { difficultyLabel, subjectLabel, testErrorText, topicLabel } from "../lib/testText";
 import { ApiError } from "../services/apiClient";
 import { fetchAttempt, isScored } from "../services/testsApi";
+import { PromptText } from "../components/PromptText";
 
 /**
  * How soon a result that is still being saved is asked for again.
@@ -381,7 +382,10 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
 
               {/* The question, the answers and the explanation are the paper's
                   own text, kept from when it was served, and are not translated. */}
-              <p className="review-prompt">{review.prompt}</p>
+              <p className="review-prompt">
+                <PromptText prompt={review.prompt} part="lead" />
+              </p>
+              <PromptText prompt={review.prompt} part="statements" />
 
               {review.imageUrl && (
                 <img className="question-image" src={review.imageUrl} alt={t("exam.diagram")} />
@@ -401,7 +405,11 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
                           : "answer-wrong"
                     }
                   >
-                    {review.studentAnswer.trim().length > 0 ? review.studentAnswer : t("results.leftBlank")}
+                    {/* A question with several right answers keeps its choices
+                        as a list; it is read out one option after another. */}
+                    {review.studentAnswer.trim().length > 0
+                      ? readableAnswer(review.type, review.studentAnswer)
+                      : t("results.leftBlank")}
                   </span>
                 </p>
                 {!review.isCorrect && (
@@ -410,7 +418,7 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
                       {review.type === "open-ended" ? t("results.markerLookedFor") : t("results.correctAnswer")}
                     </span>
                     <span className={review.type === "open-ended" ? "written-answer-text" : "answer-correct"}>
-                      {review.correctAnswer}
+                      {readableAnswer(review.type, review.correctAnswer)}
                     </span>
                   </p>
                 )}

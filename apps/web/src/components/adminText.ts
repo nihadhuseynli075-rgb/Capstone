@@ -47,7 +47,7 @@ export const adminText = {
     "That file is not saved as UTF-8, so its Azerbaijani and Russian letters would come through as \"�\". In Excel choose File, Save As, CSV UTF-8 (Comma delimited), then choose the new file. A sheet downloaded from Google Sheets is UTF-8 already.",
   importFirstOnly: "Only one file is loaded at a time, so only the first was used.",
   importTranslationHint:
-    "A translation goes in a column with the same name ending in _ru or _en: question_ru, option_a_ru, explanation_ru. See docs/question-format.md.",
+    "A translation goes in a column with the same name ending in _ru, _en or _az: question_ru, option_a_az, explanation_ru. See docs/question-format.md.",
 
   sessionEnded: "Your admin session has ended, so you need to sign in again.",
   sessionEndedDraft:
@@ -74,7 +74,8 @@ export const adminText = {
 } as const;
 
 /** A translation language's name, in English like the rest of the dashboard. */
-export const adminLanguageNames: Record<"en" | "ru", string> = {
+export const adminLanguageNames: Record<"en" | "ru" | "az", string> = {
   en: "English",
-  ru: "Russian"
+  ru: "Russian",
+  az: "Azerbaijani"
 };

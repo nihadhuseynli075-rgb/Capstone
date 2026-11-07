@@ -28,6 +28,8 @@ function mathQuestion(overrides: Partial<BankQuestion> = {}): BankQuestion {
     source: null,
     status: "ready",
     subtopic: null,
+    passageId: null,
+    passageOrder: null,
     translations: {
       ru: {
         prompt: "Найдите радиус окружности, длина которой равна 32π см.",

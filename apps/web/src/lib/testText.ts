@@ -1,5 +1,5 @@
 import type { DifficultyMode, MockTest } from "@grade9/shared";
-import { fullMockSector, titleCase, topicName } from "@grade9/shared";
+import { fullMockSector, subjectSector, titleCase, topicName } from "@grade9/shared";
 import { fill } from "../features/friends/fill";
 import { ApiError } from "../services/apiClient";
 import { isTranslationKey, type Language, type TranslationKey } from "./i18n";
@@ -21,6 +21,17 @@ export function subjectLabel(t: Translate, subjectId: string, fallback?: string)
   const key = `subject.${subjectId}`;
   if (isTranslationKey(key)) return t(key);
   return fallback ?? titleCase(subjectId);
+}
+
+/**
+ * "Russian sector only" for a language paper that belongs to one sector, or
+ * null for a subject every student sits. Shown beside the subject wherever a
+ * student picks it (Nihad, 7 Nov 2026): a Russian-sector student can sit
+ * Azerbaijani too, but as a second language, which is another paper.
+ */
+export function sectorNote(t: Translate, subjectId: string): string | null {
+  const sector = subjectSector(subjectId);
+  return sector ? t(sector === "ru" ? "subject.sectorOnly.ru" : "subject.sectorOnly.az") : null;
 }
 
 /**

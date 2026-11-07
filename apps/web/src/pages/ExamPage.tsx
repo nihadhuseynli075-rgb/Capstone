@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SubmittedAnswer, TestResult } from "@grade9/shared";
-import { writtenAnswerMaxLength } from "@grade9/shared";
+import { decodeAnswerSet, encodeAnswerSet, writtenAnswerMaxLength } from "@grade9/shared";
+import { PassageText, PromptText } from "../components/PromptText";
 import { navigate, replaceRoute, setLeaveGuard } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
 import { SignInToFinishButton } from "../features/auth/SignInToFinishButton";
@@ -447,6 +448,16 @@ export function ExamPage() {
     setAnswers((current) => ({ ...current, [question.id]: value }));
   }
 
+  /** Ticks or unticks one option of a question with more than one right answer. */
+  function toggleOption(option: string) {
+    if (dead) return;
+    setAnswers((current) => {
+      const chosen = decodeAnswerSet(current[question.id] ?? "");
+      const next = chosen.includes(option) ? chosen.filter((item) => item !== option) : [...chosen, option];
+      return { ...current, [question.id]: encodeAnswerSet(question.options, next) };
+    });
+  }
+
   /*
    * Text about to go into the written-answer box that will not all fit.
    *
@@ -505,6 +516,19 @@ export function ExamPage() {
     setFinishOpen(false);
     if (firstUnanswered >= 0) goToQuestion(firstUnanswered);
   }
+
+  // The questions on this one's passage, which the generator serves together:
+  // "Questions 3-7 are about this text".
+  const passage = question.passage ?? null;
+  const passageRun = (() => {
+    if (!passage) return null;
+    let first = currentIndex;
+    let last = currentIndex;
+    while (first > 0 && questions[first - 1].passage?.id === passage.id) first -= 1;
+    while (last < questions.length - 1 && questions[last + 1].passage?.id === passage.id) last += 1;
+    return { first: first + 1, last: last + 1 };
+  })();
+  const chosenOptions = question.type === "multiple-select" ? decodeAnswerSet(answers[question.id] ?? "") : [];
 
   // The banner's sentence. A send the timer made that failed says so first,
   // since otherwise the student only sees the reason and not what it stopped.
@@ -590,6 +614,26 @@ export function ExamPage() {
         ))}
       </div>
 
+      {/* A question on a reading text has the text beside it on a wide
+          screen, and above it on a narrow one (Nihad, 7 Nov 2026). */}
+      <div className={passage ? "passage-layout" : "question-only"}>
+      {passage && passageRun && (
+        <aside className="passage-panel" aria-labelledby="passage-title">
+          <p className="passage-kicker">
+            {passageRun.first === passageRun.last
+              ? fill(t("exam.passageOne"), { n: String(passageRun.first) })
+              : fill(t("exam.passageRange"), { first: String(passageRun.first), last: String(passageRun.last) })}
+          </p>
+          <h2 className="passage-title" id="passage-title">
+            {passage.title}
+          </h2>
+          {/* Its own scroll, so a long text never pushes the question away. */}
+          <div className="passage-body" tabIndex={0} aria-label={passage.title}>
+            <PassageText body={passage.body} />
+          </div>
+        </aside>
+      )}
+
       <section className="question-card">
         <p className="question-meta">
           {topicLabel(t, question.subjectId, question.topicId)} -{" "}
@@ -609,14 +653,43 @@ export function ExamPage() {
           <span className="visually-hidden">
             {fill(t("exam.questionNumber"), { n: String(currentIndex + 1), total: String(questions.length) })}
           </span>
-          {question.prompt}
+          <PromptText prompt={question.prompt} part="lead" />
         </h2>
+
+        {/* Numbered statements ("1) ... 2) ...") that the options refer to by
+            number, set out as a list under the question. On one line with the
+            question they read as if they were the options. */}
+        <PromptText prompt={question.prompt} part="statements" />
 
         {question.imageUrl && (
           <img className="question-image" src={question.imageUrl} alt={t("exam.diagram")} />
         )}
 
-        {question.type === "multiple-choice" ? (
+        {question.type === "multiple-select" ? (
+          <fieldset className="option-list option-list-multi">
+            <legend className="option-hint">{t("exam.selectAll")}</legend>
+            {question.options.map((option, index) => (
+              <label
+                key={`${question.id}-${index}`}
+                className={`option ${chosenOptions.includes(option) ? "selected" : ""}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={chosenOptions.includes(option)}
+                  disabled={dead}
+                  onChange={() => toggleOption(option)}
+                />
+                <span className="option-letter option-box" aria-hidden="true">
+                  {chosenOptions.includes(option) ? "✓" : String.fromCharCode(65 + index)}
+                </span>
+                <span className="option-text">
+                  <span className="visually-hidden">{String.fromCharCode(65 + index)}. </span>
+                  {option}
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        ) : question.type === "multiple-choice" ? (
           <div className="option-list">
             {question.options.map((option, index) => (
               <label
@@ -703,6 +776,7 @@ export function ExamPage() {
           </label>
         )}
       </section>
+      </div>
 
       {/* A status rather than an alert: nothing has gone wrong, and the paper
           is sent again on its own. */}

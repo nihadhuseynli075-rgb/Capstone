@@ -96,13 +96,92 @@ export function subjectsCovered(subjectId: string): string[] {
 }
 
 /**
+ * The language papers that belong to one sector only. Russian Language is the
+ * Russian sector's own paper and Azerbaijani Language the Azerbaijani
+ * sector's. A Russian-sector student can also sit Azerbaijani, but as a second
+ * language, which is a different paper from this one (Nihad, 7 Nov 2026), so
+ * the subject is labelled with its sector wherever a student picks it.
+ */
+export const subjectSectors: Readonly<Partial<Record<string, Sector>>> = {
+  russian: "ru",
+  azerbaijani: "az"
+};
+
+/** The sector a subject's paper is for, or null for one every student sits (Maths, English). */
+export function subjectSector(subjectId: string): Sector | null {
+  return subjectSectors[subjectId] ?? null;
+}
+
+/**
  * How a question is answered, and so how it is marked.
  *
  * `open-ended` is a written answer (a paragraph, a short essay, an explanation)
  * with no single right wording. It is marked by an AI marker against the
  * question's marking guide, which lives where other types keep their answer.
  */
-export type QuestionType = "multiple-choice" | "short-answer" | "open-ended";
+export type QuestionType = "multiple-choice" | "multiple-select" | "short-answer" | "open-ended";
+
+/** Every question type, in the order the admin form offers them. */
+export const questionTypes: readonly QuestionType[] = ["multiple-choice", "multiple-select", "short-answer", "open-ended"];
+
+/**
+ * The types answered by picking from the question's options: one option for
+ * `multiple-choice`, any number for `multiple-select` ("choose every right
+ * answer", added 7 Nov 2026 for papers where both "as" and "because" fit).
+ * Both keep their options, and their translated options, in the same order.
+ */
+export function hasOptions(type: string): type is "multiple-choice" | "multiple-select" {
+  return type === "multiple-choice" || type === "multiple-select";
+}
+
+/**
+ * A multiple-select answer as it is stored and sent: the text of each option
+ * chosen, as a JSON list in the order the options are printed. Nothing chosen
+ * is the empty string, the same as any unanswered question, so "answered" is
+ * still just "not blank".
+ */
+export function encodeAnswerSet(options: readonly string[], chosen: readonly string[]): string {
+  const picked = options.filter((option) => chosen.includes(option));
+  return picked.length === 0 ? "" : JSON.stringify(picked);
+}
+
+/**
+ * The options a multiple-select answer names. Anything that is not a JSON list
+ * of strings is read as one option written out, so an answer typed by hand
+ * ("as") still means something rather than nothing.
+ */
+export function decodeAnswerSet(value: string): string[] {
+  const text = value.trim();
+  if (text.length === 0) return [];
+  if (text.startsWith("[")) {
+    try {
+      const parsed: unknown = JSON.parse(text);
+      if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string")) {
+        return [...new Set(parsed as string[])];
+      }
+    } catch {
+      // Not a list after all; read as written below.
+    }
+  }
+  return [text];
+}
+
+/**
+ * Whether a multiple-select answer is right: exactly the right options, no
+ * more and no fewer. Like a paper, a half-right choice earns nothing, since
+ * ticking every box would otherwise always score.
+ */
+export function answerSetsMatch(answer: string, correctAnswer: string): boolean {
+  const given = decodeAnswerSet(answer);
+  const correct = decodeAnswerSet(correctAnswer);
+  if (given.length === 0 || given.length !== correct.length) return false;
+  return correct.every((option) => given.includes(option));
+}
+
+/** An answer as a person reads it: a multiple-select one as its options, one after another. */
+export function readableAnswer(type: string | undefined, value: string): string {
+  return type === "multiple-select" ? decodeAnswerSet(value).join("; ") : value;
+}
 
 /** The longest written answer accepted, so a paste cannot run up the marking bill. */
 export const writtenAnswerMaxLength = 4000;
@@ -164,6 +243,7 @@ export const difficultyNames: Record<DifficultyMode, string> = {
 
 export const questionTypeNames: Record<QuestionType, string> = {
   "multiple-choice": "Multiple choice",
+  "multiple-select": "Multiple answers",
   "short-answer": "Short answer",
   "open-ended": "Written answer"
 };
@@ -433,8 +513,52 @@ export interface BankQuestion {
   subtopic: string | null;
   /** Only used for subjects that follow the site language; see `followsSiteLanguage`. */
   translations: QuestionTranslations;
+  /**
+   * The reading passage the question is about, or null. Every question on one
+   * passage is served together, one after another (see Passage).
+   */
+  passageId: string | null;
+  /** Where the question comes among its passage's questions: 1 first. Null puts it after the numbered ones. */
+  passageOrder: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * A reading text that several questions are about, kept once rather than
+ * pasted into each question (Nihad, 7 Nov 2026).
+ *
+ * In a test the passage is shown beside its questions, and the questions on
+ * it come one after another in their own order, so a student reads it once
+ * rather than finding it again for each question.
+ */
+export interface Passage {
+  id: string;
+  subjectId: string;
+  /** What the admin page lists it by, e.g. «Приезд бабушки». Shown above the text in a test. */
+  title: string;
+  /** The text itself. Line breaks are kept: a blank line starts a new paragraph. */
+  body: string;
+  paperYear: number | null;
+  source: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** What the admin form sends for a passage. */
+export type PassageDraft = Pick<Passage, "subjectId" | "title" | "body" | "paperYear" | "source">;
+
+/** How long a passage's title and text may be. */
+export const passageLimits = {
+  titleMax: 200,
+  bodyMax: 20000
+} as const;
+
+/** A passage as a student is given it, beside its questions. */
+export interface ExamPassage {
+  id: string;
+  title: string;
+  body: string;
 }
 
 /**
@@ -466,6 +590,11 @@ export interface ExamQuestion {
   /** Shown during the test, the way a paper prints "[3 marks]". */
   marks: number;
   imageUrl: string | null;
+  /**
+   * The text the question is about, shown beside it. Absent or null for a
+   * question with no passage, and on a paper saved by an older version.
+   */
+  passage?: ExamPassage | null;
 }
 
 export interface MockTest {

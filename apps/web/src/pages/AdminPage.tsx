@@ -1,14 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { BankQuestion, QuestionDraft, QuestionStatus } from "@grade9/shared";
-import {
-  difficultyNames,
-  followsSiteLanguage,
-  markLimits,
-  questionTypeNames,
-  siteLanguages,
-  subjectName,
-  topicName
-} from "@grade9/shared";
+import type { BankQuestion, Passage, QuestionDraft, QuestionStatus } from "@grade9/shared";
+import { markLimits } from "@grade9/shared";
+import { AdminPassages } from "../components/AdminPassages";
+import { AdminQuestionList } from "../components/AdminQuestionList";
 import { QuestionForm, type QuestionCarryOver, type QuestionFormHandle } from "../components/QuestionForm";
 import { adminText } from "../components/adminText";
 import { fill } from "../features/friends/fill";
@@ -25,16 +19,18 @@ import {
   updateQuestion,
   type ImportResponse
 } from "../services/adminApi";
+import { fetchPassages } from "../services/passagesApi";
 
 const CSV_TEMPLATE =
   "subject,topic,difficulty,type,question,option_a,option_b,option_c,option_d,option_e,correct_answer,marks,explanation,paper_year,source";
 
-type Tab = "add" | "list" | "import";
+type Tab = "add" | "list" | "passages" | "import";
 
 /** The dashboard's tabs, in the order they are shown and stepped through. */
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "add", label: "Add question" },
   { id: "list", label: "All questions" },
+  { id: "passages", label: "Passages" },
   { id: "import", label: "Bulk import" }
 ];
 
@@ -164,6 +160,16 @@ export function AdminPage() {
   const [usingDefaultPassword, setUsingDefaultPassword] = useState(false);
 
   const [subjectFilter, setSubjectFilter] = useState("");
+  // The list narrowed to one passage's questions ("none" for those with none).
+  const [passageFilter, setPassageFilter] = useState("");
+
+  // The reading passages, for the form's choice, the list's groups and the
+  // Passages tab, with how many questions each has.
+  const [passages, setPassages] = useState<Passage[]>([]);
+  const [passageCounts, setPassageCounts] = useState<Record<string, number>>({});
+  // A passage the list asked to edit, opened on the Passages tab. Bumped to
+  // open the tab's form afresh each time.
+  const [passageToEdit, setPassageToEdit] = useState<{ passage: Passage; request: number } | null>(null);
   // What is typed, and what has actually been asked for. Kept apart so the
   // bank is not queried once per keystroke.
   const [search, setSearch] = useState("");
@@ -209,6 +215,10 @@ export function AdminPage() {
   const [csv, setCsv] = useState("");
   const [importResult, setImportResult] = useState<ImportResponse | null>(null);
   const [importing, setImporting] = useState(false);
+  // Rows not answerable yet (no options, no published key, passage missing)
+  // come in as drafts rather than being skipped: Nihad's sheets are filled in
+  // over weeks, and a draft can be finished in the form.
+  const [keepDrafts, setKeepDrafts] = useState(true);
   // The drop zone: whether a file is being dragged over it, and how the last one went.
   const [dragging, setDragging] = useState(false);
   const [sheetNote, setSheetNote] = useState<{ kind: "success" | "error"; text: string } | null>(null);
@@ -309,12 +319,31 @@ export function AdminPage() {
     }
   }, [subjectFilter, searchQuery, handleFailure]);
 
+  /*
+   * The passages, read alongside the list. A database without migration 0017
+   * has none, which the API reports as an empty list; any other failure is
+   * left to the list's own reading to report.
+   */
+  const refreshPassages = useCallback(async () => {
+    try {
+      const data = await fetchPassages();
+      setPassages(data.passages);
+      setPassageCounts(data.questionCounts);
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) handleFailure(cause);
+    }
+  }, [handleFailure]);
+
   // The newest refresh, for a save, delete or import that reads the list again
   // once it has finished. The one from the render it started in asks with the
   // filters of that moment, and as the newest reading it would put the list
   // back to a search that has since been typed over.
-  const latestRefresh = useRef(refresh);
-  latestRefresh.current = refresh;
+  const latestRefresh = useRef(async () => {
+    await Promise.all([refresh(), refreshPassages()]);
+  });
+  latestRefresh.current = async () => {
+    await Promise.all([refresh(), refreshPassages()]);
+  };
 
   // Typing settles before the bank is asked. Without this every letter of a
   // search term was its own round trip, and the answers could land out of order.
@@ -328,6 +357,10 @@ export function AdminPage() {
   useEffect(() => {
     if (token) void refresh();
   }, [token, refresh]);
+
+  useEffect(() => {
+    if (token) void refreshPassages();
+  }, [token, refreshPassages]);
 
   // The form is long, so the person pressing its button is a long way down the
   // page and a message at the top went unseen. It sits under the form instead
@@ -546,7 +579,7 @@ export function AdminPage() {
     setSheetNote(null);
 
     try {
-      const result = await importQuestions(csv);
+      const result = await importQuestions(csv, { keepDrafts });
       setImportResult(result);
       // Emptied only when nothing is left to fix. After a partial import the
       // paste stays, so the rows named below can be corrected in place and the
@@ -758,6 +791,7 @@ export function AdminPage() {
             // As the API takes them: only with no storage connected.
             inlinePictures={storageMode === "memory"}
             initial={editing}
+            passages={passages}
             carryOver={carryOver}
             onSubmit={handleSave}
             onCancel={editing ? cancelEditing : undefined}
@@ -787,96 +821,50 @@ export function AdminPage() {
 
         {tab === "list" && (
           <section className="panel" role="tabpanel" id="admin-panel-list" aria-labelledby="admin-tab-list">
-            <div className="filter-row">
-              <label>
-                Subject
-                <select value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value)}>
-                  <option value="">All subjects</option>
-                  <option value="math">Mathematics</option>
-                  <option value="english">English</option>
-                  <option value="russian">Russian</option>
-                </select>
-              </label>
-
-              <label>
-                Search
-                <input
-                  type="search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Find text in a question"
-                />
-              </label>
-            </div>
-
-            {questions.length === 0 ? (
-              <p className="empty-note">
-                {filtered
+            <AdminQuestionList
+              questions={questions}
+              passages={passages}
+              editingId={editing?.id ?? null}
+              subjectFilter={subjectFilter}
+              onSubjectFilter={(subjectId) => {
+                setSubjectFilter(subjectId);
+                // A passage belongs to one subject, so it no longer applies.
+                setPassageFilter("");
+              }}
+              search={search}
+              onSearch={setSearch}
+              passageFilter={passageFilter}
+              onPassageFilter={setPassageFilter}
+              onEdit={startEditing}
+              onDelete={(question) => void handleDelete(question)}
+              onEditPassage={(passage) => {
+                setPassageToEdit((current) => ({ passage, request: (current?.request ?? 0) + 1 }));
+                switchTab("passages");
+              }}
+              emptyText={
+                filtered
                   ? adminText.noMatch
-                  : "No questions yet. Add one above, or paste a spreadsheet export into bulk import."}
-              </p>
-            ) : (
-              <ul className="question-list">
-                {questions.map((question) => (
-                  <li key={question.id} className="question-row">
-                    <div className="question-row-main">
-                      {/* Edits now outlive a look at the list, so the list says
-                          which question is open in the form. */}
-                      {editing?.id === question.id && (
-                        <p className="question-status question-status-editing">{adminText.beingEdited}</p>
-                      )}
-                      {question.status !== "ready" && (
-                        <p className={`question-status question-status-${question.status}`}>
-                          {statusLabel[question.status]}
-                        </p>
-                      )}
-                      <p className="question-row-prompt">{question.prompt}</p>
-                      <p className="question-row-meta">
-                        {subjectName(question.subjectId)} - {topicName(question.subjectId, question.topicId)}{" "}
-                        -{" "}
-                        <span className="level-tag" data-level={question.difficulty}>
-                          {difficultyNames[question.difficulty]}
-                        </span>{" "}
-                        - {questionTypeNames[question.type]}
-                        {question.paperYear ? ` - ${question.paperYear}` : ""}
-                        {question.subtopic ? ` - ${question.subtopic}` : ""}
-                      </p>
-                      <p className="question-row-answer">Answer: {question.correctAnswer || "not entered yet"}</p>
-                      {followsSiteLanguage(question.subjectId) && (
-                        <p className="question-row-translations">
-                          {adminText.translationsListLabel}:{" "}
-                          {siteLanguages.filter((language) => question.translations?.[language]).map((language) => (
-                            <span key={language} className="translation-chip">
-                              {language.toUpperCase()}
-                            </span>
-                          ))}
-                          {!siteLanguages.some((language) => question.translations?.[language]) && (
-                            <span className="translation-none">{adminText.translationsListNone}</span>
-                          )}
-                        </p>
-                      )}
-                    </div>
+                  : "No questions yet. Add one above, or drop a spreadsheet on Bulk import."
+              }
+            />
+          </section>
+        )}
 
-                    <div className="question-row-actions">
-                      <button
-                        type="button"
-                        className="ghost-button"
-                        onClick={() => startEditing(question)}
-                      >
-                        {editing?.id === question.id ? "Continue editing" : "Edit"}
-                      </button>
-                      <button
-                        type="button"
-                        className="danger-button"
-                        onClick={() => void handleDelete(question)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+        {tab === "passages" && (
+          <section className="panel" role="tabpanel" id="admin-panel-passages" aria-labelledby="admin-tab-passages">
+            <AdminPassages
+              key={passageToEdit?.request ?? 0}
+              initialEditing={passageToEdit?.passage ?? null}
+              passages={passages}
+              questionCounts={passageCounts}
+              onChanged={() => latestRefresh.current()}
+              onSessionEnded={endSession}
+              onShowQuestions={(passage) => {
+                setSubjectFilter(passage.subjectId);
+                setPassageFilter(passage.id);
+                switchTab("list");
+              }}
+            />
           </section>
         )}
 
@@ -972,15 +960,46 @@ export function AdminPage() {
               {importing ? "Importing..." : "Import questions"}
             </button>
 
+            <label className="toolbar-toggle">
+              <input type="checkbox" checked={keepDrafts} onChange={(event) => setKeepDrafts(event.target.checked)} />
+              Save unfinished rows as drafts (kept out of tests until finished)
+            </label>
+
             {/* Read out as a status, and focusable by script so it can take the
                 focus the disabled Import button lets go of. */}
             {importResult && (
               <div className="import-result" role="status" ref={importResultRef} tabIndex={-1}>
-                <p className={importResult.importedCount > 0 ? "success-banner" : "warning-banner"}>
+                <p
+                  className={
+                    importResult.importedCount + (importResult.updatedCount ?? 0) + (importResult.passagesCreated ?? 0) + (importResult.passagesUpdated ?? 0) > 0
+                      ? "success-banner"
+                      : "warning-banner"
+                  }
+                >
                   Imported {importResult.importedCount} question
                   {importResult.importedCount === 1 ? "" : "s"}
-                  {importResult.skippedCount > 0 ? `, skipped ${importResult.skippedCount}` : ""}.
+                  {(importResult.updatedCount ?? 0) > 0 ? `, updated ${importResult.updatedCount}` : ""}
+                  {importResult.skippedCount > 0 ? `, skipped ${importResult.skippedCount}` : ""}
+                  {(importResult.passagesCreated ?? 0) + (importResult.passagesUpdated ?? 0) > 0
+                    ? `. Passages: ${importResult.passagesCreated ?? 0} added, ${importResult.passagesUpdated ?? 0} updated`
+                    : ""}
+                  .
                 </p>
+
+                {(importResult.draftRows?.length ?? 0) > 0 && (
+                  <details className="import-drafts">
+                    <summary>
+                      {importResult.draftRows!.length} saved as drafts, out of tests until finished. Show why
+                    </summary>
+                    <ul className="import-errors">
+                      {importResult.draftRows!.map((draft) => (
+                        <li key={`${draft.row}-${draft.reason}`}>
+                          <strong>Row {draft.row}:</strong> {draft.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
 
                 {(importResult.duplicateRows?.length ?? 0) > 0 && (
                   <p className="panel-hint">

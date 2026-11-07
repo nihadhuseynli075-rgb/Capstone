@@ -1,0 +1,467 @@
+/*
+ * The admin dashboard's question list and Passages tab, redesigned 7 Nov 2026
+ * (AdminQuestionList.tsx, AdminPassages.tsx). Loaded after redesign.css and
+ * built from its tokens, so both themes follow.
+ */
+
+/* ------------------------------------------------------------- toolbar */
+
+.admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-alt);
+}
+
+.toolbar-field {
+  display: grid;
+  gap: 4px;
+  min-width: 150px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.toolbar-search {
+  flex: 1 1 260px;
+}
+
+.toolbar-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.toolbar-count {
+  flex: 1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* ------------------------------------------------------- status filter */
+
+.status-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.status-pill::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.status-pill[data-status="ready"]::before {
+  background: var(--success);
+}
+
+.status-pill[data-status="draft"]::before {
+  background: var(--warning);
+}
+
+.status-pill[data-status="image-pending"]::before {
+  background: var(--level-hard);
+}
+
+.status-pill.selected {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.status-pill-count {
+  min-width: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.repeat-note {
+  margin: 0 0 0 auto;
+  color: var(--warning);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- cards */
+
+.admin-question-list,
+.passage-group-list,
+.passage-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-question {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 16px 20px;
+  align-items: start;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--success);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.admin-question[data-status="draft"] {
+  border-left-color: var(--warning);
+}
+
+.admin-question[data-status="image-pending"] {
+  border-left-color: var(--level-hard);
+}
+
+.admin-question.is-editing {
+  box-shadow: 0 0 0 2px var(--brand);
+}
+
+.admin-question-body {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.admin-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.admin-chip.subject-chip {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.admin-chip.subject-chip[data-subject="english"] {
+  background: var(--level-easy-soft);
+  color: var(--level-easy);
+}
+
+.admin-chip.subject-chip[data-subject="russian"] {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.admin-chip.subject-chip[data-subject="azerbaijani"] {
+  background: var(--level-medium-soft);
+  color: var(--level-medium);
+}
+
+.admin-chip.status-chip[data-status="draft"] {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.admin-chip.status-chip[data-status="image-pending"] {
+  background: var(--level-hard-soft);
+  color: var(--level-hard);
+}
+
+.admin-chip.editing-chip {
+  background: var(--brand);
+  color: var(--on-brand);
+}
+
+.admin-chip.repeat-chip {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.admin-chip.passage-chip {
+  background: var(--summit-soft);
+  color: var(--text);
+}
+
+.admin-question-prompt {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.admin-question-prompt.clamped {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.admin-question .link-button {
+  justify-self: start;
+}
+
+.admin-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-options li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-options li.is-right {
+  border-color: var(--success);
+  background: var(--success-soft);
+  font-weight: 600;
+}
+
+.admin-option-letter {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.admin-options li.is-right .admin-option-letter {
+  color: var(--success);
+}
+
+.admin-question-answer,
+.admin-question-hint,
+.admin-translations {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-question-answer span {
+  font-weight: 600;
+}
+
+.admin-question-thumb {
+  width: 96px;
+  height: 72px;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-question-actions {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.row-actions .danger-button {
+  border: 1px solid var(--danger);
+  background: transparent;
+  color: var(--danger);
+}
+
+.row-actions .danger-button:hover:not(:disabled) {
+  background: var(--danger-soft);
+}
+
+/* ------------------------------------------------------- passage groups */
+
+.passage-group {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--summit-soft) 55%, var(--surface));
+}
+
+.passage-group-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+  padding: 4px 4px 0;
+}
+
+.passage-group-kicker {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.passage-group-title {
+  margin: 2px 0 0;
+  font-size: 1.125rem;
+}
+
+.passage-group-body {
+  max-height: 240px;
+  margin: 8px 0 0;
+  padding: 12px 14px;
+  overflow-y: auto;
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+/* ---------------------------------------------------------- passages tab */
+
+.passages-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.passage-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--summit);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.passage-card-main {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.passage-card-title {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.passage-card-body {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.passage-card-side {
+  display: grid;
+  justify-items: end;
+  align-content: space-between;
+  gap: 12px;
+}
+
+.passage-form textarea {
+  min-height: 240px;
+  line-height: 1.6;
+}
+
+.passage-form .grow,
+.passage-row label:first-child {
+  flex: 1 1 280px;
+}
+
+/* ----------------------------------------------------------------- phone */
+
+@media (max-width: 720px) {
+  .admin-question {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-question-thumb {
+    width: 100%;
+    height: 140px;
+  }
+
+  .admin-question-actions {
+    flex-direction: row;
+    justify-content: stretch;
+  }
+
+  .admin-question-actions button {
+    flex: 1;
+  }
+
+  .passage-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .passage-card-side {
+    justify-items: start;
+  }
+
+  .repeat-note {
+    margin-left: 0;
+  }
+}
+
+/* The level tag at the size of the chips around it. */
+.admin-chips .level-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+}

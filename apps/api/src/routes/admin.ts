@@ -1,8 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
-import type { QuestionDraft } from "@grade9/shared";
-import { markLimits, paperYearLimits, repeatedOption, siteLanguages, subjects, testScopeLimits } from "@grade9/shared";
+import type { PassageDraft, QuestionDraft } from "@grade9/shared";
+import {
+  decodeAnswerSet,
+  markLimits,
+  paperYearLimits,
+  passageLimits,
+  questionTypes,
+  repeatedOption,
+  siteLanguages,
+  subjects,
+  testScopeLimits
+} from "@grade9/shared";
 import { bearerToken } from "../lib/bearerToken";
 import { env, storageMode, writtenMarkingEnabled } from "../lib/env";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
@@ -12,12 +22,27 @@ import {
   createQuestions,
   deleteQuestion,
   listQuestions,
+  saveImportedQuestions,
   updateQuestion
 } from "../repositories/questionRepository";
+import {
+  createPassage,
+  deletePassage,
+  getPassage,
+  listPassages,
+  passagesByRef,
+  savePassagesByRef,
+  updatePassage
+} from "../repositories/passageRepository";
 import { createLoginLimiter } from "../services/loginLimiter";
 import { checkPictureLink, originOf, quotedLink, type PictureLinkProblem, type PictureLinkRules } from "../services/pictureLinks";
 import { photoTypeOf } from "../services/profilePhotos";
-import { importQuestionsFromCsv, withoutDuplicates } from "../services/questionImport";
+import {
+  importPassagesFromCsv,
+  importQuestionsFromCsv,
+  looksLikePassageSheet,
+  planImport
+} from "../services/questionImport";
 import { translationProblems } from "../services/questionTranslations";
 
 export const adminRouter = Router();
@@ -78,7 +103,7 @@ const questionSchema = z
       .min(1, "A topic is required")
       .max(testScopeLimits.maxIdLength, `A topic can be at most ${testScopeLimits.maxIdLength} characters`),
     difficulty: z.enum(["easy", "medium", "hard"]),
-    type: z.enum(["multiple-choice", "short-answer", "open-ended"]),
+    type: z.enum(questionTypes as [QuestionDraft["type"], ...QuestionDraft["type"][]]),
     prompt: z.string().trim().min(1, "Question text is required"),
     options: z.array(z.string().trim().min(1, "An option cannot be empty")).default([]),
     // For an open-ended question this is the marking guide the AI marker
@@ -119,9 +144,42 @@ const questionSchema = z
     source: z.string().nullable().default(null),
     // Keyed by site language. Defaults to none so a form or sheet that knows
     // nothing about translations still works.
-    translations: z.record(z.enum(siteLanguages), translationSchema).default({})
+    translations: z.record(z.enum(siteLanguages), translationSchema).default({}),
+    // The reading passage the question is about (0017). Whether it exists is
+    // checked by the route, which can read the bank.
+    passageId: z.string().uuid("That passage is not one in the bank.").nullable().default(null),
+    passageOrder: z.number().int().min(1).max(1000).nullable().default(null)
   })
   .superRefine((value, context) => {
+    if (value.type === "multiple-select") {
+      if (value.options.length < 2) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["options"],
+          message: "Questions with more than one right answer need at least two options."
+        });
+        return;
+      }
+      const repeated = repeatedOption(value.options);
+      if (repeated !== null) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["options"],
+          message: `Two options are the same ("${repeated}"). Each option has to be different.`
+        });
+        return;
+      }
+      const chosen = decodeAnswerSet(value.correctAnswer);
+      if (chosen.length === 0 || !chosen.every((option) => value.options.includes(option))) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["correctAnswer"],
+          message: "Every right answer must be one of the options."
+        });
+        return;
+      }
+    }
+
     if (value.type === "multiple-choice") {
       if (value.options.length < 2) {
         context.addIssue({
@@ -170,6 +228,8 @@ function invalidQuestion(error: z.ZodError) {
   const visibleIssue = error.issues.find(
     (issue) =>
       issue.path[0] === "translations" ||
+      issue.path[0] === "passageId" ||
+      issue.path[0] === "correctAnswer" ||
       issue.path[0] === "subjectId" ||
       issue.path[0] === "options" ||
       issue.path[0] === "imageUrl"
@@ -274,6 +334,21 @@ adminRouter.get("/questions", requireAdmin, async (request, response, next) => {
   }
 });
 
+/**
+ * What is wrong with the passage a question points at, or null: it has to be
+ * in the bank, and for the question's own subject, since the passage is
+ * shown beside the question in that subject's paper.
+ */
+async function passageProblem(draft: Pick<QuestionDraft, "passageId" | "subjectId">): Promise<string | null> {
+  if (draft.passageId === null) return null;
+  const passage = await getPassage(draft.passageId);
+  if (!passage) return "That question is not valid yet. Its passage has been deleted. Choose another, or none.";
+  if (passage.subjectId !== draft.subjectId) {
+    return "That question is not valid yet. Its passage belongs to another subject. Choose one for this subject, or none.";
+  }
+  return null;
+}
+
 adminRouter.post("/questions", requireAdmin, async (request, response, next) => {
   const parsed = questionSchema.safeParse(request.body);
 
@@ -282,6 +357,9 @@ adminRouter.post("/questions", requireAdmin, async (request, response, next) => 
   }
 
   try {
+    const problem = await passageProblem(parsed.data);
+    if (problem) return response.status(400).json({ message: problem });
+
     const [question] = await createQuestions([parsed.data as QuestionDraft]);
     response.status(201).json({ question });
   } catch (error) {
@@ -297,6 +375,9 @@ adminRouter.put("/questions/:id", requireAdmin, async (request, response, next) 
   }
 
   try {
+    const problem = await passageProblem(parsed.data);
+    if (problem) return response.status(400).json({ message: problem });
+
     const question = await updateQuestion(request.params.id, parsed.data as QuestionDraft);
     if (!question) {
       return response.status(404).json({ message: "Question not found." });
@@ -319,6 +400,138 @@ adminRouter.delete("/questions/:id", requireAdmin, async (request, response, nex
   }
 });
 
+// ---------------------------------------------------------------------------
+// Passages (0017)
+// ---------------------------------------------------------------------------
+
+const passageSchema = z.object({
+  subjectId: z
+    .string({ required_error: unknownSubject, invalid_type_error: unknownSubject })
+    .refine((id) => subjectIds.includes(id), { message: unknownSubject }),
+  title: z
+    .string()
+    .trim()
+    .min(1, "Give the passage a title.")
+    .max(passageLimits.titleMax, `A title can be at most ${passageLimits.titleMax} characters.`),
+  // Only the ends are trimmed: the line breaks inside are the paragraphs.
+  body: z
+    .string()
+    .trim()
+    .min(1, "Type or paste the text.")
+    .max(passageLimits.bodyMax, `A passage can be at most ${passageLimits.bodyMax} characters.`),
+  paperYear: z.number().int().min(paperYearLimits.min).max(paperYearLimits.max).nullable().default(null),
+  source: z
+    .string()
+    .trim()
+    .nullable()
+    .default(null)
+    .transform((value) => value || null)
+});
+
+function invalidPassage(error: z.ZodError) {
+  return { message: `That passage is not valid yet. ${error.issues[0]?.message ?? ""}`.trim(), issues: error.flatten() };
+}
+
+adminRouter.get("/passages", requireAdmin, async (request, response, next) => {
+  try {
+    const subjectId = typeof request.query.subject === "string" && request.query.subject ? request.query.subject : undefined;
+    const [passages, questions] = await Promise.all([listPassages({ subjectId }), listQuestions({ subjectId })]);
+
+    // How many questions each one has, so the list says which are in use.
+    const questionCounts: Record<string, number> = {};
+    for (const question of questions) {
+      if (question.passageId) questionCounts[question.passageId] = (questionCounts[question.passageId] ?? 0) + 1;
+    }
+
+    response.json({ passages, questionCounts });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.post("/passages", requireAdmin, async (request, response, next) => {
+  const parsed = passageSchema.safeParse(request.body);
+  if (!parsed.success) return response.status(400).json(invalidPassage(parsed.error));
+
+  try {
+    const passage = await createPassage(parsed.data as PassageDraft);
+    response.status(201).json({ passage });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.put("/passages/:id", requireAdmin, async (request, response, next) => {
+  const parsed = passageSchema.safeParse(request.body);
+  if (!parsed.success) return response.status(400).json(invalidPassage(parsed.error));
+
+  try {
+    const existing = await getPassage(request.params.id);
+    if (!existing) return response.status(404).json({ message: "Passage not found." });
+
+    // Its questions are shown beside it in their own subject's paper.
+    if (existing.subjectId !== parsed.data.subjectId) {
+      const linked = (await listQuestions({ subjectId: existing.subjectId })).some(
+        (question) => question.passageId === existing.id
+      );
+      if (linked) {
+        return response.status(400).json({
+          message: "That passage is not valid yet. Questions are linked to it, so its subject cannot change. Take them off it first."
+        });
+      }
+    }
+
+    const passage = await updatePassage(request.params.id, parsed.data as PassageDraft);
+    if (!passage) return response.status(404).json({ message: "Passage not found." });
+    response.json({ passage });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.delete("/passages/:id", requireAdmin, async (request, response, next) => {
+  try {
+    const deleted = await deletePassage(request.params.id);
+    if (!deleted) return response.status(404).json({ message: "Passage not found." });
+    response.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Saves the passages of a Reading texts sheet and builds the import response.
+ *
+ * A passage the bank already holds under the same sheet id is updated, so the
+ * sheet can be fixed and sent again. When the sheet names no subject, the
+ * subject of the passage already in the bank is kept rather than guessed again.
+ */
+async function importPassageSheet(csv: string) {
+  const sheet = importPassagesFromCsv(csv);
+  const existing = await passagesByRef(sheet.passages.map((item) => item.externalRef));
+  const saved = await savePassagesByRef(
+    sheet.passages.map((item) => ({
+      externalRef: item.externalRef,
+      draft: {
+        ...item.draft,
+        subjectId: item.subjectGiven ? item.draft.subjectId : (existing.get(item.externalRef)?.subjectId ?? item.draft.subjectId)
+      }
+    }))
+  );
+
+  return {
+    importedCount: 0,
+    updatedCount: 0,
+    skippedCount: sheet.headerProblem ? 0 : sheet.errors.length,
+    errors: sheet.errors,
+    duplicateRows: [] as number[],
+    draftRows: [] as Array<{ row: number; reason: string }>,
+    passagesCreated: saved.created,
+    passagesUpdated: saved.updated,
+    questions: []
+  };
+}
+
 /**
  * Bulk import from a spreadsheet export.
  *
@@ -328,8 +541,70 @@ adminRouter.delete("/questions/:id", requireAdmin, async (request, response, nex
  *
  * Rows already in the bank are left out and listed, so the whole sheet can be
  * pasted again once the bad rows are fixed without the good ones going in twice.
+ * A row that carries its paper's date, variant and question number is not left
+ * out but updated, which is how a sheet is corrected and sent again.
+ *
+ * With `keepDrafts` a row that is not answerable yet (no options, a key the
+ * paper does not publish, a passage not in the bank) is saved as a draft, kept
+ * out of tests, and listed in `draftRows` with the reason, instead of being
+ * skipped. The Reading texts sheet can be dropped on this same endpoint: it is
+ * recognised by its header and imported as passages.
  */
 adminRouter.post("/questions/import", requireAdmin, async (request, response, next) => {
+  const parsed = z.object({ csv: z.string().min(1), keepDrafts: z.boolean().optional() }).safeParse(request.body);
+
+  if (!parsed.success) {
+    return response.status(400).json({ message: "Paste some CSV rows first." });
+  }
+
+  try {
+    if (looksLikePassageSheet(parsed.data.csv)) {
+      return response.json(await importPassageSheet(parsed.data.csv));
+    }
+
+    const keepDrafts = parsed.data.keepDrafts === true;
+    const imported = importQuestionsFromCsv(parsed.data.csv, { pictureLinks, keepDrafts });
+
+    // The passages the rows carry the text of go in first, so the questions
+    // that point at them can be linked; the rest are looked up in the bank.
+    const saved = await savePassagesByRef(imported.passages.map(({ externalRef, draft }) => ({ externalRef, draft })));
+    const known = new Map(saved.byRef);
+    const wanted = imported.rows.flatMap((row) => (row.passageRef !== null && !known.has(row.passageRef) ? [row.passageRef] : []));
+    for (const [ref, passage] of await passagesByRef(wanted)) known.set(ref, passage);
+
+    const plan =
+      imported.drafts.length > 0
+        ? planImport(imported, { bank: await listQuestions(), passages: known, keepDrafts })
+        : { items: [], duplicateRows: [] as number[], errors: [] };
+    const result = await saveImportedQuestions(
+      plan.items.map(({ draft, status, subtopic, externalRef }) => ({ draft, status, subtopic, externalRef }))
+    );
+    const errors = [...imported.errors, ...plan.errors].sort((a, b) => a.row - b.row);
+
+    response.json({
+      importedCount: result.created.length,
+      updatedCount: result.updated.length,
+      // A sheet whose header is the problem has no row to skip: "skipped 1"
+      // beside "there are no question rows" contradicted itself.
+      skippedCount: imported.headerProblem ? 0 : errors.length,
+      errors,
+      duplicateRows: plan.duplicateRows,
+      draftRows: plan.items.flatMap((item) => (item.reason === null ? [] : [{ row: item.row, reason: item.reason }])),
+      passagesCreated: saved.created,
+      passagesUpdated: saved.updated,
+      questions: [...result.created, ...result.updated]
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Bulk import of reading passages from a Reading texts sheet (ID, title, text),
+ * keyed by the sheet's id so sending it again updates the passages. Questions
+ * link to them by the same id, from the questions import.
+ */
+adminRouter.post("/passages/import", requireAdmin, async (request, response, next) => {
   const parsed = z.object({ csv: z.string().min(1) }).safeParse(request.body);
 
   if (!parsed.success) {
@@ -337,22 +612,12 @@ adminRouter.post("/questions/import", requireAdmin, async (request, response, ne
   }
 
   try {
-    const imported = importQuestionsFromCsv(parsed.data.csv, { pictureLinks });
-    const { drafts, duplicateRows } =
-      imported.drafts.length > 0
-        ? withoutDuplicates(imported, await listQuestions())
-        : { drafts: [], duplicateRows: [] };
-    const created = drafts.length > 0 ? await createQuestions(drafts) : [];
-
-    response.json({
-      importedCount: created.length,
-      // A sheet whose header is the problem has no row to skip: "skipped 1"
-      // beside "there are no question rows" contradicted itself.
-      skippedCount: imported.headerProblem ? 0 : imported.errors.length,
-      errors: imported.errors,
-      duplicateRows,
-      questions: created
-    });
+    if (!looksLikePassageSheet(parsed.data.csv)) {
+      return response.status(400).json({
+        message: "That does not look like a Reading texts sheet. It needs an id column (ID текста or passage_id) and a text column, and no question column."
+      });
+    }
+    response.json(await importPassageSheet(parsed.data.csv));
   } catch (error) {
     next(error);
   }

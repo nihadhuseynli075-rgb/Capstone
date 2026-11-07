@@ -1,5 +1,5 @@
 import type { BankQuestion, QuestionTranslation, QuestionTranslations, SiteLanguage } from "@grade9/shared";
-import { followsSiteLanguage, siteLanguages, subjectName } from "@grade9/shared";
+import { decodeAnswerSet, encodeAnswerSet, followsSiteLanguage, hasOptions as isChoiceType, siteLanguages, subjectName } from "@grade9/shared";
 
 /**
  * Questions in the student's language.
@@ -60,7 +60,7 @@ export function readTranslations(raw: unknown): QuestionTranslations {
   return translations;
 }
 
-type ChoiceQuestion = Pick<BankQuestion, "options" | "correctAnswer">;
+type ChoiceQuestion = Pick<BankQuestion, "type" | "options" | "correctAnswer">;
 
 /**
  * The translated options of a multiple choice question, with the translated
@@ -85,6 +85,21 @@ function translatedChoices(
 
   if (options.some((option) => option.trim().length === 0)) {
     return { problem: "has an empty option" };
+  }
+
+  // A question with several right answers takes each one from the same place.
+  // No option may read the same as another, since a choice is marked by its text.
+  if (question.type === "multiple-select") {
+    if (new Set(options).size !== options.length) {
+      const twice = options.find((option, index) => options.indexOf(option) !== index);
+      return { problem: `has the option "${twice}" twice, so the right choices could not be told apart` };
+    }
+    const correct = decodeAnswerSet(question.correctAnswer);
+    const indexes = correct.map((answer) => question.options.indexOf(answer));
+    if (correct.length === 0 || indexes.includes(-1)) {
+      return { problem: "cannot be matched up because the question's right answers are not all among its options" };
+    }
+    return { options, correctAnswer: encodeAnswerSet(options, indexes.map((index) => options[index])) };
   }
 
   const correctIndex = question.options.indexOf(question.correctAnswer);
@@ -142,7 +157,7 @@ export function translationProblems(
     const hasOptions = (translation.options?.length ?? 0) > 0;
     const hasAnswer = translation.correctAnswer !== undefined;
 
-    if (question.type === "multiple-choice") {
+    if (isChoiceType(question.type)) {
       if (hasAnswer) {
         problems.push({
           path: ["translations", language, "correctAnswer"],
@@ -187,7 +202,7 @@ export function localizeQuestion(question: BankQuestion, language: SiteLanguage 
   const translation = question.translations[language];
   if (!translation || translation.prompt.trim().length === 0) return question;
 
-  const choices = question.type === "multiple-choice" ? translatedChoices(question, translation) : null;
+  const choices = isChoiceType(question.type) ? translatedChoices(question, translation) : null;
   if (choices && "problem" in choices) return question;
 
   // A short answer can read differently by language ("26 cm", "26 см"). It is
