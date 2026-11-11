@@ -3,6 +3,57 @@
 Set the Google Sheet up with these column headers and the whole thing can be
 imported in one paste, rather than typed into the form question by question.
 
+## The templates
+
+**Admin dashboard → Bulk import → Start from the template** downloads a CSV for
+the subject picked, in one of Nihad's two layouts, with example rows. The
+templates are built by `apps/web/src/lib/importTemplate.ts`.
+
+| Subjects | Layout | Options |
+| --- | --- | --- |
+| Azerbaijani Language | the one-table sheet (`DIM_2026_AZ_ONE_TABLE_ENGLISH_COLUMNS.xlsx`) | one column each, `Option A` to `Option E` |
+| English, Mathematics, Russian | the 12 and 26 April workbook (`Questions_12_and_26_April_2026_ENGLISH_ALL_OPTIONS.xlsm`), plus passage, `Variant` and `Sector` columns | all in one `Answer Options` cell, `A) ...` one per line |
+
+Either sheet, exported as **CSV UTF-8**, imports as it is. To bring another
+sheet into a layout, press **Copy instructions for AI** and give that text to an
+AI tool with your sheet and the template. Then delete the example rows (Source
+`Template example`; they are on a made-up paper, 01.01.2026 variant T, so they
+never overwrite a real question) and drop the file on Bulk import.
+
+**One passage, several questions.** Every question about the same text carries
+the same `Passage Title`. The text goes in `Passage / Text Related to the
+Question` on the first of them (repeating it on each is fine). Within one paper
+(Date, Sector, Variant) the questions with the same title are one passage, in
+the order of their question numbers, and importing the sheet again updates the
+passage instead of adding a copy. A sheet with a `Passage ID` column links by
+that id instead, as before.
+
+**What the one-table sheet's columns become.**
+
+- `Subtopic` of `Multiple choice` or `Open response` is the question's type, not
+  a subtopic.
+- `Topic` `Reading / Passage` (and the Russian sheet's `Reading / Writing`) is
+  Reading; `Orthography` is Spelling; `Statistics` is Probability.
+- `Answer Options (Raw)` fills the options when `Option A` to `E` are empty and
+  it is a clean `A) ...` list, like `Answer Options`.
+- `Notes`, `Status` and `Official Source URL` are not imported.
+
+**Image.** A full `https://` link to the picture is used as the picture. Words
+are read as a note: a note that says the question has a picture (`picture`,
+`Original printed image`, `See embedded scan crop`, `diagram`) imports the
+question as a draft, "needs its picture", until the picture is attached in the
+admin form. A note that only says where the page was scanned (`Scans:
+05.04.2026 · C · p. 5`) or a maybe (`... (if present)`) is ignored. A file name
+(`diagram1.png`) is still refused.
+
+**Correct Answer.** A letter followed by a note (`C — sentence 4`) is that
+letter. Short answers are written without units or signs: `115`, not `115°`;
+`16`, not `16 cm`.
+
+**Dates** may be `05.04.2026`, `2026-04-05` or `12 April 2026`. In Excel, format
+the Date column as Text, or Excel rewrites it in its own date format when it
+saves the CSV.
+
 ## Columns
 
 | Column           | Required | Notes                                                       |

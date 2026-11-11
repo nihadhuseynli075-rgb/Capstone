@@ -3,6 +3,7 @@ import type { BankQuestion, Passage, QuestionDraft, QuestionStatus } from "@grad
 import { markLimits } from "@grade9/shared";
 import { AdminPassages } from "../components/AdminPassages";
 import { AdminQuestionList } from "../components/AdminQuestionList";
+import { ImportTemplate } from "../components/ImportTemplate";
 import { QuestionForm, type QuestionCarryOver, type QuestionFormHandle } from "../components/QuestionForm";
 import { adminText } from "../components/adminText";
 import { fill } from "../features/friends/fill";
@@ -871,14 +872,13 @@ export function AdminPage() {
         {tab === "import" && (
           <section className="panel" role="tabpanel" id="admin-panel-import" aria-labelledby="admin-tab-import">
             <h2>Bulk import from a spreadsheet</h2>
-            <p className="panel-hint">
-              In Google Sheets choose File, Download, Comma-separated values, then open the file and
-              paste everything below. Keep the header row. The header must include at least subject,
-              topic, question and correct_answer.
-            </p>
+
+            <ImportTemplate />
 
             <p className="panel-hint">
-              Full column list: <code>{CSV_TEMPLATE}</code>
+              Export the sheet as CSV (Google Sheets: File, Download, Comma-separated values; Excel: Save
+              As, CSV UTF-8) and drop it below. Keep the header row. It must include at least subject,
+              topic, question and correct_answer.
             </p>
 
             <p className="panel-hint">

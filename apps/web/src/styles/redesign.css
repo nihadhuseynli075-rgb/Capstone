@@ -1862,3 +1862,221 @@ html[data-theme="dark"] body:has(.dashboard) {
     padding: 20px 20px 0;
   }
 }
+
+/* ===================================================== 11 Nov 2026 additions */
+
+/* Bulk import's template card (ImportTemplate): pick a subject, download its
+   template or copy the AI instruction, with the passage rule spelled out. */
+.import-template {
+  display: grid;
+  gap: 14px;
+  margin: 4px 0 20px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-alt);
+}
+
+.import-template h3 {
+  margin: 0 0 4px;
+  font-size: 1.0625rem;
+}
+
+.import-template .panel-hint {
+  margin: 0;
+}
+
+.import-template-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.import-template-copied {
+  color: var(--success);
+  font-size: 0.8125rem;
+}
+
+.import-template-passage {
+  padding: 12px 14px;
+  border-left: 3px solid var(--brand);
+  border-radius: var(--radius-sm);
+  background: var(--brand-soft);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.import-template-columns summary {
+  cursor: pointer;
+  color: var(--brand);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.import-template-columns table {
+  width: 100%;
+  margin-top: 10px;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.import-template-columns th,
+.import-template-columns td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.import-template-columns td:first-child {
+  white-space: nowrap;
+}
+
+.import-template-required {
+  color: var(--warning);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .import-template {
+    padding: 16px;
+  }
+
+  .import-template-actions > button {
+    width: 100%;
+  }
+
+  .import-template-columns td:first-child {
+    white-space: normal;
+    word-break: break-word;
+  }
+}
+
+/* The question form (QuestionForm), add and edit alike: the question on the
+   left, its options and answer on the right. Under 960px the panes stack, the
+   question first, and the save bar stays in reach at the bottom of the screen. */
+.question-form-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.question-form-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-alt);
+}
+
+.question-form-pane-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.question-form-pane textarea[data-field="prompt"] {
+  min-height: 180px;
+  resize: vertical;
+}
+
+/* Subject gets the most room: "Azerbaijani Language" was cut short at a third. */
+.question-form-meta {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.question-form-pane .options-fieldset {
+  background: var(--surface);
+}
+
+.question-form .option-input-row {
+  padding: 2px 6px 2px 2px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+}
+
+.question-form .option-input-row.is-correct {
+  border-color: var(--success);
+  background: var(--success-soft);
+}
+
+.question-form .option-input-row.is-correct .option-letter {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.question-form-paper {
+  margin: 0;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.question-form-paper legend {
+  padding: 0 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+@media (max-width: 960px) {
+  .question-form-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Stacked, the form is several screens long, so Save stays in reach at the
+     bottom. Side by side it is short enough that a pinned bar only covered
+     the Answer pane. */
+  .question-form-split > .form-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin: 0 -4px;
+    padding: 12px 4px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+}
+
+@media (max-width: 640px) {
+  .question-form-pane {
+    padding: 14px;
+    border-radius: var(--radius);
+  }
+
+  /* Subject, topic and difficulty one under another: three across left each
+     select too narrow to read its value. */
+  .question-form-meta,
+  .question-form .form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .question-form-pane textarea[data-field="prompt"] {
+    min-height: 140px;
+  }
+
+  /* 16px text, so iOS does not zoom the page in when a field is tapped. */
+  .question-form input,
+  .question-form select,
+  .question-form textarea {
+    font-size: 16px;
+  }
+
+  .question-form-split > .form-actions {
+    margin: 0 -14px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .question-form-split > .form-actions button {
+    flex: 1 1 0;
+    white-space: nowrap;
+  }
+}

@@ -268,7 +268,7 @@ const headerAliases: Record<string, string[]> = {
   subjectId: ["subject", "subject_id", "subjectid"],
   topicId: ["topic", "topic_id", "topicid"],
   difficulty: ["difficulty", "level"],
-  type: ["type", "question_type", "questiontype"],
+  type: ["type", "question_type", "questiontype", "answer_type"],
   prompt: ["question", "prompt", "question_text", "text", "question_(original_az)", "question_(original)"],
   optionA: ["option_a", "a", "optiona", "answer_a"],
   optionB: ["option_b", "b", "optionb", "answer_b"],
@@ -285,13 +285,22 @@ const headerAliases: Record<string, string[]> = {
   // optional: a sheet without them imports exactly as it always did.
   number: ["q#", "q_#", "q_no", "q_number", "question_number", "question_no", "no", "number"],
   subtopic: ["subtopic", "sub_topic", "sub-topic"],
-  optionsFull: ["answer_options_(full)", "answer_options", "options_full", "options"],
+  optionsFull: ["answer_options_(full)", "answer_options_(raw)", "answer_options_raw", "answer_options", "options_full", "options"],
   date: ["date", "paper_date", "exam_date"],
   sector: ["sector", "sector_(az)", "sector_(ru)"],
   variant: ["variant", "paper_variant"],
   passageRef: ["passage_id", "passage_ref", "passageid", "passage"],
   passageTitle: ["passage_title", "passagetitle"],
-  passageBody: ["passage_(separate_column)", "passage_text", "passage_body"]
+  // The one-table layout (DIM_2026_AZ_ONE_TABLE_ENGLISH_COLUMNS) names its text
+  // column "Passage / Text Related to the Question".
+  passageBody: [
+    "passage_(separate_column)",
+    "passage_text",
+    "passage_body",
+    "passage_/_text_related_to_the_question",
+    "passage_/_text",
+    "text_related_to_the_question"
+  ]
 };
 
 /**
@@ -440,7 +449,15 @@ function parseType(value: string, optionCount: number, hint: OptionsHint = null)
   }
   // Written answers marked by the AI marker; the answer column holds the
   // marking guide.
-  if (normalized === "open-ended" || normalized === "open" || normalized === "written" || normalized === "essay") {
+  if (
+    normalized === "open-ended" ||
+    normalized === "open" ||
+    normalized === "written" ||
+    normalized === "essay" ||
+    normalized === "open-response" ||
+    normalized === "written-answer" ||
+    normalized === "written-response"
+  ) {
     return "open-ended";
   }
   // Blank type column: infer from whether options were supplied.
@@ -546,14 +563,20 @@ function fold(value: string): string {
  */
 const topicNames: Record<string, string[]> = {
   grammar: ["qrammatika", "grammar", "грамматика"],
-  reading: ["oxu / metn", "oxu", "metn", "oxu/metn", "reading", "reading comprehension", "чтение", "текст", "чтение / текст"],
+  reading: [
+    "oxu / metn", "oxu", "metn", "oxu/metn", "reading", "reading comprehension", "чтение", "текст", "чтение / текст",
+    // The English-column workbooks: "Reading / Passage" (Azerbaijani) and
+    // "Reading / Writing" (Russian). Without these they became the topics
+    // `reading-/-passage` and `reading-/-writing` beside Reading.
+    "reading / passage", "reading/passage", "reading / writing", "reading/writing"
+  ],
   vocabulary: ["leksika", "vocabulary", "лексика", "словарный запас"],
-  spelling: ["orfoqrafiya", "spelling", "орфография"],
+  spelling: ["orfoqrafiya", "spelling", "орфография", "orthography"],
   punctuation: ["durgu isareleri", "punktuasiya", "punctuation", "пунктуация"],
   phonetics: ["fonetika", "phonetics", "фонетика"],
   writing: ["yazi", "writing", "письмо"],
   "sets-logic": ["sets & logic", "sets and logic", "множества и логика"],
-  probability: ["probability", "ehtimal", "ehtimal ve statistika", "вероятность", "вероятность и статистика"],
+  probability: ["probability", "statistics", "probability and statistics", "ehtimal", "ehtimal ve statistika", "вероятность", "вероятность и статистика"],
   algebra: ["cebr", "алгебра"],
   geometry: ["həndəsə", "hendese", "геометрия"],
   arithmetic: ["hesab", "арифметика"]
@@ -588,7 +611,10 @@ function resolveTopic(rawTopic: string, subjectId: string): string {
   return topicIdFor(typed, known);
 }
 
-/** A date as the workbook writes it, "05.04.2026" (or 2026-04-05, 5/4/2026). */
+/** English month names, matched on their first three letters ("Apr" and "April"). */
+const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+/** A date as the workbook writes it, "05.04.2026" (or 2026-04-05, 5/4/2026, 12 April 2026). */
 function parseSheetDate(value: string): { iso: string; display: string; year: number } | null {
   const text = value.trim();
   let year: number;
@@ -597,7 +623,14 @@ function parseSheetDate(value: string): { iso: string; display: string; year: nu
 
   const dotted = /^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/.exec(text);
   const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T].*)?$/.exec(text);
-  if (dotted) {
+  // "12 April 2026", as the 12 and 26 April workbook writes it.
+  const named = /^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/.exec(text);
+  const namedMonth = named ? monthNames.findIndex((name) => named[2].toLowerCase().startsWith(name)) : -1;
+  if (named && namedMonth >= 0) {
+    day = Number(named[1]);
+    month = namedMonth + 1;
+    year = Number(named[3]);
+  } else if (dotted) {
     day = Number(dotted[1]);
     month = Number(dotted[2]);
     year = Number(dotted[3]);
@@ -650,6 +683,20 @@ function parseLetteredOptions(text: string): string[] | null {
     options.push(match[2].trim());
   }
   return options;
+}
+
+/** A Subtopic cell that names the kind of question rather than a subtopic. */
+const subtopicTypeWords = /^\s*(multiple[\s-]choice|multiple[\s-]answers?|short[\s-]answer|open[\s-](response|ended|answer)|written[\s-](answer|response))\s*$/i;
+
+/**
+ * Whether a note in the Image column says the question comes with a picture
+ * ("Original printed image", "See embedded scan crop", "diagram"), as opposed
+ * to where its page was scanned ("Scans: 05.04.2026 · C · p. 5") or a maybe
+ * ("Illustrations from the original XLSM (if present)").
+ */
+function picturePromised(note: string): boolean {
+  if (/if present|^scans?:/i.test(note.trim())) return false;
+  return /picture|image|scan crop|embedded|diagram|figure|drawing|chart|рисун|чертёж|чертеж|схем|şəkil|təsvir|cədvəl/i.test(note);
 }
 
 /** Whether a correct-answer cell says the official key leaves this question out. */
@@ -863,7 +910,12 @@ export function importQuestionsFromCsv(csv: string, options: ImportOptions = {})
     const options = optionCells.filter((option) => option.length > 0);
 
     const rawAnswer = cell(row, "correctAnswer");
-    const type = parseType(cell(row, "type"), options.length, hint);
+    // The one-table Azerbaijani sheet has no type column and writes the kind of
+    // question in Subtopic instead ("Multiple choice", "Open response"). Read
+    // there as the type, it is not kept as a subtopic, where it would only
+    // repeat what the question's type already says.
+    const subtopicType = cell(row, "type").length === 0 && subtopicTypeWords.test(cell(row, "subtopic"));
+    const type = parseType(subtopicType ? cell(row, "subtopic") : cell(row, "type"), options.length, hint);
     const choiceType = type === "multiple-choice" || type === "multiple-select";
 
     // A question that lists its choices (the type column says so, or the key is
@@ -926,7 +978,11 @@ export function importQuestionsFromCsv(csv: string, options: ImportOptions = {})
           correctAnswer = encodeAnswerSet(options, chosen);
         }
       } else {
-        const resolved = resolveCorrectAnswer(rawAnswer, answerOptions);
+        // "C — sentence 4": the key's letter, then a note on why. Only a capital
+        // letter followed by a dash and more text counts, so an answer that is
+        // itself text is never cut short.
+        const annotated = /^\(?([A-E])\)?\s*[—–-]\s+\S/.exec(rawAnswer);
+        const resolved = resolveCorrectAnswer(annotated ? annotated[1] : rawAnswer, answerOptions);
         if (resolved !== null) {
           correctAnswer = resolved;
         } else {
@@ -1001,7 +1057,33 @@ export function importQuestionsFromCsv(csv: string, options: ImportOptions = {})
     // imported as ready showed students a broken picture, and a written
     // answer on it could never be marked. Kept written out in full, as the
     // admin form's save keeps it.
-    const rawImageUrl = cell(row, "imageUrl");
+    //
+    // Nihad's workbooks use their Image column for a note in words instead
+    // ("Scans: 05.04.2026 · C · p. 5", "Original printed image"). A note is
+    // not a link, and refusing it refused all 198 rows of the one-table sheet.
+    // So words with spaces and no "://" are read as a note: one that says the
+    // question has a picture keeps it a draft until the picture is attached in
+    // the admin form; one that only says where the page was found is ignored.
+    // A file name ("diagram1.png", "picture 3.jpg") ends in an image type and
+    // is still refused, spaces or not.
+    const imageCell = cell(row, "imageUrl");
+    // A single word ("picture") is a note too; a word with a dot or slash in
+    // it ("site.com/q5") was meant as an address, and is refused as one.
+    const imageIsNote =
+      imageCell.length > 0 &&
+      (/\s/.test(imageCell) || !/[./]/.test(imageCell)) &&
+      !imageCell.includes("://") &&
+      // "javascript:..." or "data:...", but not a note like "Scans: 05.04.2026".
+      !/^[a-z][a-z0-9+.-]*:\S/i.test(imageCell) &&
+      !/\.(png|jpe?g|gif|webp|svg|bmp|tiff?|heic)$/i.test(imageCell);
+    if (imageIsNote && picturePromised(imageCell)) {
+      const missing = incomplete(
+        `Image says "${imageCell}" but there is no link to the picture. Leave Image empty, import the question, and attach the picture in the admin form.`,
+        `needs its picture ("${imageCell}"): attach it in the admin form`
+      );
+      if (missing) return;
+    }
+    const rawImageUrl = imageIsNote ? "" : imageCell;
     const picture = rawImageUrl.length > 0 ? checkPictureLink(rawImageUrl, pictureLinks) : null;
     if (picture !== null && "problem" in picture) {
       errors.push({
@@ -1094,7 +1176,26 @@ export function importQuestionsFromCsv(csv: string, options: ImportOptions = {})
 
     // The passage the question is about. The first row of a passage that
     // carries its text creates or updates it; the others only point at it.
-    const passageRef = cell(row, "passageRef") || null;
+    //
+    // The one-table sheet has no passage id: it puts the title (and the text,
+    // on the first row or on every row) on each question about it. There the
+    // passage is known by its paper and title ("2026-04-05-az-c:bir-xatirə"),
+    // so the rows that share a title are one passage, and importing the sheet
+    // again updates it. Only when the sheet has no Passage ID column, so a
+    // sheet that has one keeps working exactly as before.
+    const passageTitleCell = cell(row, "passageTitle");
+    const derivedPassageRef =
+      mapping.passageRef === undefined && passageTitleCell.length > 0
+        ?[date?.iso ?? "", slugOf(sector), slugOf(variant)].filter((part) => part.length > 0).join("-") +
+          (date || sector || variant ? ":" : "") +
+          passageTitleCell
+            .toLowerCase()
+            .replace(/[“”"«»'’]/g, "")
+            .replace(/[^\p{L}\p{N}]+/gu, "-")
+            .replace(/^-+|-+$/g, "")
+            .slice(0, 80)
+        : null;
+    const passageRef = cell(row, "passageRef") || derivedPassageRef || null;
     if (passageRef !== null && !passageTexts.has(passageRef)) {
       const body = cell(row, "passageBody");
       if (body.length > 0) {
@@ -1130,7 +1231,7 @@ export function importQuestionsFromCsv(csv: string, options: ImportOptions = {})
       row: rowNumber,
       status: reasons.length > 0 ? "draft" : "ready",
       reason: reasons.length > 0 ? reasons.join("; ") : null,
-      subtopic: cell(row, "subtopic") || null,
+      subtopic: subtopicType ? null : cell(row, "subtopic") || null,
       externalRef,
       passageRef,
       passageOrder: null

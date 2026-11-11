@@ -1,5 +1,62 @@
 # Action list
 
+## Session on 11 November 2026
+
+### Decided
+
+- **Templates in Nihad's own two layouts**, downloadable from Bulk import:
+  the Azerbaijani one-table sheet (Option A to E columns) for Azerbaijani
+  Language, and the 12 and 26 April workbook (one Answer Options cell) for
+  English, Maths and Russian, with passage, Variant and Sector columns added.
+  Other sheets are turned into a layout by hand or with an AI tool outside the
+  site, and dropped back on Bulk import.
+- **A passage with several questions**: the same Passage Title on each of its
+  questions, the text on the first of them, and the question numbers set the
+  order.
+- **The Sector column is not needed** in the Azerbaijani-sector sheet: the two
+  sectors are kept in separate sheets.
+- **Short answers are typed without units or signs** (`115`, not `115°`;
+  `16`, not `16 cm`), because students cannot type the symbols easily.
+
+### Herdy
+
+- [x] Bulk import: per-subject template downloads in the two layouts, a
+      passage example with several questions, and a copyable instruction for
+      converting an own sheet with AI (11 Nov).
+- [x] Bulk import reads both workbooks as exported: Image notes, the type in
+      Subtopic, passages by title, `Answer Options (Raw)`, "C — note" keys,
+      "12 April 2026" dates. The AZ one-table sheet imports all 198 rows
+      (161 ready, 37 drafts, 6 passages with 10 questions each).
+- [ ] Question form: question on the left, options and answer on the right,
+      stacked on phones (in progress).
+- [ ] Maths formatting: fractions shown as one expression over the other, and
+      a square root sign that runs over the whole expression under it. Friends
+      found long divisions and nested roots hard to read, worst on a phone.
+- [ ] Marking short answers: accept the answer with or without its unit or
+      sign (`115` and `115°`, `16` and `16 cm`).
+- [ ] Marking short answers: accept equivalent numbers (`2/10` for `1/5`,
+      `1.5` for `3/2`).
+- [ ] Ask Nihad for the passage idea that the call ended on ("For example, we
+      choose English...").
+
+### Nihad
+
+- [ ] **Azerbaijani question sheet**: fill in the difficulty column (blank on
+      all 90 Azerbaijani rows) and import it as it is.
+- [ ] **Pictures in the one-table sheet**: its Maths and English rows all say
+      "Illustrations from the original XLSM (if present)", which no longer
+      says which ones have a picture. Write `picture` in Image on the 11 that
+      do (12 Apr Maths 72, 77-79, 81 and English 26; 26 Apr Maths 57, 73,
+      77, 79 and English 26), or they import as ready without it.
+- [ ] **Sector of the Maths and English rows** in the one-table sheet says AZ,
+      but they come from the Russian-sector papers (variants A and D). Check
+      which is right before importing them into the live bank.
+- [ ] **Extra Maths and English questions** from the same sheet: import them
+      the same way.
+- [ ] **Draft English questions waiting on their passage**: re-import them
+      with `passage_id`, `passage_title` and `passage_text` filled in so they
+      leave draft.
+
 ## Session on 7 November 2026
 
 Next session: **Wednesday 11 November, 5:00pm Nihad's time (Baku)**. Nihad

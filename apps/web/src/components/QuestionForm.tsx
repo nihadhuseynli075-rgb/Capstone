@@ -707,225 +707,340 @@ export const QuestionForm = forwardRef(function QuestionForm(
   const uploading = chosen?.state === "uploading" || chosen?.state === "waiting-for-sign-in";
 
   return (
-    <form className="question-form" onSubmit={handleSubmit} onChange={handleFormChange} ref={formRef}>
-      <div className="form-row">
-        <label>
-          Subject
-          <select value={subjectId} onChange={(event) => setSubjectId(event.target.value)}>
-            {subjects.map((subject) => (
-              <option key={subject.id} value={subject.id}>
-                {subject.name}
-              </option>
-            ))}
-          </select>
-        </label>
+    <form className="question-form question-form-split" onSubmit={handleSubmit} onChange={handleFormChange} ref={formRef}>
+      {/* Two panes side by side on a wide screen: what the student reads on
+          the left, what marks it on the right. Below 960px they stack, the
+          question first, in the order a question is written. */}
+      <div className="question-form-columns">
+        <section className="question-form-pane" aria-labelledby="question-form-question-title">
+          <h3 className="question-form-pane-title" id="question-form-question-title">Question</h3>
+          <div className="form-row question-form-meta">
+              <label>
+                Subject
+                <select value={subjectId} onChange={(event) => setSubjectId(event.target.value)}>
+                  {subjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-        {/* The label and its problem together, so the message sits under the
-            field and is not read as part of the field's name. */}
-        <div className="form-field">
-          <label>
-            Topic
-            <input
-              type="text"
-              list="known-topics"
-              data-field="topic"
-              maxLength={testScopeLimits.maxIdLength}
-              value={topicId}
-              onChange={(event) => setTopicId(event.target.value)}
-              placeholder="e.g. algebra"
-              {...problemProps("topic")}
-            />
-            <datalist id="known-topics">
-              {knownTopics.map((topic) => (
-                <option key={topic.id} value={topic.id}>
-                  {topic.name}
-                </option>
-              ))}
-            </datalist>
-          </label>
-          <FieldProblem problem={problem} field="topic" />
-        </div>
-
-        <label>
-          Difficulty
-          <select
-            value={difficulty}
-            onChange={(event) => setDifficulty(event.target.value as Difficulty)}
-          >
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
-          </select>
-        </label>
-
-        <label>
-          Answer type
-          <select value={type} onChange={(event) => setType(event.target.value as QuestionType)}>
-            <option value="multiple-choice">Multiple choice</option>
-            <option value="multiple-select">Multiple answers (tick all right)</option>
-            <option value="short-answer">Short answer</option>
-            <option value="open-ended">Written answer (AI-marked)</option>
-          </select>
-        </label>
-      </div>
-
-      <div className="form-field">
-        <label>
-          Question
-          <textarea
-            rows={3}
-            data-field="prompt"
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            placeholder="Type the question exactly as it appears on the paper"
-            {...problemProps("prompt")}
-          />
-        </label>
-        <FieldProblem problem={problem} field="prompt" />
-      </div>
-
-      {isChoiceType(type) ? (
-        <fieldset className="options-fieldset">
-          <legend>
-            {type === "multiple-select" ? "Options - tick every right answer" : "Options - select the correct one"}
-          </legend>
-          {unmatchedAnswer !== null && (
-            <p className="panel-hint">
-              The answer recorded for this question is "{unmatchedAnswer}", which is not one of the options
-              yet. Type the options, then mark the correct one.
-            </p>
-          )}
-          {options.map((option, index) => (
-            <Fragment key={index}>
-              <div className="option-input-row">
-                {/* The radio and its letter are one label, so the whole 44px
-                    square around them picks the answer, not just a 13px dot. */}
-                <label className="option-correct">
-                  {type === "multiple-select" ? (
-                    <input
-                      type="checkbox"
-                      data-field="correct"
-                      checked={correctSlots.includes(index)}
-                      onChange={() => toggleCorrectSlot(index)}
-                      aria-label={`Option ${String.fromCharCode(65 + index)} is a right answer`}
-                      {...problemProps("correct", index)}
-                    />
-                  ) : (
-                    <input
-                      type="radio"
-                      name="correct-option"
-                      data-field="correct"
-                      checked={correctIndex === index}
-                      onChange={() => setCorrectIndex(index)}
-                      aria-label={`Option ${String.fromCharCode(65 + index)} is correct`}
-                      {...problemProps("correct", index)}
-                    />
-                  )}
-                  <span className="option-letter" aria-hidden="true">
-                    {String.fromCharCode(65 + index)}
-                  </span>
+              {/* The label and its problem together, so the message sits under the
+                  field and is not read as part of the field's name. */}
+              <div className="form-field">
+                <label>
+                  Topic
+                  <input
+                    type="text"
+                    list="known-topics"
+                    data-field="topic"
+                    maxLength={testScopeLimits.maxIdLength}
+                    value={topicId}
+                    onChange={(event) => setTopicId(event.target.value)}
+                    placeholder="e.g. algebra"
+                    {...problemProps("topic")}
+                  />
+                  <datalist id="known-topics">
+                    {knownTopics.map((topic) => (
+                      <option key={topic.id} value={topic.id}>
+                        {topic.name}
+                      </option>
+                    ))}
+                  </datalist>
                 </label>
-                {/* Named for a screen reader, which otherwise heard only
-                    "Required" or "Optional", the placeholder. */}
+                <FieldProblem problem={problem} field="topic" />
+              </div>
+
+              <label>
+                Difficulty
+                <select
+                  value={difficulty}
+                  onChange={(event) => setDifficulty(event.target.value as Difficulty)}
+                >
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </label>
+          </div>
+
+          <div className="form-field">
+            <label>
+              Question
+              <textarea
+                rows={7}
+                data-field="prompt"
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                placeholder="Type the question exactly as it appears on the paper"
+                {...problemProps("prompt")}
+              />
+            </label>
+            <FieldProblem problem={problem} field="prompt" />
+          </div>
+
+          <div className="form-row passage-row">
+            <label>
+              Reading passage
+              <select value={passageId} onChange={(event) => setPassageId(event.target.value)}>
+                <option value="">None - the question stands on its own</option>
+                {subjectPassages.map((passage) => (
+                  <option key={passage.id} value={passage.id}>
+                    {passage.title}
+                  </option>
+                ))}
+              </select>
+              <span className="field-hint">
+                {subjectPassages.length === 0
+                  ? "No passages for this subject yet. Add one under the Passages tab."
+                  : "Students see the passage beside the question, and its questions come one after another."}
+              </span>
+            </label>
+
+            {passageId && (
+              <label>
+                Place among its questions
+                <input
+                  type="number"
+                  min={1}
+                  max={1000}
+                  value={passageOrder}
+                  onChange={(event) => setPassageOrder(event.target.value)}
+                  placeholder="e.g. 1"
+                />
+                <span className="field-hint">1 comes first. Blank goes after the numbered ones.</span>
+              </label>
+            )}
+          </div>
+
+          <div className="image-field">
+            <label>
+              Diagram (optional)
+              {/* Not while saving: a picture chosen then missed the save under
+                  way, and was gone when the form emptied for the next question. */}
+              <input
+                type="file"
+                accept="image/*"
+                data-field="image"
+                disabled={submitting}
+                onChange={(event) => handleImageChange(event.currentTarget)}
+                {...problemProps("image")}
+              />
+            </label>
+
+            {chosen?.state === "uploading" && (
+              <p className="panel-hint" role="status">
+                Uploading {chosen.file.name}...
+              </p>
+            )}
+            {chosen?.state === "waiting-for-sign-in" && (
+              <p className="panel-hint" role="status">
+                {chosen.file.name} is uploaded as soon as you have signed in again.
+              </p>
+            )}
+            {chosen?.state === "failed" && (
+              <div className="picture-failed">
+                <p className="error-banner" role="alert">
+                  {chosen.file.name} was not attached: {chosen.message}
+                </p>
+                <div className="form-actions">
+                  {chosen.canRetry && (
+                    <button type="button" className="ghost-button" onClick={() => void upload(chosen.file)}>
+                      Try again
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    aria-label={`Remove ${chosen.file.name}`}
+                    onClick={() => choosePicture(null)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {imageUrl && savedLinkProblem && (
+              // Said, not drawn: as a picture it was only ever a broken one.
+              <div className="picture-failed">
+                <p className="error-banner">
+                  {savedLinkProblem === "inline-with-storage"
+                    ? "This question's picture is kept inside the question, which only works while no Supabase storage is connected."
+                    : `This question's picture link, "${quotedLink(imageUrl)}", is not a full link starting with https://, so students see a broken picture.`}{" "}
+                  Remove it, then choose the picture to upload it.
+                </p>
+                <div className="form-actions">
+                  <button type="button" className="ghost-button" onClick={removePicture}>
+                    Remove link
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {imageUrl && !savedLinkProblem && (
+              <div className="image-preview">
+                <img src={imageUrl} alt="Question diagram preview" />
+                <button type="button" className="ghost-button" onClick={removePicture}>
+                  Remove image
+                </button>
+              </div>
+            )}
+
+            <FieldProblem problem={problem} field="image" />
+          </div>
+        </section>
+
+        <section className="question-form-pane" aria-labelledby="question-form-answer-title">
+          <h3 className="question-form-pane-title" id="question-form-answer-title">Answer</h3>
+            <label>
+              Answer type
+              <select value={type} onChange={(event) => setType(event.target.value as QuestionType)}>
+                <option value="multiple-choice">Multiple choice</option>
+                <option value="multiple-select">Multiple answers (tick all right)</option>
+                <option value="short-answer">Short answer</option>
+                <option value="open-ended">Written answer (AI-marked)</option>
+              </select>
+            </label>
+
+          {isChoiceType(type) ? (
+            <fieldset className="options-fieldset">
+              <legend>
+                {type === "multiple-select" ? "Options - tick every right answer" : "Options - select the correct one"}
+              </legend>
+              {unmatchedAnswer !== null && (
+                <p className="panel-hint">
+                  The answer recorded for this question is "{unmatchedAnswer}", which is not one of the options
+                  yet. Type the options, then mark the correct one.
+                </p>
+              )}
+              {options.map((option, index) => (
+                <Fragment key={index}>
+                  {/* The right option is outlined, so the answer can be checked at a glance. */}
+                  <div
+                    className={`option-input-row${
+                      (type === "multiple-select" ? correctSlots.includes(index) : correctIndex === index)
+                        ? " is-correct"
+                        : ""
+                    }`}
+                  >
+                    {/* The radio and its letter are one label, so the whole 44px
+                        square around them picks the answer, not just a 13px dot. */}
+                    <label className="option-correct">
+                      {type === "multiple-select" ? (
+                        <input
+                          type="checkbox"
+                          data-field="correct"
+                          checked={correctSlots.includes(index)}
+                          onChange={() => toggleCorrectSlot(index)}
+                          aria-label={`Option ${String.fromCharCode(65 + index)} is a right answer`}
+                          {...problemProps("correct", index)}
+                        />
+                      ) : (
+                        <input
+                          type="radio"
+                          name="correct-option"
+                          data-field="correct"
+                          checked={correctIndex === index}
+                          onChange={() => setCorrectIndex(index)}
+                          aria-label={`Option ${String.fromCharCode(65 + index)} is correct`}
+                          {...problemProps("correct", index)}
+                        />
+                      )}
+                      <span className="option-letter" aria-hidden="true">
+                        {String.fromCharCode(65 + index)}
+                      </span>
+                    </label>
+                    {/* Named for a screen reader, which otherwise heard only
+                        "Required" or "Optional", the placeholder. */}
+                    <input
+                      type="text"
+                      data-field="option"
+                      value={option}
+                      aria-label={`Option ${String.fromCharCode(65 + index)}`}
+                      onChange={(event) => setOption(index, event.target.value)}
+                      placeholder={index < 2 ? "Required" : "Optional"}
+                      {...problemProps("option", index)}
+                    />
+                  </div>
+                  {/* Under the row it is about: the empty option, the repeated
+                      one, or the radio marking an option with no text. */}
+                  <FieldProblem problem={problem} field="option" nth={index} />
+                  <FieldProblem problem={problem} field="correct" nth={index} />
+                </Fragment>
+              ))}
+            </fieldset>
+          ) : type === "open-ended" ? (
+            <div className="form-field">
+              <label>
+                Marking guide
+                <textarea
+                  rows={5}
+                  data-field="answer"
+                  value={shortAnswer}
+                  onChange={(event) => setShortAnswer(event.target.value)}
+                  placeholder={
+                    "What earns each mark, as the paper's mark scheme says. For example:\n" +
+                    "1 mark: explains the meaning in their own words.\n" +
+                    "1 mark: gives a supporting example from the text."
+                  }
+                  {...problemProps("answer")}
+                />
+                <span className="field-hint">
+                  The AI marker acts as a Grade 9 teacher and marks only against this guide, so spell out
+                  what each mark needs. Students see it after the test.
+                </span>
+              </label>
+              <FieldProblem problem={problem} field="answer" />
+            </div>
+          ) : (
+            <div className="form-field">
+              <label>
+                Correct answer
                 <input
                   type="text"
-                  data-field="option"
-                  value={option}
-                  aria-label={`Option ${String.fromCharCode(65 + index)}`}
-                  onChange={(event) => setOption(index, event.target.value)}
-                  placeholder={index < 2 ? "Required" : "Optional"}
-                  {...problemProps("option", index)}
+                  data-field="answer"
+                  value={shortAnswer}
+                  onChange={(event) => setShortAnswer(event.target.value)}
+                  placeholder="Marking ignores capitals and extra spaces"
+                  {...problemProps("answer")}
                 />
-              </div>
-              {/* Under the row it is about: the empty option, the repeated
-                  one, or the radio marking an option with no text. */}
-              <FieldProblem problem={problem} field="option" nth={index} />
-              <FieldProblem problem={problem} field="correct" nth={index} />
-            </Fragment>
-          ))}
-        </fieldset>
-      ) : type === "open-ended" ? (
-        <div className="form-field">
+              </label>
+              <FieldProblem problem={problem} field="answer" />
+            </div>
+          )}
+
           <label>
-            Marking guide
+            Explanation
             <textarea
-              rows={5}
-              data-field="answer"
-              value={shortAnswer}
-              onChange={(event) => setShortAnswer(event.target.value)}
-              placeholder={
-                "What earns each mark, as the paper's mark scheme says. For example:\n" +
-                "1 mark: explains the meaning in their own words.\n" +
-                "1 mark: gives a supporting example from the text."
-              }
-              {...problemProps("answer")}
-            />
-            <span className="field-hint">
-              The AI marker acts as a Grade 9 teacher and marks only against this guide, so spell out
-              what each mark needs. Students see it after the test.
-            </span>
-          </label>
-          <FieldProblem problem={problem} field="answer" />
-        </div>
-      ) : (
-        <div className="form-field">
-          <label>
-            Correct answer
-            <input
-              type="text"
-              data-field="answer"
-              value={shortAnswer}
-              onChange={(event) => setShortAnswer(event.target.value)}
-              placeholder="Marking ignores capitals and extra spaces"
-              {...problemProps("answer")}
+              rows={2}
+              value={explanation}
+              onChange={(event) => setExplanation(event.target.value)}
+              placeholder="Why the correct answer is right. Shown to the student after the test."
             />
           </label>
-          <FieldProblem problem={problem} field="answer" />
-        </div>
-      )}
 
-      <label>
-        Explanation
-        <textarea
-          rows={2}
-          value={explanation}
-          onChange={(event) => setExplanation(event.target.value)}
-          placeholder="Why the correct answer is right. Shown to the student after the test."
-        />
-      </label>
-
-      <div className="form-row passage-row">
-        <label>
-          Reading passage
-          <select value={passageId} onChange={(event) => setPassageId(event.target.value)}>
-            <option value="">None - the question stands on its own</option>
-            {subjectPassages.map((passage) => (
-              <option key={passage.id} value={passage.id}>
-                {passage.title}
-              </option>
-            ))}
-          </select>
-          <span className="field-hint">
-            {subjectPassages.length === 0
-              ? "No passages for this subject yet. Add one under the Passages tab."
-              : "Students see the passage beside the question, and its questions come one after another."}
-          </span>
-        </label>
-
-        {passageId && (
-          <label>
-            Place among its questions
-            <input
-              type="number"
-              min={1}
-              max={1000}
-              value={passageOrder}
-              onChange={(event) => setPassageOrder(event.target.value)}
-              placeholder="e.g. 1"
-            />
-            <span className="field-hint">1 comes first. Blank goes after the numbered ones.</span>
-          </label>
-        )}
+          <div className="form-row">
+          <div className="form-field">
+            <label>
+              Marks
+              <input
+                type="number"
+                min={markLimits.min}
+                max={markLimits.max}
+                data-field="marks"
+                value={marks}
+                onChange={(event) => setMarks(event.target.value)}
+                placeholder="1"
+                {...problemProps("marks")}
+              />
+              <span className="field-hint">What the paper says the question is worth.</span>
+            </label>
+            <FieldProblem problem={problem} field="marks" />
+          </div>
+          </div>
+        </section>
       </div>
 
       {followsSiteLanguage(subjectId) && (
@@ -956,126 +1071,34 @@ export const QuestionForm = forwardRef(function QuestionForm(
         </details>
       )}
 
-      <div className="form-row">
-        <div className="form-field">
+      <fieldset className="question-form-paper">
+        <legend>Paper details</legend>
+        <div className="form-row">
           <label>
-            Marks
+            Paper year
             <input
               type="number"
-              min={markLimits.min}
-              max={markLimits.max}
-              data-field="marks"
-              value={marks}
-              onChange={(event) => setMarks(event.target.value)}
-              placeholder="1"
-              {...problemProps("marks")}
+              // The limits the API holds the year to, from the shared package
+              // rather than a copy that could drift from it.
+              min={paperYearLimits.min}
+              max={paperYearLimits.max}
+              value={paperYear}
+              onChange={(event) => setPaperYear(event.target.value)}
+              placeholder="e.g. 2024"
             />
-            <span className="field-hint">What the paper says the question is worth.</span>
           </label>
-          <FieldProblem problem={problem} field="marks" />
+
+          <label>
+            Source
+            <input
+              type="text"
+              value={source}
+              onChange={(event) => setSource(event.target.value)}
+              placeholder="e.g. 2024 final paper 1"
+            />
+          </label>
         </div>
-
-        <label>
-          Paper year
-          <input
-            type="number"
-            // The limits the API holds the year to, from the shared package
-            // rather than a copy that could drift from it.
-            min={paperYearLimits.min}
-            max={paperYearLimits.max}
-            value={paperYear}
-            onChange={(event) => setPaperYear(event.target.value)}
-            placeholder="e.g. 2024"
-          />
-        </label>
-
-        <label>
-          Source
-          <input
-            type="text"
-            value={source}
-            onChange={(event) => setSource(event.target.value)}
-            placeholder="e.g. 2024 final paper 1"
-          />
-        </label>
-      </div>
-
-      <div className="image-field">
-        <label>
-          Diagram (optional)
-          {/* Not while saving: a picture chosen then missed the save under
-              way, and was gone when the form emptied for the next question. */}
-          <input
-            type="file"
-            accept="image/*"
-            data-field="image"
-            disabled={submitting}
-            onChange={(event) => handleImageChange(event.currentTarget)}
-            {...problemProps("image")}
-          />
-        </label>
-
-        {chosen?.state === "uploading" && (
-          <p className="panel-hint" role="status">
-            Uploading {chosen.file.name}...
-          </p>
-        )}
-        {chosen?.state === "waiting-for-sign-in" && (
-          <p className="panel-hint" role="status">
-            {chosen.file.name} is uploaded as soon as you have signed in again.
-          </p>
-        )}
-        {chosen?.state === "failed" && (
-          <div className="picture-failed">
-            <p className="error-banner" role="alert">
-              {chosen.file.name} was not attached: {chosen.message}
-            </p>
-            <div className="form-actions">
-              {chosen.canRetry && (
-                <button type="button" className="ghost-button" onClick={() => void upload(chosen.file)}>
-                  Try again
-                </button>
-              )}
-              <button
-                type="button"
-                className="ghost-button"
-                aria-label={`Remove ${chosen.file.name}`}
-                onClick={() => choosePicture(null)}
-              >
-                Remove
-              </button>
-            </div>
-          </div>
-        )}
-
-        {imageUrl && savedLinkProblem && (
-          // Said, not drawn: as a picture it was only ever a broken one.
-          <div className="picture-failed">
-            <p className="error-banner">
-              {savedLinkProblem === "inline-with-storage"
-                ? "This question's picture is kept inside the question, which only works while no Supabase storage is connected."
-                : `This question's picture link, "${quotedLink(imageUrl)}", is not a full link starting with https://, so students see a broken picture.`}{" "}
-              Remove it, then choose the picture to upload it.
-            </p>
-            <div className="form-actions">
-              <button type="button" className="ghost-button" onClick={removePicture}>
-                Remove link
-              </button>
-            </div>
-          </div>
-        )}
-
-        {imageUrl && !savedLinkProblem && (
-          <div className="image-preview">
-            <img src={imageUrl} alt="Question diagram preview" />
-            <button type="button" className="ghost-button" onClick={removePicture}>
-              Remove image
-            </button>
-          </div>
-        )}
-
-        <FieldProblem problem={problem} field="image" />
-      </div>
+      </fieldset>
 
       {/* An alert, so a refusal is read out wherever focus is; focusable by
           script for a problem that belongs to no one field (see fail). A

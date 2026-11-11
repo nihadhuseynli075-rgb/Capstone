@@ -1,0 +1,2796 @@
+diff --git a/apps/web/package.json b/apps/web/package.json
+index 6c9e351..a93d04b 100644
+--- a/apps/web/package.json
++++ b/apps/web/package.json
+@@ -9,6 +9,7 @@
+     "typecheck": "tsc --noEmit"
+   },
+   "dependencies": {
++    "@fontsource-variable/inter": "^5.3.0",
+     "@fontsource-variable/onest": "^5.3.1",
+     "@grade9/shared": "0.1.0",
+     "@supabase/supabase-js": "^2.45.0",
+diff --git a/apps/web/src/components/icons.tsx b/apps/web/src/components/icons.tsx
+index 7149f09..5395b8f 100644
+--- a/apps/web/src/components/icons.tsx
++++ b/apps/web/src/components/icons.tsx
+@@ -150,6 +150,25 @@ export function IconHome() {
+   );
+ }
+ 
++/** A four-point spark: the short daily quiz (landing feature card). */
++export function IconSpark() {
++  return (
++    <Icon>
++      <path d="M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2Z" fill="currentColor" opacity="0.18" stroke="none" />
++      <path d="M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2Z" />
++    </Icon>
++  );
++}
++
++/** A check mark: confirmations such as "No account needed". */
++export function IconCheck() {
++  return (
++    <Icon>
++      <path d="M5 12.5l4.5 4.5L19 7.5" />
++    </Icon>
++  );
++}
++
+ /** An inward arrow through a folded doorway: sign in. */
+ export function IconSignIn() {
+   return (
+diff --git a/apps/web/src/lib/i18n.tsx b/apps/web/src/lib/i18n.tsx
+index ed80e9d..04b8fa8 100644
+--- a/apps/web/src/lib/i18n.tsx
++++ b/apps/web/src/lib/i18n.tsx
+@@ -89,8 +89,8 @@ const en = {
+   "landing.logIn": "Sign in",
+   "landing.signUp": "Create account",
+   "landing.label": "GRADE 9 EXAM PREPARATION",
+-  "landing.titleLead": "REACH YOUR",
+-  "landing.titlePeak": "PEAK.",
++  "landing.titleLead": "Reach your",
++  "landing.titlePeak": "peak.",
+   "landing.intro":
+     "Exampeak helps Grade 9 students prepare for final exams through mock tests and detailed results.",
+   "landing.introMore":
+@@ -488,6 +488,8 @@ const en = {
+   "builder.noTopic": "Choose at least one topic.",
+   "builder.building": "Building your test...",
+   "builder.start": "Start mock test",
++  "builder.summaryTitle": "Your test",
++  "builder.summaryNote": "Answers and marks stay hidden until you submit, just like exam day.",
+   // The full mock: Maths, English and the sector's language in one paper.
+   "builder.fullMock": "Full mock",
+   "builder.sector": "Sector",
+@@ -697,8 +699,8 @@ const ru: Dictionary = {
+   "landing.logIn": "Войти",
+   "landing.signUp": "Создать аккаунт",
+   "landing.label": "ПОДГОТОВКА К ЭКЗАМЕНАМ 9 КЛАССА",
+-  "landing.titleLead": "ДОСТИГНИТЕ СВОЕЙ",
+-  "landing.titlePeak": "ВЕРШИНЫ.",
++  "landing.titleLead": "Достигните своей",
++  "landing.titlePeak": "вершины.",
+   "landing.intro":
+     "Exampeak помогает девятиклассникам готовиться к выпускным экзаменам: пробные тесты и подробные результаты.",
+   "landing.introMore":
+@@ -1082,6 +1084,8 @@ const ru: Dictionary = {
+   "builder.noTopic": "Выберите хотя бы одну тему.",
+   "builder.building": "Составляем тест...",
+   "builder.start": "Начать пробный тест",
++  "builder.summaryTitle": "Ваш тест",
++  "builder.summaryNote": "Ответы и баллы скрыты до отправки, как на настоящем экзамене.",
+   "builder.fullMock": "Полный тест",
+   "builder.sector": "Сектор",
+   "builder.sectorHint":
+@@ -1270,8 +1274,8 @@ const az: Dictionary = {
+   "landing.logIn": "Daxil ol",
+   "landing.signUp": "Hesab yarat",
+   "landing.label": "9-CU SİNİF İMTAHANLARINA HAZIRLIQ",
+-  "landing.titleLead": "ZİRVƏNİZƏ",
+-  "landing.titlePeak": "ÇATIN.",
++  "landing.titleLead": "Zirvənizə",
++  "landing.titlePeak": "çatın.",
+   "landing.intro":
+     "Exampeak 9-cu sinif şagirdlərinə sınaq testləri və ətraflı nəticələrlə buraxılış imtahanlarına hazırlaşmağa kömək edir.",
+   "landing.introMore":
+@@ -1654,6 +1658,8 @@ const az: Dictionary = {
+   "builder.noTopic": "Ən azı bir mövzu seçin.",
+   "builder.building": "Test hazırlanır...",
+   "builder.start": "Sınaq testinə başla",
++  "builder.summaryTitle": "Testiniz",
++  "builder.summaryNote": "Cavablar və ballar təhvil verənə qədər gizli qalır, əsl imtahan günündəki kimi.",
+   "builder.fullMock": "Tam sınaq",
+   "builder.sector": "Bölmə",
+   "builder.sectorHint":
+diff --git a/apps/web/src/main.tsx b/apps/web/src/main.tsx
+index b2ae5ff..e4ff8d7 100644
+--- a/apps/web/src/main.tsx
++++ b/apps/web/src/main.tsx
+@@ -6,9 +6,13 @@ import ReactDOM from "react-dom/client";
+ // for Cyrillic and Latin together, with Azerbaijani's ə and Ə. Served from the
+ // app itself, so no font request goes to a third party.
+ import "@fontsource-variable/onest";
++// Inter for body text, as the redesign specifies; bundled for the same reason.
++import "@fontsource-variable/inter";
+ import "./styles/global.css";
+ import "./styles/components.css";
+ import "./styles/education-ui.css";
++// The redesign layer goes last of the shared sheets (see its header comment).
++import "./styles/redesign.css";
+ import { App } from "./app/App";
+ import { ErrorBoundary } from "./components/ErrorBoundary";
+ import { LanguageProvider } from "./lib/i18n";
+diff --git a/apps/web/src/pages/ExamPage.tsx b/apps/web/src/pages/ExamPage.tsx
+index 52cb48e..23fa5e0 100644
+--- a/apps/web/src/pages/ExamPage.tsx
++++ b/apps/web/src/pages/ExamPage.tsx
+@@ -565,6 +565,13 @@ export function ExamPage() {
+       )}
+ 
+       <div className="question-palette" ref={paletteRef} role="navigation" aria-label={t("exam.palette")}>
++        {/* The map's visible title, beside the questions on a wide screen. The
++            region is already named by aria-label, so this is hidden from
++            screen readers rather than read twice. */}
++        <p className="palette-title" aria-hidden="true">
++          <span>{t("exam.palette")}</span>
++          <span className="palette-count">{answeredCount} / {questions.length}</span>
++        </p>
+         {questions.map((item, index) => (
+           <button
+             key={item.id}
+diff --git a/apps/web/src/pages/LandingPage.tsx b/apps/web/src/pages/LandingPage.tsx
+index 3a00476..6aa9297 100644
+--- a/apps/web/src/pages/LandingPage.tsx
++++ b/apps/web/src/pages/LandingPage.tsx
+@@ -1,5 +1,6 @@
+ import { navigate } from "../app/router";
+ import { Ascent } from "../components/Ascent";
++import { IconCheck, IconHistory, IconSpark, IconTest } from "../components/icons";
+ import { LanguageSelect, ThemeToggle } from "../components/SiteControls";
+ import { SubjectShortcuts } from "../components/SubjectShortcuts";
+ import { useAuth } from "../features/auth/AuthContext";
+@@ -7,6 +8,13 @@ import { Wordmark } from "../lib/brand";
+ import { useLanguage } from "../lib/i18n";
+ import "../styles/landing.css";
+ 
++/**
++ * The signed-out home page (Figma "Landing").
++ *
++ * Copy on the left, the climb on a navy panel on the right, then the three
++ * features and a closing call to start. No scores or counts appear here: a
++ * visitor has not taken a test, and invented results would be a claim.
++ */
+ export function LandingPage() {
+   const { t } = useLanguage();
+   const { configured } = useAuth();
+@@ -29,19 +37,11 @@ export function LandingPage() {
+               test below works either way. */}
+           {configured && (
+             <nav className="landing-nav">
+-              <button
+-                type="button"
+-                className="landing-login"
+-                onClick={() => navigate("/login")}
+-              >
++              <button type="button" className="ghost-button landing-login" onClick={() => navigate("/login")}>
+                 {t("landing.logIn")}
+               </button>
+ 
+-              <button
+-                type="button"
+-                className="landing-signup"
+-                onClick={() => navigate("/register")}
+-              >
++              <button type="button" className="primary-button landing-signup" onClick={() => navigate("/register")}>
+                 {t("landing.signUp")}
+               </button>
+             </nav>
+@@ -52,41 +52,31 @@ export function LandingPage() {
+       <main>
+         <section className="landing-hero">
+           <div className="landing-left">
+-            <p className="landing-label">
+-              {t("landing.label")}
+-            </p>
++            <p className="landing-label">{t("landing.label")}</p>
+ 
+             <h1>
+-              {t("landing.titleLead")}
+-              <span>{t("landing.titlePeak")}</span>
++              {t("landing.titleLead")} <span>{t("landing.titlePeak")}</span>
+             </h1>
+ 
+             <div className="landing-intro">
+               <p>{t("landing.intro")}</p>
+-
+               <p>{t("landing.introMore")}</p>
+             </div>
+ 
+             <div className="landing-start">
+-              <button
+-                type="button"
+-                className="landing-cta"
+-                onClick={() => navigate("/build")}
+-              >
++              <button type="button" className="primary-button landing-cta" onClick={() => navigate("/build")}>
+                 {t("main.startPractice")}
+               </button>
+ 
+               <span className="landing-cta-note">
++                <IconCheck />
+                 {t("main.noAccountNeeded")}
+               </span>
+             </div>
+-
+-            <SubjectShortcuts className="landing-subjects" />
+           </div>
+ 
+           {/* The name drawn out: a test is a climb, and the three stages of one
+-              are the camps on the way to the summit. No scores here: a visitor
+-              has not taken a test, and invented results would be a claim. */}
++              are the camps on the way to the summit. */}
+           <div className="landing-right">
+             <Ascent
+               variant="path"
+@@ -95,41 +85,46 @@ export function LandingPage() {
+           </div>
+         </section>
+ 
++        <SubjectShortcuts className="landing-subjects" />
++
+         <section className="landing-features">
+           <article className="landing-feature">
++            <span className="landing-feature-icon is-brand" aria-hidden="true"><IconTest /></span>
+             <h2>{t("landing.mockTests")}</h2>
+-
+             <p>{t("landing.mockTestsBody")}</p>
+           </article>
+ 
+           <article className="landing-feature">
++            <span className="landing-feature-icon is-summit" aria-hidden="true"><IconSpark /></span>
+             <div className="feature-head">
+               <h2>{t("landing.dailyQuizzes")}</h2>
+               <span className="soon-badge">{t("main.soon")}</span>
+             </div>
+-
+             <p>{t("landing.dailyQuizzesBody")}</p>
+           </article>
+ 
+           <article className="landing-feature">
++            <span className="landing-feature-icon is-success" aria-hidden="true"><IconHistory /></span>
+             <h2>{t("landing.trackProgress")}</h2>
+-
+             <p>{t("landing.trackProgressBody")}</p>
+           </article>
+         </section>
+ 
+         <section className="landing-bottom">
+-          <span>EXAMPEAK</span>
+-
+           <p>{t("landing.closing")}</p>
+ 
+-          {/* The landing page has no footer, so these stand in for the app's. */}
+-          <nav className="landing-legal">
+-            <a href="#/privacy">{t("legal.privacy")}</a>
+-            <a href="#/terms">{t("legal.terms")}</a>
+-          </nav>
++          <button type="button" className="primary-button landing-cta" onClick={() => navigate("/build")}>
++            {t("main.startPractice")}
++          </button>
+         </section>
++
++        {/* The landing page has no footer, so these stand in for the app's. */}
++        <nav className="landing-legal">
++          <span>Exampeak</span>
++          <a href="#/privacy">{t("legal.privacy")}</a>
++          <a href="#/terms">{t("legal.terms")}</a>
++        </nav>
+       </main>
+     </div>
+   );
+-}
+\ No newline at end of file
++}
+diff --git a/apps/web/src/pages/ResultsPage.tsx b/apps/web/src/pages/ResultsPage.tsx
+index 2a4225f..6613e21 100644
+--- a/apps/web/src/pages/ResultsPage.tsx
++++ b/apps/web/src/pages/ResultsPage.tsx
+@@ -1,4 +1,4 @@
+-import { useEffect, useMemo, useState } from "react";
++import { useEffect, useMemo, useState, type CSSProperties } from "react";
+ import type { AttemptComparison, QuestionReview, TopicPerformance } from "@grade9/shared";
+ import { fullMockSector, subjectsCovered } from "@grade9/shared";
+ import { navigate, replaceRoute } from "../app/router";
+@@ -266,7 +266,12 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
+ 
+   return (
+     <div className="stack">
+-      <section className="score-hero">
++      {/* --score drives the ring around the figure (redesign.css): the share
++          of the marks, 0 to 100, drawn as a conic arc. */}
++      <section
++        className="score-hero"
++        style={{ "--score": scored ? Math.max(0, Math.min(100, view.percentage)) : 0 } as CSSProperties}
++      >
+         <div className="score-figure">
+           {scored ? (
+             <>
+diff --git a/apps/web/src/pages/TestBuilderPage.tsx b/apps/web/src/pages/TestBuilderPage.tsx
+index 4ef2f1a..6dfa629 100644
+--- a/apps/web/src/pages/TestBuilderPage.tsx
++++ b/apps/web/src/pages/TestBuilderPage.tsx
+@@ -400,6 +400,10 @@ export function TestBuilderPage() {
+       <div className="stack" aria-busy="true">
+         {intro}
+ 
++        {/* The same two columns as the loaded page below: the steps, then the
++            summary beside them on a wide screen. */}
++        <div className="builder-layout">
++        <div className="builder-steps">
+         <section className="panel" key="subject">
+           <h2>{t("builder.subject")}</h2>
+           <p className="panel-hint" role="status">
+@@ -429,11 +433,13 @@ export function TestBuilderPage() {
+             ))}
+           </div>
+         </section>
++        </div>
+ 
+         <section className="panel summary-panel" key="summary" aria-hidden="true">
+           <span className="skeleton skeleton-line" />
+           <span className="skeleton skeleton-button" />
+         </section>
++        </div>
+       </div>
+     );
+   }
+@@ -457,6 +463,10 @@ export function TestBuilderPage() {
+         </p>
+       )}
+ 
++      {/* Steps on the left, the summary and Start beside them (redesign.css
++          numbers the steps and keeps the summary in view while scrolling). */}
++      <div className="builder-layout">
++      <div className="builder-steps">
+       <section className="panel" key="subject">
+         <h2>{t("builder.subject")}</h2>
+         <div className="chip-row">
+@@ -712,8 +722,10 @@ export function TestBuilderPage() {
+           </div>
+         )}
+       </section>
++      </div>
+ 
+       <section className="panel summary-panel" key="summary">
++        <h2>{t("builder.summaryTitle")}</h2>
+         {/* With nothing ticked the real problem is the topics, not the size of
+             the bank: "the bank only has 0" sent students looking for missing
+             questions, and the button it disabled kept the right message from
+@@ -771,7 +783,10 @@ export function TestBuilderPage() {
+         >
+           {generating ? t("builder.building") : t("builder.start")}
+         </button>
++
++        <p className="summary-note">{t("builder.summaryNote")}</p>
+       </section>
++      </div>
+     </div>
+   );
+ }
+diff --git a/apps/web/src/styles/landing.css b/apps/web/src/styles/landing.css
+index 43f9e6d..32d47bd 100644
+--- a/apps/web/src/styles/landing.css
++++ b/apps/web/src/styles/landing.css
+@@ -1,376 +1,292 @@
++/*
++ * Landing page (Figma "Landing", Nov 2026 redesign).
++ *
++ * A plain page in the shared tokens (redesign.css): copy on the left, the climb
++ * on a navy hero panel on the right, three feature cards and a navy closing
++ * band. Imported by LandingPage only, so these rules load after the shared
++ * sheets and win their ties.
++ */
++
+ .landing-page {
+   min-height: 100vh;
+-  overflow-x: hidden;
+-  background:
+-    radial-gradient(circle at 82% 12%, rgba(12, 130, 200, 0.08), transparent 24rem),
+-    #f7f9fc;
+-  color: #0a3a58;
++  background: var(--bg);
++  color: var(--text);
+ }
+ 
+-.landing-header {
+-  width: min(1180px, calc(100% - 32px));
+-  min-height: 86px;
+-  margin: 0 auto;
++.landing-page > main {
+   display: flex;
+-  align-items: center;
+-  justify-content: space-between;
+-  gap: 18px;
++  flex-direction: column;
++  gap: 64px;
++  width: min(var(--page-width), calc(100% - 32px));
++  margin: 0 auto;
++  padding: 32px 0 48px;
+ }
+ 
+-.landing-header .wordmark-text {
+-  color: #0a3a58;
+-}
++/* ------------------------------------------------------------------ header */
+ 
+-/*
+- * The language and theme, then Log In and Sign Up. On a narrow phone the group
+- * wraps onto two rows, at the right, rather than pushing the page sideways.
+- */
+-.landing-actions {
++.landing-header {
+   display: flex;
+   align-items: center;
+-  justify-content: flex-end;
+-  flex-wrap: wrap;
+-  gap: 10px;
++  justify-content: space-between;
++  gap: 16px;
++  padding: 16px max(16px, calc((100% - var(--page-width)) / 2));
++  border-bottom: 1px solid var(--border);
++  background: var(--surface);
+ }
+ 
+-.landing-controls {
+-  display: flex;
+-  align-items: center;
+-  gap: 6px;
++.landing-header .wordmark-text {
++  color: var(--brand-strong);
++  font-size: 1.35rem;
++  font-weight: 600;
+ }
+ 
++.landing-actions,
++.landing-controls,
+ .landing-nav {
+   display: flex;
+   align-items: center;
+-  gap: 10px;
+-}
+-
+-.landing-nav button {
+-  min-height: 44px;
+-  padding: 0 19px;
+-  border-radius: 999px;
+-  font: inherit;
+-  font-size: 14px;
+-  font-weight: 750;
+-  /* "Create account" broke over two lines on a 320px phone. */
+-  white-space: nowrap;
+-  cursor: pointer;
+-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+-}
+-
+-.landing-login {
+-  border: 1px solid #d8e6f0;
+-  background: #ffffff;
+-  color: #0a3a58;
+-  box-shadow: 0 6px 18px rgba(10, 58, 88, 0.06);
++  gap: 8px;
+ }
+ 
+-/*
+- * The words and fills here use #0a70ad, a step darker than the logo's
+- * #0c82c8: white on the logo blue, and the logo blue on white or its pale
+- * tints, only reach 3.5-4.2:1, under the 4.5:1 small text needs. The logo
+- * blue stays in the artwork and the hero circle, which carry no small text.
+- */
+-.landing-signup {
+-  border: 1px solid #0a70ad;
+-  background: #0a70ad;
+-  color: #ffffff;
+-  box-shadow: 0 7px 18px rgba(12, 130, 200, 0.2);
+-}
+-
+-.landing-nav button:hover {
+-  transform: translateY(-2px);
++.landing-actions {
++  gap: 16px;
+ }
+ 
+-/* ---------------------------------------------------------------- hero */
++/* -------------------------------------------------------------------- hero */
+ 
+ .landing-hero {
+-  width: min(1180px, calc(100% - 32px));
+-  margin: 18px auto 24px;
+   display: grid;
+-  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+-  gap: 22px;
+-  align-items: stretch;
++  grid-template-columns: minmax(0, 1fr) minmax(0, 560px);
++  gap: 64px;
++  align-items: center;
+ }
+ 
+-.landing-left,
+-.landing-right {
+-  min-width: 0;
+-  border-radius: 32px;
++.landing-left {
++  display: flex;
++  flex-direction: column;
++  align-items: flex-start;
++  gap: 24px;
+ }
+ 
+-.landing-left {
+-  position: relative;
+-  overflow: hidden;
+-  padding: clamp(30px, 5vw, 54px);
+-  /*
+-   * Dark enough behind the small white text to clear 4.5:1 everywhere, the
+-   * glow included. On a phone the label and the first lines of the intro run
+-   * the whole width, under the glow, and with the old start (#0b78bd) and a
+-   * stronger glow they fell to 3.8:1. The start is now the text blue the
+-   * buttons use, and the glow is lighter.
+-   */
+-  background:
+-    radial-gradient(circle at 90% 12%, rgba(255, 255, 255, 0.1), transparent 14rem),
+-    linear-gradient(145deg, #0a70ad 0%, #0a6aa6 62%, #085a8e 100%);
+-  color: #ffffff;
+-  /* The headline is sized against this box, not the window: see :lang below. */
+-  container-type: inline-size;
+-  box-shadow: 0 22px 48px rgba(12, 130, 200, 0.22);
+-}
+-
+-/* The default brand-blue ring vanishes on the blue hero. */
+-.landing-left :focus-visible {
+-  outline-color: #ffffff;
+-}
+-
+-/* The small words on the blue are solid white: a see-through white takes on
+-   the blue behind it and loses the contrast the background was chosen for. */
+ .landing-label {
+-  margin: 0 0 16px;
+-  color: #ffffff;
+-  font-size: 12px;
+-  font-weight: 850;
+-  letter-spacing: 0.16em;
++  margin: 0;
++  padding: 4px 12px;
++  border-radius: 999px;
++  background: var(--summit-soft);
++  color: var(--warning);
++  font-size: 0.75rem;
++  font-weight: 700;
++  letter-spacing: 0.1em;
+ }
+ 
+ .landing-left h1 {
+   margin: 0;
+-  max-width: 650px;
+-  color: #ffffff;
+-  font-size: clamp(52px, 6vw, 84px);
+-  font-weight: 850;
+-  line-height: 0.93;
+-  letter-spacing: -0.055em;
+-}
+-
+-/*
+- * Russian and Azerbaijani put one long word on a line ("ДОСТИГНИТЕ",
+- * "ZİRVƏNİZƏ") that cannot wrap, so the size follows the hero's width. The
+- * extra line height keeps the breve on Й clear of the line above.
+- */
+-:lang(ru) .landing-left h1,
+-:lang(az) .landing-left h1 {
+-  font-size: clamp(32px, 14cqi, 78px);
+-  line-height: 1.12;
++  font-size: clamp(2.75rem, 1.6rem + 3.6vw, 4rem);
++  line-height: 1.06;
++  letter-spacing: -0.03em;
+ }
+ 
+ .landing-left h1 span {
+-  display: block;
+-  margin-top: 8px;
+-  color: #ffffff;
++  color: var(--brand);
+ }
+ 
+-/* Plain text on the blue, no frosted panel: the panel added a second box
+-   inside the hero without saying anything the words did not. */
+ .landing-intro {
+-  max-width: 540px;
+-  margin-top: 26px;
++  display: flex;
++  flex-direction: column;
++  gap: 8px;
++  max-width: 54ch;
+ }
+ 
+ .landing-intro p {
+   margin: 0;
+-  color: #ffffff;
+-  font-size: 16px;
+-  line-height: 1.65;
+-}
+-
+-.landing-intro p + p {
+-  margin-top: 10px;
++  color: var(--muted);
++  font-size: 1.125rem;
++  line-height: 1.55;
+ }
+ 
+ .landing-start {
+-  margin-top: 24px;
+   display: flex;
+-  align-items: center;
+   flex-wrap: wrap;
+-  gap: 12px 16px;
++  align-items: center;
++  gap: 16px;
++  padding-top: 8px;
+ }
+ 
+ .landing-cta {
+-  min-height: 50px;
+-  padding: 0 24px;
+-  border: none;
+-  border-radius: 999px;
+-  background: #ffffff;
+-  color: #0a70ad;
+-  font: inherit;
+-  font-weight: 800;
+-  cursor: pointer;
+-  box-shadow: 0 6px 0 rgba(10, 58, 88, 0.18), 0 14px 26px rgba(4, 50, 78, 0.14);
+-  transition: transform 0.08s ease, box-shadow 0.08s ease;
++  min-height: 52px;
++  padding: 14px 28px;
++  font-size: 1rem;
+ }
+ 
+-.landing-cta:hover {
+-  transform: translateY(-2px);
++.landing-cta-note {
++  display: inline-flex;
++  align-items: center;
++  gap: 8px;
++  color: var(--muted);
++  font-size: 0.875rem;
++  font-weight: 600;
+ }
+ 
+-.landing-cta:active {
+-  transform: translateY(3px);
+-  box-shadow: 0 2px 0 rgba(10, 58, 88, 0.18);
++.landing-cta-note svg {
++  width: 18px;
++  height: 18px;
++  color: var(--success);
+ }
+ 
+-.landing-cta-note {
+-  color: #ffffff;
+-  font-size: 13px;
++/* The climb sits on a navy hero panel, as in the Figma hero visual. */
++.landing-right {
++  display: flex;
++  min-height: 460px;
++  padding: 40px;
++  border-radius: var(--radius-xl);
++  background: var(--hero);
++  color: var(--on-hero);
++  overflow: hidden;
+ }
+ 
+-/* Subject tiles inside the blue hero mimic the app cards in the reference. */
+-.landing-subjects {
+-  position: relative;
+-  z-index: 1;
+-  max-width: 610px;
+-  margin-top: 30px;
++.landing-right .ascent {
++  --ascent-peak: #0a70ad;
++  --ascent-foot: #0c5a8a;
++  --ascent-back: color-mix(in srgb, #45aeeb 26%, var(--hero));
++  --ascent-flag: var(--summit);
++  --ascent-camp: #45aeeb;
++  flex: 1;
+ }
+ 
+-.landing-subjects .subject-shortcuts-title {
+-  color: #ffffff;
++.landing-right .ascent-steps li {
++  color: var(--on-hero);
++  font-weight: 600;
+ }
+ 
+-.landing-subjects .subject-grid {
+-  /* Four subjects: all in a row where they fit, two by two where they do not. */
+-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
++.landing-right .ascent-step-number {
++  background: color-mix(in srgb, var(--on-hero) 14%, transparent);
++  color: var(--on-hero);
+ }
+ 
+-/* Narrow cards: glyph, name, then the count on its own row. */
+-.landing-subjects .subject-card {
+-  grid-template-columns: minmax(0, 1fr);
+-  grid-template-areas:
+-    "glyph"
+-    "name"
+-    "count";
+-  min-height: 108px;
+-  border-color: rgba(255, 255, 255, 0.18);
+-  background: rgba(255, 255, 255, 0.96);
+-  color: #0a3a58;
+-  box-shadow: 0 12px 24px rgba(3, 56, 88, 0.12);
+-}
++/* -------------------------------------------------------- subjects, features */
+ 
+-.landing-subjects .subject-card:hover:not(:disabled) {
+-  background: #ffffff;
+-  border-color: #ffffff;
++.landing-subjects {
++  margin: 0;
+ }
+ 
+-.landing-subjects .subject-glyph,
+-.landing-subjects .subject-card:hover:not(:disabled) .subject-glyph {
+-  background: #e6f4fd;
+-  color: #0a70ad;
++.landing-features {
++  display: grid;
++  grid-template-columns: repeat(3, minmax(0, 1fr));
++  gap: 24px;
+ }
+ 
+-.landing-subjects .subject-count {
+-  justify-self: start;
+-  background: #edf5fa;
+-  color: #46637a;
++.landing-feature {
++  display: flex;
++  flex-direction: column;
++  gap: 12px;
++  padding: 32px;
++  border: 1px solid var(--border);
++  border-radius: var(--radius-xl);
++  background: var(--surface);
+ }
+ 
+-/* Not offered yet: an outline on the blue rather than a faded white card. */
+-.landing-subjects .subject-card:disabled {
+-  border-color: rgba(255, 255, 255, 0.34);
+-  background: rgba(255, 255, 255, 0.1);
+-  color: #ffffff;
+-  box-shadow: none;
++.landing-feature h2 {
++  margin: 0;
++  font-size: 1.5rem;
+ }
+ 
+-.landing-subjects .subject-card:disabled .subject-name {
+-  color: #ffffff;
++.landing-feature p {
++  margin: 0;
++  color: var(--muted);
++  line-height: 1.55;
+ }
+ 
+-.landing-subjects .subject-card:disabled .subject-glyph,
+-.landing-subjects .subject-card:disabled .subject-count {
+-  background: rgba(255, 255, 255, 0.18);
+-  color: #ffffff;
++.landing-feature-icon {
++  display: grid;
++  place-items: center;
++  width: 52px;
++  height: 52px;
++  border-radius: var(--radius);
+ }
+ 
+-/* -------------------------------------------------------------- visual side */
+-
+-/* The climb card: the Ascent's path variant fills it (styles/ascent.css). */
+-.landing-right {
+-  position: relative;
+-  min-height: 560px;
+-  padding: clamp(24px, 4vw, 40px);
+-  overflow: hidden;
+-  border: 1px solid #e1ebf2;
+-  background: #ffffff;
+-  box-shadow: 0 18px 42px rgba(10, 58, 88, 0.09);
++.landing-feature-icon svg {
++  width: 26px;
++  height: 26px;
+ }
+ 
+-.landing-right .ascent-path {
+-  /* Room above the summit for its flag. */
+-  padding-top: 28px;
++.landing-feature-icon.is-brand {
++  background: var(--brand-soft);
++  color: var(--brand);
+ }
+ 
+-/* ------------------------------------------------------------- feature cards */
+-
+-.landing-features {
+-  width: min(1180px, calc(100% - 32px));
+-  margin: 0 auto;
+-  display: grid;
+-  grid-template-columns: repeat(3, minmax(0, 1fr));
+-  gap: 28px;
++.landing-feature-icon.is-summit {
++  background: var(--summit-soft);
++  color: var(--warning);
+ }
+ 
+-/* Three short notes under a rule rather than three numbered cards: they are
+-   what the site offers, not steps, and the steps are on the climb above. */
+-.landing-feature {
+-  min-width: 0;
+-  padding: 20px 4px 4px;
+-  border-top: 3px solid #0c82c8;
++.landing-feature-icon.is-success {
++  background: var(--success-soft);
++  color: var(--success);
+ }
+ 
+-.landing-feature h2 {
+-  margin: 0 0 8px;
+-  color: #0a3a58;
+-  font-size: 20px;
++.feature-head {
++  display: flex;
++  flex-wrap: wrap;
++  align-items: center;
++  gap: 8px;
+ }
+ 
+-.feature-head h2 {
+-  margin-bottom: 8px;
++.soon-badge {
++  padding: 3px 10px;
++  border-radius: 999px;
++  background: var(--surface-alt);
++  color: var(--muted);
++  font-size: 0.75rem;
++  font-weight: 700;
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
+ }
+ 
+-.feature-head {
++/* ---------------------------------------------------------- closing band */
++
++.landing-bottom {
+   display: flex;
+-  align-items: baseline;
++  align-items: center;
+   justify-content: space-between;
+-  gap: 12px;
++  gap: 32px;
++  padding: 48px 64px;
++  border-radius: var(--radius-xl);
++  background: var(--hero);
++  color: var(--on-hero);
+ }
+ 
+-.landing-feature p {
++.landing-bottom p {
++  max-width: 34ch;
+   margin: 0;
+-  color: #4f6b80;
+-  font-size: 14px;
+-  line-height: 1.65;
++  font-family: var(--font-display);
++  font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2rem);
++  font-weight: 700;
++  line-height: 1.25;
++  letter-spacing: -0.02em;
+ }
+ 
+-.landing-bottom {
+-  width: min(1180px, calc(100% - 32px));
+-  margin: 18px auto 0;
+-  padding: 24px 4px 46px;
++.landing-legal {
+   display: flex;
+-  align-items: flex-start;
+-  /* The privacy and terms links take a line of their own when the row is full. */
+   flex-wrap: wrap;
+-  gap: 22px;
++  align-items: center;
++  gap: 24px;
++  padding-top: 24px;
++  border-top: 1px solid var(--border);
++  color: var(--muted);
++  font-size: 0.875rem;
+ }
+ 
+-/* At the right-hand end on a wide screen; at the start once the row wraps. */
+-.landing-bottom .landing-legal {
+-  margin-left: auto;
+-  justify-content: flex-start;
++.landing-legal span {
++  margin-right: auto;
+ }
+ 
+-.landing-bottom span {
+-  color: #0a70ad;
+-  font-size: 12px;
+-  font-weight: 900;
+-  letter-spacing: 0.16em;
++.landing-legal a {
++  color: var(--muted);
++  text-decoration: none;
+ }
+ 
+-.landing-bottom p {
+-  max-width: 650px;
+-  margin: 0;
+-  color: #56728a;
+-  font-size: 13px;
+-  line-height: 1.7;
++.landing-legal a:hover {
++  color: var(--text);
+ }
+ 
+ /* Shown on every load, signed in or not, so it follows the theme. */
+@@ -382,186 +298,55 @@
+   color: var(--muted);
+ }
+ 
+-/* ----------------------------------------------------------------- dark theme */
+-
+-[data-theme="dark"] .landing-page {
+-  background:
+-    radial-gradient(circle at 82% 12%, rgba(58, 166, 230, 0.1), transparent 24rem),
+-    var(--bg);
+-  color: var(--text);
+-}
+-
+-[data-theme="dark"] .landing-header .wordmark-text {
+-  color: var(--brand-strong);
+-}
+-
+-[data-theme="dark"] .landing-login {
+-  border-color: var(--border);
+-  background: var(--surface);
+-  color: var(--text);
+-  box-shadow: none;
+-}
+-
+-[data-theme="dark"] .landing-left {
+-  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.35);
+-}
+-
+-[data-theme="dark"] .landing-right {
+-  border-color: var(--border);
+-  background: var(--surface);
+-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3);
+-}
++/* ------------------------------------------------------------------ phones */
+ 
+-[data-theme="dark"] .landing-feature {
+-  border-top-color: var(--brand);
+-}
+-
+-[data-theme="dark"] .landing-feature h2 {
+-  color: var(--text);
+-}
+-
+-[data-theme="dark"] .landing-feature p,
+-[data-theme="dark"] .landing-bottom p {
+-  color: var(--muted);
+-}
+-
+-[data-theme="dark"] .landing-bottom span {
+-  color: var(--brand);
+-}
+-
+-/* ---------------------------------------------------------------- responsive */
+-
+-@media (max-width: 900px) {
++@media (max-width: 960px) {
+   .landing-hero {
+     grid-template-columns: 1fr;
++    gap: 32px;
+   }
+ 
+   .landing-right {
+-    min-height: 420px;
++    min-height: 360px;
++    padding: 24px;
+   }
+ 
+   .landing-features {
+     grid-template-columns: 1fr;
++    gap: 16px;
+   }
+-}
+ 
+-@media (max-width: 620px) {
+-  .landing-header,
+-  .landing-hero,
+-  .landing-features,
+   .landing-bottom {
+-    width: calc(100% - 22px);
+-  }
+-
+-  /*
+-   * Two deliberate rows instead of a ragged wrap: the mark with the language
+-   * and theme beside it, then Log In and Sign Up side by side at full width.
+-   * landing-actions steps out of the way (display: contents) so its two groups
+-   * sit on the grid directly; the markup order, and so the Tab order, is
+-   * already the order they are drawn in.
+-   */
+-  .landing-header {
+-    min-height: 0;
+-    padding-block: 12px 4px;
+-    display: grid;
+-    grid-template-columns: auto minmax(0, 1fr);
+-    align-items: center;
+-    gap: 12px 10px;
+-  }
+-
+-  .landing-actions {
+-    display: contents;
+-  }
+-
+-  .landing-controls {
+-    justify-self: end;
+-  }
+-
+-  .landing-controls .language-select {
+-    max-width: 128px;
+-    min-height: 44px;
++    flex-direction: column;
++    align-items: stretch;
++    padding: 32px 24px;
+   }
++}
+ 
+-  .landing-nav {
+-    grid-column: 1 / -1;
+-    display: grid;
+-    grid-template-columns: repeat(2, minmax(0, 1fr));
+-    gap: 10px;
++@media (max-width: 640px) {
++  .landing-page > main {
++    gap: 40px;
++    padding-top: 24px;
+   }
+ 
+-  /* Hidden from view but still read out: the mark beside it is decoration
+-     (an empty alt), so this is what names the brand on a phone. */
+   .landing-header .wordmark-text {
+-    position: absolute;
+-    width: 1px;
+-    height: 1px;
+-    overflow: hidden;
+-    clip: rect(0 0 0 0);
+-    white-space: nowrap;
+-  }
+-
+-  /* Still a 44px tap target on a phone, the floor the app header keeps too. */
+-  .landing-nav button {
+-    min-height: 44px;
+-    padding: 0 14px;
++    display: none;
+   }
+ 
+-  .landing-left,
+-  .landing-right {
+-    border-radius: 25px;
+-  }
+-
+-  .landing-left {
+-    padding: 28px 22px;
+-  }
+-
+-  .landing-left h1 {
+-    font-size: clamp(38px, 13vw, 52px);
+-  }
+-
+-
+-  .landing-subjects .subject-grid {
+-    grid-template-columns: 1fr;
+-  }
+-
+-  .landing-subjects .subject-card {
+-    min-height: 74px;
+-    grid-template-columns: auto minmax(0, 1fr) auto;
+-    grid-template-areas: "glyph name count";
+-    align-items: center;
+-  }
+-
+-  .landing-subjects .subject-count {
+-    justify-self: end;
+-  }
+-
+-  .landing-right {
+-    min-height: 0;
+-    padding: 22px 18px;
++  .landing-controls .language-select {
++    max-width: 120px;
+   }
+ 
+-  .landing-right .ascent-path .ascent-canvas {
+-    min-height: 200px;
++  .landing-nav .landing-login {
++    display: none;
+   }
+ 
+-  .landing-bottom {
++  .landing-start {
+     flex-direction: column;
+-    gap: 8px;
+-  }
+-
+-  /* Stacked under the closing line, so no longer pushed to the far side. */
+-  .landing-bottom .landing-legal {
+-    margin-left: 0;
+-  }
+-}
+-
+-/* The smallest phones: the same two rows, a little tighter, each still 44px tall. */
+-@media (max-width: 360px) {
+-  .landing-nav {
+-    gap: 8px;
++    align-items: stretch;
+   }
+ 
+-  .landing-nav button {
+-    padding: 0 10px;
++  .landing-feature {
++    padding: 24px;
+   }
+ }
+diff --git a/apps/web/src/styles/redesign.css b/apps/web/src/styles/redesign.css
+new file mode 100644
+index 0000000..27d8bd0
+--- /dev/null
++++ b/apps/web/src/styles/redesign.css
+@@ -0,0 +1,1606 @@
++/*
++ * ExamPeak redesign layer (Figma: "ExamPeak — Web redesign", Nov 2026).
++ *
++ * Loaded last, after global.css, components.css and education-ui.css, so it
++ * wins the ties it is meant to win. It changes presentation only: routes, data,
++ * auth and page behaviour stay where they live. The token names the older
++ * layers already read (--bg, --surface, --brand ...) are kept and given the
++ * Figma values, so every page moves at once; the new tokens below are for the
++ * pieces the redesign adds.
++ */
++
++:root {
++  --font-body: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
++  --font-display: "Onest Variable", "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
++
++  /* Figma: Color / Light */
++  --bg: #f5f8fb;
++  --surface: #ffffff;
++  --surface-alt: #eaf2f9;
++  --text: #0a2e47;
++  --muted: #4c6880;
++  --border: #d5e3ee;
++  --field-border: #7b94a8;
++  --brand: #0a70ad;
++  --brand-strong: #0a3a58;
++  --brand-soft: #e1eef9;
++  --brand-edge: #0a3a58;
++  --on-brand: #ffffff;
++  --success: #177a50;
++  --success-soft: #e2f5ec;
++  --danger: #c0392b;
++  --danger-soft: #fdeceb;
++  --warning: #9a6700;
++  --warning-soft: #fff6e0;
++  /* The amber of the summit flag: highlights, best scores and the eyebrow on dark panels. */
++  --summit: #e8a317;
++  --summit-soft: #fdf3dc;
++  /* Dark panels (welcome card, score hero, auth side panel) stay dark in both themes. */
++  --hero: #0a2e47;
++  --on-hero: #ffffff;
++
++  /* Figma: Dimension */
++  --radius-sm: 8px;
++  --radius: 12px;
++  --radius-lg: 20px;
++  --radius-xl: 28px;
++  --page-width: 1200px;
++
++  /* Figma: Shadow/Card and Shadow/Raised */
++  --shadow: 0 1px 2px rgba(10, 46, 71, 0.06), 0 8px 24px -4px rgba(10, 46, 71, 0.07);
++  --shadow-raised: 0 18px 40px -8px rgba(10, 46, 71, 0.14);
++  --focus-ring: 0 0 0 4px rgba(10, 112, 173, 0.18);
++
++  /* The older layer's names, pointed at the same values. */
++  --ui-radius-sm: var(--radius);
++  --ui-radius: var(--radius-lg);
++  --ui-radius-lg: var(--radius-xl);
++  --ui-shadow-soft: var(--shadow);
++  --ui-shadow-card: var(--shadow);
++}
++
++[data-theme="dark"] {
++  --bg: #06192a;
++  --surface: #0c2538;
++  --surface-alt: #123149;
++  --text: #e6f1fa;
++  --muted: #93b0c7;
++  --border: #1c4260;
++  --field-border: #5e86a4;
++  --brand: #45aeeb;
++  --brand-strong: #8fd0f5;
++  --brand-soft: #11344f;
++  --brand-edge: #1d6f9f;
++  --on-brand: #06192a;
++  --success: #4cc38a;
++  --success-soft: #0f3426;
++  --danger: #f07d70;
++  --danger-soft: #3d1714;
++  --warning: #e7b541;
++  --warning-soft: #33290f;
++  --summit: #f2b940;
++  --summit-soft: #3a2e12;
++  --hero: #0f3753;
++  --on-hero: #eaf4fb;
++  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -4px rgba(0, 0, 0, 0.35);
++  --shadow-raised: 0 18px 40px -8px rgba(0, 0, 0, 0.5);
++  --focus-ring: 0 0 0 4px rgba(69, 174, 235, 0.25);
++}
++
++/* ------------------------------------------------------------------ base */
++
++body {
++  background: var(--bg);
++  font-family: var(--font-body);
++  font-size: 16px;
++  line-height: 1.5;
++}
++
++h1 {
++  font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2rem);
++  line-height: 1.25;
++  letter-spacing: -0.02em;
++}
++
++h2 {
++  font-size: 1.5rem;
++  line-height: 1.33;
++  letter-spacing: -0.01em;
++  font-weight: 600;
++}
++
++h3 {
++  font-size: 1.125rem;
++  line-height: 1.45;
++  font-weight: 600;
++}
++
++.eyebrow {
++  font-family: var(--font-body);
++  font-size: 0.75rem;
++  letter-spacing: 0.1em;
++}
++
++/*
++ * Uppercase is left to the browser so it follows the page language: with
++ * lang="az" an Azerbaijani i becomes İ, not I. Every all-caps label in the
++ * redesign goes through text-transform, never through capitals in the text.
++ */
++.caps {
++  text-transform: uppercase;
++  letter-spacing: 0.1em;
++  font-size: 0.75rem;
++  font-weight: 700;
++}
++
++:focus-visible {
++  outline: 2px solid var(--brand);
++  outline-offset: 2px;
++}
++
++/* ----------------------------------------------------------------- shell */
++
++.app-main {
++  width: min(var(--page-width), calc(100% - 32px));
++  padding: clamp(24px, 4vw, 48px) 0;
++}
++
++.app-header {
++  width: 100%;
++  margin: 0;
++  padding: 14px max(16px, calc((100% - var(--page-width)) / 2));
++  border: 0;
++  border-bottom: 1px solid var(--border);
++  border-radius: 0;
++  background: var(--surface);
++  box-shadow: none;
++  backdrop-filter: none;
++  position: sticky;
++  top: 0;
++}
++
++.app-header .wordmark-text {
++  font-size: 1.35rem;
++  font-weight: 600;
++  color: var(--brand-strong);
++}
++
++.app-nav {
++  gap: 4px;
++}
++
++.app-nav .ghost-button {
++  min-height: 40px;
++  padding: 8px 16px;
++  border-radius: 999px;
++  color: var(--muted);
++  font-size: 0.875rem;
++}
++
++.app-nav .ghost-button:hover:not(:disabled) {
++  color: var(--text);
++  background: var(--surface-alt);
++}
++
++.app-nav .ghost-button[aria-current="page"] {
++  background: var(--brand-soft);
++  color: var(--brand);
++}
++
++.account-trigger {
++  border-radius: 999px;
++}
++
++.theme-toggle {
++  width: 40px;
++  min-width: 40px;
++  height: 40px;
++  border: 1px solid var(--border);
++  border-radius: 999px;
++  color: var(--muted);
++}
++
++.app-footer {
++  width: 100%;
++  padding: 28px max(16px, calc((100% - var(--page-width)) / 2));
++  align-items: center;
++  background: transparent;
++}
++
++.footer-links {
++  align-items: center;
++  gap: 24px;
++}
++
++.footer-links a {
++  color: var(--muted);
++  text-decoration: none;
++}
++
++.footer-links a:hover {
++  color: var(--text);
++}
++
++.footer-links select,
++.language-select {
++  border-radius: 999px;
++}
++
++/* ---------------------------------------------------------------- buttons */
++
++.primary-button,
++.ghost-button,
++.danger-button,
++.link-button.as-button {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  gap: 8px;
++  min-height: 44px;
++  padding: 10px 22px;
++  border-radius: 999px;
++  font-size: 0.9375rem;
++  font-weight: 600;
++  box-shadow: none;
++  transform: none;
++}
++
++.primary-button {
++  border: 1px solid var(--brand);
++  background: var(--brand);
++  color: var(--on-brand);
++}
++
++.primary-button:hover:not(:disabled) {
++  border-color: var(--brand-strong);
++  background: color-mix(in srgb, var(--brand) 88%, #000);
++}
++
++.primary-button:active:not(:disabled) {
++  transform: translateY(1px);
++}
++
++.ghost-button {
++  border: 1px solid var(--field-border);
++  background: var(--surface);
++  color: var(--text);
++}
++
++.ghost-button:hover:not(:disabled) {
++  border-color: var(--brand);
++  color: var(--brand);
++  background: var(--surface);
++}
++
++.danger-button {
++  border: 1px solid var(--danger);
++  background: var(--danger);
++  color: #fff;
++}
++
++.danger-button:hover:not(:disabled) {
++  background: color-mix(in srgb, var(--danger) 88%, #000);
++}
++
++.primary-button:disabled,
++.ghost-button:disabled,
++.danger-button:disabled {
++  opacity: 0.5;
++  cursor: not-allowed;
++}
++
++:is(.primary-button, .ghost-button, .danger-button):focus-visible {
++  outline: none;
++  box-shadow: var(--focus-ring);
++}
++
++.link-button {
++  color: var(--brand);
++  font-weight: 600;
++}
++
++/* The button rule above sets display on every ghost button; the phone menu
++   button still only shows at phone width (global.css, 640px). */
++.app-header .nav-toggle {
++  display: none;
++}
++
++@media (max-width: 640px) {
++  .app-header .nav-toggle {
++    display: inline-flex;
++    width: 40px;
++    min-width: 40px;
++    padding: 0;
++  }
++}
++
++/* ----------------------------------------------------------- panels, cards */
++
++.panel,
++.card {
++  gap: 16px;
++  padding: 28px;
++  border: 1px solid var(--border);
++  border-radius: var(--radius-lg);
++  background: var(--surface);
++  box-shadow: none;
++}
++
++.panel h2,
++.card h2 {
++  margin: 0;
++}
++
++.panel-hint {
++  font-size: 0.875rem;
++}
++
++.lede {
++  font-size: 1rem;
++}
++
++/* ----------------------------------------------------------------- fields */
++
++input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
++select,
++textarea {
++  min-height: 48px;
++  padding: 12px 16px;
++  border: 1px solid var(--field-border);
++  border-radius: var(--radius);
++  background: var(--surface);
++  color: var(--text);
++}
++
++textarea {
++  min-height: 120px;
++  line-height: 1.5;
++}
++
++input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
++select:focus,
++textarea:focus {
++  outline: none;
++  border-color: var(--brand);
++  box-shadow: var(--focus-ring);
++}
++
++[aria-invalid="true"] {
++  border-color: var(--danger) !important;
++}
++
++label {
++  font-weight: 600;
++  font-size: 0.875rem;
++}
++
++.field-hint,
++.auth-field-hint {
++  color: var(--muted);
++  font-size: 0.875rem;
++}
++
++.field-error,
++.auth-field-error {
++  color: var(--danger);
++  font-size: 0.875rem;
++}
++
++/* ------------------------------------------------------------ chips, tabs */
++
++.chip {
++  min-height: 40px;
++  padding: 8px 16px;
++  border-color: var(--border);
++  font-size: 0.875rem;
++}
++
++.chip.selected,
++.chip[aria-pressed="true"],
++.chip[aria-checked="true"] {
++  border-color: var(--brand);
++  background: var(--brand);
++  color: var(--on-brand);
++}
++
++.tab-row,
++.segmented {
++  display: inline-flex;
++  gap: 4px;
++  padding: 4px;
++  border: 0;
++  border-radius: 999px;
++  background: var(--surface-alt);
++}
++
++.tab,
++.segmented button,
++.segmented label {
++  min-height: 36px;
++  padding: 8px 16px;
++  border: 0;
++  border-radius: 999px;
++  background: transparent;
++  color: var(--muted);
++  font-size: 0.875rem;
++  font-weight: 600;
++}
++
++.tab.selected,
++.tab[aria-selected="true"],
++.segmented [aria-pressed="true"],
++.segmented [aria-checked="true"],
++.segmented .selected {
++  background: var(--surface);
++  color: var(--text);
++  box-shadow: var(--shadow);
++}
++
++/* -------------------------------------------------------- banners, alerts */
++
++.error-banner,
++.warning-banner,
++.success-banner,
++.notice-block {
++  border-radius: var(--radius-lg);
++  padding: 16px 20px;
++  font-size: 0.875rem;
++}
++
++.error-banner {
++  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
++  background: var(--danger-soft);
++  color: var(--text);
++}
++
++.warning-banner {
++  border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent);
++  background: var(--warning-soft);
++  color: var(--text);
++}
++
++.success-banner {
++  border: 1px solid color-mix(in srgb, var(--success) 35%, transparent);
++  background: var(--success-soft);
++  color: var(--text);
++}
++
++/* --------------------------------------------------------------- skeleton */
++
++.skeleton,
++.skeleton-line,
++.skeleton-chip,
++.skeleton-tile,
++.skeleton-card,
++.skeleton-button {
++  background: var(--surface-alt);
++}
++
++/* ======================================================== New test builder */
++
++.builder-layout {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr) 360px;
++  gap: 32px;
++  align-items: start;
++}
++
++.builder-steps {
++  display: flex;
++  flex-direction: column;
++  gap: 24px;
++  counter-reset: builder-step;
++}
++
++/* Each step's heading carries its number in a brand disc, the way the Figma
++   cards do, without a number in the markup a screen reader would read twice. */
++.builder-steps > .panel {
++  padding: 32px;
++  border-radius: var(--radius-xl);
++}
++
++.builder-steps > .panel > h2 {
++  display: flex;
++  align-items: center;
++  gap: 16px;
++  font-size: 1.125rem;
++  counter-increment: builder-step;
++}
++
++.builder-steps > .panel > h2::before {
++  content: counter(builder-step);
++  display: inline-grid;
++  place-items: center;
++  flex: none;
++  width: 32px;
++  height: 32px;
++  border-radius: 999px;
++  background: var(--brand);
++  color: var(--on-brand);
++  font-family: var(--font-body);
++  font-size: 0.875rem;
++  font-weight: 600;
++}
++
++.builder-steps > .panel > .panel-hint {
++  margin-top: -10px;
++  padding-left: 48px;
++}
++
++.summary-panel {
++  position: sticky;
++  top: 96px;
++  gap: 16px;
++  padding: 32px;
++  border-radius: var(--radius-xl);
++  box-shadow: var(--shadow);
++}
++
++.summary-panel .primary-button {
++  width: 100%;
++  min-height: 52px;
++  font-size: 1rem;
++}
++
++.summary-note {
++  margin: 0;
++  padding: 12px 16px;
++  border-radius: var(--radius);
++  background: var(--surface-alt);
++  color: var(--muted);
++  font-size: 0.875rem;
++}
++
++.chip-row .chip .chip-count {
++  min-width: 24px;
++  padding: 0 6px;
++  border-radius: 999px;
++  background: var(--surface-alt);
++  color: var(--muted);
++  font-size: 0.75rem;
++}
++
++.chip-row .chip.selected .chip-count {
++  background: color-mix(in srgb, var(--on-brand) 22%, transparent);
++  color: var(--on-brand);
++}
++
++.topic-grid,
++.difficulty-grid {
++  gap: 12px;
++}
++
++.topic-option,
++.difficulty-card {
++  border: 1px solid var(--border);
++  border-radius: var(--radius-lg);
++  background: var(--surface);
++  box-shadow: none;
++}
++
++.topic-option:hover,
++.difficulty-card:hover {
++  border-color: var(--brand);
++}
++
++.difficulty-card {
++  padding: 20px;
++  gap: 6px;
++  text-align: left;
++}
++
++.difficulty-card.selected,
++.topic-option:has(input:checked) {
++  border: 2px solid var(--brand);
++  background: var(--brand-soft);
++}
++
++.difficulty-card .difficulty-label {
++  font-family: var(--font-display);
++  font-size: 1.125rem;
++  font-weight: 600;
++}
++
++.difficulty-card .difficulty-detail {
++  font-weight: 600;
++}
++
++.difficulty-card.selected .difficulty-detail {
++  color: var(--brand);
++}
++
++@media (max-width: 960px) {
++  .builder-layout {
++    grid-template-columns: 1fr;
++  }
++
++  /* On a phone the summary rides along the bottom edge with Start, as in the
++     phone frame, so the button is always one tap away. */
++  .builder-layout > .summary-panel {
++    position: sticky;
++    bottom: 0;
++    top: auto;
++    z-index: 5;
++    margin: 0 -16px;
++    padding: 16px;
++    border-radius: 0;
++    border-width: 1px 0 0;
++    box-shadow: var(--shadow-raised);
++  }
++
++  .builder-layout > .summary-panel h2,
++  .builder-layout > .summary-panel .summary-note {
++    display: none;
++  }
++
++  .builder-steps > .panel {
++    padding: 20px;
++  }
++
++  .builder-steps > .panel > .panel-hint {
++    padding-left: 0;
++    margin-top: 0;
++  }
++}
++
++/* ================================================================== Exam */
++
++/*
++ * Wide screens: the paper bar across the top, the question on the left and the
++ * question map beside it (Figma "Exam"). The markup keeps its reading order
++ * (bar, map, question, actions); the grid only places the map in the right
++ * column, so Tab still meets the map before the question, as it always has.
++ */
++.exam-layout {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr) 340px;
++  column-gap: 32px;
++  row-gap: 24px;
++  align-items: start;
++}
++
++.exam-layout > * {
++  grid-column: 1;
++  min-width: 0;
++}
++
++.exam-layout > .exam-bar {
++  grid-column: 1 / -1;
++}
++
++.exam-layout > .question-palette {
++  grid-column: 2;
++  grid-row: 2 / span 8;
++  position: sticky;
++  top: 96px;
++}
++
++.exam-bar {
++  display: flex;
++  align-items: center;
++  gap: 16px;
++  padding: 16px 24px;
++  border: 1px solid var(--border);
++  border-radius: var(--radius-lg);
++  background: var(--surface);
++  box-shadow: none;
++}
++
++.exam-heading {
++  flex: 1;
++  min-width: 0;
++}
++
++.exam-title {
++  margin: 0;
++  font-size: 1rem;
++  font-weight: 600;
++}
++
++.exam-progress {
++  margin: 0;
++  color: var(--muted);
++  font-size: 0.875rem;
++}
++
++.exam-timer {
++  display: inline-flex;
++  align-items: baseline;
++  gap: 6px;
++  flex-direction: row;
++  order: 1;
++  margin-left: auto;
++  padding: 8px 16px;
++  white-space: nowrap;
++  border-radius: 999px;
++  background: var(--surface-alt);
++  color: var(--brand);
++}
++
++.exam-heading + .exam-finish-early,
++.exam-bar .exam-finish-early {
++  order: 2;
++}
++
++.exam-timer .timer-value {
++  font-family: var(--font-display);
++  font-size: 1.125rem;
++  font-weight: 600;
++  font-variant-numeric: tabular-nums;
++}
++
++.exam-timer .timer-label {
++  color: var(--muted);
++  font-size: 0.875rem;
++}
++
++.exam-timer.urgent {
++  background: var(--danger-soft);
++  color: var(--danger);
++}
++
++.question-palette {
++  display: grid;
++  grid-template-columns: repeat(5, minmax(0, 1fr));
++  gap: 8px;
++  padding: 24px;
++  border: 1px solid var(--border);
++  border-radius: var(--radius-xl);
++  background: var(--surface);
++}
++
++.palette-title {
++  grid-column: 1 / -1;
++  display: flex;
++  justify-content: space-between;
++  align-items: baseline;
++  margin: 0 0 8px;
++  font-family: var(--font-display);
++  font-size: 1.125rem;
++  font-weight: 600;
++}
++
++.palette-count {
++  color: var(--muted);
++  font-family: var(--font-body);
++  font-size: 0.875rem;
++  font-weight: 400;
++}
++
++.question-palette .palette-dot {
++  width: auto;
++  height: 44px;
++  border: 1px solid var(--border);
++  border-radius: var(--radius-sm);
++  background: var(--surface);
++  color: var(--muted);
++  font-size: 0.875rem;
++  font-weight: 600;
++}
++
++.question-palette .palette-dot.answered {
++  border-color: var(--brand-soft);
++  background: var(--brand-soft);
++  color: var(--brand);
++}
++
++.question-palette .palette-dot.current {
++  border-color: var(--brand);
++  background: var(--brand);
++  color: var(--on-brand);
++}
++
++.question-card {
++  display: flex;
++  flex-direction: column;
++  gap: 20px;
++  padding: 48px;
++  border: 1px solid var(--border);
++  border-radius: var(--radius-xl);
++  background: var(--surface);
++  box-shadow: var(--shadow);
++}
++
++.question-meta {
++  margin: 0;
++  color: var(--muted);
++  font-size: 0.75rem;
++  font-weight: 700;
++  letter-spacing: 0.1em;
++  text-transform: uppercase;
++}
++
++.question-marks {
++  display: inline-block;
++  padding: 2px 10px;
++  border-radius: 999px;
++  background: var(--brand-soft);
++  color: var(--brand);
++}
++
++.question-prompt {
++  margin: 0;
++  font-size: clamp(1.375rem, 1rem + 1vw, 2rem);
++  line-height: 1.3;
++  font-weight: 700;
++}
++
++.option-list {
++  display: flex;
++  flex-direction: column;
++  gap: 12px;
++}
++
++/* An answer row: a lettered disc and the answer, the radio itself kept for the
++   keyboard and screen readers but drawn by the row around it. */
++.option-list .option {
++  position: relative;
++  grid-template-columns: auto 1fr;
++  gap: 16px;
++  min-height: 64px;
++  padding: 14px 20px;
++  border: 1px solid var(--border);
++  border-radius: var(--radius-lg);
++  background: var(--surface);
++}
++
++.option-list .option input[type="radio"] {
++  position: absolute;
++  opacity: 0;
++  pointer-events: none;
++}
++
++.option-list .option:hover {
++  border-color: var(--brand);
++}
++
++.option-list .option:has(input:focus-visible) {
++  box-shadow: var(--focus-ring);
++}
++
++.option-list .option .option-letter {
++  display: inline-grid;
++  place-items: center;
++  width: 36px;
++  height: 36px;
++  border-radius: 999px;
++  background: var(--surface-alt);
++  color: var(--text);
++  font-size: 0.875rem;
++  font-weight: 600;
++}
++
++.option-list .option.selected {
++  border: 2px solid var(--brand);
++  background: var(--brand-soft);
++  padding: 13px 19px;
++}
++
++.option-list .option.selected .option-letter {
++  background: var(--brand);
++  color: var(--on-brand);
++}
++
++.written-answer textarea {
++  min-height: 200px;
++  font-size: 1.125rem;
++}
++
++.exam-actions {
++  display: flex;
++  justify-content: space-between;
++  gap: 12px;
++}
++
++.exam-actions .primary-button,
++.exam-actions .ghost-button {
++  min-height: 52px;
++  padding: 12px 28px;
++}
++
++.exam-finish-dialog {
++  width: min(520px, calc(100% - 32px));
++  border-radius: var(--radius-xl);
++  box-shadow: var(--shadow-raised);
++}
++
++.exam-finish-body {
++  padding: 32px;
++}
++
++.exam-finish-dialog::backdrop {
++  background: color-mix(in srgb, var(--hero) 60%, transparent);
++}
++
++@media (max-width: 960px) {
++  .exam-layout {
++    grid-template-columns: 1fr;
++  }
++
++  /* On a phone the map stays the scrolling strip above the question that
++     ExamPage keeps the current number in view on (see its strip effect). */
++  .exam-layout > .question-palette {
++    grid-column: 1;
++    grid-row: auto;
++    position: static;
++    display: flex;
++    overflow-x: auto;
++    padding: 12px;
++    border-radius: var(--radius-lg);
++  }
++
++  .palette-title {
++    display: none;
++  }
++
++  .question-palette .palette-dot {
++    flex: none;
++    width: 44px;
++  }
++
++  .question-card {
++    padding: 20px;
++  }
++
++  .exam-bar {
++    flex-wrap: wrap;
++    padding: 12px 16px;
++  }
++}
++
++/* =============================================================== Results */
++
++/* The score panel is one of the dark "hero" panels (Figma "Results"): navy in
++   both themes, the score in a ring drawn from --score (ResultsPage sets it). */
++.score-hero {
++  gap: 48px;
++  padding: 48px;
++  border: 0;
++  border-radius: var(--radius-xl);
++  background: var(--hero);
++  color: var(--on-hero);
++  box-shadow: none;
++}
++
++.score-hero .score-figure {
++  position: relative;
++  justify-content: center;
++  width: 200px;
++  height: 200px;
++  min-width: 200px;
++  padding: 0;
++  border-radius: 999px;
++  background:
++    radial-gradient(closest-side, var(--hero) 85%, transparent 86%),
++    conic-gradient(var(--brand) calc(var(--score, 0) * 1%), color-mix(in srgb, var(--on-hero) 16%, transparent) 0);
++}
++
++[data-theme="dark"] .score-hero .score-figure {
++  background:
++    radial-gradient(closest-side, var(--hero) 85%, transparent 86%),
++    conic-gradient(#45aeeb calc(var(--score, 0) * 1%), color-mix(in srgb, var(--on-hero) 16%, transparent) 0);
++}
++
++.score-hero .score-value {
++  color: var(--on-hero);
++  font-size: 2.75rem;
++  line-height: 1;
++}
++
++.score-hero .score-total,
++.score-hero .score-unit {
++  color: color-mix(in srgb, var(--on-hero) 75%, transparent);
++  font-size: 0.875rem;
++}
++
++.score-hero .score-percent {
++  margin-top: 4px;
++  color: var(--summit);
++  font-weight: 700;
++}
++
++.score-hero .score-meta {
++  flex: 1;
++  min-width: 260px;
++}
++
++.score-hero .score-meta h1 {
++  color: var(--on-hero);
++  font-size: clamp(1.75rem, 1.2rem + 1.8vw, 2.75rem);
++}
++
++.score-hero .score-meta p {
++  color: color-mix(in srgb, var(--on-hero) 82%, transparent);
++  font-size: 1.0625rem;
++}
++
++.score-hero .comparison {
++  display: inline-block;
++  padding: 4px 12px;
++  border-radius: 999px;
++  background: color-mix(in srgb, var(--on-hero) 12%, transparent);
++  color: var(--on-hero);
++  font-weight: 600;
++}
++
++.score-hero .comparison.best {
++  background: var(--summit-soft);
++  color: var(--warning);
++}
++
++.topic-bar-track {
++  height: 8px;
++  border-radius: 999px;
++  background: var(--surface-alt);
++}
++
++.review-list {
++  gap: 16px;
++}
++
++.review {
++  padding: 32px;
++  border: 1px solid var(--border);
++  border-radius: var(--radius-xl);
++  background: var(--surface);
++}
++
++.review-index {
++  color: var(--muted);
++  font-size: 0.75rem;
++  font-weight: 700;
++  letter-spacing: 0.1em;
++  text-transform: uppercase;
++}
++
++.review-badge {
++  border-radius: 999px;
++  padding: 2px 10px;
++  font-size: 0.75rem;
++  font-weight: 700;
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++}
++
++.review-prompt {
++  font-family: var(--font-display);
++  font-size: 1.125rem;
++  font-weight: 600;
++}
++
++.review-answers > div,
++.review-answers > p {
++  border-radius: var(--radius);
++}
++
++.answer-correct {
++  color: var(--success);
++  font-weight: 600;
++}
++
++.answer-wrong {
++  color: var(--danger);
++  font-weight: 600;
++}
++
++.review-explanation,
++.review-feedback {
++  padding: 16px 20px;
++  border-radius: var(--radius);
++  background: var(--surface-alt);
++}
++
++.review-feedback {
++  background: var(--summit-soft);
++}
++
++@media (max-width: 640px) {
++  .score-hero {
++    flex-direction: column;
++    gap: 20px;
++    padding: 32px 24px;
++    text-align: center;
++  }
++
++  .score-hero .score-figure {
++    width: 150px;
++    height: 150px;
++    min-width: 150px;
++  }
++
++  .review {
++    padding: 20px;
++  }
++}
++
++/* ============================================================== Dashboard */
++
++/* Figma "Dashboard": the plain page colour, not the patterned wash. */
++html body:has(.dashboard),
++html[data-theme="dark"] body:has(.dashboard) {
++  background: var(--bg);
++}
++
++.app-main .dashboard {
++  --tile-gap: 24px;
++  --tone-amber: var(--warning);
++  --tone-amber-soft: var(--summit-soft);
++  --tone-green: var(--success);
++  --tone-green-soft: var(--success-soft);
++  --tone-violet: var(--brand);
++  --tone-violet-soft: var(--brand-soft);
++  gap: 32px;
++}
++
++/* The welcome card is a hero panel: navy in both themes, the peak in brand blue. */
++.app-main .dashboard .main-greeting,
++[data-theme="dark"] .app-main .dashboard .main-greeting {
++  padding: 48px;
++  padding-right: clamp(48px, 36%, 440px);
++  border: 0;
++  border-radius: var(--radius-xl);
++  background: var(--hero);
++  color: var(--on-hero);
++  box-shadow: none;
++}
++
++.app-main .dashboard .main-greeting .eyebrow {
++  color: var(--summit);
++}
++
++.app-main .dashboard .main-greeting h1 {
++  color: var(--on-hero);
++  font-size: clamp(2rem, 1.3rem + 2vw, 2.75rem);
++  letter-spacing: -0.03em;
++}
++
++.app-main .dashboard .main-lede {
++  color: color-mix(in srgb, var(--on-hero) 82%, transparent);
++  font-size: 1.125rem;
++}
++
++.app-main .dashboard .greeting-stat {
++  border: 1px solid color-mix(in srgb, var(--on-hero) 18%, transparent);
++  border-radius: var(--radius-lg);
++  background: color-mix(in srgb, var(--on-hero) 8%, transparent);
++  backdrop-filter: none;
++}
++
++.app-main .dashboard .greeting-stat dt {
++  color: color-mix(in srgb, var(--on-hero) 75%, transparent);
++  font-size: 0.75rem;
++  letter-spacing: 0.1em;
++  text-transform: uppercase;
++}
++
++.app-main .dashboard .greeting-ridge .ridge-far {
++  fill: color-mix(in srgb, var(--brand) 30%, transparent);
++}
++
++.app-main .dashboard .greeting-ridge .ridge-mid {
++  fill: color-mix(in srgb, var(--brand) 60%, transparent);
++}
++
++.app-main .dashboard .greeting-ridge .ridge-near {
++  fill: #0a70ad;
++}
++
++.app-main .dashboard .greeting-ridge .ridge-flag {
++  fill: var(--summit);
++}
++
++/* Tiles become the Figma cards: flat, a 1px edge, the icon on a soft disc. */
++.app-main .dashboard .dash-tiles {
++  grid-template-columns: repeat(3, minmax(0, 1fr));
++}
++
++.app-main .dashboard .dash-tile {
++  gap: 16px;
++  padding: 24px;
++  border: 1px solid var(--border);
++  border-radius: var(--radius-lg);
++  background: var(--surface);
++  box-shadow: none;
++}
++
++.app-main .dashboard .dash-tile:not(.is-primary)::before {
++  display: none;
++}
++
++@media (hover: hover) {
++  .app-main .dashboard .dash-tile:hover {
++    transform: none;
++    border-color: var(--brand);
++    box-shadow: var(--shadow);
++  }
++}
++
++.app-main .dashboard .dash-tile-icon {
++  width: 48px;
++  height: 48px;
++  border-radius: var(--radius);
++  box-shadow: none;
++}
++
++.app-main .dashboard .dash-tile-icon svg {
++  width: 24px;
++  height: 24px;
++}
++
++.app-main .dashboard .dash-tile-title {
++  font-family: var(--font-display);
++  font-size: 1.125rem;
++  font-weight: 600;
++}
++
++.app-main .dashboard .dash-tile-body {
++  display: block;
++  font-size: 0.875rem;
++}
++
++/* The start tile is the page's one primary action: the brand button, at card size. */
++.app-main .dashboard .dash-tile.is-primary {
++  grid-column: 1 / -1;
++  padding: 24px 28px;
++  border: 0;
++  border-radius: var(--radius-xl);
++  background: var(--brand);
++  color: var(--on-brand);
++  box-shadow: none;
++}
++
++.app-main .dashboard .dash-tile.is-primary .dash-tile-body {
++  color: color-mix(in srgb, var(--on-brand) 88%, transparent);
++}
++
++.app-main .dashboard .dash-tile.is-primary .dash-tile-icon,
++.app-main .dashboard .dash-tile.is-primary .dash-tile-go {
++  background: color-mix(in srgb, var(--on-brand) 18%, transparent);
++  color: var(--on-brand);
++}
++
++@media (hover: hover) {
++  .app-main .dashboard .dash-tile.is-primary:hover {
++    background: color-mix(in srgb, var(--brand) 88%, #000);
++    box-shadow: var(--shadow-raised);
++  }
++}
++
++.app-main .dashboard .dash-tile.is-profile {
++  grid-column: auto;
++  flex-direction: column;
++  align-items: flex-start;
++}
++
++@media (max-width: 760px) {
++  .app-main .dashboard .main-greeting,
++  [data-theme="dark"] .app-main .dashboard .main-greeting {
++    padding: 24px;
++    padding-bottom: 120px;
++  }
++
++  .app-main .dashboard .dash-tiles {
++    grid-template-columns: 1fr;
++    gap: 12px;
++  }
++}
++
++/* ---------------------------------------------------------- subject cards */
++
++.subject-grid {
++  gap: 16px;
++}
++
++.subject-card {
++  padding: 24px;
++  border: 1px solid var(--border);
++  border-radius: var(--radius-lg);
++  background: var(--surface);
++  box-shadow: none;
++}
++
++.subject-card:hover {
++  border-color: var(--brand);
++  box-shadow: var(--shadow);
++}
++
++.subject-glyph {
++  border-radius: var(--radius);
++  background: var(--brand-soft);
++  color: var(--brand);
++}
++
++.subject-name {
++  font-family: var(--font-display);
++  font-weight: 600;
++}
++
++.subject-shortcuts-title {
++  font-size: 1.5rem;
++}
++
++/* ================================================================ History */
++
++.best-panel {
++  border: 0;
++  background: var(--hero);
++  color: var(--on-hero);
++}
++
++.best-panel .eyebrow {
++  color: var(--summit);
++}
++
++.best-panel .best-score,
++.best-panel .best-percent {
++  color: var(--on-hero);
++}
++
++.best-panel .best-meta {
++  color: color-mix(in srgb, var(--on-hero) 78%, transparent);
++}
++
++/* Attempts sit in one bordered list with dividers, as the Figma table does. */
++.attempt-list {
++  gap: 0;
++  overflow: hidden;
++  border: 1px solid var(--border);
++  border-radius: var(--radius-xl);
++  background: var(--surface);
++}
++
++.attempt-list > li + li .attempt-row {
++  border-top: 1px solid var(--border);
++}
++
++.attempt-list .attempt-row {
++  min-height: 80px;
++  padding: 20px 24px;
++  border: 0;
++  border-radius: 0;
++  background: var(--surface);
++  box-shadow: none;
++}
++
++.attempt-list .attempt-row:hover {
++  background: var(--surface-alt);
++}
++
++.attempt-list .attempt-row.best {
++  background: var(--surface);
++}
++
++.attempt-list .attempt-row.best .attempt-subject::after {
++  content: "★";
++  margin-left: 8px;
++  color: var(--summit);
++}
++
++.attempt-subject {
++  justify-self: start;
++  padding: 3px 12px;
++  border-radius: 999px;
++  background: var(--brand-soft);
++  color: var(--brand);
++  font-size: 0.75rem;
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++}
++
++.attempt-score {
++  font-family: var(--font-display);
++  font-size: 1.5rem;
++  font-weight: 600;
++}
++
++.attempt-percent {
++  color: var(--muted);
++  font-size: 0.875rem;
++}
++
++@media (max-width: 640px) {
++  .attempt-list .attempt-row {
++    padding: 16px;
++  }
++}
++
++/* ============================================================ Auth pages */
++
++/* Figma "Login" / "Register": a navy brand panel on the left (edge to edge),
++   the form centred on the page colour on the right. */
++.auth-layout {
++  padding: 0;
++  gap: 0;
++  background: var(--bg);
++}
++
++@media (min-width: 900px) {
++  .auth-layout {
++    grid-template-columns: minmax(360px, 560px) minmax(0, 1fr);
++  }
++}
++
++.auth-aside {
++  position: relative;
++  overflow: hidden;
++  justify-content: flex-start;
++  padding: 64px;
++  border: 0;
++  border-radius: 0;
++  background: var(--hero);
++  color: var(--on-hero);
++  box-shadow: none;
++}
++
++/* The peak mark rising from the bottom of the panel, drawn in CSS so the
++   panel's markup (aria-hidden) stays as it was. */
++.auth-aside::after {
++  content: "";
++  position: absolute;
++  left: -40px;
++  right: -40px;
++  bottom: -70px;
++  height: 340px;
++  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 65'%3E%3Cpath d='M 1 64 L 51 9 C 53.5 4, 60 4.5, 61.5 10 L 99 64 Z' fill='%230A70AD'/%3E%3Cg stroke='%230A2E47' stroke-linecap='round' stroke-width='1.2' fill='none'%3E%3Cpath d='M 47.5 29 C 47 19, 49 10.5, 54 10.5 C 58.8 10.5, 59.6 14.5, 59 18.5 Q 60.5 41, 64 64'/%3E%3Cpath d='M 59.5 15 Q 65 40, 73 64'/%3E%3Cpath d='M 61 19 Q 70 42, 82 64'/%3E%3Cpath d='M 62.5 23 Q 75.5 44, 91 64'/%3E%3C/g%3E%3C/svg%3E") center bottom / contain no-repeat;
++  pointer-events: none;
++}
++
++.auth-aside > * {
++  position: relative;
++  z-index: 1;
++}
++
++.auth-aside-title {
++  color: var(--on-hero);
++  font-family: var(--font-display);
++  font-size: clamp(2rem, 1.4rem + 1.6vw, 2.75rem);
++  font-weight: 700;
++  line-height: 1.12;
++  letter-spacing: -0.03em;
++}
++
++.auth-aside-points li {
++  color: color-mix(in srgb, var(--on-hero) 90%, transparent);
++}
++
++.auth-panel {
++  padding: 48px 24px;
++}
++
++.auth-card {
++  width: min(420px, 100%);
++  padding: 0;
++  border: 0;
++  background: transparent;
++  box-shadow: none;
++}
++
++.auth-card-head h1 {
++  font-size: 2rem;
++}
++
++.auth-card-head p {
++  color: var(--muted);
++}
++
++.auth-divider {
++  color: var(--muted);
++  font-size: 0.875rem;
++}
++
++.google-button {
++  min-height: 52px;
++  border: 1px solid var(--field-border);
++  border-radius: 999px;
++  background: var(--surface);
++  color: var(--text);
++  font-weight: 600;
++}
++
++.google-button:hover:not(:disabled) {
++  border-color: var(--brand);
++}
++
++.auth-submit {
++  min-height: 52px;
++  width: 100%;
++}
++
++.auth-password-toggle {
++  color: var(--brand);
++  font-weight: 600;
++}
++
++.auth-forgot {
++  color: var(--brand);
++  font-weight: 600;
++  font-size: 0.875rem;
++}
++
++.auth-topbar {
++  width: min(420px, 100%);
++}
++
++/* ======================================================= Profile, settings */
++
++.settings-panel,
++.danger-panel {
++  border-radius: var(--radius-xl);
++  padding: 32px;
++}
++
++.danger-panel {
++  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
++  background: var(--danger-soft);
++}
++
++.danger-panel h2 {
++  color: var(--danger);
++}
++
++.method {
++  padding: 16px 20px;
++  border: 1px solid var(--border);
++  border-radius: var(--radius-lg);
++}
++
++.avatar {
++  background: var(--brand-soft);
++  color: var(--brand-strong);
++}
++
++/* ============================================================ Admin, misc */
++
++.admin-head h1 {
++  margin: 0;
++}
++
++.question-row {
++  border-radius: 0;
++  border-width: 0 0 1px;
++}
++
++.question-list {
++  overflow: hidden;
++  border: 1px solid var(--border);
++  border-radius: var(--radius-xl);
++  background: var(--surface);
++}
++
++.question-status {
++  border-radius: 999px;
++  font-size: 0.75rem;
++  font-weight: 700;
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++}
++
++.drop-zone {
++  border: 2px dashed var(--brand);
++  border-radius: var(--radius-lg);
++  background: var(--brand-soft);
++}
++
++.resume-banner {
++  border: 1px solid var(--summit);
++  border-radius: var(--radius-lg);
++  background: var(--summit-soft);
++}
++
++.admin-toast {
++  border-radius: var(--radius-lg);
++  box-shadow: var(--shadow-raised);
++}
++
++/* In a list, Delete is one of many: an outline in the danger colour, so the
++   rows do not read as a column of alarms. The solid red stays for the one-off
++   deletes (account, the question being edited). */
++.question-row-actions .danger-button {
++  border-color: var(--danger);
++  background: transparent;
++  color: var(--danger);
++}
++
++.question-row-actions .danger-button:hover:not(:disabled) {
++  background: var(--danger-soft);
++}
+diff --git a/package-lock.json b/package-lock.json
+index 5e8f8cc..d386d7b 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -39,6 +39,7 @@
+       "name": "@grade9/web",
+       "version": "0.1.0",
+       "dependencies": {
++        "@fontsource-variable/inter": "^5.3.0",
+         "@fontsource-variable/onest": "^5.3.1",
+         "@grade9/shared": "0.1.0",
+         "@supabase/supabase-js": "^2.45.0",
+@@ -758,6 +759,15 @@
+         "node": ">=18"
+       }
+     },
++    "node_modules/@fontsource-variable/inter": {
++      "version": "5.3.0",
++      "resolved": "https://registry.npmjs.org/@fontsource-variable/inter/-/inter-5.3.0.tgz",
++      "integrity": "sha512-OupL48va4JNofb97w6NYeF9S7W/kHNKM0Er8Dem5nqi4jeOLrVJDoE8tZEpnMJmtkvNbB1EIPPwHcdkF6b1oUA==",
++      "license": "OFL-1.1",
++      "funding": {
++        "url": "https://github.com/sponsors/ayuhito"
++      }
++    },
+     "node_modules/@fontsource-variable/onest": {
+       "version": "5.3.1",
+       "resolved": "https://registry.npmjs.org/@fontsource-variable/onest/-/onest-5.3.1.tgz",

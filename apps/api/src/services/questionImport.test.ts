@@ -1292,3 +1292,89 @@ describe("Reading texts sheet", () => {
     assert.deepEqual(errors.map((error) => error.row), [2, 4, 5]);
   });
 });
+
+// The two layouts Nihad keeps his questions in (11 Nov 2026): the Azerbaijani
+// one-table sheet with English column names, and the 12 and 26 April workbook
+// used for English, Maths and Russian. Both are what the Bulk import templates
+// download, so both must go in exactly as exported.
+describe("Nihad's English-column workbooks", () => {
+  const oneTableHeader =
+    "Question Number,Subject,Topic,Subtopic,Question,Difficulty,Option A,Option B,Option C,Option D,Option E,Answer Options (Raw),Correct Answer,Passage Title,Passage / Text Related to the Question,Image,Date,Variant,Sector,Source,Notes,Official Source URL";
+  const passageText = "Bahar gələndə Kənan babası ilə bağa getdi. Onlar bir alma ağacı əkdilər.";
+  const oneTableRow = (cells: Partial<Record<string, string>>) =>
+    [
+      cells.number ?? "37", "Azerbaijani Language", cells.topic ?? "Reading / Passage", cells.subtopic ?? "Multiple choice",
+      cells.question ?? "Kənan nə əkdi?", "", "gül", "alma ağacı", "pomidor", "kartof", "üzüm", cells.raw ?? "",
+      cells.answer ?? "B", cells.title ?? "Bağda bir gün", cells.text ?? `"${passageText}"`,
+      cells.image ?? "Scans: 05.04.2026 · C · p. 5", "05.04.2026", "C", "AZ", "User-provided photo", "", ""
+    ].join(",");
+
+  test("imports the one-table sheet: a scan note in Image, the type in Subtopic, the passage by its title", () => {
+    const csv = [
+      oneTableHeader,
+      oneTableRow({ number: "38", question: "İkinci sual?", text: "" }),
+      oneTableRow({ number: "37" }),
+      oneTableRow({ number: "45", subtopic: "Open response", question: "Mətnə əsasən cavabı tamamlayın.", raw: "Yazılı açıq cavab.", answer: "Bağban olmaq istəyir." })
+    ].join("\n");
+    const result = importQuestionsFromCsv(csv, { keepDrafts: true });
+
+    assert.deepEqual(result.errors, []);
+    assert.equal(result.drafts.length, 3);
+    assert.equal(result.drafts[0].topicId, "reading");
+    assert.equal(result.drafts[0].type, "multiple-choice");
+    assert.equal(result.drafts[2].type, "open-ended");
+    assert.equal(result.drafts[0].imageUrl, null);
+    // "Multiple choice" was the type, not a subtopic.
+    assert.equal(result.rows[0].subtopic, null);
+    // One passage, made from the first row with its text (the first row here
+    // has only the title), and all three questions on it in Q# order.
+    assert.equal(result.passages.length, 1);
+    assert.equal(result.passages[0].externalRef, "2026-04-05-az-c:bağda-bir-gün");
+    assert.equal(result.passages[0].draft.title, "Bağda bir gün");
+    assert.deepEqual(
+      result.rows.map((row) => [row.passageRef, row.passageOrder]),
+      [
+        ["2026-04-05-az-c:bağda-bir-gün", 2],
+        ["2026-04-05-az-c:bağda-bir-gün", 1],
+        ["2026-04-05-az-c:bağda-bir-gün", 3]
+      ]
+    );
+  });
+
+  test("a note saying the question has a picture keeps it a draft; a file name is still refused", () => {
+    const promised = importQuestionsFromCsv(
+      [oneTableHeader, oneTableRow({ image: "Original printed image", title: "", text: "" })].join("\n"),
+      { keepDrafts: true }
+    );
+    assert.deepEqual(promised.errors, []);
+    assert.equal(promised.rows[0].status, "draft");
+    assert.match(promised.rows[0].reason ?? "", /needs its picture/);
+
+    const skipped = importQuestionsFromCsv(
+      [oneTableHeader, oneTableRow({ image: "See embedded scan crop", title: "", text: "" })].join("\n")
+    );
+    assert.equal(skipped.drafts.length, 0);
+    assert.match(skipped.errors[0].message, /no link to the picture/);
+
+    const fileName = importQuestionsFromCsv(
+      [oneTableHeader, oneTableRow({ image: "diagram1.png", title: "", text: "" })].join("\n"),
+      { keepDrafts: true }
+    );
+    assert.match(fileName.errors[0].message, /not a full link/);
+  });
+
+  test("reads the 12 and 26 April workbook: one options cell, a written date, a key with a note after it", () => {
+    const csv = [
+      "Q#,Subject,Topic,Subtopic,Question (English),Difficulty,Answer Options,Correct Answer,Image,Date,Status,Source",
+      `37.0,Russian,Reading / Writing,Detail,Какое слово главное?,2,"A) один\nB) два\nC) три\nD) четыре\nE) пять","C — sentence 4",,12 April 2026,Complete,PDF`
+    ].join("\n");
+    const result = importQuestionsFromCsv(csv, { keepDrafts: true });
+
+    assert.deepEqual(result.errors, []);
+    assert.equal(result.rows[0].status, "ready");
+    assert.equal(result.drafts[0].topicId, "reading");
+    assert.equal(result.drafts[0].correctAnswer, "три");
+    assert.equal(result.drafts[0].paperYear, 2026);
+    assert.match(result.drafts[0].source ?? "", /12\.04\.2026/);
+  });
+});
