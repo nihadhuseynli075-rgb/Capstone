@@ -52,6 +52,15 @@
   gap: 16px;
 }
 
+/*
+ * The first screen index.html draws before the app has loaded uses links
+ * where the app has buttons, so they lose a link's underline to match.
+ */
+#first-screen a.primary-button,
+#first-screen a.ghost-button {
+  text-decoration: none;
+}
+
 /* -------------------------------------------------------------------- hero */
 
 .landing-hero {
@@ -68,15 +77,24 @@
   gap: 24px;
 }
 
+/*
+ * Small text, so it needs 4.5:1. The shared --warning amber reached only
+ * 4.41:1 on the pale pill in the light theme; this one step darker reaches
+ * 4.79:1. The dark theme keeps the shared token, which passes there (7:1).
+ */
 .landing-label {
   margin: 0;
   padding: 4px 12px;
   border-radius: 999px;
   background: var(--summit-soft);
-  color: var(--warning);
+  color: #926200;
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.1em;
+}
+
+[data-theme="dark"] .landing-label {
+  color: var(--warning);
 }
 
 .landing-left h1 {
@@ -337,8 +355,37 @@
     max-width: 120px;
   }
 
-  .landing-nav .landing-login {
-    display: none;
+  /*
+   * Two rows on a phone: the mark with the language and the theme, then Sign
+   * in and Create account side by side across the full width. In one row the
+   * bar stayed 399px wide whatever the screen, so below that the page scrolled
+   * sideways and Create account was cut off, and Sign in had been hidden to
+   * make room, which left a returning student no way in from here.
+   * `display: contents` lets the two groups wrap as items of the header
+   * itself, without changing the order Tab moves through them.
+   */
+  .landing-header {
+    flex-wrap: wrap;
+    row-gap: 12px;
+  }
+
+  .landing-actions {
+    display: contents;
+  }
+
+  .landing-controls {
+    margin-left: auto;
+  }
+
+  .landing-nav {
+    flex: 1 1 100%;
+  }
+
+  /* Buttons in the app, links on the first screen index.html draws. */
+  .landing-nav > * {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 12px;
   }
 
   .landing-start {

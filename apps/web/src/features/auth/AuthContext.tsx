@@ -5,6 +5,7 @@ import { cleanName, isReadableName } from "@grade9/shared";
 import { isSupabaseConfigured, supabase } from "../../lib/supabaseClient";
 import { clearSessionRecords, settleSessionRecords } from "../../lib/examSession";
 import { setSignedInUserId } from "../../lib/studentKey";
+import { confirmAge as confirmAgeWithApi } from "../../services/profileApi";
 import { AuthActionError, authActionError, authErrorMessage, unreachableError } from "./authErrors";
 import {
   authRedirectUrl,
@@ -37,7 +38,21 @@ export interface AuthUser {
   pendingEmail: string | null;
   /** When the account was made, as an ISO time; empty if the session did not say. */
   createdAt: string;
+  /**
+   * Whether the account has given its year of birth, which it must before
+   * anything else of it is used (MIN_ACCOUNT_AGE in packages/shared). The API
+   * records it in the account's app_metadata, which the session copies.
+   */
+  ageConfirmed: boolean;
+  /**
+   * The year typed on the sign-up form, still waiting for the API to record
+   * it at the first sign-in, or null. A Google sign-up never has one.
+   */
+  signUpBirthYear: number | null;
 }
+
+/** How giving a year of birth ended: recorded, or the account deleted because it was too young. */
+export type AgeOutcome = "confirmed" | "account-deleted";
 
 interface AuthContextValue {
   /** Null until the stored session has been checked, so nothing flashes. */
@@ -55,8 +70,17 @@ interface AuthContextValue {
     fullName: string;
     email: string;
     password: string;
+    /** Already checked against MIN_ACCOUNT_AGE by the form; the API checks it again. */
+    birthYear: number;
     returnTo?: string;
   }) => Promise<{ needsEmailConfirmation: boolean }>;
+  /**
+   * Gives the signed-in account's year of birth to the API: `birthYear`, or
+   * without it the one typed on the sign-up form. Recorded, the session is
+   * refreshed so that it says so. Too young, the account has already been
+   * deleted, and this browser is signed out of it.
+   */
+  confirmAge: (birthYear?: number) => Promise<AgeOutcome>;
   signIn: (input: { email: string; password: string }) => Promise<void>;
   /**
    * Leaves for Google, coming back to `returnTo` (home if left out). Resolves
@@ -116,7 +140,16 @@ function toAuthUser(user: User): AuthUser {
     providers: [...new Set(providers)],
     googleEmail: typeof google?.identity_data?.email === "string" ? google.identity_data.email : null,
     pendingEmail: typeof user.new_email === "string" && user.new_email.length > 0 ? user.new_email : null,
-    createdAt: typeof user.created_at === "string" ? user.created_at : ""
+    createdAt: typeof user.created_at === "string" ? user.created_at : "",
+    // Written by the API alone (app_metadata), so it can be read as it is.
+    ageConfirmed:
+      typeof user.app_metadata?.birth_year === "number" && typeof user.app_metadata?.age_confirmed_at === "string",
+    // Not once Google has signed in to the account: the year may be a
+    // stranger's (see signUpBirthYear in the API), so its owner is asked.
+    signUpBirthYear:
+      !providers.includes("google") && typeof metadata.birth_year === "number" && Number.isInteger(metadata.birth_year)
+        ? metadata.birth_year
+        : null
   };
 }
 
@@ -243,16 +276,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearRedirectResult = useCallback(() => setRedirectResult(null), []);
 
-  const signUp = useCallback<AuthContextValue["signUp"]>(async ({ fullName, email, password, returnTo }) => {
+  const signUp = useCallback<AuthContextValue["signUp"]>(async ({ fullName, email, password, birthYear, returnTo }) => {
     if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
 
     // Without a redirect of its own the confirmation link went to the
     // project's Site URL, the home page, whichever page the student had
-    // pressed Sign up on (see signUpRedirectUrl).
+    // pressed Sign up on (see signUpRedirectUrl). The year of birth travels
+    // in the account's metadata until the first sign-in, when the API records
+    // it (confirmAge), so the student is not asked for it twice.
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: cleanName(fullName) }, emailRedirectTo: signUpRedirectUrl(returnTo) }
+      options: {
+        data: { full_name: cleanName(fullName), birth_year: birthYear },
+        emailRedirectTo: signUpRedirectUrl(returnTo)
+      }
     });
 
     if (error) throw authActionError(error);
@@ -341,6 +379,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // browser has forgotten.
   }, []);
 
+  const confirmAge = useCallback(async (birthYear?: number): Promise<AgeOutcome> => {
+    if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
+    const client = supabase;
+
+    const { outcome } = await confirmAgeWithApi(birthYear);
+
+    if (outcome === "account-deleted") {
+      // The account is gone, and every session it had on the server with it;
+      // only this tab's copy is left to clear (as for deleting an account).
+      await client.auth.signOut({ scope: "local" });
+      clearSessionRecords();
+      return outcome;
+    }
+
+    // The session holds the account as it was before the year was recorded.
+    // A refresh brings the new app_metadata into it, and tells the rest of
+    // the app through onAuthStateChange. One at a time, like every call that
+    // saves a new session (see oneAtATime).
+    await oneAtATime(async () => {
+      const { error } = await client.auth.refreshSession();
+      if (error) throw authActionError(error);
+    });
+
+    return outcome;
+  }, []);
+
   const updatePassword = useCallback(
     (password: string) =>
       oneAtATime(async () => {
@@ -421,6 +485,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       redirectResult,
       clearRedirectResult,
       signUp,
+      confirmAge,
       signIn,
       signInWithGoogle,
       linkGoogle,
@@ -434,6 +499,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearPasswordRecovery
     }),
     [
+      confirmAge,
       ready,
       user,
       redirectResult,

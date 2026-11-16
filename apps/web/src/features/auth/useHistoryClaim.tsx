@@ -32,7 +32,10 @@ import { useAuth } from "./AuthContext";
 export function useHistoryClaim(): void {
   const { user } = useAuth();
   const running = useRef(false);
-  const userId = user?.id ?? null;
+  // Not before the account has given its year of birth: until then the API
+  // refuses it, and a student too young for an account keeps their guest
+  // tests as they are when it is deleted.
+  const userId = user?.ageConfirmed ? user.id : null;
 
   useEffect(() => {
     if (!userId) return;

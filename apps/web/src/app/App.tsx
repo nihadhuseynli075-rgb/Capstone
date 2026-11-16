@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { LanguageSelect, ThemeToggle } from "../components/SiteControls";
 import {
@@ -16,6 +16,7 @@ import { Wordmark } from "../lib/brand";
 import { applyTheme, useTheme } from "../lib/theme";
 import { LanguageScope, useLanguage, usePinnedLanguage, type TranslationKey } from "../lib/i18n";
 
+import { AgeCheckPage, TooYoungNotice } from "../features/auth/AgeCheck";
 import { AuthProvider, useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
@@ -345,6 +346,10 @@ function Shell() {
     setNavOpen
   ] = useState(false);
 
+  // Where a student was when the year-of-birth step found them too young and
+  // their account was deleted. They are told so there, until they go anywhere else.
+  const [refusedAt, setRefusedAt] = useState<string | null>(null);
+
   const headerRef =
     useRef<HTMLElement>(null);
 
@@ -376,6 +381,18 @@ function Shell() {
 
 
   /*
+   * index.html draws the landing page's first screen before this app has
+   * loaded, so a slow connection shows Home at once instead of a blank page.
+   * It goes the moment the app has a page of its own to show, before the
+   * browser paints, so the two never show together and nothing blinks in
+   * between. Until then it stands in for the loading message (see below).
+   */
+  useLayoutEffect(() => {
+    if (ready) document.getElementById("first-screen")?.remove();
+  }, [ready]);
+
+
+  /*
    * Each page names itself in the tab, the browser history and a screen
    * reader's announcement of the page. With one title for the whole site,
    * every tab and every step back read "Exampeak - Grade 9 mock tests".
@@ -389,6 +406,8 @@ function Shell() {
 
   useEffect(() => {
     setNavOpen(false);
+    // Going anywhere else ends the too-young message (see refusedAt).
+    setRefusedAt(null);
   }, [path]);
 
 
@@ -450,12 +469,30 @@ function Shell() {
 
 
   if (!ready) {
+    // The first screen index.html drew is already showing Home.
+    if (document.getElementById("first-screen")) return null;
+
     return (
       // A status, so a screen reader hears why the page is still blank.
       <div className="landing-loading" role="status">
         {t("app.loading")}
       </div>
     );
+  }
+
+
+  if (!user && refusedAt === path) {
+    return <TooYoungNotice onContinue={() => setRefusedAt(null)} />;
+  }
+
+
+  // Signed in, but the account has not given its year of birth: that comes
+  // first, before anything of the account is used, on whatever page it lands
+  // (MIN_ACCOUNT_AGE in packages/shared). The page it is on shows once the
+  // year is recorded. Privacy and terms stay open, since the step points to
+  // them, and so does the admin dashboard, which has a sign-in of its own.
+  if (user && !user.ageConfirmed && path !== "/privacy" && path !== "/terms" && !adminPage) {
+    return <AgeCheckPage onRefused={() => setRefusedAt(path)} />;
   }
 
 

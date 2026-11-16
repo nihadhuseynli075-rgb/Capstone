@@ -338,6 +338,56 @@ export const profileLimits = {
 } as const;
 
 /**
+ * The youngest a student can be to have an account, in years.
+ *
+ * The rule for student sites is a parent's or guardian's consent under 16, and
+ * Exampeak has no way to ask a parent, so it has no accounts for anyone
+ * younger: they practise as guests, which needs no account and keeps nothing
+ * with their name on it. This is the one place to change it. The sign-up form,
+ * the year-of-birth step after a Google sign-in, the API, and the privacy and
+ * terms pages all read it from here.
+ */
+export const MIN_ACCOUNT_AGE = 16;
+
+/**
+ * The latest year of birth that can have an account, in the year `today` is in.
+ *
+ * Only the year of birth is asked for, never the date, so the birthday is not
+ * known. Someone born in the year this returns plus one may not have turned
+ * MIN_ACCOUNT_AGE yet, so a year counts only once everyone born in it has
+ * turned it: in 2026, 2009 or earlier.
+ */
+export function latestAccountBirthYear(today: Date = new Date()): number {
+  return today.getUTCFullYear() - MIN_ACCOUNT_AGE - 1;
+}
+
+/** What is wrong with a year of birth: not a year anyone could be born in, or too late for an account. */
+export type BirthYearProblem = "invalid" | "too-young";
+
+/** The oldest anyone giving a year of birth is taken to be, so that a slip such as 1062 is caught. */
+const OLDEST_AGE = 120;
+
+/**
+ * Why a year of birth cannot have an account, or null when it can.
+ *
+ * The form, the year-of-birth step and the API all ask this, so they agree.
+ */
+export function birthYearProblem(year: unknown, today: Date = new Date()): BirthYearProblem | null {
+  if (typeof year !== "number" || !Number.isInteger(year)) return "invalid";
+
+  const current = today.getUTCFullYear();
+  if (year > current || year < current - OLDEST_AGE) return "invalid";
+
+  return year > latestAccountBirthYear(today) ? "too-young" : null;
+}
+
+/** A year of birth as typed into a form: four digits and nothing else, or null. */
+export function parseBirthYear(text: string): number | null {
+  const trimmed = text.trim();
+  return /^\d{4}$/.test(trimmed) ? Number(trimmed) : null;
+}
+
+/**
  * Characters that draw nothing: format characters (zero-width spaces and
  * joiners, direction marks, soft hyphens) and the Hangul fillers, which
  * Unicode counts as letters although they are blank. trim() keeps all of

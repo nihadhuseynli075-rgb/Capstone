@@ -31,6 +31,11 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || `smoke-${randomUUID()}`;
 
 const { check, section, counts } = createChecks();
 
+// A year of birth old enough for an account whatever year this runs in
+// (MIN_ACCOUNT_AGE in packages/shared), and one that is not.
+const adultYear = new Date().getUTCFullYear() - 30;
+const childYear = new Date().getUTCFullYear() - 13;
+
 function freePort() {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
@@ -1291,6 +1296,93 @@ async function main() {
     const profileJunkToken = await call("/api/profile", { token: "not-a-token" });
     check("nor with something that is not a token", profileJunkToken.status === 401, `got ${profileJunkToken.status}`);
 
+    section("An account gives its year of birth before anything else");
+    // Accounts are for MIN_ACCOUNT_AGE and over (packages/shared). Until an
+    // account has given its year, the API uses nothing of it (accountAge).
+    const unaged = async (email, metadata) =>
+      (await control("users", { email, ageConfirmed: false, ...(metadata ? { metadata } : { fullName: "Una" }) })).body;
+    const una = await unaged("una@standin.test");
+    const unaToken = una.session.access_token;
+    const unaProfile = await call("/api/profile", { token: unaToken });
+    check(
+      "its profile is refused, with the code the app asks for the year on",
+      unaProfile.status === 403 && unaProfile.body.code === "age-required",
+      `${unaProfile.status} ${JSON.stringify(unaProfile.body)}`
+    );
+    const unaFriends = await call("/api/friends", { token: unaToken });
+    check("so are its friends", unaFriends.status === 403 && unaFriends.body.code === "age-required", `${unaFriends.status}`);
+    const unaTest = await generate(una.user.id, unaToken);
+    check("and a test under its own key", unaTest.status === 403 && unaTest.body.code === "age-required", `${unaTest.status} ${JSON.stringify(unaTest.body)}`);
+    const unaClaim = await call("/api/tests/claim", { method: "POST", token: unaToken, body: { studentKey: una.user.id, guestKey: randomUUID() } });
+    check("and moving guest tests onto it", unaClaim.status === 403 && unaClaim.body.code === "age-required", `${unaClaim.status}`);
+    const unaGuest = await generate(randomUUID(), unaToken);
+    check("while a test under a guest key still works", unaGuest.status === 200, `${unaGuest.status}`);
+
+    const giveYear = (token, body) => call("/api/profile/age", { method: "POST", token, body });
+    const noYear = await giveYear(unaToken, {});
+    check("asking without a year, and none from sign-up, says so", noYear.status === 400 && noYear.body.code === "birth-year-needed", JSON.stringify(noYear.body));
+    const oddYears = await Promise.all([giveYear(unaToken, { birthYear: "2001" }), giveYear(unaToken, { birthYear: 1850 }), giveYear(unaToken, { birthYear: adultYear + 40 })]);
+    check(
+      "a year that is not a number, or one nobody could be born in, is refused",
+      oddYears.every((answer) => answer.status === 400 && answer.body.code === "birth-year-invalid"),
+      JSON.stringify(oddYears.map((answer) => answer.status))
+    );
+    const unaYear = await giveYear(unaToken, { birthYear: adultYear });
+    check("an adult's year is recorded", unaYear.status === 200 && unaYear.body.outcome === "confirmed", JSON.stringify(unaYear.body));
+    const unaAccount = (await control(`users/${una.user.id}`)).body.user;
+    check(
+      "in the account's app_metadata, with the time it was given",
+      unaAccount?.app_metadata?.birth_year === adultYear && typeof unaAccount?.app_metadata?.age_confirmed_at === "string",
+      JSON.stringify(unaAccount?.app_metadata)
+    );
+    const unaProfileAfter = await call("/api/profile", { token: unaToken });
+    check("and the token from before it works at once, before any refresh", unaProfileAfter.status === 200, `${unaProfileAfter.status}`);
+    const unaChildYear = await giveYear(unaToken, { birthYear: childYear });
+    const unaStillThere = await control(`users/${una.user.id}`);
+    check(
+      "a year once recorded is never changed, so a stolen token cannot have the account deleted",
+      unaChildYear.status === 200 && unaChildYear.body.birthYear === adultYear && unaStillThere.status === 200,
+      `${unaChildYear.status} ${JSON.stringify(unaChildYear.body)}`
+    );
+
+    // Too young: the account is not kept, and nor is anything in it.
+    const vic = await unaged("vic@standin.test");
+    const vicYear = await giveYear(vic.session.access_token, { birthYear: childYear });
+    check("a year too late for an account deletes it", vicYear.status === 200 && vicYear.body.outcome === "account-deleted", JSON.stringify(vicYear.body));
+    check("the account is gone", (await control(`users/${vic.user.id}`)).status === 404);
+    check("and so is its profile", (await rows("profiles", `?id=eq.${vic.user.id}`)).length === 0);
+
+    // The edge: everyone born in the latest year has turned the age, the year after not yet.
+    const latest = new Date().getUTCFullYear() - 16 - 1;
+    const edgeOld = await unaged("edge.old@standin.test");
+    const edgeYoung = await unaged("edge.young@standin.test");
+    const [oldAnswer, youngAnswer] = [
+      await giveYear(edgeOld.session.access_token, { birthYear: latest }),
+      await giveYear(edgeYoung.session.access_token, { birthYear: latest + 1 })
+    ];
+    check(
+      `born in ${latest} has an account, born in ${latest + 1} does not`,
+      oldAnswer.body.outcome === "confirmed" && youngAnswer.body.outcome === "account-deleted",
+      `${JSON.stringify(oldAnswer.body)} ${JSON.stringify(youngAnswer.body)}`
+    );
+
+    // The year from the sign-up form, which travels in the user metadata.
+    const formAdult = await unaged("form.adult@standin.test", { full_name: "Form Adult", birth_year: adultYear });
+    const formChild = await unaged("form.child@standin.test", { full_name: "Form Child", birth_year: childYear });
+    const formAdultYear = await giveYear(formAdult.session.access_token, {});
+    const formChildYear = await giveYear(formChild.session.access_token, {});
+    check("the sign-up form's year is recorded without asking again", formAdultYear.body.outcome === "confirmed", JSON.stringify(formAdultYear.body));
+    check(
+      "and one too late for an account deletes it, however it got past the form",
+      formChildYear.body.outcome === "account-deleted" && (await control(`users/${formChild.user.id}`)).status === 404,
+      JSON.stringify(formChildYear.body)
+    );
+
+    // Deleting needs no year: an account must always be able to go.
+    const wren = await unaged("wren@standin.test");
+    const wrenDeleted = await call("/api/profile", { method: "DELETE", token: wren.session.access_token, body: { confirmEmail: "wren@standin.test" } });
+    check("an account that has not given its year can still delete itself", wrenDeleted.status === 200, `${wrenDeleted.status} ${JSON.stringify(wrenDeleted.body)}`);
+
     section("Reading a profile");
     const carol = (await control("users", { email: "carol@standin.test", fullName: "Carol" })).body;
     const carolId = carol.user.id;
@@ -1679,32 +1771,65 @@ async function main() {
     check("a photo over 2 MB is refused", huge.status === 413 && huge.body.code === "photo-too-large", `got ${huge.status}`);
     check("and neither leaves a file behind", (await photoFiles(carolId)).length === 0, JSON.stringify(await photoFiles(carolId)));
 
+    // Photos go out as signed links (signedPhotoUrls), which stop working
+    // after an hour, not as the bucket's public address: "<path>?token=...".
+    const signedPrefix = `${standin.url}/storage/v1/object/sign/`;
+    const linkPath = (url) => (url ?? "").split("?")[0];
+
     const firstPhoto = await uploadPhoto(carolToken, PNG);
     const firstUrl = firstPhoto.body.profile?.avatarUrl ?? "";
     check(
       "a photo uploads into the account's own folder",
-      firstPhoto.status === 200 && firstUrl.startsWith(`${standin.url}/storage/v1/object/public/avatars/${carolId}/`),
+      firstPhoto.status === 200 && firstUrl.startsWith(`${signedPrefix}avatars/${carolId}/`) && firstUrl.includes("?token="),
       `${firstPhoto.status} ${JSON.stringify(firstPhoto.body)}`
     );
     const served = await fetch(firstUrl);
     const servedBytes = Buffer.from(await served.arrayBuffer());
     check(
-      "and is served from the public bucket as the image it is",
+      "and is served through its signed link as the image it is",
       served.status === 200 && served.headers.get("content-type") === "image/png" && servedBytes.equals(PNG),
       `${served.status} ${served.headers.get("content-type")}`
     );
+
+    // 0018 makes the bucket private. The bare address stops opening; the
+    // links the API signs keep working, before and after.
+    const bareAddress = firstUrl.replace("/object/sign/", "/object/public/").split("?")[0];
+    check("while the bucket is public, the bare address opens it too", (await fetch(bareAddress)).status === 200);
+    await control("buckets", { id: "avatars", public: false });
+    const privateBare = await fetch(bareAddress);
+    const privateProfile = await call("/api/profile", { token: carolToken });
+    const privateLink = await fetch(privateProfile.body.profile?.avatarUrl ?? "http://127.0.0.1:9");
+    check("once the bucket is private, the bare address opens nothing", privateBare.status !== 200, `got ${privateBare.status}`);
+    check(
+      "and the profile's link still opens the photo",
+      privateProfile.status === 200 && privateLink.status === 200 && privateLink.headers.get("content-type") === "image/png",
+      `${privateProfile.status} ${privateLink.status}`
+    );
+    const forged = await fetch(`${linkPath(firstUrl)}?token=made-up`);
+    check("but a link with a token of someone's own making does not", forged.status !== 200, `got ${forged.status}`);
+
+    // Signing failing must not take the profile down with it: the stored
+    // address goes out instead, which opens while the bucket is public.
+    await control("faults", { method: "POST", table: "storage/avatars/sign", times: 1 });
+    const unsigned = await call("/api/profile", { token: carolToken });
+    check(
+      "a profile whose photo cannot be signed just now still loads, with the stored address",
+      unsigned.status === 200 && (unsigned.body.profile?.avatarUrl ?? "").includes(`/object/public/avatars/${carolId}/`),
+      `${unsigned.status} ${JSON.stringify(unsigned.body.profile?.avatarUrl)}`
+    );
+    await control("buckets", { id: "avatars", public: true });
 
     const secondPhoto = await uploadPhoto(carolToken, JPEG);
     const secondUrl = secondPhoto.body.profile?.avatarUrl ?? "";
     check(
       "a new photo takes its place at a new address",
-      secondPhoto.status === 200 && secondUrl !== firstUrl && secondUrl.endsWith(".jpg"),
+      secondPhoto.status === 200 && linkPath(secondUrl) !== linkPath(firstUrl) && linkPath(secondUrl).endsWith(".jpg"),
       JSON.stringify(secondPhoto.body)
     );
     const afterReplace = await photoFiles(carolId);
     check(
       "and the old file is deleted",
-      afterReplace.length === 1 && secondUrl.endsWith(afterReplace[0]),
+      afterReplace.length === 1 && linkPath(secondUrl).endsWith(afterReplace[0]),
       JSON.stringify(afterReplace)
     );
 
@@ -1739,7 +1864,7 @@ async function main() {
     );
     check(
       "and the photo left on the profile is one whose file is still there",
-      remaining.some((path) => settled?.avatarUrl?.endsWith(path)),
+      remaining.some((path) => linkPath(settled?.avatarUrl).endsWith(path)),
       `${settled?.avatarUrl} is not among ${JSON.stringify(remaining)}`
     );
     await removePhoto(carolToken);
@@ -1747,7 +1872,7 @@ async function main() {
     // Named rather than counted: the two uploads above raced on purpose, and
     // the one that lost is still in the folder until the account is deleted.
     const stuck = await uploadPhoto(carolToken, PNG);
-    const stuckPath = (stuck.body.profile?.avatarUrl ?? "").split("/public/")[1];
+    const stuckPath = linkPath(stuck.body.profile?.avatarUrl).split("/sign/")[1];
     await control("faults", { method: "DELETE", table: "storage/avatars", times: 1 });
     const stuckRemoval = await removePhoto(carolToken);
     check(
@@ -2595,9 +2720,10 @@ async function main() {
       // address nobody signed up with.
       const signUpWaiting = async (email) => {
         await control("mail", { confirmSignUp: true });
+        // With a year of birth, as the sign-up form sends one (accountAge).
         const made = await request(standin.url, `/auth/v1/signup?redirect_to=${encodeURIComponent("http://app.test/")}`, {
           method: "POST",
-          body: { email, password: "notmine123", data: { full_name: "Chosen Name" } }
+          body: { email, password: "notmine123", data: { full_name: "Chosen Name", birth_year: adultYear } }
         });
         await control("mail", { confirmSignUp: false });
         return made;
@@ -2621,9 +2747,24 @@ async function main() {
 
       const quinnMail = (await control("emails")).body.emails.find((mail) => mail.kind === "signup" && mail.to === "quinn@standin.test");
       await fetch(quinnMail?.link ?? "http://127.0.0.1:9", { redirect: "manual" });
+      const askBeforeYear = await ask(iris.token, "quinn@standin.test");
+      check(
+        "once the link in the email is opened, it still cannot be found before its year of birth is recorded",
+        askBeforeYear.status === 404 && askBeforeYear.body.code === "no-account",
+        `${askBeforeYear.status} ${JSON.stringify(askBeforeYear.body)}`
+      );
+      // What the app does at the first sign-in: the year from the sign-up
+      // form is sent on, without the student being asked again.
+      const quinnSignIn = await signInWith("quinn@standin.test", "notmine123");
+      const quinnYear = await call("/api/profile/age", { method: "POST", token: quinnSignIn.body.access_token, body: {} });
+      check(
+        "the year given on the sign-up form is recorded at the first sign-in",
+        quinnYear.status === 200 && quinnYear.body.outcome === "confirmed" && quinnYear.body.birthYear === adultYear,
+        `${quinnYear.status} ${JSON.stringify(quinnYear.body)}`
+      );
       const askConfirmed = await ask(iris.token, "quinn@standin.test");
       check(
-        "once the link in the email is opened, it can be found",
+        "after which it can be found",
         askConfirmed.status === 201 && askConfirmed.body.person?.id === quinn.body.id,
         `${askConfirmed.status} ${JSON.stringify(askConfirmed.body)}`
       );
@@ -2635,13 +2776,26 @@ async function main() {
       check("another sign-up waiting for its link cannot be found", (await ask(iris.token, "rosa@standin.test")).status === 404);
       const googleBefore = (await control("google", {})).body.google.account;
       await control("google", { account: { email: "rosa@standin.test", name: "Rosa", picture: null } });
-      await fetch(`${standin.url}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent("http://app.test/")}`, { redirect: "manual" });
+      const rosaTrip = await fetch(`${standin.url}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent("http://app.test/")}`, { redirect: "manual" });
       await control("google", { account: googleBefore });
+      const rosaToken = new URLSearchParams((rosaTrip.headers.get("location") ?? "").split("#")[1] ?? "").get("access_token");
+
+      // The year in the account's metadata is the stranger's who signed up
+      // with her address, so the owner is asked for her own.
+      const strangersYear = await call("/api/profile/age", { method: "POST", token: rosaToken, body: {} });
+      check(
+        "after Google, the year the stranger's sign-up gave is not taken for the owner's",
+        strangersYear.status === 400 && strangersYear.body.code === "birth-year-needed",
+        `${strangersYear.status} ${JSON.stringify(strangersYear.body)}`
+      );
+      const askBeforeOwnYear = await ask(iris.token, "rosa@standin.test");
+      check("and the account cannot be found before she gives it", askBeforeOwnYear.status === 404, `${askBeforeOwnYear.status}`);
+      const rosaYear = await call("/api/profile/age", { method: "POST", token: rosaToken, body: { birthYear: adultYear } });
       const askAfterGoogle = await ask(iris.token, "rosa@standin.test");
       check(
-        "until its owner signs in with Google",
-        askAfterGoogle.status === 201 && askAfterGoogle.body.person?.id === rosa.body.id,
-        `${askAfterGoogle.status} ${JSON.stringify(askAfterGoogle.body)}`
+        "until its owner signs in with Google and gives her year of birth",
+        rosaYear.status === 200 && askAfterGoogle.status === 201 && askAfterGoogle.body.person?.id === rosa.body.id,
+        `${rosaYear.status} ${askAfterGoogle.status} ${JSON.stringify(askAfterGoogle.body)}`
       );
       check("after which the password the sign-up chose no longer works", (await signInWith("rosa@standin.test", "notmine123")).status === 400);
 

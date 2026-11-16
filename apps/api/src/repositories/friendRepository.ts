@@ -12,7 +12,9 @@ import { cleanName, isReadableName } from "@grade9/shared";
 import { isUuid } from "../lib/ids";
 import { PublicError } from "../lib/publicError";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
+import { ageFromAppMetadata } from "../modules/student/accountAge";
 import { canBeFound } from "../services/friendLookups";
+import { withSignedPhoto, withSignedPhotos } from "../services/profilePhotos";
 import {
   otherEnd,
   planRequest,
@@ -122,6 +124,10 @@ const PERSON_COLUMNS = "id, full_name, username, avatar_url";
  * the auth server says (see canBeFound). The profile cannot say: it is made
  * the moment somebody signs up, confirmed or not. An account deleted since its
  * profile was read is not there to be found either.
+ *
+ * Nor is one that has not given its year of birth yet: until it has, nothing
+ * of it is used (see accountAge), and it may turn out to be too young to have
+ * an account at all. The same answer from the auth server says both.
  */
 async function hasConfirmedEmail(id: string): Promise<boolean> {
   const { data, error } = await client().auth.admin.getUserById(id);
@@ -131,7 +137,7 @@ async function hasConfirmedEmail(id: string): Promise<boolean> {
     throw friendsError("look that student up", error);
   }
 
-  return canBeFound(data.user);
+  return canBeFound(data.user) && ageFromAppMetadata(data.user?.app_metadata) !== null;
 }
 
 /**
@@ -167,7 +173,9 @@ export async function findPerson(lookup: FriendLookup): Promise<FriendPerson | n
   if (!data || data.length === 0) return null;
 
   const person = toPerson(data[0]);
-  return (await hasConfirmedEmail(person.id)) ? person : null;
+  // The photo goes out as a link that stops working after a while (see
+  // signedPhotoUrls): the bucket is private, and its addresses open nothing.
+  return (await hasConfirmedEmail(person.id)) ? withSignedPhoto(person) : null;
 }
 
 async function peopleById(ids: string[]): Promise<Map<string, FriendPerson>> {
@@ -177,7 +185,8 @@ async function peopleById(ids: string[]): Promise<Map<string, FriendPerson>> {
   const { data, error } = await client().from("profiles").select(PERSON_COLUMNS).in("id", ids);
   if (error) throw friendsError("load your friends' names", error);
 
-  for (const row of data ?? []) people.set(row.id as string, toPerson(row));
+  // Every photo in the list signed in one request, as in findPerson.
+  for (const person of await withSignedPhotos((data ?? []).map(toPerson))) people.set(person.id, person);
   return people;
 }
 

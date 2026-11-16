@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
-import { cleanName, isReadableName, normalizeUsername, profileLimits } from "@grade9/shared";
+import { birthYearProblem, cleanName, isReadableName, normalizeUsername, profileLimits } from "@grade9/shared";
 import { PublicError } from "../lib/publicError";
+import { forgetRecordedAge, recordAge, signUpBirthYear } from "../modules/student/accountAge";
 import { accountOf, requireAccount, signInAgain } from "../modules/student/requireAccount";
 import { liveAccount } from "../modules/student/studentAuth";
 import { deleteAttemptsFor } from "../repositories/attemptRepository";
@@ -19,7 +20,8 @@ import {
   removePhotoAt,
   removePhotos,
   storePhoto,
-  storedPhotoPath
+  storedPhotoPath,
+  withSignedPhoto
 } from "../services/profilePhotos";
 import { checkUsername, takenRefusal } from "../services/usernames";
 
@@ -33,19 +35,104 @@ import { checkUsername, takenRefusal } from "../services/usernames";
 export const profileRouter = Router();
 
 profileRouter.use(
-  requireAccount({
-    code: "profiles-unavailable",
-    message:
-      "Profiles need the API connected to Supabase. Set SUPABASE_SECRET_KEY in .env and restart the API."
-  })
+  requireAccount(
+    {
+      code: "profiles-unavailable",
+      message:
+        "Profiles need the API connected to Supabase. Set SUPABASE_SECRET_KEY in .env and restart the API."
+    },
+    // Before an account has given its year of birth it can do only these two:
+    // give it, or delete itself (see accountAge).
+    {
+      withoutAge: [
+        ["POST", "/age"],
+        ["DELETE", "/"]
+      ]
+    }
+  )
 );
+
+/**
+ * Deletes an account and everything that belongs to it.
+ *
+ * Photos first, then test history, then the account itself. Each step is
+ * safe to repeat, and the account goes last: if anything before it fails, the
+ * student can still sign in and try again, rather than being left with photos
+ * or tests that no account can reach any more.
+ */
+async function eraseAccount(id: string): Promise<void> {
+  await removePhotos(id);
+  await deleteAttemptsFor(id);
+  await deleteAccount(id);
+  forgetRecordedAge(id);
+
+  // A photo uploaded by another tab while this was running would otherwise
+  // outlive the account, in the bucket, with nothing left to sweep it.
+  await removePhotos(id).catch((error: Error) => {
+    console.error(`[api] Could not sweep photos after deleting ${id}: ${error.message}`);
+  });
+}
+
+/**
+ * Records the year the student was born: an account's first step, before the
+ * API lets it do anything else (see accountAge).
+ *
+ * The year comes in the body, from the step the web app shows after a Google
+ * sign-in or to an account made before this check existed. Without one, it is
+ * the year given on the sign-up form, which travels in the account's user
+ * metadata, so a student who has just typed it is not asked again.
+ *
+ * A student too young for an account is not given one: the account is deleted
+ * on the spot, with everything in it, and the answer says so. The web app then
+ * signs out and sends them to practise as a guest.
+ *
+ * A year already recorded is never changed here, so a stolen token cannot
+ * delete an account by claiming it is too young. For the same reason as for
+ * deleting, the account is read from the auth server rather than the token.
+ */
+profileRouter.post("/age", async (request, response, next) => {
+  const parsed = z.object({ birthYear: z.number().int().optional() }).safeParse(request.body ?? {});
+
+  if (!parsed.success) {
+    return response.status(400).json({ code: "birth-year-invalid", message: "That is not a year of birth." });
+  }
+
+  try {
+    const account = await liveAccount(request);
+    if (!account) return response.status(401).json(signInAgain);
+
+    if (account.age) return response.json({ outcome: "confirmed", birthYear: account.age.birthYear });
+
+    const birthYear = parsed.data.birthYear ?? signUpBirthYear(account);
+
+    if (birthYear === null) {
+      return response.status(400).json({ code: "birth-year-needed", message: "Say which year you were born." });
+    }
+
+    const problem = birthYearProblem(birthYear);
+
+    if (problem === "invalid") {
+      return response.status(400).json({ code: "birth-year-invalid", message: "That is not a year of birth." });
+    }
+
+    if (problem === "too-young") {
+      await eraseAccount(account.id);
+      return response.json({ outcome: "account-deleted" });
+    }
+
+    await recordAge(account.id, birthYear);
+    response.json({ outcome: "confirmed", birthYear });
+  } catch (error) {
+    next(error);
+  }
+});
 
 profileRouter.get("/", async (_request, response, next) => {
   try {
     const profile = await ensureProfile(accountOf(response));
     if (!profile) return response.status(401).json(signInAgain);
 
-    response.json({ profile });
+    response.json({ profile: await withSignedPhoto(profile) });
   } catch (error) {
     next(error);
   }
@@ -127,7 +214,7 @@ profileRouter.patch("/", async (request, response, next) => {
     // that a Google sign-in overwrote on the account gets put back.
     if (changes.fullName !== undefined) await mirrorNameToAccount(account.id, profile.fullName);
 
-    response.json({ profile });
+    response.json({ profile: await withSignedPhoto(profile) });
   } catch (error) {
     if (error instanceof UsernameTakenError) return response.status(takenRefusal.status).json(takenRefusal);
     next(error);
@@ -238,7 +325,7 @@ profileRouter.put("/photo", async (request, response, next) => {
       });
     }
 
-    response.json({ profile });
+    response.json({ profile: await withSignedPhoto(profile) });
   } catch (error) {
     next(error);
   }
@@ -254,7 +341,7 @@ profileRouter.delete("/photo", async (_request, response, next) => {
     //
     // The other way round reads better but cannot be retried: the moment the
     // profile forgets the address, a file left behind by a failed delete is
-    // one nothing points at, sitting in a public bucket, with nothing left to
+    // one nothing points at, sitting in the bucket, with nothing left to
     // find it by. This way a failure leaves the photo exactly as it was, and
     // pressing Remove again picks up where it left off.
     const stored = storedPhotoPath(account.id, existing.avatarUrl);
@@ -273,7 +360,7 @@ profileRouter.delete("/photo", async (_request, response, next) => {
     const profile = await setProfilePhoto(account.id, null);
     if (!profile) return response.status(401).json(signInAgain);
 
-    response.json({ profile });
+    response.json({ profile: await withSignedPhoto(profile) });
   } catch (error) {
     next(error);
   }
@@ -325,19 +412,7 @@ profileRouter.delete("/", async (request, response, next) => {
       });
     }
 
-    // Photos first, then test history, then the account itself. Each step is
-    // safe to repeat, and the account goes last: if anything before it fails,
-    // the student can still sign in and try again, rather than being left
-    // with photos or tests that no account can reach any more.
-    await removePhotos(account.id);
-    await deleteAttemptsFor(account.id);
-    await deleteAccount(account.id);
-
-    // A photo uploaded by another tab while this was running would otherwise
-    // outlive the account, in a public bucket, with nothing left to sweep it.
-    await removePhotos(account.id).catch((error: Error) => {
-      console.error(`[api] Could not sweep photos after deleting ${account.id}: ${error.message}`);
-    });
+    await eraseAccount(account.id);
 
     response.json({ deleted: true });
   } catch (error) {

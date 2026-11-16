@@ -84,6 +84,134 @@
     <title>Exampeak - Grade 9 mock tests</title>
   </head>
   <body>
+    <!-- The first screen of Home, drawn before any JavaScript has arrived.
+         Without it the page stayed blank until the whole app had loaded and
+         run: over five seconds on a slow phone connection. It is the landing
+         page's own markup and words (src/pages/LandingPage.tsx and the landing
+         keys in src/lib/i18n.tsx), so the stylesheet draws it exactly where the
+         app will, and the app takes it away the moment its own page is ready
+         (Shell in src/app/App.tsx). Change the words in both places. The
+         script after it removes it at once wherever the app would show
+         something else: another route, a signed-in student's dashboard, or a
+         sign-in on its way back from Google or an email link. -->
+    <div id="first-screen" class="landing-page">
+      <header class="landing-header">
+        <span class="wordmark">
+          <img src="/src/assets/exampeak-logo.png" alt="" style="width: 74.12px; height: 34px; object-fit: contain; display: block" />
+          <span class="wordmark-text">Exampeak</span>
+        </span>
+        <div class="landing-actions">
+          <!-- Where the language and theme controls go, which need the app to work. -->
+          <div class="landing-controls" style="min-height: 44px" aria-hidden="true"></div>
+          <nav class="landing-nav">
+            <a class="ghost-button landing-login" href="#/login" data-text="landing.logIn">Sign in</a>
+            <a class="primary-button landing-signup" href="#/register" data-text="landing.signUp">Create account</a>
+          </nav>
+        </div>
+      </header>
+      <main>
+        <section class="landing-hero">
+          <div class="landing-left">
+            <p class="landing-label" data-text="landing.label">GRADE 9 EXAM PREPARATION</p>
+            <h1><span data-text="landing.titleLead" style="color: inherit">Reach your</span> <span data-text="landing.titlePeak">peak.</span></h1>
+            <div class="landing-intro">
+              <p data-text="landing.intro">Exampeak helps Grade 9 students prepare for final exams through mock tests and detailed results.</p>
+              <p data-text="landing.introMore">Practise by subject and difficulty, identify weak topics and track your progress as you improve.</p>
+            </div>
+            <div class="landing-start">
+              <a class="primary-button landing-cta" href="#/build" data-text="main.startPractice">Start a practice test</a>
+              <span class="landing-cta-note">
+                <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+                <span data-text="main.noAccountNeeded">No account needed</span>
+              </span>
+            </div>
+          </div>
+          <!-- The navy panel the climb is drawn on, the same size as the app's. -->
+          <div class="landing-right" aria-hidden="true"></div>
+        </section>
+      </main>
+    </div>
+    <script>
+      (function () {
+        var screen = document.getElementById("first-screen");
+        if (!screen) return;
+
+        function storageGet(key) {
+          try {
+            return window.localStorage.getItem(key);
+          } catch (error) {
+            return null;
+          }
+        }
+
+        // Home is "#/" or no route at all; the query after "?" is not part of it.
+        var route = window.location.hash.replace(/^#/, "").split("?")[0];
+        var home = route === "" || route === "/";
+
+        // A saved Supabase session (the client's default key, sb-<project>-auth-token)
+        // means the app will show the dashboard here, not the landing page.
+        var signedIn = false;
+        try {
+          for (var index = 0; index < window.localStorage.length; index += 1) {
+            if (/^sb-.+-auth-token$/.test(window.localStorage.key(index) || "")) signedIn = true;
+          }
+        } catch (error) {
+          // Storage refused: nobody can be signed in from it either.
+        }
+
+        // Google and the email links come back with ?code= or ?error=, or with
+        // a failure after the "#" (see src/features/auth/oauthRedirect.ts).
+        var returning =
+          /[?&](code|error)=/.test(window.location.search) || /(^|[#&?])(error|error_code|access_token)=/.test(window.location.hash);
+
+        if (!home || signedIn || returning) {
+          screen.parentNode.removeChild(screen);
+          return;
+        }
+
+        // The language the app will pick, the same way as getStoredLanguage in
+        // src/lib/i18n.tsx: the saved choice, else the browser's, else English.
+        var language = storageGet("examPeak.language");
+        if (language !== "en" && language !== "ru" && language !== "az") {
+          var browser = (window.navigator.language || "").slice(0, 2).toLowerCase();
+          language = browser === "ru" || browser === "az" ? browser : "en";
+        }
+        document.documentElement.setAttribute("lang", language);
+        if (language === "en") return;
+
+        // The same entries as the "ru" and "az" dictionaries in src/lib/i18n.tsx.
+        var words = {
+          ru: {
+            "landing.logIn": "Войти",
+            "landing.signUp": "Создать аккаунт",
+            "landing.label": "ПОДГОТОВКА К ЭКЗАМЕНАМ 9 КЛАССА",
+            "landing.titleLead": "Достигните своей",
+            "landing.titlePeak": "вершины.",
+            "landing.intro": "Exampeak помогает девятиклассникам готовиться к выпускным экзаменам: пробные тесты и подробные результаты.",
+            "landing.introMore": "Тренируйтесь по предметам и уровням сложности, находите слабые темы и следите за своим прогрессом.",
+            "main.startPractice": "Начать пробный тест",
+            "main.noAccountNeeded": "Аккаунт не нужен"
+          },
+          az: {
+            "landing.logIn": "Daxil ol",
+            "landing.signUp": "Hesab yarat",
+            "landing.label": "9-CU SİNİF İMTAHANLARINA HAZIRLIQ",
+            "landing.titleLead": "Zirvənizə",
+            "landing.titlePeak": "çatın.",
+            "landing.intro": "Exampeak 9-cu sinif şagirdlərinə sınaq testləri və ətraflı nəticələrlə buraxılış imtahanlarına hazırlaşmağa kömək edir.",
+            "landing.introMore": "Fənn və çətinlik səviyyəsinə görə məşq edin, zəif mövzuları tapın və inkişafınızı izləyin.",
+            "main.startPractice": "Sınaq testinə başla",
+            "main.noAccountNeeded": "Hesab tələb olunmur"
+          }
+        }[language];
+
+        var parts = screen.querySelectorAll("[data-text]");
+        for (var part = 0; part < parts.length; part += 1) {
+          var text = words[parts[part].getAttribute("data-text")];
+          if (text) parts[part].textContent = text;
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

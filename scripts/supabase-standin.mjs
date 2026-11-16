@@ -895,8 +895,16 @@ function createAuth(db) {
   const accessTokens = new Map();
   const refreshTokens = new Map();
 
+  /**
+   * What GoTrue keeps itself (the providers), plus whatever the admin API has
+   * written there: the API records a year of birth this way (accountAge).
+   */
   function appMetadata(user) {
-    return { provider: user.provider, providers: [...new Set(user.identities.map((identity) => identity.provider))] };
+    return {
+      ...user.appData,
+      provider: user.provider,
+      providers: [...new Set(user.identities.map((identity) => identity.provider))]
+    };
   }
 
   /** One way into an account, as GoTrue lists it under `identities`. */
@@ -974,7 +982,7 @@ function createAuth(db) {
    * Makes an account. `provider` is how it signed up: "email", or "google",
    * whose metadata carries the Google name and photo the way Supabase's does.
    */
-  function createUser({ email, password, metadata = {}, provider = "email", confirmed = true }) {
+  function createUser({ email, password, metadata = {}, provider = "email", confirmed = true, appData = {} }) {
     const normalized = String(email ?? "").trim().toLowerCase();
     if ([...users.values()].some((user) => user.email === normalized)) {
       throw new PgError(422, "user_already_exists", "User already registered");
@@ -986,6 +994,8 @@ function createAuth(db) {
       // An account made through Google has no password until one is set.
       password: password === null || password === undefined ? null : String(password),
       metadata: { ...metadata },
+      // app_metadata beyond the providers, which only the admin API writes.
+      appData: { ...appData },
       provider,
       identities: [],
       newEmail: null,
@@ -1036,6 +1046,16 @@ function createAuth(db) {
 
   function updateMetadata(user, changes) {
     user.metadata = { ...user.metadata, ...changes };
+    userUpdated(user, user.email);
+  }
+
+  /** As GoTrue merges app_metadata: each key given is set, and one given as null is removed. */
+  function updateAppMetadata(user, changes) {
+    for (const [key, value] of Object.entries(changes)) {
+      if (key === "provider" || key === "providers") continue;
+      if (value === null) delete user.appData[key];
+      else user.appData[key] = value;
+    }
     userUpdated(user, user.email);
   }
 
@@ -1314,6 +1334,7 @@ function createAuth(db) {
     userForToken,
     userUpdated,
     updateMetadata,
+    updateAppMetadata,
     setPassword,
     requestEmailChange,
     confirmEmailChange,
@@ -1870,6 +1891,9 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
       if (body.user_metadata && typeof body.user_metadata === "object") {
         auth.updateMetadata(user, body.user_metadata);
       }
+      if (body.app_metadata && typeof body.app_metadata === "object") {
+        auth.updateAppMetadata(user, body.app_metadata);
+      }
       return send(response, 200, auth.publicUser(user));
     }
 
@@ -1884,21 +1908,85 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
   // -------------------------------------------------------------------------
   // Storage
   // -------------------------------------------------------------------------
-  // The buckets the migrations create, both public. Objects are kept under
-  // "<bucket>/<path>", holding the bytes exactly as they were uploaded.
-  // Failures come back the way Supabase storage sends them: HTTP 400, with
-  // the real status inside the body.
+  // The buckets the migrations create, both public until a test makes one
+  // private (POST /__standin/buckets), as 0018 does to "avatars". Objects are
+  // kept under "<bucket>/<path>", holding the bytes exactly as they were
+  // uploaded. Failures come back the way Supabase storage sends them: HTTP
+  // 400, with the real status inside the body.
 
   const buckets = new Set(["question-images", "avatars"]);
+  const privateBuckets = new Set();
   const objects = new Map();
+
+  // Signed links, by token: the object they open and when they stop.
+  const signedLinks = new Map();
 
   function sendStorageError(response, status, statusCode, error, message) {
     send(response, status, { statusCode: String(statusCode), error, message });
   }
 
+  /** A link to one object for `expiresIn` seconds, as storage words it: relative to /storage/v1. */
+  function signedPathFor(key, expiresIn) {
+    const token = randomUUID().replace(/-/g, "");
+    signedLinks.set(token, { key, expiresAt: Date.now() + Number(expiresIn) * 1000 });
+    return `/object/sign/${key}?token=${token}`;
+  }
+
+  /** Serves an object's bytes, as a public address or a signed link does. */
+  function serveObject(request, response, object) {
+    response.writeHead(200, {
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": object.contentType,
+      "Content-Length": object.bytes.length,
+      "Cache-Control": object.cacheControl
+    });
+    return response.end(request.method === "HEAD" ? undefined : object.bytes);
+  }
+
   /** Everything under /storage/v1/object: `parts` is the path after that. */
-  async function handleStorage(request, response, parts) {
+  async function handleStorage(request, response, url, parts) {
     const [first, ...rest] = parts;
+
+    // Making signed links, with the secret key: one object at
+    // /object/sign/<bucket>/<path>, or a list as { paths } at
+    // /object/sign/<bucket>. As on Supabase, a public bucket signs too.
+    if (first === "sign" && request.method === "POST") {
+      const bucket = rest[0];
+      const fault = takeFault("POST", `storage/${bucket}/sign`);
+      if (fault) return sendStorageError(response, 400, fault.status ?? 500, "internal", "injected failure");
+      if (!buckets.has(bucket)) return sendStorageError(response, 400, 404, "Bucket not found", "Bucket not found");
+
+      const body = (await readBody(request)) ?? {};
+
+      if (rest.length > 1) {
+        const key = rest.join("/");
+        if (!objects.has(key)) return sendStorageError(response, 400, 404, "not_found", "Object not found");
+        return send(response, 200, { signedURL: signedPathFor(key, body.expiresIn) });
+      }
+
+      const paths = Array.isArray(body.paths) ? body.paths : [];
+      return send(
+        response,
+        200,
+        paths.map((path) =>
+          objects.has(`${bucket}/${path}`)
+            ? { error: null, path, signedURL: signedPathFor(`${bucket}/${path}`, body.expiresIn) }
+            : { error: "Either the object does not exist or you do not have access to it", path, signedURL: null }
+        )
+      );
+    }
+
+    // Opening a signed link: anyone holding it, until it runs out.
+    if (first === "sign" && (request.method === "GET" || request.method === "HEAD")) {
+      const link = signedLinks.get(url.searchParams.get("token") ?? "");
+      const key = rest.join("/");
+      if (!link || link.key !== key) return sendStorageError(response, 400, 400, "InvalidJWT", "invalid signature");
+      if (link.expiresAt <= Date.now()) return sendStorageError(response, 400, 400, "InvalidJWT", "jwt expired");
+
+      const object = objects.get(key);
+      if (!object) return sendStorageError(response, 400, 404, "not_found", "Object not found");
+      return serveObject(request, response, object);
+    }
 
     if (first === "list" && request.method === "POST") {
       const bucket = rest[0];
@@ -1942,17 +2030,13 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
       return send(response, 200, listed.slice(offset, offset + limit));
     }
 
+    // A public address opens nothing in a private bucket, as on Supabase.
     if (first === "public" && (request.method === "GET" || request.method === "HEAD")) {
-      const object = buckets.has(rest[0]) ? objects.get(rest.join("/")) : undefined;
+      const open = buckets.has(rest[0]) && !privateBuckets.has(rest[0]);
+      const object = open ? objects.get(rest.join("/")) : undefined;
       if (!object) return sendStorageError(response, 400, 404, "not_found", "Object not found");
 
-      response.writeHead(200, {
-        "Access-Control-Allow-Origin": "*",
-        "Content-Type": object.contentType,
-        "Content-Length": object.bytes.length,
-        "Cache-Control": object.cacheControl
-      });
-      return response.end(request.method === "HEAD" ? undefined : object.bytes);
+      return serveObject(request, response, object);
     }
 
     const bucket = first;
@@ -2006,7 +2090,15 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
         // A Google sign-up has no password, as on Supabase.
         password: body.password ?? (body.provider === "google" ? null : "password1"),
         metadata: body.metadata ?? (body.fullName ? { full_name: body.fullName } : {}),
-        provider: body.provider ?? "email"
+        provider: body.provider ?? "email",
+        // An account made here has already given an adult's year of birth,
+        // as the API records it (accountAge), since nearly every test is of
+        // something an account does after that. `ageConfirmed: false` makes
+        // one that has not, for the tests of that step.
+        appData:
+          body.ageConfirmed === false
+            ? {}
+            : { birth_year: new Date().getUTCFullYear() - 30, age_confirmed_at: nowIso() }
       });
       return send(response, 200, { user: auth.publicUser(user), session: auth.issueSession(user) });
     }
@@ -2015,6 +2107,14 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
     if (area === "users" && table && request.method === "GET") {
       const user = auth.users.get(table);
       return user ? send(response, 200, { user: auth.publicUser(user) }) : send(response, 404, { message: "no such user" });
+    }
+
+    // A bucket made private, as 0018 makes "avatars", or public again: { id, public }.
+    if (area === "buckets" && request.method === "POST") {
+      if (!buckets.has(body.id)) return send(response, 404, { message: "no such bucket" });
+      if (body.public === false) privateBuckets.add(body.id);
+      else privateBuckets.delete(body.id);
+      return send(response, 200, { id: body.id, public: !privateBuckets.has(body.id) });
     }
 
     // Stored files, as "<bucket>/<path>", optionally under ?prefix=.
@@ -2134,7 +2234,7 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
         return handleGoogleLink(request, response, url);
       }
       if (parts[0] === "storage" && parts[1] === "v1" && parts[2] === "object") {
-        return await handleStorage(request, response, parts.slice(3).map((part) => decodeURIComponent(part)));
+        return await handleStorage(request, response, url, parts.slice(3).map((part) => decodeURIComponent(part)));
       }
       if (parts[0] === "__standin") {
         return await handleControl(request, response, url, parts.slice(1));

@@ -52,6 +52,12 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     return { failed: true };
   }
 
+  // A failure before the app's first page leaves index.html's first screen
+  // (see Shell) on top of this message, so it is taken away here as well.
+  componentDidCatch() {
+    document.getElementById("first-screen")?.remove();
+  }
+
   render() {
     if (!this.state.failed) return this.props.children;
 

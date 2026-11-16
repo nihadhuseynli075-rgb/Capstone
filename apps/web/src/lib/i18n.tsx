@@ -365,6 +365,24 @@ const en = {
     "That link has expired or has already been used. Sign in, or sign up again to be sent a new one.",
   "auth.errNotFinished": "Signing in did not finish. Try again.",
 
+  // The year of birth: on the sign-up form, and the step an account takes
+  // before anything else when it has not given one (a Google sign-up, or an
+  // account made before the check). {year} is the latest year that can have
+  // an account, {age} the youngest age (MIN_ACCOUNT_AGE in packages/shared).
+  "auth.birthYear": "Year of birth",
+  "auth.birthYearHint": "Accounts are for students born in {year} or earlier. We keep the year only.",
+  "auth.errBirthYear": "Enter the year you were born, as four digits.",
+  "age.title": "What year were you born?",
+  "age.subtitle": "Exampeak accounts are for students aged {age} and over. We keep the year only, never your birthday.",
+  "age.notice":
+    "If you were born after {year}, this account and everything in it is deleted straight away. You can still practise without an account.",
+  "age.continue": "Continue",
+  "age.saving": "Checking...",
+  "age.errFailed": "Your year of birth could not be saved just now. Try again in a moment.",
+  "age.tooYoungTitle": "Practise without an account",
+  "age.tooYoungBody":
+    "Exampeak accounts are for students born in {year} or earlier, so we have not kept your details. You can still build a test, sit it and see every mistake without an account: your results stay in this browser.",
+
   // Privacy and terms
   "legal.privacy": "Privacy",
   "legal.terms": "Terms of use",
@@ -979,6 +997,19 @@ const ru: Dictionary = {
   "auth.errSignInLinkExpired":
     "Срок действия ссылки истёк, или она уже использована. Войдите или зарегистрируйтесь снова, чтобы получить новую.",
   "auth.errNotFinished": "Вход не завершился. Попробуйте снова.",
+  "auth.birthYear": "Год рождения",
+  "auth.birthYearHint": "Аккаунты — для учеников, родившихся в {year} году или раньше. Мы храним только год.",
+  "auth.errBirthYear": "Введите год рождения четырьмя цифрами.",
+  "age.title": "В каком году вы родились?",
+  "age.subtitle": "Аккаунты Exampeak — для учеников от {age} лет. Мы храним только год, а не дату рождения.",
+  "age.notice":
+    "Если вы родились после {year} года, этот аккаунт и всё, что в нём есть, сразу удаляются. Заниматься без аккаунта можно и дальше.",
+  "age.continue": "Продолжить",
+  "age.saving": "Проверяем...",
+  "age.errFailed": "Сейчас не удалось сохранить год рождения. Попробуйте ещё раз чуть позже.",
+  "age.tooYoungTitle": "Занимайтесь без аккаунта",
+  "age.tooYoungBody":
+    "Аккаунты Exampeak — для учеников, родившихся в {year} году или раньше, поэтому мы не сохранили ваши данные. Без аккаунта вы всё равно можете составить тест, пройти его и увидеть все ошибки: результаты остаются в этом браузере.",
 
   // Privacy and terms
   "legal.privacy": "Конфиденциальность",
@@ -1563,6 +1594,19 @@ const az: Dictionary = {
   "auth.errSignInLinkExpired":
     "Linkin müddəti bitib və ya o artıq istifadə olunub. Daxil olun və ya yeni link almaq üçün yenidən qeydiyyatdan keçin.",
   "auth.errNotFinished": "Giriş başa çatmadı. Yenidən cəhd edin.",
+  "auth.birthYear": "Doğum ili",
+  "auth.birthYearHint": "Hesablar {year} ilində və ya daha əvvəl doğulmuş şagirdlər üçündür. Yalnız ili saxlayırıq.",
+  "auth.errBirthYear": "Doğum ilinizi dörd rəqəmlə daxil edin.",
+  "age.title": "Hansı ildə doğulmusunuz?",
+  "age.subtitle": "Exampeak hesabları {age} yaş və yuxarı şagirdlər üçündür. Doğum gününüzü deyil, yalnız ili saxlayırıq.",
+  "age.notice":
+    "Doğum iliniz {year} ilindən sonradırsa, bu hesab və içindəki hər şey dərhal silinir. Hesab olmadan da məşq etməyə davam edə bilərsiniz.",
+  "age.continue": "Davam et",
+  "age.saving": "Yoxlanılır...",
+  "age.errFailed": "Doğum ilinizi indi yadda saxlamaq mümkün olmadı. Bir az sonra yenidən cəhd edin.",
+  "age.tooYoungTitle": "Hesab olmadan məşq edin",
+  "age.tooYoungBody":
+    "Exampeak hesabları {year} ilində və ya daha əvvəl doğulmuş şagirdlər üçündür, ona görə də məlumatlarınızı saxlamadıq. Hesab olmadan da test qura, onu yaza və bütün səhvlərinizi görə bilərsiniz: nəticələriniz bu brauzerdə qalır.",
 
   // Privacy and terms
   "legal.privacy": "Məxfilik",

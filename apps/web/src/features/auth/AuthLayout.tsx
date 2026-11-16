@@ -18,12 +18,18 @@ export function AuthLayout({
   title,
   subtitle,
   children,
-  footer
+  footer,
+  guestLink = true
 }: {
   title: string;
   subtitle: string;
   children: ReactNode;
   footer: ReactNode;
+  /**
+   * The way to a test without an account. Left out of the year-of-birth
+   * step, whose student is signed in: they would be brought straight back.
+   */
+  guestLink?: boolean;
 }) {
   const { t } = useLanguage();
 
@@ -64,9 +70,11 @@ export function AuthLayout({
           <footer className="auth-card-foot">{footer}</footer>
         </div>
 
-        <p className="auth-guest-link">
-          <a href="#/build">{t("auth.guestTest")}</a>
-        </p>
+        {guestLink && (
+          <p className="auth-guest-link">
+            <a href="#/build">{t("auth.guestTest")}</a>
+          </p>
+        )}
 
         <nav className="auth-legal">
           <NewTabLink href="#/privacy">{t("legal.privacy")}</NewTabLink>

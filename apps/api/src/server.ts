@@ -3,6 +3,7 @@ import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { env, storageMode } from "./lib/env";
 import { PublicError } from "./lib/publicError";
+import { AgeRequiredError, ageRequired } from "./modules/student/accountAge";
 import { adminRouter } from "./routes/admin";
 import { catalogRouter } from "./routes/catalog";
 import { friendsRouter } from "./routes/friends";
@@ -122,6 +123,12 @@ app.use((error: BodyError, request: Request, response: Response, _next: NextFunc
       code: "origin-not-allowed",
       message: "This API does not take requests from that website."
     });
+  }
+
+  // An account asking for its own tests before it has given its year of
+  // birth (see accountAge): the browser asks for the year on this code.
+  if (error instanceof AgeRequiredError) {
+    return response.status(403).json(ageRequired);
   }
 
   // A body over the limit above was answered as a 500 reading "request entity

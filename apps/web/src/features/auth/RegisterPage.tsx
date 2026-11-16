@@ -1,7 +1,9 @@
 import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { birthYearProblem, latestAccountBirthYear, parseBirthYear } from "@grade9/shared";
 import { replaceRoute, useRouteParam } from "../../app/router";
 import { fill, useLanguage } from "../../lib/i18n";
 import { emailProblemText, errorText, nameProblemText, passwordProblemText } from "../profile/profileText";
+import { TooYoungNotice } from "./AgeCheck";
 import { useAuth } from "./AuthContext";
 import { AuthDivider, AuthLayout, Field, NewTabLink, PasswordField, focusFirstError } from "./AuthLayout";
 import { GoogleButton } from "./GoogleButton";
@@ -25,16 +27,22 @@ export function RegisterPage() {
   const returnTo = safeReturnPath(useRouteParam("next"));
 
   const [fullName, setFullName] = useState("");
+  const [birthYear, setBirthYear] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{
     fullName?: string;
+    birthYear?: string;
     email?: string;
     password?: string;
   }>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
+  // A year too late for an account (MIN_ACCOUNT_AGE in packages/shared).
+  // Nothing has been sent, and the form is replaced by the way to practise
+  // without an account.
+  const [tooYoung, setTooYoung] = useState(false);
 
   // Signed in: the form's step in the history becomes the page that asked for
   // the sign-in, so Back goes to wherever the student was before it (see LoginPage).
@@ -47,6 +55,19 @@ export function RegisterPage() {
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
+    // Too young for an account: nothing is sent, whatever else the form
+    // holds, and what was typed is let go rather than kept on the page.
+    const year = parseBirthYear(birthYear);
+    const yearIssue = year === null ? "invalid" : birthYearProblem(year);
+
+    if (yearIssue === "too-young") {
+      setFullName("");
+      setEmail("");
+      setPassword("");
+      setTooYoung(true);
+      return;
+    }
+
     // The same problem names the profile page words, so the two pages agree
     // about what is wrong and say it in the same language.
     const nameIssue = nameProblem(fullName);
@@ -55,14 +76,16 @@ export function RegisterPage() {
 
     const errors = {
       fullName: nameIssue ? nameProblemText(nameIssue, t) : undefined,
+      birthYear: yearIssue ? t("auth.errBirthYear") : undefined,
       email: emailIssue ? emailProblemText(emailIssue, t) : undefined,
       password: passwordIssue ? passwordProblemText(passwordIssue, t) : undefined
     };
 
     setFieldErrors(errors);
-    if (errors.fullName || errors.email || errors.password) {
+    if (errors.fullName || errors.birthYear || errors.email || errors.password || year === null) {
       focusFirstError(
         errors.fullName && "register-name",
+        errors.birthYear && "register-birth-year",
         errors.email && "register-email",
         errors.password && "register-password"
       );
@@ -77,6 +100,7 @@ export function RegisterPage() {
         fullName,
         email: email.trim(),
         password,
+        birthYear: year,
         returnTo
       });
 
@@ -97,6 +121,8 @@ export function RegisterPage() {
   // drawn: the form showed "Create your account" for a moment on the way.
   // Nothing is drawn instead (see LoginPage).
   if (user) return null;
+
+  if (tooYoung) return <TooYoungNotice />;
 
   // Confirmation is on for this project, so signing up ends here rather than on
   // the main page. Saying nothing would look like the sign-up simply failed.
@@ -157,6 +183,20 @@ export function RegisterPage() {
           error={fieldErrors.fullName}
           disabled={submitting || !configured}
           onChange={(event) => setFullName(event.target.value)}
+        />
+
+        <Field
+          id="register-birth-year"
+          label={t("auth.birthYear")}
+          type="text"
+          inputMode="numeric"
+          autoComplete="bday-year"
+          maxLength={4}
+          hint={fill(t("auth.birthYearHint"), { year: latestAccountBirthYear() })}
+          value={birthYear}
+          error={fieldErrors.birthYear}
+          disabled={submitting || !configured}
+          onChange={(event) => setBirthYear(event.target.value)}
         />
 
         <Field

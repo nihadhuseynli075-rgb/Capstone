@@ -76,6 +76,19 @@ export async function removeProfilePhoto(): Promise<StudentProfile> {
   return profile;
 }
 
+/**
+ * Gives the account's year of birth to the API (see confirmAge in AuthContext).
+ * Without one, the API takes the year typed on the sign-up form. Too young for
+ * an account, the API deletes it and answers "account-deleted".
+ */
+export async function confirmAge(birthYear?: number): Promise<{ outcome: "confirmed" | "account-deleted" }> {
+  return apiRequest<{ outcome: "confirmed" | "account-deleted" }>("/api/profile/age", {
+    method: "POST",
+    body: birthYear === undefined ? {} : { birthYear },
+    token: await accountToken()
+  });
+}
+
 /** `confirmEmail` is the account's email as the student typed it, which the API checks again. */
 export async function deleteAccount(confirmEmail: string): Promise<void> {
   await apiRequest<{ deleted: true }>("/api/profile", {

@@ -1,4 +1,5 @@
-import { useLanguage } from "../lib/i18n";
+import { MIN_ACCOUNT_AGE, latestAccountBirthYear } from "@grade9/shared";
+import { fill, useLanguage } from "../lib/i18n";
 import { contactAddress, legalTexts } from "../lib/legalText";
 
 /**
@@ -19,8 +20,14 @@ export function LegalPage({ kind }: { kind: "privacy" | "terms" }) {
   const texts = legalTexts[language];
   const page = texts[kind];
 
-  /** A paragraph, with the contact address as a link wherever it is named. */
-  function renderParagraph(text: string) {
+  /**
+   * A paragraph, with the age rule's figures put in, and the contact address
+   * as a link wherever it is named. The figures come from MIN_ACCOUNT_AGE in
+   * packages/shared, which sign-up checks against, so the page and what it
+   * describes cannot drift apart.
+   */
+  function renderParagraph(raw: string) {
+    const text = fill(raw, { age: MIN_ACCOUNT_AGE, year: latestAccountBirthYear() });
     if (!contactAddress) return text;
     const parts = text.split("{contact}");
 

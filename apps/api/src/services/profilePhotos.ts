@@ -23,9 +23,9 @@ const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0
  * What a file really is, read from its first bytes.
  *
  * The file name and the type the browser claims are both whatever the sender
- * chose to say. The bucket is public, so anything stored in it is served to
- * whoever asks: an SVG or an HTML page sent in with an image type would be
- * served as a page that can run script. Only these three are let through.
+ * chose to say. A stored file is served as it is to whoever opens its link:
+ * an SVG or an HTML page sent in with an image type would be served as a page
+ * that can run script. Only these three are let through.
  */
 export function photoTypeOf(bytes: Buffer): PhotoType | null {
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
@@ -59,7 +59,11 @@ function storageError(action: string, message: string): Error {
   return new PublicError(`Failed to ${action}.${hint}`, message);
 }
 
-/** Stores a photo in the account's folder and returns where it is served from. */
+/**
+ * Stores a photo in the account's folder. Returns its path, and the address
+ * the profile keeps for it: the bucket's public one, which signedPhotoUrls
+ * turns into a link that opens it.
+ */
 export async function storePhoto(
   accountId: string,
   bytes: Buffer,
@@ -77,6 +81,87 @@ export async function storePhoto(
   if (error) throw storageError("upload your photo", error.message);
 
   return { path, url: bucket().getPublicUrl(path).data.publicUrl };
+}
+
+/**
+ * How long a link to a profile photo opens it, in seconds.
+ *
+ * Students' photos are kept in a private bucket (migration 0018), so nobody
+ * can open one from an address that was copied, cached or passed on: the API
+ * signs a fresh link each time it sends a profile or a friends list, and the
+ * link stops working after this. An hour covers a page left open through a
+ * lesson. After it, the photo falls back to initials (Avatar in the web app)
+ * until the page asks for the profile again.
+ */
+export const PHOTO_LINK_SECONDS = 60 * 60;
+
+/**
+ * The file in the photo bucket a stored address points at, as a path inside
+ * the bucket, or null for any other address (a Google photo, say).
+ *
+ * Profiles keep the address the upload was given, which is the bucket's public
+ * one, so the photos stored before the bucket went private are found the same
+ * way as new ones. Only a file directly inside an account's folder counts,
+ * which is the only place an upload is ever put.
+ */
+function photoPathOf(url: string): string | null {
+  const marker = `/storage/v1/object/public/${env.avatarBucket}/`;
+  const at = url.indexOf(marker);
+  if (at === -1) return null;
+
+  const [folder, file, ...rest] = url.slice(at + marker.length).split("?")[0].split("/");
+  if (!folder || !file || rest.length > 0) return null;
+
+  return `${folder}/${decodeURIComponent(file)}`;
+}
+
+/**
+ * Stored photo addresses as links a browser can open, in the same order.
+ *
+ * Each of this app's photos becomes a link signed for PHOTO_LINK_SECONDS; a
+ * Google photo's address, and no photo, pass through unchanged. All of one
+ * answer's photos are signed in one request.
+ *
+ * Signing works on a public bucket as well as a private one, so this is right
+ * both before and after 0018 is run. If signing fails, the stored addresses go
+ * out as they are: they still open while the bucket is public, and once it is
+ * private a photo that cannot be opened shows as initials, which is better than
+ * failing the profile or the friends list it is part of.
+ */
+export async function signedPhotoUrls(urls: Array<string | null>): Promise<Array<string | null>> {
+  const paths = urls.map((url) => (url ? photoPathOf(url) : null));
+  const wanted = [...new Set(paths.filter((path): path is string => path !== null))];
+  if (wanted.length === 0 || !supabaseAdmin) return urls;
+
+  try {
+    const { data, error } = await bucket().createSignedUrls(wanted, PHOTO_LINK_SECONDS);
+    if (error) throw error;
+
+    const signed = new Map<string, string>();
+    for (const item of data ?? []) {
+      if (item.path && item.signedUrl && !item.error) signed.set(item.path, item.signedUrl);
+    }
+
+    return urls.map((url, index) => {
+      const path = paths[index];
+      return path === null ? url : (signed.get(path) ?? url);
+    });
+  } catch (error) {
+    console.error(`[api] Could not sign profile photo links: ${(error as Error).message}`);
+    return urls;
+  }
+}
+
+/** A profile or a person, with its photo as a link the browser can open (see signedPhotoUrls). */
+export async function withSignedPhoto<T extends { avatarUrl: string | null }>(item: T): Promise<T> {
+  const [avatarUrl] = await signedPhotoUrls([item.avatarUrl]);
+  return avatarUrl === item.avatarUrl ? item : { ...item, avatarUrl };
+}
+
+/** As withSignedPhoto, for a list, signed in one request. */
+export async function withSignedPhotos<T extends { avatarUrl: string | null }>(items: T[]): Promise<T[]> {
+  const signed = await signedPhotoUrls(items.map((item) => item.avatarUrl));
+  return items.map((item, index) => (signed[index] === item.avatarUrl ? item : { ...item, avatarUrl: signed[index] }));
 }
 
 /**
@@ -119,7 +204,7 @@ const MAX_PAGES = 50;
  *
  * Only for an account being deleted, where sweeping the folder is the point:
  * it catches files left behind by an upload that failed halfway, so nothing
- * of the student's is left in a public bucket.
+ * of the student's is left in the bucket.
  */
 export async function removePhotos(accountId: string): Promise<void> {
   for (let page = 0; page < MAX_PAGES; page += 1) {

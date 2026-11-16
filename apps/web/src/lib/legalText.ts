@@ -17,7 +17,9 @@ import type { Language } from "./i18n";
  * is stored (Supabase tables and photo storage), what a friend sees
  * (FriendPerson and FriendProgress in packages/shared), what the AI marker is
  * sent (services/writtenMarking.ts in the API) and what deleting an account
- * removes (deleteAccount in the API's profile repository).
+ * removes (deleteAccount in the API's profile repository). The age rule's
+ * figures are not written in: {age} and {year} are filled from MIN_ACCOUNT_AGE
+ * (packages/shared) by the page, and what is kept is in accountAge in the API.
  */
 
 export interface LegalSection {
@@ -48,7 +50,7 @@ interface LegalTexts {
 
 export const legalTexts: Record<Language, LegalTexts> = {
   en: {
-    updated: "Last updated: 14 October 2026",
+    updated: "Last updated: 16 November 2026",
     privacy: {
       title: "Privacy",
       intro:
@@ -58,9 +60,17 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "What we keep",
           paragraphs: [
             "Without an account: the tests you take, your answers and your scores. They are linked to a random code kept in your browser, not to your name.",
-            "With an account: your name, your email address, your username, your profile photo if you add one, and the history of every test you take (the questions, your answers, your scores and the dates).",
+            "With an account: your name, your email address, the year you were born and the date you told us, your username, your profile photo if you add one, and the history of every test you take (the questions, your answers, your scores and the dates).",
             "If you sign in with Google, your name, email address and photo come from your Google account.",
             "All of this is stored in Supabase, the database service the site runs on."
+          ]
+        },
+        {
+          heading: "Age",
+          paragraphs: [
+            "Accounts are for students aged {age} and over. We ask only for the year you were born, never the date, so an account is open to anyone born in {year} or earlier.",
+            "If you are younger, you can still use everything on the site without an account: your tests and results are kept in your browser, not with your name.",
+            "Signing in with Google makes an account before we can ask. If someone younger does that, the account and everything in it is deleted as soon as they tell us the year they were born."
           ]
         },
         {
@@ -112,7 +122,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "Your account",
           paragraphs: [
             "Keep your password to yourself. If you think someone else has used your account, change your password on your profile.",
-            "If you are not sure whether you may make an account, ask a parent or guardian first.",
+            "You need to be {age} or older to have an account (born in {year} or earlier). If you are younger, you can use the site without one.",
             "You can delete your account at any time from your profile. The privacy page says what that removes."
           ]
         },
@@ -143,7 +153,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
   },
 
   ru: {
-    updated: "Обновлено 14 октября 2026 г.",
+    updated: "Обновлено 16 ноября 2026 г.",
     privacy: {
       title: "Конфиденциальность",
       intro:
@@ -153,9 +163,17 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "Что мы храним",
           paragraphs: [
             "Без аккаунта: пройденные тесты, ваши ответы и баллы. Они привязаны к случайному коду, который хранится в вашем браузере, а не к вашему имени.",
-            "С аккаунтом: ваше имя, адрес электронной почты, имя пользователя, фото профиля, если вы его добавите, и история всех тестов (вопросы, ваши ответы, баллы и даты).",
+            "С аккаунтом: ваше имя, адрес электронной почты, год рождения и дата, когда вы его указали, имя пользователя, фото профиля, если вы его добавите, и история всех тестов (вопросы, ваши ответы, баллы и даты).",
             "Если вы входите через Google, имя, адрес почты и фото берутся из вашего аккаунта Google.",
             "Всё это хранится в Supabase — сервисе баз данных, на котором работает сайт."
+          ]
+        },
+        {
+          heading: "Возраст",
+          paragraphs: [
+            "Аккаунты — для учеников от {age} лет. Мы спрашиваем только год рождения, а не дату, поэтому аккаунт может завести любой, кто родился в {year} году или раньше.",
+            "Если вы младше, всем на сайте можно пользоваться и без аккаунта: ваши тесты и результаты хранятся в вашем браузере, а не под вашим именем.",
+            "При входе через Google аккаунт создаётся раньше, чем мы успеваем спросить. Если так входит кто-то младше, этот аккаунт и всё, что в нём есть, удаляются сразу, как только человек укажет год рождения."
           ]
         },
         {
@@ -207,7 +225,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "Ваш аккаунт",
           paragraphs: [
             "Никому не сообщайте свой пароль. Если вам кажется, что кто-то другой заходил в ваш аккаунт, смените пароль в профиле.",
-            "Если вы не уверены, можно ли вам создать аккаунт, сначала спросите родителей или опекуна.",
+            "Чтобы иметь аккаунт, вам должно быть не меньше {age} лет (год рождения — {year} или раньше). Если вы младше, пользуйтесь сайтом без аккаунта.",
             "Вы можете удалить аккаунт в любой момент в своём профиле. Что при этом удаляется, написано на странице о конфиденциальности."
           ]
         },
@@ -238,7 +256,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
   },
 
   az: {
-    updated: "Yenilənib: 14 oktyabr 2026",
+    updated: "Yenilənib: 16 noyabr 2026",
     privacy: {
       title: "Məxfilik",
       intro:
@@ -248,9 +266,17 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "Nəyi saxlayırıq",
           paragraphs: [
             "Hesabsız: həll etdiyiniz testlər, cavablarınız və ballarınız. Onlar adınıza deyil, brauzerinizdə saxlanılan təsadüfi koda bağlıdır.",
-            "Hesabla: adınız, e-poçt ünvanınız, istifadəçi adınız, əlavə etsəniz profil şəkliniz və həll etdiyiniz bütün testlərin tarixçəsi (suallar, cavablarınız, ballarınız və tarixlər).",
+            "Hesabla: adınız, e-poçt ünvanınız, doğum iliniz və onu bildirdiyiniz tarix, istifadəçi adınız, əlavə etsəniz profil şəkliniz və həll etdiyiniz bütün testlərin tarixçəsi (suallar, cavablarınız, ballarınız və tarixlər).",
             "Google ilə daxil olursunuzsa, adınız, e-poçt ünvanınız və şəkliniz Google hesabınızdan götürülür.",
             "Bütün bunlar saytın işlədiyi verilənlər bazası xidməti olan Supabase-də saxlanılır."
+          ]
+        },
+        {
+          heading: "Yaş",
+          paragraphs: [
+            "Hesablar {age} yaş və yuxarı şagirdlər üçündür. Biz tarixi deyil, yalnız doğum ilinizi soruşuruq, ona görə də {year} ilində və ya daha əvvəl doğulmuş hər kəs hesab yarada bilər.",
+            "Daha kiçiksinizsə, saytdakı hər şeydən hesab olmadan da istifadə edə bilərsiniz: testləriniz və nəticələriniz adınızla deyil, brauzerinizdə saxlanılır.",
+            "Google ilə daxil olduqda hesab biz soruşmazdan əvvəl yaradılır. Daha kiçik yaşda olan biri belə daxil olarsa, doğum ilini bildirən kimi hesab və içindəki hər şey dərhal silinir."
           ]
         },
         {
@@ -302,7 +328,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "Hesabınız",
           paragraphs: [
             "Şifrənizi heç kimə deməyin. Başqasının hesabınıza girdiyini düşünürsünüzsə, profilinizdə şifrənizi dəyişin.",
-            "Hesab yarada biləcəyinizə əmin deyilsinizsə, əvvəlcə valideyninizdən və ya qəyyumunuzdan soruşun.",
+            "Hesabınız olması üçün ən azı {age} yaşınız olmalıdır ({year} ilində və ya daha əvvəl doğulmuş). Daha kiçiksinizsə, saytdan hesab olmadan istifadə edin.",
             "Hesabınızı istənilən vaxt profilinizdən silə bilərsiniz. Bunun nəyi sildiyi məxfilik səhifəsində yazılıb."
           ]
         },

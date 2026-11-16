@@ -49,9 +49,11 @@ dashboard shows a banner, so this is never a silent surprise.
    student and which no page uses yet, to students. `0015` gives the
    `question-images` bucket the limits the API already holds a question
    picture to: 2 MB, and PNG, JPG or WebP only. `0016` stops anyone calling the
-   three sign-up and username trigger functions directly.) If `0001`-`0015` are
-   already in, running
-   [`0016_definer_function_privileges.sql`](supabase/migrations/0016_definer_function_privileges.sql)
+   three sign-up and username trigger functions directly. `0018` makes the
+   `avatars` bucket private: the API shows each profile photo through a link
+   that stops working after an hour. Deploy the API before running it.) If
+   `0001`-`0017` are already in, running
+   [`0018_private_avatars.sql`](supabase/migrations/0018_private_avatars.sql)
    on its own is enough.
 6. Under **Authentication → Providers**, make sure Email is enabled. Google is
    optional and has its own steps, below.

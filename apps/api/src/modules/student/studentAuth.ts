@@ -5,6 +5,7 @@ import { isUuid } from "../../lib/ids";
 import { PublicError } from "../../lib/publicError";
 import { supabaseAdmin } from "../../lib/supabaseAdmin";
 import { accountIdFor } from "../../repositories/profileRepository";
+import { AgeRequiredError, ageFromAppMetadata, hasRecordedAge, type RecordedAge } from "./accountAge";
 
 /** A signed-in student, as their access token describes them. */
 export interface SignedInAccount {
@@ -16,6 +17,8 @@ export interface SignedInAccount {
    * itself, so unlike `metadata` it can be trusted.
    */
   provider: string | null;
+  /** Every way into the account Supabase lists in its app_metadata: "email", "google", or both. */
+  providers: string[];
   /**
    * The account's own name and photo, as its token carries them.
    *
@@ -24,9 +27,21 @@ export interface SignedInAccount {
    * input: checked before it is used, never trusted as a fact.
    */
   metadata: Record<string, unknown>;
+  /**
+   * The year of birth the account has given, from its app_metadata, which
+   * only the API writes (see accountAge). Null until it has given one, and in
+   * a token issued before it did.
+   */
+  age: RecordedAge | null;
 }
 
 const utf8 = new TextDecoder("utf-8", { fatal: true });
+
+/** The provider list Supabase keeps in app_metadata, which only it and the secret key write. */
+function providersOf(appMetadata: unknown): string[] {
+  const providers = (appMetadata as Record<string, unknown> | null | undefined)?.providers;
+  return Array.isArray(providers) ? providers.filter((item): item is string => typeof item === "string") : [];
+}
 
 /**
  * Whether a token can be read at all: three parts of base64url, the first two
@@ -128,7 +143,9 @@ export async function accountFromToken(auth: SupabaseClient["auth"], token: stri
     id: claims.sub,
     email: typeof claims.email === "string" ? claims.email : "",
     provider: typeof claims.app_metadata?.provider === "string" ? claims.app_metadata.provider : null,
-    metadata: claims.user_metadata ?? {}
+    providers: providersOf(claims.app_metadata),
+    metadata: claims.user_metadata ?? {},
+    age: ageFromAppMetadata(claims.app_metadata)
   };
 }
 
@@ -169,7 +186,9 @@ export async function liveAccount(request: Request): Promise<SignedInAccount | n
     id: user.id,
     email: user.email ?? "",
     provider: typeof user.app_metadata?.provider === "string" ? user.app_metadata.provider : null,
-    metadata: user.user_metadata ?? {}
+    providers: providersOf(user.app_metadata),
+    metadata: user.user_metadata ?? {},
+    age: ageFromAppMetadata(user.app_metadata)
   };
 }
 
@@ -228,10 +247,22 @@ export async function canUseStudentKey(request: Request, studentKey: string): Pr
   return (await isAuthenticatedStudent(request, studentKey)) || isGuestKey(studentKey);
 }
 
-/** Claiming guest history always targets a real signed-in account. */
+/**
+ * Claiming guest history always targets a real signed-in account.
+ *
+ * An account that has not given its year of birth yet uses none of its own
+ * tests: its first step is that year (see accountAge). The request is then
+ * refused with AgeRequiredError, which the API answers as such, so the
+ * browser asks for the year instead of asking the student to sign in again.
+ */
 export async function isAuthenticatedStudent(request: Request, studentKey: string): Promise<boolean> {
   if (!supabaseAdmin) return true;
-  return (await signedInAccount(request))?.id === studentKey;
+
+  const account = await signedInAccount(request);
+  if (account?.id !== studentKey) return false;
+
+  if (!(await hasRecordedAge(account))) throw new AgeRequiredError();
+  return true;
 }
 
 /**
