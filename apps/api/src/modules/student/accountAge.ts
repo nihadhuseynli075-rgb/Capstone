@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { env } from "../../lib/env";
 import { supabaseAdmin } from "../../lib/supabaseAdmin";
+import { hasPhotos } from "../../services/profilePhotos";
 import type { SignedInAccount } from "./studentAuth";
 
 /**
@@ -35,8 +35,10 @@ export interface RecordedAge {
  * - exempt: made before the check began, or the check is not on yet. Left as it is.
  * - confirmed: a new account that has given a year old enough for an account.
  * - pending: a new account that has not answered yet. The API uses nothing of it.
+ * - missing: there is no such account any more (deleted, while a token for it
+ *   is still valid). Answered as signed out, never as exempt.
  */
-export type AgeStatus = "exempt" | "confirmed" | "pending";
+export type AgeStatus = "exempt" | "confirmed" | "pending" | "missing";
 
 /** The recorded age in an account's app_metadata, or null when it has none. */
 export function ageFromAppMetadata(appMetadata: unknown): RecordedAge | null {
@@ -81,25 +83,30 @@ function isMissingTable(error: { code?: string }): boolean {
 // When the check began
 // ---------------------------------------------------------------------------
 
-let since: { at: number | null; readAt: number } | null = null;
+/** When the check began, once it has been read; it never moves after 0019 has run. */
+let since: number | null = null;
 
 /**
  * When the check began, as a time in milliseconds, or null while it is not on.
  *
- * Read once and kept: the moment never moves once 0019 has run. While it has
- * not, the table is asked again now and then (AGE_CHECK_RECHECK_MS), so the
- * check starts without a restart once the migration is run.
+ * Kept once found, since the moment never moves. While 0019 has not run, the
+ * table is asked again on every call rather than "not on" being kept for a
+ * while: kept, an API process could go on treating an account made just after
+ * 0019 ran as exempt (claiming guest history, finding friends) while another
+ * process, or this one a minute later, saw it as pending. An account must
+ * never be both. The extra read is one small query, and only until the
+ * migration runs.
  */
 export async function ageCheckSince(): Promise<number | null> {
   if (!supabaseAdmin) return null;
-  if (since && (since.at !== null || Date.now() - since.readAt < env.ageCheckRecheckMs)) return since.at;
+  if (since !== null) return since;
 
   const { data, error } = await supabaseAdmin.from("age_checks").select("checks_from").limit(1).maybeSingle();
   if (error && !isMissingTable(error)) throw new Error(`Failed to read when the age check began: ${error.message}`);
 
   const at = !error && typeof data?.checks_from === "string" ? Date.parse(data.checks_from) : Number.NaN;
-  since = { at: Number.isNaN(at) ? null : at, readAt: Date.now() };
-  return since.at;
+  if (!Number.isNaN(at)) since = at;
+  return since;
 }
 
 // ---------------------------------------------------------------------------
@@ -147,9 +154,10 @@ export async function ageStatusById(id: string): Promise<AgeStatus> {
   const { data, error } = await supabaseAdmin.auth.admin.getUserById(id);
 
   if (error) {
-    // An account that is gone is nobody's to check; whatever asked will find
-    // it gone in its own way, as before this check existed.
-    if (error.status === 404) return "exempt";
+    // Deleted, while a token for it can still be valid for up to an hour: it
+    // is signed out, and is never exempt (which would let it claim a guest's
+    // history into an id nobody owns).
+    if (error.status === 404) return "missing";
     throw new Error(`Failed to check the account's year of birth: ${error.message}`);
   }
 
@@ -171,7 +179,7 @@ export async function ageStatusById(id: string): Promise<AgeStatus> {
 }
 
 /**
- * Which of these people are pending, for the friends lists to leave out.
+ * Which of these people are pending, or gone, for the friends lists to leave out.
  *
  * `createdAt` is when each one's profile was made. A profile is made when its
  * account is or later, never before, so one older than the check belongs to
@@ -192,9 +200,35 @@ export async function pendingAmong(people: Array<{ id: string; createdAt: string
 
   const statuses = await Promise.all(toAsk.map((person) => ageStatusById(person.id)));
   toAsk.forEach((person, index) => {
-    if (statuses[index] === "pending") pending.add(person.id);
+    if (statuses[index] === "pending" || statuses[index] === "missing") pending.add(person.id);
   });
   return pending;
+}
+
+/**
+ * Whether an account holds anything of its own: a test (sat under it, or
+ * moved onto it from a guest key), a friendship or request, or a photo.
+ *
+ * A new account refused at the year step is only ever deleted when it holds
+ * nothing. One that does got there some other way than the step allows (a
+ * pending account can do nothing through the API), and deleting it would take
+ * a guest's history with it, so it is left as it is for a person to look at.
+ */
+export async function accountHoldsAnything(id: string): Promise<boolean> {
+  const db = client();
+  const reads = await Promise.all([
+    db.from("test_attempts").select("id").eq("student_key", id).limit(1),
+    db.from("test_attempts").select("id").eq("student_id", id).limit(1),
+    db.from("friendships").select("id").eq("user_id", id).limit(1),
+    db.from("friendships").select("id").eq("friend_id", id).limit(1)
+  ]);
+
+  for (const { data, error } of reads) {
+    if (error) throw new Error(`Failed to check what the account holds: ${error.message}`);
+    if ((data ?? []).length > 0) return true;
+  }
+
+  return hasPhotos(id);
 }
 
 // ---------------------------------------------------------------------------

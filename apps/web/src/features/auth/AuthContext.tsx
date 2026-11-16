@@ -5,6 +5,7 @@ import { cleanName, isReadableName } from "@grade9/shared";
 import { isSupabaseConfigured, supabase } from "../../lib/supabaseClient";
 import { clearSessionRecords, settleSessionRecords } from "../../lib/examSession";
 import { setSignedInUserId } from "../../lib/studentKey";
+import { onAgeRequired } from "../../services/apiClient";
 import { confirmAge as confirmAgeWithApi, fetchAgeStatus } from "../../services/profileApi";
 
 /** Asking again where the account stands, after the API could not be reached: a little over three minutes in all. */
@@ -309,6 +310,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAgeStatus((current) => (current === null ? current : "pending"));
   }, []);
 
+  // Whatever request finds the account still has to give its year says so
+  // here too (see apiClient), so the step shows even after asking where the
+  // account stands has failed for a while.
+  useEffect(() => onAgeRequired(markAgeRequired), [markAgeRequired]);
+
+  // For callbacks that must not be remade on every change of it (signOut).
+  const ageStatusRef = useRef<AgeStatus | null>(null);
+  ageStatusRef.current = ageStatus;
+
   useEffect(() => {
     if (!supabase) return;
 
@@ -446,9 +456,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // tab left to clear.
     const { error } = await supabase.auth.signOut({ scope: "local" });
 
-    // The session change this causes already settles the tab (see applySession).
-    // Said again so that does not depend on the event arriving.
-    if (!error) clearSessionRecords();
+    // The session change this causes already settles the tab (see the settling
+    // above). Said again so that does not depend on the event arriving, but
+    // only for an account that had passed the age check: one that had not
+    // (signing out from the year step, say) never took the tab's records on,
+    // so they are still the guest's paper and results, and are kept.
+    if (!error && ageStatusRef.current === "ok") clearSessionRecords();
 
     // No new guest key is made here. A key whose tests were moved onto the
     // account is recorded as claimed and replaced the first time it is needed

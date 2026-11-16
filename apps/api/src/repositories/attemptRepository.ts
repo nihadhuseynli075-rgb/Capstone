@@ -532,6 +532,19 @@ export async function claimAttempts(guestKey: string, studentKey: string): Promi
     return claimed;
   }
 
+  const accountId = await findAccountId(studentKey);
+
+  // Never onto an account that is gone: the tests would be stranded under an
+  // id nobody owns. An account with no profile row (one made before the
+  // profile trigger) is asked about directly. One that has a profile is kept
+  // honest by the link set below: student_id refers to the profile, so if the
+  // account is deleted while this runs, the database refuses the move and the
+  // tests stay the guest's.
+  if (accountId === null) {
+    const { error: lookupError } = await supabaseAdmin.auth.admin.getUserById(studentKey);
+    if (lookupError) throw new Error(`Failed to move history across: no account ${studentKey} (${lookupError.message})`);
+  }
+
   const { data, error } = await supabaseAdmin
     .from("test_attempts")
     .update({
@@ -540,7 +553,7 @@ export async function claimAttempts(guestKey: string, studentKey: string): Promi
       // account against them. Moving them across has to set the link too, or
       // the history would follow the student while the rows still claimed to
       // belong to nobody.
-      student_id: await findAccountId(studentKey)
+      student_id: accountId
     })
     .eq("student_key", guestKey)
     .select("id");

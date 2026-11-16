@@ -60,7 +60,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "What we keep",
           paragraphs: [
             "Without an account: the tests you take, your answers and your scores. They are linked to a random code kept in your browser, not to your name.",
-            "With an account: your name, your email address, your username, your profile photo if you add one, and the history of every test you take (the questions, your answers, your scores and the dates). For an account made since the age check began, also the year you were born and when you told us.",
+            "With an account: your name, your email address, your username, your profile photo if you add one, and the history of every test you take (the questions, your answers, your scores and the dates). If you have given the year you were born, also that year and when you told us.",
             "If you sign in with Google, your name, email address and photo come from your Google account.",
             "All of this is stored in Supabase, the database service the site runs on."
           ]
@@ -163,7 +163,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "Что мы храним",
           paragraphs: [
             "Без аккаунта: пройденные тесты, ваши ответы и баллы. Они привязаны к случайному коду, который хранится в вашем браузере, а не к вашему имени.",
-            "С аккаунтом: ваше имя, адрес электронной почты, имя пользователя, фото профиля, если вы его добавите, и история всех тестов (вопросы, ваши ответы, баллы и даты). Для аккаунта, созданного после начала проверки возраста, — ещё год рождения и дата, когда вы его указали.",
+            "С аккаунтом: ваше имя, адрес электронной почты, имя пользователя, фото профиля, если вы его добавите, и история всех тестов (вопросы, ваши ответы, баллы и даты). Если вы указали год рождения, — ещё этот год и дата, когда вы его указали.",
             "Если вы входите через Google, имя, адрес почты и фото берутся из вашего аккаунта Google.",
             "Всё это хранится в Supabase — сервисе баз данных, на котором работает сайт."
           ]
@@ -266,7 +266,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "Nəyi saxlayırıq",
           paragraphs: [
             "Hesabsız: həll etdiyiniz testlər, cavablarınız və ballarınız. Onlar adınıza deyil, brauzerinizdə saxlanılan təsadüfi koda bağlıdır.",
-            "Hesabla: adınız, e-poçt ünvanınız, istifadəçi adınız, əlavə etsəniz profil şəkliniz və həll etdiyiniz bütün testlərin tarixçəsi (suallar, cavablarınız, ballarınız və tarixlər). Yaş yoxlaması başlayandan sonra yaradılmış hesab üçün həmçinin doğum iliniz və onu bildirdiyiniz tarix.",
+            "Hesabla: adınız, e-poçt ünvanınız, istifadəçi adınız, əlavə etsəniz profil şəkliniz və həll etdiyiniz bütün testlərin tarixçəsi (suallar, cavablarınız, ballarınız və tarixlər). Doğum ilinizi bildirmisinizsə, həmçinin həmin il və onu bildirdiyiniz tarix.",
             "Google ilə daxil olursunuzsa, adınız, e-poçt ünvanınız və şəkliniz Google hesabınızdan götürülür.",
             "Bütün bunlar saytın işlədiyi verilənlər bazası xidməti olan Supabase-də saxlanılır."
           ]

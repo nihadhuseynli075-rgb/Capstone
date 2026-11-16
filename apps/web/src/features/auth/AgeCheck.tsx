@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { MIN_ACCOUNT_AGE, birthYearProblem, latestAccountBirthYear, parseBirthYear } from "@grade9/shared";
 import { navigate } from "../../app/router";
 import { fill, useLanguage } from "../../lib/i18n";
+import { ApiError } from "../../services/apiClient";
 import { useAuth } from "./AuthContext";
 import { AuthLayout, Field, focusFirstError } from "./AuthLayout";
 
@@ -31,6 +32,9 @@ export function AgeCheckPage({ onRefused }: { onRefused: () => void }) {
   const [saving, setSaving] = useState(false);
   // A year too late for an account, shown back before anything is deleted.
   const [tooYoung, setTooYoung] = useState<number | null>(null);
+  // Refused, but the account holds something, so the API kept it, locked, for
+  // a person to look at (see the year route in the API) rather than delete it.
+  const [onHold, setOnHold] = useState(false);
 
   const latestYear = latestAccountBirthYear();
   const fromSignUp = user?.signUpBirthYear ?? null;
@@ -52,7 +56,13 @@ export function AgeCheckPage({ onRefused }: { onRefused: () => void }) {
 
       if (answer.outcome === "account-deleted") onRefused();
       // Recorded: the refreshed session says so, and the app moves on by itself.
-    } catch {
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.code === "account-not-empty") {
+        setTooYoung(null);
+        setOnHold(true);
+        setSaving(false);
+        return;
+      }
       setFormError(t("age.errFailed"));
       setSaving(false);
     }
@@ -72,6 +82,14 @@ export function AgeCheckPage({ onRefused }: { onRefused: () => void }) {
       {t("nav.signOut")}
     </button>
   );
+
+  if (onHold) {
+    return (
+      <AuthLayout title={t("age.onHoldTitle")} subtitle={t("age.onHoldBody")} guestLink={false} footer={signOutButton}>
+        {null}
+      </AuthLayout>
+    );
+  }
 
   if (tooYoung !== null) {
     return (

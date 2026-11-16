@@ -79,13 +79,7 @@ export const env = {
    * set, because trusting a proxy that is not there lets anyone choose their
    * own address by sending X-Forwarded-For.
    */
-  trustProxyHops: Math.max(0, Math.trunc(Number(optional("TRUST_PROXY") ?? 0)) || 0),
-  /**
-   * How often to look again for migration 0019, while it has not been run,
-   * in milliseconds (see ageCheckSince). The smoke test sets 0, so that it
-   * can run the migration in the middle and see the check start at once.
-   */
-  ageCheckRecheckMs: Math.max(0, Number(optional("AGE_CHECK_RECHECK_MS") ?? 60_000) || 0)
+  trustProxyHops: Math.max(0, Math.trunc(Number(optional("TRUST_PROXY") ?? 0)) || 0)
 };
 
 export const writtenMarkingEnabled = Boolean(env.geminiApiKey);

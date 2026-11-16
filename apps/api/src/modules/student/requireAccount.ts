@@ -43,7 +43,16 @@ export function requireAccount(
         ([method, path]) => request.method === method && request.path === path
       );
 
-      if (!exempt && (await ageStatusOf(account)) === "pending") {
+      const status = await ageStatusOf(account);
+
+      // Deleted, while its token can still be valid: signed out, on every
+      // route, the year-of-birth ones included.
+      if (status === "missing") {
+        response.status(401).json(signInAgain);
+        return;
+      }
+
+      if (!exempt && status === "pending") {
         response.status(403).json(ageRequired);
         return;
       }

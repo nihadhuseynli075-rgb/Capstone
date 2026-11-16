@@ -29,6 +29,16 @@ export class ApiError extends Error {
  * off the response body and surfaced as-is rather than replaced with a generic
  * "something went wrong".
  */
+const ageRequiredListeners = new Set<() => void>();
+
+/** Calls `listener` whenever the API answers "age-required"; returns the unsubscribe. */
+export function onAgeRequired(listener: () => void): () => void {
+  ageRequiredListeners.add(listener);
+  return () => {
+    ageRequiredListeners.delete(listener);
+  };
+}
+
 export async function apiRequest<T>(
   path: string,
   options: { method?: string; body?: unknown; token?: string } = {}
@@ -77,6 +87,14 @@ export async function apiRequest<T>(
   }
 
   if (!response.ok) {
+    // Any request can be the one that finds a new account still has to give
+    // its year (the API's "age-required"), including after asking where it
+    // stands has failed for a while. The auth provider listens, and shows the
+    // year-of-birth step.
+    if (response.status === 403 && payload.code === "age-required") {
+      for (const listener of ageRequiredListeners) listener();
+    }
+
     throw new ApiError(
       typeof payload.message === "string" ? payload.message : `Request failed (${response.status}).`,
       response.status,

@@ -2,7 +2,14 @@ import { Router } from "express";
 import { z } from "zod";
 import { birthYearProblem, cleanName, isReadableName, normalizeUsername, profileLimits } from "@grade9/shared";
 import { PublicError } from "../lib/publicError";
-import { ageStatusOf, decideAge, forgetAccount, recordAge, signUpBirthYear } from "../modules/student/accountAge";
+import {
+  accountHoldsAnything,
+  ageStatusOf,
+  decideAge,
+  forgetAccount,
+  recordAge,
+  signUpBirthYear
+} from "../modules/student/accountAge";
 import { accountOf, requireAccount, signInAgain } from "../modules/student/requireAccount";
 import { liveAccount } from "../modules/student/studentAuth";
 import { deleteAttemptsFor } from "../repositories/attemptRepository";
@@ -78,7 +85,8 @@ async function eraseAccount(id: string): Promise<void> {
  * Where the signed-in account stands with the age check (see accountAge):
  * "exempt" (made before the check began), "confirmed", or "pending" (a new
  * account that has not given its year). The web app asks this at sign-in, to
- * know whether to show the year-of-birth step.
+ * know whether to show the year-of-birth step. A deleted account is turned
+ * away by requireAccount, as signed out.
  */
 profileRouter.get("/age", async (_request, response, next) => {
   try {
@@ -97,12 +105,21 @@ profileRouter.get("/age", async (_request, response, next) => {
  * which travels in the account's user metadata, so a student who has just
  * typed it is not asked again.
  *
- * Too young for an account, nothing happens at first: the answer is
- * "too-young", with the year, so the page can show it and let a slip be put
- * right. Only the same year sent again with `confirmTooYoung` refuses the
- * account, which then is deleted on the spot. It holds nothing to lose: a
- * pending account can do nothing else, and tests taken before signing in stay
- * under the browser's guest key.
+ * Too young for an account, nothing is recorded or deleted unless the request
+ * says the year is confirmed (`confirmTooYoung`); without it the answer is
+ * "too-young", with the year. Showing that year back so a slip can be put
+ * right is the page's part (AgeCheckPage): the API only insists on the
+ * explicit confirmation.
+ *
+ * A confirmed refusal deletes the new account, but only when it holds nothing
+ * (accountHoldsAnything): a pending account can do nothing through the API,
+ * and tests taken before signing in stay under the browser's guest key, so
+ * there should never be anything. Its own token can still read its own rows
+ * straight from Supabase (row level security lets every signed-in account read
+ * its own profile), which is only the profile its sign-up made. If it does hold
+ * something, from some path this step does not expect, it is left as it is,
+ * refused and locked, for a person to look at: deleting it could take a
+ * guest's history with it.
  *
  * The first answer is final (decideAge): two sent at once cannot both count,
  * so a request never deletes an account another has just kept, and a stolen
@@ -125,6 +142,7 @@ profileRouter.post("/age", async (request, response, next) => {
     if (!account) return response.status(401).json(signInAgain);
 
     const status = await ageStatusOf(account);
+    if (status === "missing") return response.status(401).json(signInAgain);
     if (status === "exempt") return response.json({ outcome: "exempt" });
     if (status === "confirmed") return response.json({ outcome: "confirmed", birthYear: account.age?.birthYear });
 
@@ -148,6 +166,19 @@ profileRouter.post("/age", async (request, response, next) => {
     const decision = await decideAge(account.id, birthYear, problem === "too-young" ? "refused" : "confirmed");
 
     if (decision.outcome === "refused") {
+      // The refusal is recorded first, which keeps the account pending, and so
+      // refused by every route, while it is checked: nothing can be added to it
+      // between the check and the delete.
+      if (await accountHoldsAnything(account.id)) {
+        console.warn(
+          `[api] Account ${account.id} was refused at the year-of-birth step but holds tests, friends or photos, so it was left as it is (refused and locked) for a person to look at.`
+        );
+        return response.status(409).json({
+          code: "account-not-empty",
+          message: "This account cannot be removed here. It stays locked until someone at Exampeak looks at it."
+        });
+      }
+
       await eraseAccount(account.id);
       return response.json({ outcome: "account-deleted" });
     }

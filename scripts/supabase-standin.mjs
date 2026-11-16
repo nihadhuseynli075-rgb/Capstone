@@ -319,10 +319,12 @@ const SCHEMA = {
     ],
     unique: [["friendships_user_id_friend_id_key", ["user_id", "friend_id"]]]
   },
-  // 0019. Empty until a test runs the migration (POST /__standin/rows/age_checks),
-  // which starts the age check, as running 0019 does. The real table has one
-  // boolean key; this one only needs the moment.
+  // 0019. Missing, as on the live database, until a test runs the migration
+  // (POST /__standin/migrations { name: "0019" }), which creates both tables and
+  // puts in the row that starts the age check, as running 0019 does. The real
+  // table has one boolean key; this one only needs the moment.
   age_checks: {
+    migration: "0019",
     columns: {
       id: column("uuid", { notNull: true, default: () => randomUUID() }),
       checks_from: column("timestamptz", { notNull: true, default: nowIso })
@@ -332,6 +334,7 @@ const SCHEMA = {
   // 0019. Keyed by the account in Postgres; here `id` is only a row id, and the
   // account's key is the unique constraint, which raises the same 23505.
   age_decisions: {
+    migration: "0019",
     columns: {
       id: column("uuid", { notNull: true, default: () => randomUUID() }),
       account_id: column("uuid", { notNull: true }),
@@ -668,11 +671,24 @@ function sortRows(rows, order) {
 function createDatabase() {
   const tables = Object.fromEntries(Object.keys(SCHEMA).map((name) => [name, []]));
 
+  // Migrations a test has run (POST /__standin/migrations). A table that a
+  // migration not yet run creates is missing, as on Supabase: PGRST205, not an
+  // empty table.
+  const appliedMigrations = new Set();
+
   function requireTable(name) {
-    if (!SCHEMA[name]) {
+    if (!SCHEMA[name] || (SCHEMA[name].migration && !appliedMigrations.has(SCHEMA[name].migration))) {
       throw new PgError(404, "PGRST205", `Could not find the table 'public.${name}' in the schema cache`);
     }
     return tables[name];
+  }
+
+  function hasTable(name) {
+    return Boolean(SCHEMA[name]) && (!SCHEMA[name].migration || appliedMigrations.has(SCHEMA[name].migration));
+  }
+
+  function applyMigration(name) {
+    appliedMigrations.add(name);
   }
 
   function validate(table, row) {
@@ -902,7 +918,7 @@ function createDatabase() {
     return copies;
   }
 
-  return { tables, select, insert, update, remove, project, requireTable };
+  return { tables, select, insert, update, remove, project, requireTable, hasTable, applyMigration };
 }
 
 // ---------------------------------------------------------------------------
@@ -1090,7 +1106,7 @@ function createAuth(db) {
     users.delete(userId);
     endSessions((entry) => entry.userId === userId);
     db.remove("profiles", new URLSearchParams({ id: `eq.${userId}` }));
-    db.remove("age_decisions", new URLSearchParams({ account_id: `eq.${userId}` }));
+    if (db.hasTable("age_decisions")) db.remove("age_decisions", new URLSearchParams({ account_id: `eq.${userId}` }));
   }
 
   function googleIdentityOwner(email) {
@@ -2134,6 +2150,17 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
     if (area === "users" && table && request.method === "GET") {
       const user = auth.users.get(table);
       return user ? send(response, 200, { user: auth.publicUser(user) }) : send(response, 404, { message: "no such user" });
+    }
+
+    // Running a migration from the SQL editor: { name }. Only 0019 is modelled:
+    // it creates age_checks and age_decisions, and its insert starts the age
+    // check at this moment. Running it again keeps the first moment.
+    if (area === "migrations" && request.method === "POST") {
+      if (body.name !== "0019") return send(response, 404, { message: `The stand-in does not model migration ${body.name}` });
+      const firstRun = !db.hasTable("age_checks");
+      db.applyMigration("0019");
+      if (firstRun) db.insert("age_checks", { checks_from: nowIso() }, new URLSearchParams());
+      return send(response, 200, { applied: "0019", firstRun });
     }
 
     // A bucket made private, as 0018 makes "avatars", or public again: { id, public }.

@@ -140,10 +140,7 @@ async function main() {
       API_PORT: String(apiPort),
       ADMIN_PASSWORD,
       GEMINI_API_KEY: "smoke-fake-key",
-      GEMINI_BASE_URL: marker.url,
-      // Look for migration 0019 on every request while it is not there, so
-      // the age-check section can run it and see the check start at once.
-      AGE_CHECK_RECHECK_MS: "0"
+      GEMINI_BASE_URL: marker.url
     },
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -1314,9 +1311,14 @@ async function main() {
     check("before 0019, an account with no year is not asked", (await ageOf(oliveToken)) === "exempt");
     check("and its profile works as it always did", (await call("/api/profile", { token: oliveToken })).status === 200);
 
-    // Running 0019 leaves the moment it ran in age_checks: the check begins.
+    // Until 0019 runs its tables are missing, as on the live database, and the
+    // API is asked on every request whether they have appeared yet.
+    const missingTable = await control("rows/age_checks");
+    check("before 0019, its tables are missing, not empty", missingTable.status !== 200, `got ${missingTable.status}`);
+
+    // Running 0019 creates them, and leaves the moment it ran: the check begins.
     await pause(5);
-    await control("rows/age_checks", { checks_from: new Date().toISOString() });
+    await control("migrations", { name: "0019" });
     await pause(5);
 
     check("after 0019, an account made before it is still not asked", (await ageOf(oliveToken)) === "exempt");
@@ -1335,7 +1337,10 @@ async function main() {
     // Until a new account has given its year, the API uses nothing of it.
     const una = await unaged("una@standin.test");
     const unaToken = una.session.access_token;
-    check("a new account with no year is pending", (await ageOf(unaToken)) === "pending");
+    check(
+      "a new account made the moment after 0019 ran is pending at once, with nothing kept from before",
+      (await ageOf(unaToken)) === "pending"
+    );
     const unaProfile = await call("/api/profile", { token: unaToken });
     check(
       "its profile is refused, with the code the app asks for the year on",
@@ -1485,6 +1490,100 @@ async function main() {
       "two different years at once: one is kept, and both answers say which",
       twinAnswers.every((answer) => answer.body.outcome === "confirmed" && answer.body.birthYear === twinKept),
       `${JSON.stringify(twinAnswers.map((answer) => answer.body))} kept ${twinKept}`
+    );
+
+    section("A refused new account is only ever deleted when it holds nothing");
+    // A pending account can do nothing through the API, so this only happens
+    // if something reached it some other way. Then it is left, refused and
+    // locked, for a person: deleting it could take a guest's history with it.
+    const holder = await unaged("holder@standin.test");
+    const holderToken = holder.session.access_token;
+    const holderFriend = (await control("users", { email: "holder.friend@standin.test", fullName: "Holder Friend" })).body;
+    await control("rows/friendships", {
+      user_id: holderFriend.user.id,
+      friend_id: holder.user.id,
+      status: "accepted",
+      responded_at: new Date().toISOString()
+    });
+    const holderAnswer = await giveYear(holderToken, { birthYear: childYear, confirmTooYoung: true });
+    check(
+      "a confirmed child's year for an account that holds something does not delete it",
+      holderAnswer.status === 409 && holderAnswer.body.code === "account-not-empty" && (await control(`users/${holder.user.id}`)).status === 200,
+      `${holderAnswer.status} ${JSON.stringify(holderAnswer.body)}`
+    );
+    check("what it holds is untouched", (await rows("friendships", `?friend_id=eq.${holder.user.id}`)).length === 1);
+    const holderDecision = await rows("age_decisions", `?account_id=eq.${holder.user.id}`);
+    check(
+      "and it is left refused and locked, for a person to look at",
+      holderDecision[0]?.outcome === "refused" && (await call("/api/profile", { token: holderToken })).status === 403,
+      JSON.stringify(holderDecision)
+    );
+
+    section("An account that is gone is signed out, never exempt");
+    // A token can outlive its account: with asymmetric signing keys it is
+    // checked by its signature alone, and stays valid for up to an hour. The
+    // auth server is what knows the account is gone, here answering 404 once
+    // while the token still checks out.
+    const ghost = await unaged("ghost@standin.test");
+    const ghostToken = ghost.session.access_token;
+    await control("faults", { method: "GET", table: "auth/admin", times: 1, status: 404 });
+    const ghostAge = await call("/api/profile/age", { token: ghostToken });
+    check("its standing is answered as signed out", ghostAge.status === 401, `${ghostAge.status} ${JSON.stringify(ghostAge.body)}`);
+    const ghostGuestKey = randomUUID();
+    const ghostGuestTest = await generate(ghostGuestKey);
+    await control("faults", { method: "GET", table: "auth/admin", times: 1, status: 404 });
+    const ghostClaim = await call("/api/tests/claim", {
+      method: "POST",
+      token: ghostToken,
+      body: { studentKey: ghost.user.id, guestKey: ghostGuestKey }
+    });
+    check(
+      "and a claim into it is refused, leaving the guest's tests where they were",
+      ghostGuestTest.status === 200 && ghostClaim.status === 401 && (await rows("test_attempts", `?student_key=eq.${ghostGuestKey}`)).length === 1,
+      `${ghostClaim.status} ${JSON.stringify(ghostClaim.body)}`
+    );
+    const gone = (await control("users", { email: "gone@standin.test", fullName: "Gone" })).body;
+    await call("/api/profile", { method: "DELETE", token: gone.session.access_token, body: { confirmEmail: "gone@standin.test" } });
+    const goneGuestKey = randomUUID();
+    await generate(goneGuestKey);
+    const goneClaim = await call("/api/tests/claim", {
+      method: "POST",
+      token: gone.session.access_token,
+      body: { studentKey: gone.user.id, guestKey: goneGuestKey }
+    });
+    check(
+      "as is a claim made with the token of an account deleted a moment ago",
+      goneClaim.status === 401 && (await rows("test_attempts", `?student_key=eq.${goneGuestKey}`)).length === 1,
+      `${goneClaim.status} ${JSON.stringify(goneClaim.body)}`
+    );
+
+    section("A paper sat as a guest, handed in after signing in");
+    // Until the account has passed the age check and taken the guest's tests
+    // over, the paper is still the guest key's. Handed in under the account it
+    // is refused with a code the browser recognises, and the browser then hands
+    // it in as the guest (submitTest in the web app), which the key allows
+    // whatever token is sent with it.
+    const midway = (await control("users", { email: "midway@standin.test", fullName: "Midway" })).body;
+    const midwayGuest = randomUUID();
+    const midwayTest = await generate(midwayGuest);
+    const asAccount = await submit(midwayTest.body.test, midway.user.id, rightAnswers(midwayTest.body.test), midway.session.access_token);
+    check(
+      "handed in under the account first, it is refused as not yet the account's",
+      asAccount.status === 403 && asAccount.body.code === "not-yours",
+      `${asAccount.status} ${JSON.stringify(asAccount.body)}`
+    );
+    const asGuest = await submit(midwayTest.body.test, midwayGuest, rightAnswers(midwayTest.body.test), midway.session.access_token);
+    check("and handed in as the guest it is taken", asGuest.status === 200, `${asGuest.status} ${JSON.stringify(asGuest.body)}`);
+    const midwayClaim = await call("/api/tests/claim", {
+      method: "POST",
+      token: midway.session.access_token,
+      body: { studentKey: midway.user.id, guestKey: midwayGuest }
+    });
+    const midwayHistory = await call(`/api/tests/history?studentKey=${midway.user.id}`, { token: midway.session.access_token });
+    check(
+      "and the account takes it over with the rest of the guest's tests",
+      midwayClaim.status === 200 && (midwayHistory.body.attempts ?? []).some((attempt) => attempt.attemptId === midwayTest.body.test.id || attempt.id === midwayTest.body.test.id),
+      `${midwayClaim.status} ${JSON.stringify(midwayHistory.body).slice(0, 200)}`
     );
 
     section("A new account still to give its year is kept out of friends");

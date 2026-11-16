@@ -17,16 +17,23 @@ import {
 import { useLanguage } from "../lib/i18n";
 import { difficultyLabel, formatCount, paperTitle, testErrorText, topicLabel } from "../lib/testText";
 import { ApiError } from "../services/apiClient";
-import { submitTest } from "../services/testsApi";
+import { isAccountNotReady, submitTest } from "../services/testsApi";
 
 /**
  * Refusals that no amount of resending changes: out of time, or a paper that
  * is not this student's (a 403) or no longer exists (a 404, as after an API
  * in memory mode restarts). Offering "try again" for these only strands the
  * student on a paper they cannot put down.
+ *
+ * Not a 403 that only says the account is not ready yet (isAccountNotReady):
+ * a new account still to give its year, or a paper sat as a guest that the
+ * account has not taken over yet. submitTest has already tried it as the
+ * guest; whatever is left is put right by finishing signing in, and the paper
+ * and the answers must still be there when it is.
  */
 function isFinalRefusal(cause: unknown): boolean {
   if (!(cause instanceof ApiError)) return false;
+  if (isAccountNotReady(cause)) return false;
   return cause.code === "time-expired" || cause.status === 403 || cause.status === 404;
 }
 

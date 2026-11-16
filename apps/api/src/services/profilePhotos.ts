@@ -194,6 +194,22 @@ export async function removePhotoAt(path: string): Promise<void> {
   if (error) throw storageError("delete your photo", error.message);
 }
 
+/**
+ * Whether an account has any photo stored in its folder. No bucket means no
+ * photo was ever stored there.
+ */
+export async function hasPhotos(accountId: string): Promise<boolean> {
+  const { data, error } = await bucket().list(accountId, { limit: 100 });
+
+  if (error) {
+    if (/bucket not found/i.test(error.message)) return false;
+    throw storageError("find your photos", error.message);
+  }
+
+  // Storage lists a folder inside the folder with no id; photos are files.
+  return (data ?? []).some((item) => item.id !== null);
+}
+
 const LIST_PAGE = 100;
 
 /** A bound on the loop below, far beyond what one account could upload, so it can never spin. */

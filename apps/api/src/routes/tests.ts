@@ -33,7 +33,8 @@ import { markWrittenAnswers } from "../services/writtenMarking";
 import {
   canClaimFrom,
   canUseStudentKey,
-  isAuthenticatedStudent
+  isAuthenticatedStudent,
+  isLiveStudent
 } from "../modules/student/studentAuth";
 
 export const testsRouter = Router();
@@ -445,8 +446,11 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
       return response.status(404).json({ message: "That test could not be found." });
     }
 
+    // The code lets the browser tell this apart from a refusal that is final:
+    // a paper sat as a guest stays the guest key's until the account takes it
+    // over, and the browser then hands it in as the guest (see submitTest).
     if (attempt.studentKey !== parsed.data.studentKey) {
-      return response.status(403).json({ message: "That test belongs to a different student." });
+      return response.status(403).json({ code: "not-yours", message: "That test belongs to a different student." });
     }
 
     // Asked before "already submitted?", because a hand-in in flight marks the
@@ -609,7 +613,14 @@ testsRouter.post("/claim", async (request, response, next) => {
   }
 
   try {
-    if (!(await isAuthenticatedStudent(request, parsed.data.studentKey))) {
+    // Moving history is a write onto the account, so the auth server is asked
+    // whether the account still exists, as for deleting one: a token can stay
+    // valid for up to an hour after its account is deleted, and a claim made
+    // with it would strand the guest's tests under an id nobody owns.
+    if (
+      !(await isLiveStudent(request, parsed.data.studentKey)) ||
+      !(await isAuthenticatedStudent(request, parsed.data.studentKey))
+    ) {
       return response.status(401).json({ message: "Sign in again to move guest history." });
     }
 
@@ -671,7 +682,7 @@ testsRouter.get("/attempts/:attemptId", async (request, response, next) => {
     }
 
     if (attempt.studentKey !== studentKey) {
-      return response.status(403).json({ message: "That test belongs to a different student." });
+      return response.status(403).json({ code: "not-yours", message: "That test belongs to a different student." });
     }
 
     // The hand-in marks the paper submitted, with its score, before it writes

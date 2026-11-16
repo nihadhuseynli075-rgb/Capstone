@@ -386,6 +386,9 @@ const en = {
   "age.change": "Change the year",
   "age.confirmTooYoung": "Yes, {year} is right",
   "age.deleting": "Deleting...",
+  "age.onHoldTitle": "This account is on hold",
+  "age.onHoldBody":
+    "This account already has tests, friends or a photo in it, so it can't be removed here. It stays locked until the people who run Exampeak look at it. Sign out to keep practising without an account.",
   "age.tooYoungTitle": "Practise without an account",
   "age.tooYoungBody":
     "Exampeak accounts are for students born in {year} or earlier, so we have not kept your details. You can still build a test, sit it and see every mistake without an account. Your results are kept on our server under a random code in this browser, not under your name.",
@@ -1020,6 +1023,9 @@ const ru: Dictionary = {
   "age.change": "Изменить год",
   "age.confirmTooYoung": "Да, {year} — верно",
   "age.deleting": "Удаляем...",
+  "age.onHoldTitle": "Этот аккаунт приостановлен",
+  "age.onHoldBody":
+    "В этом аккаунте уже есть тесты, друзья или фото, поэтому удалить его здесь нельзя. Он останется заблокированным, пока его не проверят люди, которые ведут Exampeak. Выйдите, чтобы и дальше заниматься без аккаунта.",
   "age.tooYoungTitle": "Занимайтесь без аккаунта",
   "age.tooYoungBody":
     "Аккаунты Exampeak — для учеников, родившихся в {year} году или раньше, поэтому мы не сохранили ваши данные. Без аккаунта вы всё равно можете составить тест, пройти его и увидеть все ошибки. Результаты хранятся на нашем сервере под случайным кодом из этого браузера, а не под вашим именем.",
@@ -1623,6 +1629,9 @@ const az: Dictionary = {
   "age.change": "İli dəyiş",
   "age.confirmTooYoung": "Bəli, {year} düzgündür",
   "age.deleting": "Silinir...",
+  "age.onHoldTitle": "Bu hesab dayandırılıb",
+  "age.onHoldBody":
+    "Bu hesabda artıq testlər, dostlar və ya şəkil var, ona görə də onu burada silmək olmaz. Exampeak-i idarə edən insanlar ona baxana qədər hesab bağlı qalır. Hesab olmadan məşq etməyə davam etmək üçün çıxış edin.",
   "age.tooYoungTitle": "Hesab olmadan məşq edin",
   "age.tooYoungBody":
     "Exampeak hesabları {year} ilində və ya daha əvvəl doğulmuş şagirdlər üçündür, ona görə də məlumatlarınızı saxlamadıq. Hesab olmadan da test qura, onu yaza və bütün səhvlərinizi görə bilərsiniz. Nəticələriniz adınızla deyil, bu brauzerdəki təsadüfi kodla serverimizdə saxlanılır.",

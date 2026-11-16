@@ -12,7 +12,7 @@ import type {
   TestSettings
 } from "@grade9/shared";
 import { ApiError, apiRequest } from "./apiClient";
-import { resolveStudentIdentity, type StudentIdentity } from "../lib/studentKey";
+import { peekIdentity, resolveStudentIdentity, type StudentIdentity } from "../lib/studentKey";
 
 export interface CatalogTopic {
   id: string;
@@ -164,19 +164,59 @@ export function generateMockTest(request: GenerateRequest): Promise<GenerateResp
   );
 }
 
-/** A paper started as a guest belongs to the account once the claim has moved it. */
-export function submitTest(
+/**
+ * A refusal that says the account is not ready to hand this paper in yet,
+ * rather than that it never can be. True for a new account still to give its
+ * year ("age-required"), and for a paper the account has not yet taken over
+ * from this browser's guest key ("not-yours" while signed in with an unclaimed
+ * guest key still here): the account takes the guest's tests over only once it
+ * has passed the age check (useHistoryClaim). Neither is a reason to put the
+ * paper down.
+ */
+export function isAccountNotReady(cause: unknown): boolean {
+  if (!(cause instanceof ApiError) || cause.status !== 403) return false;
+  if (cause.code === "age-required") return true;
+
+  const tab = peekIdentity();
+  return cause.code === "not-yours" && tab.userId !== null && tab.guestKey !== null;
+}
+
+/**
+ * Hands a paper in. A paper started as a guest belongs to the account once the
+ * claim has moved it; until then it is still the guest key's, which happens to
+ * a student who signs in in the middle of a test (or whose timer runs out) while
+ * the account is still being checked. Refused under the account for that reason
+ * (isAccountNotReady), it is handed in as the guest, which the guest key alone
+ * allows, and the account takes it over with the rest of the guest's tests. If
+ * the claim moved it in between, it goes once more as the account.
+ */
+export async function submitTest(
   attemptId: string,
   answers: SubmittedAnswer[],
   timeTakenSeconds: number
 ): Promise<TestResult> {
-  return asStudent(({ studentKey, token }) =>
+  const send = (studentKey: string, token?: string) =>
     apiRequest<TestResult>(`/api/tests/${attemptId}/submit`, {
       method: "POST",
       body: { studentKey, answers, timeTakenSeconds },
       token
-    })
-  );
+    });
+
+  try {
+    return await asStudent(({ studentKey, token }) => send(studentKey, token));
+  } catch (cause) {
+    const guestKey = peekIdentity().guestKey;
+    if (!isAccountNotReady(cause) || guestKey === null) throw cause;
+
+    try {
+      return await send(guestKey);
+    } catch (asGuest) {
+      if (asGuest instanceof ApiError && asGuest.code === "not-yours") {
+        return asStudent(({ studentKey, token }) => send(studentKey, token));
+      }
+      throw asGuest;
+    }
+  }
 }
 
 /**

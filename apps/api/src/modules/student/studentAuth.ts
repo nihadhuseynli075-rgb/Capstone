@@ -262,8 +262,22 @@ export async function isAuthenticatedStudent(request: Request, studentKey: strin
   const account = await signedInAccount(request);
   if (account?.id !== studentKey) return false;
 
-  if ((await ageStatusOf(account)) === "pending") throw new AgeRequiredError();
+  const status = await ageStatusOf(account);
+  // Deleted, while its token can still be valid: not a signed-in student.
+  if (status === "missing") return false;
+  if (status === "pending") throw new AgeRequiredError();
   return true;
+}
+
+/**
+ * Whether the request comes from the account `studentKey` names as the auth
+ * server sees it right now (see liveAccount): signed in, and still there.
+ * For writes onto an account that a token which has outlived its account must
+ * not make. Without Supabase there are no accounts, and so nothing to check.
+ */
+export async function isLiveStudent(request: Request, studentKey: string): Promise<boolean> {
+  if (!supabaseAdmin) return true;
+  return (await liveAccount(request))?.id === studentKey;
 }
 
 /**
