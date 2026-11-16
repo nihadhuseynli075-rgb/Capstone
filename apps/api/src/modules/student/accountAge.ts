@@ -35,8 +35,16 @@ export interface RecordedAge {
  * - exempt: made before the check began, or the check is not on yet. Left as it is.
  * - confirmed: a new account that has given a year old enough for an account.
  * - pending: a new account that has not answered yet. The API uses nothing of it.
- * - missing: there is no such account any more (deleted, while a token for it
- *   is still valid). Answered as signed out, never as exempt.
+ * - missing: the auth server says there is no such account: it was deleted,
+ *   while a token for it can still be valid for up to an hour. Answered as
+ *   signed out. Only known when the auth server is asked, which is once the
+ *   check is on, for an account whose token carries no recorded year and whose
+ *   standing this process has not settled yet. While the check is not on, and
+ *   for an account already known to be exempt or confirmed (remembered here,
+ *   or in its token's copy), a deleted account's token still reads as exempt
+ *   or confirmed until it expires. What cannot be undone asks the auth server
+ *   itself (liveAccount in studentAuth): giving the year, deleting an account,
+ *   moving a guest's tests onto one.
  */
 export type AgeStatus = "exempt" | "confirmed" | "pending" | "missing";
 
@@ -155,8 +163,7 @@ export async function ageStatusById(id: string): Promise<AgeStatus> {
 
   if (error) {
     // Deleted, while a token for it can still be valid for up to an hour: it
-    // is signed out, and is never exempt (which would let it claim a guest's
-    // history into an id nobody owns).
+    // is signed out (see "missing" in AgeStatus for when this is seen).
     if (error.status === 404) return "missing";
     throw new Error(`Failed to check the account's year of birth: ${error.message}`);
   }

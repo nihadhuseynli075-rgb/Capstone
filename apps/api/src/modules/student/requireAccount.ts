@@ -45,8 +45,10 @@ export function requireAccount(
 
       const status = await ageStatusOf(account);
 
-      // Deleted, while its token can still be valid: signed out, on every
-      // route, the year-of-birth ones included.
+      // Deleted, while its token can still be valid, as far as the status
+      // knows (see "missing" in AgeStatus): signed out, on every route behind
+      // this middleware, the year-of-birth ones included. The tests routes,
+      // which take a student key instead, check the same in canUseStudentKey.
       if (status === "missing") {
         response.status(401).json(signInAgain);
         return;

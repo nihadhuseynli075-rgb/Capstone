@@ -312,8 +312,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Whatever request finds the account still has to give its year says so
   // here too (see apiClient), so the step shows even after asking where the
-  // account stands has failed for a while.
-  useEffect(() => onAgeRequired(markAgeRequired), [markAgeRequired]);
+  // account stands has failed for a while. Only a refusal of the signed-in
+  // account's own request counts: one sent for an account since signed out
+  // can be answered after another has signed in, and sent that one, which may
+  // have nothing to answer, to the step.
+  const userIdRef = useRef<string | null>(null);
+  userIdRef.current = userId;
+
+  useEffect(
+    () =>
+      onAgeRequired((refusedFor) => {
+        if (refusedFor !== null && refusedFor === userIdRef.current) markAgeRequired();
+      }),
+    [markAgeRequired]
+  );
 
   // For callbacks that must not be remade on every change of it (signOut).
   const ageStatusRef = useRef<AgeStatus | null>(null);

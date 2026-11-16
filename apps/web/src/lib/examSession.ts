@@ -238,14 +238,40 @@ export interface StoredResult extends Omit<TestResult, "comparison"> {
  * would not take it (full, or blocked): a copy held only in memory is gone on
  * a reload, and the exam page then sends the student to the saved copy on the
  * server instead, which survives one.
+ *
+ * `handedInAs` is the key the paper went in under (see submitTest).
  */
-export function saveLastResult(result: StoredResult): void {
+export function saveLastResult(result: StoredResult, handedInAs?: string): void {
   const kept = safeSessionStorage.setItem(
     LAST_RESULT_KEY,
-    JSON.stringify({ ...result, owner: recordOwner(peekIdentity()) })
+    JSON.stringify({ ...result, owner: resultOwner(handedInAs) })
   );
 
   if (!kept) throw new Error("The result could not be kept in this tab's storage.");
+}
+
+/**
+ * Whose a fresh result is: the key its paper was handed in under, while that
+ * is still the tab's own, and otherwise whoever the tab is now.
+ *
+ * A paper sat as a guest is handed in as the guest when the account signed in
+ * meanwhile is not ready to take it (see submitTest): a new account still to
+ * give its year. Stamped as the account's, the result was dropped from the tab
+ * when the account was then refused, although the test stays the guest's. As
+ * the guest's, it is handed over to the account with the paper and the rest of
+ * the guest's tests once the account has passed (settleSessionRecords), and
+ * stays the guest's if it does not. A guest key claimed in the meantime owns
+ * nothing any more, so its result is the account's already.
+ */
+function resultOwner(handedInAs: string | undefined): string | null {
+  const who = peekIdentity();
+  if (handedInAs !== undefined && (handedInAs === who.userId || handedInAs === who.guestKey)) return handedInAs;
+  return recordOwner(who);
+}
+
+/** Whether the tab holds a paper in progress, whoever's it is. */
+export function hasActiveTest(): boolean {
+  return safeSessionStorage.getItem(ACTIVE_TEST_KEY) !== null;
 }
 
 function isOptionalNumber(value: unknown): boolean {

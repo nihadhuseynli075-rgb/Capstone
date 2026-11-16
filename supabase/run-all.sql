@@ -2247,10 +2247,12 @@ set public = excluded.public,
 
 -- Exampeak: the age check for new accounts.
 --
--- Run this in the Supabase SQL editor after the API with the age check is
--- deployed (after 0018_private_avatars.sql). Running it is what switches the
--- check on: accounts made from that moment are asked their year of birth;
--- every account made before it is left exactly as it is.
+-- Run this in the Supabase SQL editor only once the API and the web app from
+-- the same commit as this file are both deployed, and never while an older
+-- API may still be serving. It does not need 0018_private_avatars.sql first.
+-- Running it is what switches the check on: accounts made from that moment
+-- are asked their year of birth; every account made before it is left
+-- exactly as it is.
 --
 -- From the bug hunt of 16 November 2026 (V4-01, round 2).
 --
@@ -2276,7 +2278,10 @@ set public = excluded.public,
 -- can never be both kept and deleted. The year is also copied into the
 -- account's app_metadata, which every access token carries. A refused
 -- account is deleted, and its row goes with it (on delete cascade), so
--- nothing is kept about a student too young to have an account.
+-- nothing is kept about a student too young to have an account. One that
+-- already holds tests, friends or a photo is not deleted but locked, and
+-- keeps its 'refused' row until someone has looked at it: any 'refused'
+-- row left in this table is such an account.
 --
 -- Neither table has a policy: only the API reads and writes them, with the
 -- secret key. The public key, and a signed-in student's own token, can do

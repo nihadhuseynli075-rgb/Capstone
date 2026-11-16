@@ -85,8 +85,9 @@ async function eraseAccount(id: string): Promise<void> {
  * Where the signed-in account stands with the age check (see accountAge):
  * "exempt" (made before the check began), "confirmed", or "pending" (a new
  * account that has not given its year). The web app asks this at sign-in, to
- * know whether to show the year-of-birth step. A deleted account is turned
- * away by requireAccount, as signed out.
+ * know whether to show the year-of-birth step. A deleted account whose token
+ * is still valid is turned away by requireAccount, as signed out, when its
+ * status shows it (see "missing" in AgeStatus).
  */
 profileRouter.get("/age", async (_request, response, next) => {
   try {

@@ -62,6 +62,21 @@ export function isReadableToken(token: string): boolean {
   }
 }
 
+/**
+ * The account a token says it was issued to (its `sub`), unchecked, or null
+ * when it cannot be read. Only for refusing: it says nothing about whether
+ * the token is genuine.
+ */
+function tokenSubject(token: string): string | null {
+  try {
+    const claims: unknown = JSON.parse(utf8.decode(Buffer.from(token.split(".")[1] ?? "", "base64url")));
+    const subject = typeof claims === "object" && claims !== null ? (claims as Record<string, unknown>).sub : null;
+    return typeof subject === "string" && subject.length > 0 ? subject : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The algorithm a token's header names, for the log: the sender wrote it, so it is quoted and kept short. */
 function headerAlgorithm(token: string): string {
   try {
@@ -242,9 +257,18 @@ async function isGuestKey(studentKey: string): Promise<boolean> {
  * Guests use their random browser key as a credential. Account ids are not
  * credentials, so once a key belongs to a profile it must be backed by that
  * account's Supabase access token.
+ *
+ * A key sent with its own account's sign-in, when that sign-in is no longer
+ * good, is refused as well (see signedInAs). After an account is deleted, its
+ * own id has no profile and the auth server no longer knows it, so the tab
+ * still open on it passed that id as a guest key below, and tests generated or
+ * handed in with it were kept under an id nobody owns. Any other key sent with
+ * a token that is no sign-in is still taken for a guest's, as before.
  */
 export async function canUseStudentKey(request: Request, studentKey: string): Promise<boolean> {
-  return (await isAuthenticatedStudent(request, studentKey)) || isGuestKey(studentKey);
+  const standing = await signedInAs(request, studentKey);
+  if (standing === "stale") return false;
+  return standing === "yes" || isGuestKey(studentKey);
 }
 
 /**
@@ -257,16 +281,40 @@ export async function canUseStudentKey(request: Request, studentKey: string): Pr
  * Accounts made before the check began are not affected.
  */
 export async function isAuthenticatedStudent(request: Request, studentKey: string): Promise<boolean> {
-  if (!supabaseAdmin) return true;
+  return (await signedInAs(request, studentKey)) === "yes";
+}
+
+/**
+ * Whether the request is signed in as the account `studentKey` names:
+ *
+ * - "yes": it is, and the account may be used. Always, without Supabase.
+ * - "stale": it came with that account's own sign-in, which is no longer
+ *   good. Either the token is refused while it names that account (expired,
+ *   signed out, or for an account deleted since, where tokens are checked
+ *   through the auth server), or it still checks out but the auth server
+ *   says the account no longer exists (where tokens are checked against
+ *   published keys; see "missing" in accountAge for when that is known).
+ * - "no": it is not signed in as that account: no token, another account's,
+ *   or one that names nobody.
+ *
+ * Throws AgeRequiredError for a new account still to give its year.
+ */
+async function signedInAs(request: Request, studentKey: string): Promise<"yes" | "stale" | "no"> {
+  if (!supabaseAdmin) return "yes";
 
   const account = await signedInAccount(request);
-  if (account?.id !== studentKey) return false;
+  if (!account) {
+    // Whom a refused token names is read without trusting it: it can only
+    // ever refuse the key, never let anyone use one.
+    const token = bearerToken(request);
+    return token && tokenSubject(token) === studentKey ? "stale" : "no";
+  }
+  if (account.id !== studentKey) return "no";
 
   const status = await ageStatusOf(account);
-  // Deleted, while its token can still be valid: not a signed-in student.
-  if (status === "missing") return false;
+  if (status === "missing") return "stale";
   if (status === "pending") throw new AgeRequiredError();
-  return true;
+  return "yes";
 }
 
 /**

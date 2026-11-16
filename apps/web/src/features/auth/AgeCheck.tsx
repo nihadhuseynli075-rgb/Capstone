@@ -18,9 +18,11 @@ import { AuthLayout, Field, focusFirstError } from "./AuthLayout";
  *
  * A year too late for an account is shown back first, so a slip can be put
  * right ("Change the year"). Only "Yes, it is right" has the API delete the
- * new account, which holds nothing yet; this browser is signed out of it, and
- * `onRefused` then shows TooYoungNotice. Anything done as a guest before
- * signing in stays as it was.
+ * new account, and only when it holds nothing, as a new account should; this
+ * browser is signed out of it, and `onRefused` then shows TooYoungNotice. One
+ * that already holds tests, friends or a photo is not deleted but locked, for
+ * a person to look at ("account-not-empty"), and the step says it is on hold.
+ * Anything done as a guest before signing in stays as it was.
  */
 export function AgeCheckPage({ onRefused }: { onRefused: () => void }) {
   const { t } = useLanguage();

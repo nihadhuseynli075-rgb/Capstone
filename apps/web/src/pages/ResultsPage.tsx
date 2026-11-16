@@ -10,7 +10,13 @@ import { loadLastResult } from "../lib/examSession";
 import { formatPercent, useLanguage, type TranslationKey } from "../lib/i18n";
 import { difficultyLabel, subjectLabel, testErrorText, topicLabel } from "../lib/testText";
 import { ApiError } from "../services/apiClient";
-import { fetchAttempt, isScored } from "../services/testsApi";
+import {
+  claimedHistoryVersion,
+  fetchAttempt,
+  isNotYours,
+  isScored,
+  subscribeToClaimedHistory
+} from "../services/testsApi";
 import { PromptText } from "../components/PromptText";
 
 /**
@@ -143,8 +149,16 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
     if (attemptId) {
       setView(null);
       let retry: number | undefined;
+      // Refused as a different student's while signed in, which a test sat as
+      // a guest is until the claim moves it onto the account (useHistoryClaim,
+      // only once the account has passed the age check). The page was left on
+      // that error for good; it now asks again when a claim lands.
+      let waitingForClaim = false;
 
       const load = () => {
+        const claimsBefore = claimedHistoryVersion();
+        waitingForClaim = false;
+
         fetchAttempt(attemptId)
           .then((attempt) => {
             if (!active) return;
@@ -171,6 +185,14 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
               retry = window.setTimeout(load, STILL_SAVING_RETRY_MS);
               return;
             }
+            if (isNotYours(cause)) {
+              // A claim that landed while this was on its way may have moved it.
+              if (claimedHistoryVersion() !== claimsBefore) {
+                load();
+                return;
+              }
+              waitingForClaim = true;
+            }
             setStillSaving(false);
             setError(cause);
           });
@@ -178,9 +200,16 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
 
       load();
 
+      const stopWaiting = subscribeToClaimedHistory(() => {
+        if (!active || !waitingForClaim) return;
+        setError(null);
+        load();
+      });
+
       return () => {
         active = false;
         window.clearTimeout(retry);
+        stopWaiting();
       };
     }
 

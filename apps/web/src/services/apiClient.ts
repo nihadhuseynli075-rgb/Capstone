@@ -23,22 +23,47 @@ export class ApiError extends Error {
 }
 
 /**
- * Single place the browser talks to the API.
- *
- * Server error messages are written to be shown to a person, so they are read
- * off the response body and surfaced as-is rather than replaced with a generic
- * "something went wrong".
+ * Who is told when the API answers "age-required": the auth provider, which
+ * shows the year-of-birth step. Each is given the id of the account whose
+ * request was refused (tokenSubject), or null when that cannot be read.
  */
-const ageRequiredListeners = new Set<() => void>();
+const ageRequiredListeners = new Set<(userId: string | null) => void>();
 
 /** Calls `listener` whenever the API answers "age-required"; returns the unsubscribe. */
-export function onAgeRequired(listener: () => void): () => void {
+export function onAgeRequired(listener: (userId: string | null) => void): () => void {
   ageRequiredListeners.add(listener);
   return () => {
     ageRequiredListeners.delete(listener);
   };
 }
 
+/**
+ * The account an access token was issued to (its `sub`), or null when it is
+ * not a token that can be read. Only used to say whose request was refused:
+ * the API checks every token itself. Only `sub`, a uuid, is read, so decoding
+ * the payload as plain bytes is enough.
+ */
+function tokenSubject(token: string | undefined): string | null {
+  const payload = token?.split(".")[1];
+  if (!payload) return null;
+
+  try {
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const claims: unknown = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")));
+    const subject = typeof claims === "object" && claims !== null ? (claims as { sub?: unknown }).sub : null;
+    return typeof subject === "string" ? subject : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Single place the browser talks to the API.
+ *
+ * Server error messages are written to be shown to a person, so they are read
+ * off the response body and surfaced as-is rather than replaced with a generic
+ * "something went wrong".
+ */
 export async function apiRequest<T>(
   path: string,
   options: { method?: string; body?: unknown; token?: string } = {}
@@ -90,9 +115,10 @@ export async function apiRequest<T>(
     // Any request can be the one that finds a new account still has to give
     // its year (the API's "age-required"), including after asking where it
     // stands has failed for a while. The auth provider listens, and shows the
-    // year-of-birth step.
+    // year-of-birth step to that account.
     if (response.status === 403 && payload.code === "age-required") {
-      for (const listener of ageRequiredListeners) listener();
+      const refusedFor = tokenSubject(options.token);
+      for (const listener of ageRequiredListeners) listener(refusedFor);
     }
 
     throw new ApiError(

@@ -1556,6 +1556,27 @@ async function main() {
       goneClaim.status === 401 && (await rows("test_attempts", `?student_key=eq.${goneGuestKey}`)).length === 1,
       `${goneClaim.status} ${JSON.stringify(goneClaim.body)}`
     );
+    // Its own id, sent with its own token by the tab still open. Once deleted,
+    // the id has no profile and the auth server no longer knows it, so it
+    // passed as a guest key, and tests were kept under an id nobody owns.
+    const goneOwnTest = await generate(gone.user.id, gone.session.access_token);
+    const goneOwnHistory = await call(`/api/tests/history?studentKey=${gone.user.id}`, { token: gone.session.access_token });
+    check(
+      "the deleted account's own id, sent with its token, is not taken for a guest key",
+      goneOwnTest.status === 401 && goneOwnHistory.status === 401 && (await rows("test_attempts", `?student_key=eq.${gone.user.id}`)).length === 0,
+      `${goneOwnTest.status} ${goneOwnHistory.status}`
+    );
+    // The same where the token still checks out by its signature and only the
+    // auth server knows the account is gone: its profile went with it.
+    const phantom = await unaged("phantom@standin.test");
+    await request(standin.url, `/__standin/rows/profiles/${phantom.user.id}`, { method: "DELETE" });
+    await control("faults", { method: "GET", table: "auth/admin", times: 1, status: 404 });
+    const phantomTest = await generate(phantom.user.id, phantom.session.access_token);
+    check(
+      "or while its token still checks out and only the auth server knows it is gone",
+      phantomTest.status === 401 && (await rows("test_attempts", `?student_key=eq.${phantom.user.id}`)).length === 0,
+      `${phantomTest.status} ${JSON.stringify(phantomTest.body)}`
+    );
 
     section("A paper sat as a guest, handed in after signing in");
     // Until the account has passed the age check and taken the guest's tests

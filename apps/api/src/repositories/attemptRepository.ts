@@ -535,11 +535,14 @@ export async function claimAttempts(guestKey: string, studentKey: string): Promi
   const accountId = await findAccountId(studentKey);
 
   // Never onto an account that is gone: the tests would be stranded under an
-  // id nobody owns. An account with no profile row (one made before the
-  // profile trigger) is asked about directly. One that has a profile is kept
-  // honest by the link set below: student_id refers to the profile, so if the
-  // account is deleted while this runs, the database refuses the move and the
-  // tests stay the guest's.
+  // id nobody owns. The route has already asked the auth server that the
+  // signed-in account exists (isLiveStudent). An account with no profile row
+  // (one made before the profile trigger) is asked about again here. For one
+  // that has a profile, the link set below refers to the profile: if the
+  // account is deleted before this update, the database refuses the move and
+  // the tests stay the guest's. Deleted just after it, the tests are the
+  // account's by then, and are deleted with it like the rest of its tests
+  // (the link cascades).
   if (accountId === null) {
     const { error: lookupError } = await supabaseAdmin.auth.admin.getUserById(studentKey);
     if (lookupError) throw new Error(`Failed to move history across: no account ${studentKey} (${lookupError.message})`);

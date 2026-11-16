@@ -164,6 +164,11 @@ export function generateMockTest(request: GenerateRequest): Promise<GenerateResp
   );
 }
 
+/** The API's refusal of a test that belongs to a different student. */
+export function isNotYours(cause: unknown): boolean {
+  return cause instanceof ApiError && cause.status === 403 && cause.code === "not-yours";
+}
+
 /**
  * A refusal that says the account is not ready to hand this paper in yet,
  * rather than that it never can be. True for a new account still to give its
@@ -178,7 +183,18 @@ export function isAccountNotReady(cause: unknown): boolean {
   if (cause.code === "age-required") return true;
 
   const tab = peekIdentity();
-  return cause.code === "not-yours" && tab.userId !== null && tab.guestKey !== null;
+  return isNotYours(cause) && tab.userId !== null && tab.guestKey !== null;
+}
+
+/** A paper handed in: its result, and the key it went in under. */
+export interface HandedIn {
+  result: TestResult;
+  /**
+   * The account's id, or this browser's guest key when the account was not
+   * ready to take the paper (see submitTest). The result is kept in the tab
+   * under the same one (saveLastResult).
+   */
+  studentKey: string;
 }
 
 /**
@@ -189,31 +205,40 @@ export function isAccountNotReady(cause: unknown): boolean {
  * (isAccountNotReady), it is handed in as the guest, which the guest key alone
  * allows, and the account takes it over with the rest of the guest's tests. If
  * the claim moved it in between, it goes once more as the account.
+ *
+ * The claim can also land between the API reading the paper and this tab
+ * reading the refusal. It marks the guest key claimed as it lands, so the tab
+ * then has no guest key left to try, and the refusal looked final although the
+ * paper was the account's by then: it was thrown away. A "not-yours" with no
+ * guest key left is therefore tried once more as the account, which settles it
+ * either way.
  */
 export async function submitTest(
   attemptId: string,
   answers: SubmittedAnswer[],
   timeTakenSeconds: number
-): Promise<TestResult> {
-  const send = (studentKey: string, token?: string) =>
-    apiRequest<TestResult>(`/api/tests/${attemptId}/submit`, {
+): Promise<HandedIn> {
+  const send = async (studentKey: string, token?: string): Promise<HandedIn> => ({
+    result: await apiRequest<TestResult>(`/api/tests/${attemptId}/submit`, {
       method: "POST",
       body: { studentKey, answers, timeTakenSeconds },
       token
-    });
+    }),
+    studentKey
+  });
+  const asAccount = () => asStudent(({ studentKey, token }) => send(studentKey, token));
 
   try {
-    return await asStudent(({ studentKey, token }) => send(studentKey, token));
+    return await asAccount();
   } catch (cause) {
-    const guestKey = peekIdentity().guestKey;
-    if (!isAccountNotReady(cause) || guestKey === null) throw cause;
+    const tab = peekIdentity();
+    if (isNotYours(cause) && tab.userId !== null && tab.guestKey === null) return asAccount();
+    if (!isAccountNotReady(cause) || tab.guestKey === null) throw cause;
 
     try {
-      return await send(guestKey);
+      return await send(tab.guestKey);
     } catch (asGuest) {
-      if (asGuest instanceof ApiError && asGuest.code === "not-yours") {
-        return asStudent(({ studentKey, token }) => send(studentKey, token));
-      }
+      if (isNotYours(asGuest)) return asAccount();
       throw asGuest;
     }
   }

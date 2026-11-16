@@ -70,7 +70,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           paragraphs: [
             "New accounts are for students aged {age} and over. We ask only for the year you were born, never the date, so a new account is open to anyone born in {year} or earlier. Accounts made before this check began are not asked.",
             "If you are younger, you can still use everything on the site without an account. Your tests, answers and scores are then stored on our server under a random code kept in your browser, not under your name. Clearing your browser's data for this site removes that code, so you can no longer reach those results, but it does not delete them from our server.",
-            "Signing in with Google for the first time makes an account before we can ask. If the year given then is too late, we show it again so a mistake can be put right. Once it is confirmed, that new account is deleted. Tests taken before signing in are not lost: they stay under the browser's code."
+            "Signing in with Google for the first time makes an account before we can ask. If the year given then is too late, we show it again so a mistake can be put right. Once it is confirmed, that new account is deleted. If it already holds tests, friends or a photo, it is not deleted but locked until we have looked at it. Tests taken before signing in are not lost: they stay under the browser's code."
           ]
         },
         {
@@ -173,7 +173,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           paragraphs: [
             "Новые аккаунты — для учеников от {age} лет. Мы спрашиваем только год рождения, а не дату, поэтому новый аккаунт может завести любой, кто родился в {year} году или раньше. Аккаунты, созданные до начала этой проверки, мы не спрашиваем.",
             "Если вы младше, всем на сайте можно пользоваться и без аккаунта. Тогда ваши тесты, ответы и баллы хранятся на нашем сервере под случайным кодом из вашего браузера, а не под вашим именем. Если очистить данные этого сайта в браузере, код удалится и к этим результатам больше нельзя будет вернуться, но с нашего сервера они не удалятся.",
-            "При первом входе через Google аккаунт создаётся раньше, чем мы успеваем спросить. Если указанный год слишком поздний, мы покажем его ещё раз, чтобы можно было исправить ошибку. После подтверждения этот новый аккаунт удаляется. Тесты, пройденные до входа, не пропадают: они остаются под кодом браузера."
+            "При первом входе через Google аккаунт создаётся раньше, чем мы успеваем спросить. Если указанный год слишком поздний, мы покажем его ещё раз, чтобы можно было исправить ошибку. После подтверждения этот новый аккаунт удаляется. Если в нём уже есть тесты, друзья или фото, он не удаляется, а блокируется, пока мы его не проверим. Тесты, пройденные до входа, не пропадают: они остаются под кодом браузера."
           ]
         },
         {
@@ -276,7 +276,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           paragraphs: [
             "Yeni hesablar {age} yaş və yuxarı şagirdlər üçündür. Biz tarixi deyil, yalnız doğum ilinizi soruşuruq, ona görə də {year} ilində və ya daha əvvəl doğulmuş hər kəs yeni hesab yarada bilər. Bu yoxlama başlamazdan əvvəl yaradılmış hesablardan soruşmuruq.",
             "Daha kiçiksinizsə, saytdakı hər şeydən hesab olmadan da istifadə edə bilərsiniz. Bu halda testləriniz, cavablarınız və ballarınız adınızla deyil, brauzerinizdəki təsadüfi kodla serverimizdə saxlanılır. Brauzerdə bu saytın məlumatlarını təmizləsəniz, kod silinəcək və həmin nəticələrə artıq çata bilməyəcəksiniz, lakin onlar serverimizdən silinmir.",
-            "Google ilə ilk dəfə daxil olduqda hesab biz soruşmazdan əvvəl yaradılır. Bildirilən il çox gecdirsə, səhvi düzəltmək üçün onu yenidən göstəririk. Təsdiqləndikdən sonra bu yeni hesab silinir. Daxil olmazdan əvvəl həll edilmiş testlər itmir: onlar brauzerin kodu ilə qalır."
+            "Google ilə ilk dəfə daxil olduqda hesab biz soruşmazdan əvvəl yaradılır. Bildirilən il çox gecdirsə, səhvi düzəltmək üçün onu yenidən göstəririk. Təsdiqləndikdən sonra bu yeni hesab silinir. Hesabda artıq testlər, dostlar və ya şəkil varsa, o silinmir: biz ona baxana qədər bağlı qalır. Daxil olmazdan əvvəl həll edilmiş testlər itmir: onlar brauzerin kodu ilə qalır."
           ]
         },
         {

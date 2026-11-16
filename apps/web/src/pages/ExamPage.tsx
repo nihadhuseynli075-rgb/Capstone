@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { SubmittedAnswer, TestResult } from "@grade9/shared";
+import type { SubmittedAnswer } from "@grade9/shared";
 import { decodeAnswerSet, encodeAnswerSet, writtenAnswerMaxLength } from "@grade9/shared";
 import { PassageText, PromptText } from "../components/PromptText";
-import { navigate, replaceRoute, setLeaveGuard } from "../app/router";
+import { currentPath, navigate, replaceRoute, setLeaveGuard } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
 import { SignInToFinishButton } from "../features/auth/SignInToFinishButton";
 import { fill } from "../features/friends/fill";
 import {
   clearActiveTest,
+  hasActiveTest,
   loadActiveTest,
   markHandedIn,
   saveLastResult,
@@ -17,7 +18,7 @@ import {
 import { useLanguage } from "../lib/i18n";
 import { difficultyLabel, formatCount, paperTitle, testErrorText, topicLabel } from "../lib/testText";
 import { ApiError } from "../services/apiClient";
-import { isAccountNotReady, submitTest } from "../services/testsApi";
+import { isAccountNotReady, submitTest, type HandedIn } from "../services/testsApi";
 
 /**
  * Refusals that no amount of resending changes: out of time, or a paper that
@@ -29,7 +30,9 @@ import { isAccountNotReady, submitTest } from "../services/testsApi";
  * a new account still to give its year, or a paper sat as a guest that the
  * account has not taken over yet. submitTest has already tried it as the
  * guest; whatever is left is put right by finishing signing in, and the paper
- * and the answers must still be there when it is.
+ * and the answers must still be there when it is. A "not-yours" that comes
+ * back with no guest key left has already been tried once more as the
+ * account, in case the claim moved the paper meanwhile, so it is final.
  */
 function isFinalRefusal(cause: unknown): boolean {
   if (!(cause instanceof ApiError)) return false;
@@ -44,6 +47,22 @@ function isFinalRefusal(cause: unknown): boolean {
  */
 function isStillMarking(cause: unknown): boolean {
   return cause instanceof ApiError && cause.code === "submission-in-progress";
+}
+
+/**
+ * Whether a student whose paper has just been marked, with its page gone, is
+ * still at that paper.
+ *
+ * The year-of-birth step takes the place of every page while a new account
+ * still has to give its year, and the refusal that says so can come from the
+ * hand-in itself (see submitTest). The exam page is then gone although the
+ * student never left it: the address still says /exam, and no other paper has
+ * been started (called once this one is cleared). They used to be sent on to
+ * the builder after the step, with the result unseen; they go to the result
+ * instead. A student who has left, or started another paper, stays put.
+ */
+function stillAtThisPaper(): boolean {
+  return currentPath() === "/exam" && !hasActiveTest();
 }
 
 /**
@@ -232,7 +251,7 @@ export function ExamPage() {
       // Sends the paper, and sends it again while another hand-in of it is
       // still being marked. Only a result, or an answer that settles it one
       // way or the other, comes out of here.
-      const send = async (): Promise<TestResult> => {
+      const send = async (): Promise<HandedIn> => {
         for (;;) {
           try {
             return await submitTest(active.test.id, payload, timeTakenSeconds);
@@ -246,15 +265,16 @@ export function ExamPage() {
       };
 
       try {
-        const result = await send();
+        const { result, studentKey } = await send();
         setStillMarking(false);
 
         // The fresh result is shown from storage, comparison and all. If it
         // will not fit, the saved copy on the server is the way to it instead:
         // the submission has succeeded, and must not look as if it failed.
+        // It is kept under the key the paper went in under (see saveLastResult).
         let stored = true;
         try {
-          saveLastResult({ ...result, subjectId: active.test.settings.subjectId });
+          saveLastResult({ ...result, subjectId: active.test.settings.subjectId }, studentKey);
         } catch {
           stored = false;
         }
@@ -267,7 +287,9 @@ export function ExamPage() {
         clearActiveTest(active.test.id);
         // The finished paper's step becomes the results, so Back from them
         // goes to the builder and not to a paper that no longer exists.
-        if (mountedRef.current) replaceRoute(stored ? "/results" : `/results/${active.test.id}`);
+        if (mountedRef.current || stillAtThisPaper()) {
+          replaceRoute(stored ? "/results" : `/results/${active.test.id}`);
+        }
       } catch (cause) {
         setStillMarking(false);
         const code = cause instanceof ApiError ? cause.code : null;
@@ -279,7 +301,7 @@ export function ExamPage() {
         if (code === "already-submitted") {
           closedRef.current = true;
           clearActiveTest(active.test.id);
-          if (mountedRef.current) replaceRoute(`/results/${active.test.id}`);
+          if (mountedRef.current || stillAtThisPaper()) replaceRoute(`/results/${active.test.id}`);
           return;
         }
 
