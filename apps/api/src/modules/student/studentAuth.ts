@@ -264,11 +264,40 @@ async function isGuestKey(studentKey: string): Promise<boolean> {
  * still open on it passed that id as a guest key below, and tests generated or
  * handed in with it were kept under an id nobody owns. Any other key sent with
  * a token that is no sign-in is still taken for a guest's, as before.
+ *
+ * `writing` is for the routes that put tests under the key: generating a test
+ * and handing one in. There an account's own sign-in is also checked against
+ * the account still being there (accountStillThere). Where tokens are checked
+ * by their signature alone, a deleted account's token can still read as
+ * exempt or confirmed until it expires (see "missing" in accountAge).
  */
-export async function canUseStudentKey(request: Request, studentKey: string): Promise<boolean> {
-  const standing = await signedInAs(request, studentKey);
+export async function canUseStudentKey(
+  request: Request,
+  studentKey: string,
+  options: { writing?: boolean } = {}
+): Promise<boolean> {
+  const standing = await signedInAs(request, studentKey, options.writing === true);
   if (standing === "stale") return false;
   return standing === "yes" || isGuestKey(studentKey);
+}
+
+/**
+ * Whether the account with this id still exists, as cheaply as that can be
+ * told. Its profile row goes with it (the row refers to the account, and the
+ * link cascades), so a profile answers without asking anyone. Only an id with
+ * none, as for an account made before the profile trigger, is asked of the
+ * auth server, and so is any id when the profiles lookup fails: generating a
+ * test has always gone ahead without that lookup (the paper is then kept
+ * under the account's id without the link), and should not start failing on
+ * it here.
+ */
+async function accountStillThere(id: string): Promise<boolean> {
+  try {
+    if ((await accountIdFor(id)) !== null) return true;
+  } catch {
+    // The quick answer could not be had; the auth server's is the full one.
+  }
+  return isAuthUser(id);
 }
 
 /**
@@ -297,9 +326,16 @@ export async function isAuthenticatedStudent(request: Request, studentKey: strin
  * - "no": it is not signed in as that account: no token, another account's,
  *   or one that names nobody.
  *
+ * With `confirmAccount`, "yes" also needs the account to be still there
+ * (accountStillThere), and one that is not is "stale" (see canUseStudentKey).
+ *
  * Throws AgeRequiredError for a new account still to give its year.
  */
-async function signedInAs(request: Request, studentKey: string): Promise<"yes" | "stale" | "no"> {
+async function signedInAs(
+  request: Request,
+  studentKey: string,
+  confirmAccount = false
+): Promise<"yes" | "stale" | "no"> {
   if (!supabaseAdmin) return "yes";
 
   const account = await signedInAccount(request);
@@ -314,6 +350,7 @@ async function signedInAs(request: Request, studentKey: string): Promise<"yes" |
   const status = await ageStatusOf(account);
   if (status === "missing") return "stale";
   if (status === "pending") throw new AgeRequiredError();
+  if (confirmAccount && !(await accountStillThere(studentKey))) return "stale";
   return "yes";
 }
 

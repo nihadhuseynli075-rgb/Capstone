@@ -25,8 +25,7 @@ export function normalisePath(raw: string): string {
   return path;
 }
 
-/** The route the address says now, as useRoute gives it, for code that runs outside a render. */
-export function currentPath(): string {
+function currentPath(): string {
   return pathOfHash(window.location.hash);
 }
 

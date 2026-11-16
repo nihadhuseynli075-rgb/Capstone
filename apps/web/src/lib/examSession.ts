@@ -6,6 +6,7 @@ import { peekIdentity } from "./studentKey";
 const ACTIVE_TEST_KEY = "examPeak.activeTest";
 const PROGRESS_KEY = "examPeak.activeTestProgress";
 const LAST_RESULT_KEY = "examPeak.lastResult";
+const RESULTS_DUE_KEY = "examPeak.resultsDue";
 
 export interface ActiveTest {
   test: MockTest;
@@ -44,6 +45,8 @@ export function saveActiveTest(active: ActiveTest): void {
   const { answers, currentIndex, ...paper } = active;
   safeSessionStorage.setItem(ACTIVE_TEST_KEY, JSON.stringify({ ...paper, owner: recordOwner(peekIdentity()) }));
   saveProgress(paper.test.id, answers, currentIndex);
+  // A new paper is what the exam page is for now (see markResultsDue).
+  safeSessionStorage.removeItem(RESULTS_DUE_KEY);
 }
 
 /** Records the answers and the question on screen for the paper in progress. */
@@ -269,9 +272,29 @@ function resultOwner(handedInAs: string | undefined): string | null {
   return recordOwner(who);
 }
 
-/** Whether the tab holds a paper in progress, whoever's it is. */
-export function hasActiveTest(): boolean {
-  return safeSessionStorage.getItem(ACTIVE_TEST_KEY) !== null;
+/**
+ * Notes a paper handed in while its exam page was not on screen, so that the
+ * page, the next time it opens with nothing to sit, goes on to the results
+ * rather than to the builder.
+ *
+ * The year-of-birth step takes the place of every page while a new account
+ * still has to give its year, and the hand-in itself can be what brings it up
+ * (see submitTest). The student never left the paper, and used to land on the
+ * builder after the step with the result unseen. The note is stamped like the
+ * result, so it follows the same rules about whose it is.
+ */
+export function markResultsDue(testId: string, handedInAs?: string): void {
+  safeSessionStorage.setItem(RESULTS_DUE_KEY, JSON.stringify({ testId, owner: resultOwner(handedInAs) }));
+}
+
+/** The paper whose results are waiting to be shown, if it is this tab's. Taken, so it is used once. */
+export function takeResultsDue(): string | null {
+  const raw = safeSessionStorage.getItem(RESULTS_DUE_KEY);
+  if (raw === null) return null;
+  safeSessionStorage.removeItem(RESULTS_DUE_KEY);
+
+  const stored = parseStored(raw);
+  return isThisTabs(stored) && isRecord(stored) && typeof stored.testId === "string" ? stored.testId : null;
 }
 
 function isOptionalNumber(value: unknown): boolean {
@@ -386,6 +409,7 @@ export function loadLastResult(): StoredResult | null {
 export function clearSessionRecords(): void {
   clearActiveTest();
   safeSessionStorage.removeItem(LAST_RESULT_KEY);
+  safeSessionStorage.removeItem(RESULTS_DUE_KEY);
 }
 
 /**
@@ -401,7 +425,7 @@ export function clearSessionRecords(): void {
 export function settleSessionRecords(): void {
   const who = peekIdentity();
 
-  for (const key of [ACTIVE_TEST_KEY, LAST_RESULT_KEY]) {
+  for (const key of [ACTIVE_TEST_KEY, LAST_RESULT_KEY, RESULTS_DUE_KEY]) {
     const raw = safeSessionStorage.getItem(key);
     if (raw === null) continue;
 

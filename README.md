@@ -222,6 +222,37 @@ listed sends the link to the Site URL instead. The app still takes the student
 to the reset page from there, because Supabase reports the sign-in as a
 password recovery.
 
+## Locked accounts
+
+Once `0019_age_checks.sql` has run, a new account gives the year it was born
+before it can do anything. One too young for an account is deleted at that
+step, unless it already holds tests, friends or a photo. The API then keeps it
+locked instead: it can still sign in, but the API uses nothing of it and it is
+left out of friends lists. The API log says
+`[api] Account <id> was refused at the year-of-birth step but holds tests, friends or photos, ...`.
+That should not happen, but the privacy page promises a locked account stays
+locked until someone has looked at it. Looking at them is Herdy's and Nihad's
+job.
+
+To list them, run this in the Supabase SQL editor:
+
+```sql
+select d.account_id, u.email, d.birth_year, d.decided_at
+from age_decisions d
+join auth.users u on u.id = d.account_id
+where d.outcome = 'refused';
+```
+
+Every row is a locked account. A refused account that was deleted takes its
+row with it. For each one, either:
+
+- **Delete it.** Go to **Authentication → Users**, find the account and choose
+  **Delete user**. Its profile, its tests, its friendships and its row above
+  go with it. A profile photo stays in **Storage → avatars**, in the folder
+  named after the account id; delete that folder too.
+- **Keep it.** Leave it as it is. It stays locked, and nothing in it is shown
+  to anyone.
+
 ## The two sides of the app
 
 **Students** (`/`) pick a subject, topics, and either a difficulty or their own

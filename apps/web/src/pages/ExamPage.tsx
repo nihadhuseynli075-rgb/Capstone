@@ -2,17 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SubmittedAnswer } from "@grade9/shared";
 import { decodeAnswerSet, encodeAnswerSet, writtenAnswerMaxLength } from "@grade9/shared";
 import { PassageText, PromptText } from "../components/PromptText";
-import { currentPath, navigate, replaceRoute, setLeaveGuard } from "../app/router";
+import { navigate, replaceRoute, setLeaveGuard } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
 import { SignInToFinishButton } from "../features/auth/SignInToFinishButton";
 import { fill } from "../features/friends/fill";
 import {
   clearActiveTest,
-  hasActiveTest,
   loadActiveTest,
+  loadLastResult,
   markHandedIn,
+  markResultsDue,
   saveLastResult,
   saveProgress,
+  takeResultsDue,
   type ActiveTest
 } from "../lib/examSession";
 import { useLanguage } from "../lib/i18n";
@@ -47,22 +49,6 @@ function isFinalRefusal(cause: unknown): boolean {
  */
 function isStillMarking(cause: unknown): boolean {
   return cause instanceof ApiError && cause.code === "submission-in-progress";
-}
-
-/**
- * Whether a student whose paper has just been marked, with its page gone, is
- * still at that paper.
- *
- * The year-of-birth step takes the place of every page while a new account
- * still has to give its year, and the refusal that says so can come from the
- * hand-in itself (see submitTest). The exam page is then gone although the
- * student never left it: the address still says /exam, and no other paper has
- * been started (called once this one is cleared). They used to be sent on to
- * the builder after the step, with the result unseen; they go to the result
- * instead. A student who has left, or started another paper, stays put.
- */
-function stillAtThisPaper(): boolean {
-  return currentPath() === "/exam" && !hasActiveTest();
 }
 
 /**
@@ -193,8 +179,16 @@ export function ExamPage() {
     // Nothing to sit, so this address is swapped for the builder rather than
     // left in the history: Back from the results of a finished test lands
     // here, and adding a step each time made it a trap that never went further.
+    // A paper handed in while this page was not on screen goes on to its
+    // results instead (see markResultsDue below): the year-of-birth step takes
+    // the place of every page, and the hand-in itself can be what brings it up.
     if (!stored) {
-      replaceRoute("/build");
+      const due = takeResultsDue();
+      if (due === null) {
+        replaceRoute("/build");
+      } else {
+        replaceRoute(loadLastResult()?.attemptId === due ? "/results" : `/results/${due}`);
+      }
       return;
     }
     setActive(stored);
@@ -286,9 +280,16 @@ export function ExamPage() {
         // out of it to these results.
         clearActiveTest(active.test.id);
         // The finished paper's step becomes the results, so Back from them
-        // goes to the builder and not to a paper that no longer exists.
-        if (mountedRef.current || stillAtThisPaper()) {
+        // goes to the builder and not to a paper that no longer exists. With
+        // the page gone, the address is left alone: changing it under another
+        // page brought up the leave prompt of a paper open there, took focus
+        // off the year-of-birth step and put away the too-young message. The
+        // paper is noted instead, for the exam page to go on to its results
+        // the next time it opens with nothing to sit.
+        if (mountedRef.current) {
           replaceRoute(stored ? "/results" : `/results/${active.test.id}`);
+        } else {
+          markResultsDue(active.test.id, studentKey);
         }
       } catch (cause) {
         setStillMarking(false);
@@ -301,7 +302,8 @@ export function ExamPage() {
         if (code === "already-submitted") {
           closedRef.current = true;
           clearActiveTest(active.test.id);
-          if (mountedRef.current || stillAtThisPaper()) replaceRoute(`/results/${active.test.id}`);
+          if (mountedRef.current) replaceRoute(`/results/${active.test.id}`);
+          else markResultsDue(active.test.id);
           return;
         }
 

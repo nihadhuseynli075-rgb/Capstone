@@ -210,3 +210,14 @@ files are built into the site, so push them and let the static site redeploy.
   `Origin ... is not allowed by CORS`: check `WEB_ORIGIN` first.
 - **Secrets** live only in Render's Environment tab. Nothing is added to the
   repo, and `.env` stays gitignored.
+
+## Locked accounts
+
+Once `0019_age_checks.sql` has run, the API log (exampeak-api → **Logs**) can
+show `[api] Account <id> was refused at the year-of-birth step but holds tests, friends or photos, ...`.
+That account gave a year too young for an account but already held something,
+so it was locked rather than deleted. The privacy page promises it stays
+locked until someone has looked at it; that is Herdy's and Nihad's job. The
+README's "Locked accounts" section has the query that lists every locked
+account, and what to do with each: delete the user in Supabase Auth, or keep
+it locked.

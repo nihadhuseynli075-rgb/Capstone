@@ -228,7 +228,7 @@ testsRouter.post("/generate", async (request, response, next) => {
   };
 
   try {
-    if (!(await canUseStudentKey(request, studentKey))) {
+    if (!(await canUseStudentKey(request, studentKey, { writing: true }))) {
       return response.status(401).json({ message: "Sign in again to continue." });
     }
 
@@ -432,7 +432,7 @@ testsRouter.post("/:attemptId/submit", async (request, response, next) => {
   }
 
   try {
-    if (!(await canUseStudentKey(request, parsed.data.studentKey))) {
+    if (!(await canUseStudentKey(request, parsed.data.studentKey, { writing: true }))) {
       return response.status(401).json({ message: "Sign in again to continue." });
     }
 

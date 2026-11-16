@@ -103,7 +103,10 @@ interface AuthContextValue {
    * that it says so. Too young, nothing changes yet: "too-young" comes back
    * with the year, to be shown so a slip can be put right. Sent again with
    * `confirmTooYoung`, the API deletes the new account and this browser is
-   * signed out of it; the guest's own tests and paper stay as they were.
+   * signed out of it. One that already holds tests, friends or a photo is not
+   * deleted but kept locked: the API refuses with "account-not-empty", which
+   * is thrown, and AgeCheckPage says the account is on hold. Either way the
+   * guest's own tests and paper stay as they were.
    */
   confirmAge: (birthYear?: number, confirmTooYoung?: boolean) => Promise<AgeOutcome>;
   signIn: (input: { email: string; password: string }) => Promise<void>;

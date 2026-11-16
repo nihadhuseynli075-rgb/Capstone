@@ -1,4 +1,5 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
+import { settleSessionRecords } from "../../lib/examSession";
 import { isGuestKeyClaimed, markGuestKeyClaimed, peekGuestKey } from "../../lib/studentKey";
 import {
   claimGuestHistory,
@@ -54,6 +55,15 @@ export function useHistoryClaim(): void {
 
       claimGuestHistory(guestKey)
         .then(() => {
+          // What the tab still keeps under the guest key goes to the account
+          // first, while the key still counts as this tab's: a paper the
+          // account was not ready to take is handed in as the guest (see
+          // submitTest), even after the account has passed, while this claim
+          // is slow or being retried. Its result is kept under the guest key,
+          // and once the key is marked claimed a record stamped with it is
+          // nobody's, so the result was dropped and /results sent the student
+          // to their history instead.
+          settleSessionRecords();
           markGuestKeyClaimed(guestKey);
         })
         .catch((cause: unknown) => {

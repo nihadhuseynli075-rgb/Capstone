@@ -10,3 +10,6 @@ coverage
 *.tsbuildinfo
 CLAUDE.md
 .claude
+# Internal notes for the people who run the project (handoffs, patches).
+# Already-tracked files stay tracked until removed with git rm --cached.
+_internal/

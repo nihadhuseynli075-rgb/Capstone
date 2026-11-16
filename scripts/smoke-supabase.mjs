@@ -1577,6 +1577,27 @@ async function main() {
       phantomTest.status === 401 && (await rows("test_attempts", `?student_key=eq.${phantom.user.id}`)).length === 0,
       `${phantomTest.status} ${JSON.stringify(phantomTest.body)}`
     );
+    // A token that carries the account's year reads as confirmed without the
+    // auth server being asked, as one from before 0019 reads as exempt, so
+    // being gone never shows in its status. Writing under its id checks the
+    // account is still there: its profile went with it, and the auth server
+    // no longer knows it.
+    const lapsed = (await control("users", { email: "lapsed@standin.test", fullName: "Lapsed" })).body;
+    const lapsedTest = await generate(lapsed.user.id, lapsed.session.access_token);
+    await request(standin.url, `/__standin/rows/profiles/${lapsed.user.id}`, { method: "DELETE" });
+    const lapsedRowsBefore = (await rows("test_attempts", `?student_key=eq.${lapsed.user.id}`)).length;
+    await control("faults", { method: "GET", table: "auth/admin", times: 1, status: 404 });
+    const lapsedNew = await generate(lapsed.user.id, lapsed.session.access_token);
+    await control("faults", { method: "GET", table: "auth/admin", times: 1, status: 404 });
+    const lapsedHandIn = await submit(lapsedTest.body.test, lapsed.user.id, rightAnswers(lapsedTest.body.test), lapsed.session.access_token);
+    check(
+      "an account gone while its token still reads as confirmed can neither start a test nor hand one in",
+      lapsedTest.status === 200 &&
+        lapsedNew.status === 401 &&
+        lapsedHandIn.status === 401 &&
+        (await rows("test_attempts", `?student_key=eq.${lapsed.user.id}`)).length === lapsedRowsBefore,
+      `${lapsedTest.status} ${lapsedNew.status} ${lapsedHandIn.status}`
+    );
 
     section("A paper sat as a guest, handed in after signing in");
     // Until the account has passed the age check and taken the guest's tests
@@ -2439,7 +2460,9 @@ async function main() {
     await submit(carolTest, carolId, rightAnswers(carolTest), carolToken);
     // The link to the account is looked up when a paper is generated, and a
     // failed lookup records the paper under the account's id with no link.
-    await control("faults", { method: "GET", table: "profiles", times: 1 });
+    // The first profiles read is the check that the account is still there
+    // (canUseStudentKey); the link lookup is the second.
+    await control("faults", { method: "GET", table: "profiles", times: 1, skip: 1 });
     const unlinkedTest = (await generate(carolId, carolToken)).body.test;
     const [unlinkedRow] = await rows("test_attempts", `?id=eq.${unlinkedTest?.id}`);
     check(
