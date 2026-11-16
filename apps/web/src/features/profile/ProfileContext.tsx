@@ -93,10 +93,13 @@ function cacheProfile(profile: StudentProfile | null): void {
 }
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
-  const { ready, user, signOut } = useAuth();
-  // An account that has not given its year of birth has no profile to load:
+  const { ready, user, signOut, ageStatus, markAgeRequired } = useAuth();
+  // A new account that has not given its year of birth has no profile to load:
   // the API refuses it until then, and the app shows that step instead.
-  const userId = user?.ageConfirmed ? user.id : null;
+  const userId = user && ageStatus !== "pending" ? user.id : null;
+  // While the age check is still being asked about, the profile seen last in
+  // this browser shows, and the fresh one is asked for once it is known.
+  const canLoad = ageStatus === "ok" || ageStatus === "unknown";
   // The profile keeps its own copy of the account's email address, so a change
   // of address (confirmed here, or in another browser) is a reason to load it again.
   const userEmail = user?.email ?? null;
@@ -136,6 +139,12 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     setStatus("loading");
     setError(null);
 
+    if (!canLoad) {
+      return () => {
+        active = false;
+      };
+    }
+
     profileApi
       .fetchProfile()
       .then((loaded) => {
@@ -152,6 +161,13 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        // A new account still to give its year, found out here rather than
+        // by asking: the app shows the year step instead.
+        if (cause instanceof ApiError && cause.code === "age-required") {
+          markAgeRequired();
+          return;
+        }
+
         setStatus("error");
         setError(cause);
         if (needsSignInAgain(cause)) setEndedFor(userId);
@@ -160,7 +176,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [ready, userId, userEmail, loads]);
+  }, [ready, userId, userEmail, loads, canLoad, markAgeRequired]);
 
   const reload = useCallback(() => setLoads((count) => count + 1), []);
 

@@ -1,7 +1,7 @@
 -- Exampeak: the whole schema, in one run.
 --
 -- Paste this into the Supabase SQL editor (Dashboard -> SQL Editor -> New
--- query) and run it. It is migrations 0001 to 0018 concatenated in order, with
+-- query) and run it. It is migrations 0001 to 0019 concatenated in order, with
 -- nothing else added, so it stays the same thing the numbered files say.
 --
 -- ---------------------------------------------------------------------------
@@ -15,8 +15,10 @@
 -- at a time, oldest account first, and only to those that have none.)
 --
 -- So running the lot is a no-op for anything already applied. If you know
--- 0001-0017 are in, running 0018_private_avatars.sql on its own does the same
--- job faster.
+-- 0001-0017 are in, running 0018_private_avatars.sql and then
+-- 0019_age_checks.sql on their own does the same job faster. Running 0019,
+-- here or on its own, is what starts the age check for new accounts (see its
+-- header), so run it only once the API that knows about it is deployed.
 --
 -- The whole thing is one transaction. If any statement fails, nothing is
 -- applied and the database is left exactly as it was, rather than half
@@ -2238,5 +2240,73 @@ on conflict (id) do update
 set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
+
+-- ---------------------------------------------------------------------------
+-- 0019_age_checks.sql
+-- ---------------------------------------------------------------------------
+
+-- Exampeak: the age check for new accounts.
+--
+-- Run this in the Supabase SQL editor after the API with the age check is
+-- deployed (after 0018_private_avatars.sql). Running it is what switches the
+-- check on: accounts made from that moment are asked their year of birth;
+-- every account made before it is left exactly as it is.
+--
+-- From the bug hunt of 16 November 2026 (V4-01, round 2).
+--
+-- Every statement here is safe to run twice.
+
+-- ---------------------------------------------------------------------------
+-- Why
+-- ---------------------------------------------------------------------------
+-- Accounts are for students of MIN_ACCOUNT_AGE (16) and over
+-- (packages/shared). New email sign-ups give their year on the form. A new
+-- Google account gives it on its first sign-in, and until then the API uses
+-- nothing of it (apps/api/src/modules/student/accountAge.ts).
+--
+-- Accounts that already exist are not asked, locked or deleted: the decision
+-- for them is still to be made. The API tells them apart by when Supabase
+-- made the account (auth.users.created_at) against `age_checks.checks_from`,
+-- the moment this file first ran. Before it has run there is no such moment,
+-- and the API asks nobody.
+--
+-- `age_decisions` holds the one answer each new account gives. Its primary
+-- key is what makes that answer final: of two answers sent at once, the first
+-- row in wins, and the other request reads it and follows it, so an account
+-- can never be both kept and deleted. The year is also copied into the
+-- account's app_metadata, which every access token carries. A refused
+-- account is deleted, and its row goes with it (on delete cascade), so
+-- nothing is kept about a student too young to have an account.
+--
+-- Neither table has a policy: only the API reads and writes them, with the
+-- secret key. The public key, and a signed-in student's own token, can do
+-- neither.
+
+create table if not exists age_checks (
+  -- One row only.
+  id boolean primary key default true check (id),
+  checks_from timestamptz not null default now()
+);
+
+-- The first run sets the moment; running this again keeps it.
+insert into age_checks (id) values (true) on conflict (id) do nothing;
+
+create table if not exists age_decisions (
+  account_id uuid primary key references auth.users (id) on delete cascade,
+  birth_year int not null,
+  outcome text not null check (outcome in ('confirmed', 'refused')),
+  decided_at timestamptz not null default now()
+);
+
+alter table age_checks enable row level security;
+alter table age_decisions enable row level security;
+
+revoke all on age_checks from anon, authenticated;
+revoke all on age_decisions from anon, authenticated;
+
+comment on table age_checks is
+  'When the age check for new accounts began. Accounts made before it are not asked their year of birth.';
+comment on table age_decisions is
+  'Each new account''s answer to the year-of-birth step: the first one in is final. API only.';
 
 commit;

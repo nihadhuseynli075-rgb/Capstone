@@ -51,10 +51,13 @@ dashboard shows a banner, so this is never a silent surprise.
    picture to: 2 MB, and PNG, JPG or WebP only. `0016` stops anyone calling the
    three sign-up and username trigger functions directly. `0018` makes the
    `avatars` bucket private: the API shows each profile photo through a link
-   that stops working after an hour. Deploy the API before running it.) If
+   that stops working after an hour. `0019` starts the age check: accounts
+   made from the moment it runs give their year of birth, and accounts made
+   before it are left as they are. Deploy the API before running either.) If
    `0001`-`0017` are already in, running
    [`0018_private_avatars.sql`](supabase/migrations/0018_private_avatars.sql)
-   on its own is enough.
+   and then [`0019_age_checks.sql`](supabase/migrations/0019_age_checks.sql)
+   on their own is enough.
 6. Under **Authentication → Providers**, make sure Email is enabled. Google is
    optional and has its own steps, below.
 7. Restart the API. `GET /health` should now report `"storageMode": "supabase"`.

@@ -5,7 +5,7 @@ import { isUuid } from "../../lib/ids";
 import { PublicError } from "../../lib/publicError";
 import { supabaseAdmin } from "../../lib/supabaseAdmin";
 import { accountIdFor } from "../../repositories/profileRepository";
-import { AgeRequiredError, ageFromAppMetadata, hasRecordedAge, type RecordedAge } from "./accountAge";
+import { AgeRequiredError, ageFromAppMetadata, ageStatusOf, type RecordedAge } from "./accountAge";
 
 /** A signed-in student, as their access token describes them. */
 export interface SignedInAccount {
@@ -250,10 +250,11 @@ export async function canUseStudentKey(request: Request, studentKey: string): Pr
 /**
  * Claiming guest history always targets a real signed-in account.
  *
- * An account that has not given its year of birth yet uses none of its own
- * tests: its first step is that year (see accountAge). The request is then
- * refused with AgeRequiredError, which the API answers as such, so the
+ * A new account that has not given its year of birth yet uses none of its
+ * own tests: its first step is that year (see accountAge). The request is
+ * then refused with AgeRequiredError, which the API answers as such, so the
  * browser asks for the year instead of asking the student to sign in again.
+ * Accounts made before the check began are not affected.
  */
 export async function isAuthenticatedStudent(request: Request, studentKey: string): Promise<boolean> {
   if (!supabaseAdmin) return true;
@@ -261,7 +262,7 @@ export async function isAuthenticatedStudent(request: Request, studentKey: strin
   const account = await signedInAccount(request);
   if (account?.id !== studentKey) return false;
 
-  if (!(await hasRecordedAge(account))) throw new AgeRequiredError();
+  if ((await ageStatusOf(account)) === "pending") throw new AgeRequiredError();
   return true;
 }
 

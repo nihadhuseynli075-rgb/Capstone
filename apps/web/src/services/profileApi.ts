@@ -77,14 +77,32 @@ export async function removeProfilePhoto(): Promise<StudentProfile> {
 }
 
 /**
- * Gives the account's year of birth to the API (see confirmAge in AuthContext).
- * Without one, the API takes the year typed on the sign-up form. Too young for
- * an account, the API deletes it and answers "account-deleted".
+ * Where the signed-in account stands with the age check: "exempt" (made before
+ * the check began), "confirmed", or "pending" (a new account that has not
+ * given its year yet, which the API refuses everything else until it has).
  */
-export async function confirmAge(birthYear?: number): Promise<{ outcome: "confirmed" | "account-deleted" }> {
-  return apiRequest<{ outcome: "confirmed" | "account-deleted" }>("/api/profile/age", {
+export async function fetchAgeStatus(): Promise<"exempt" | "confirmed" | "pending"> {
+  const { status } = await apiRequest<{ status: "exempt" | "confirmed" | "pending" }>("/api/profile/age", {
+    token: await accountToken()
+  });
+  return status;
+}
+
+/** What the API made of a year of birth (see confirmAge in AuthContext). */
+export type AgeAnswer =
+  | { outcome: "confirmed" | "exempt" | "account-deleted" }
+  | { outcome: "too-young"; birthYear: number };
+
+/**
+ * Gives a new account's year of birth to the API. Without one, the API takes
+ * the year typed on the sign-up form. A year too late for an account comes
+ * back as "too-young", with nothing changed, to be shown to the student; only
+ * the same year sent with `confirmTooYoung` has the API delete the account.
+ */
+export async function confirmAge(birthYear?: number, confirmTooYoung = false): Promise<AgeAnswer> {
+  return apiRequest<AgeAnswer>("/api/profile/age", {
     method: "POST",
-    body: birthYear === undefined ? {} : { birthYear },
+    body: { ...(birthYear === undefined ? {} : { birthYear }), ...(confirmTooYoung ? { confirmTooYoung: true } : {}) },
     token: await accountToken()
   });
 }

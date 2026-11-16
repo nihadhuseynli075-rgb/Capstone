@@ -318,6 +318,29 @@ const SCHEMA = {
       ["friendships_check", (row) => row.user_id !== row.friend_id]
     ],
     unique: [["friendships_user_id_friend_id_key", ["user_id", "friend_id"]]]
+  },
+  // 0019. Empty until a test runs the migration (POST /__standin/rows/age_checks),
+  // which starts the age check, as running 0019 does. The real table has one
+  // boolean key; this one only needs the moment.
+  age_checks: {
+    columns: {
+      id: column("uuid", { notNull: true, default: () => randomUUID() }),
+      checks_from: column("timestamptz", { notNull: true, default: nowIso })
+    },
+    checks: []
+  },
+  // 0019. Keyed by the account in Postgres; here `id` is only a row id, and the
+  // account's key is the unique constraint, which raises the same 23505.
+  age_decisions: {
+    columns: {
+      id: column("uuid", { notNull: true, default: () => randomUUID() }),
+      account_id: column("uuid", { notNull: true }),
+      birth_year: column("int", { notNull: true }),
+      outcome: column("text", { notNull: true }),
+      decided_at: column("timestamptz", { notNull: true, default: nowIso })
+    },
+    checks: [["age_decisions_outcome_check", (row) => oneOf(["confirmed", "refused"])(row.outcome)]],
+    unique: [["age_decisions_pkey", ["account_id"]]]
   }
 };
 
@@ -1059,11 +1082,15 @@ function createAuth(db) {
     userUpdated(user, user.email);
   }
 
-  /** profiles.id references auth.users on delete cascade, and the rest hangs off the profile. */
+  /**
+   * profiles.id references auth.users on delete cascade, and the rest hangs off
+   * the profile. age_decisions references auth.users directly (0019).
+   */
   function deleteUser(userId) {
     users.delete(userId);
     endSessions((entry) => entry.userId === userId);
     db.remove("profiles", new URLSearchParams({ id: `eq.${userId}` }));
+    db.remove("age_decisions", new URLSearchParams({ account_id: `eq.${userId}` }));
   }
 
   function googleIdentityOwner(email) {
@@ -2190,6 +2217,13 @@ export async function startStandin({ port = 54399, host = "127.0.0.1" } = {}) {
         const params = new URLSearchParams({ id: `eq.${id}` });
         const [row] = db.update(table, body, params);
         return send(response, row ? 200 : 404, row ? db.project(table, row, parseSelect("*")) : { message: "not found" });
+      }
+
+      // A row put in from the SQL editor: for example the one running 0019
+      // leaves in age_checks, or a friendship made before a check existed.
+      if (request.method === "POST" && !id) {
+        const [row] = db.insert(table, body, new URLSearchParams());
+        return send(response, 201, db.project(table, row, parseSelect("*")));
       }
 
       // For example a profile that was never made, as for an account that

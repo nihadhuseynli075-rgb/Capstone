@@ -140,7 +140,10 @@ async function main() {
       API_PORT: String(apiPort),
       ADMIN_PASSWORD,
       GEMINI_API_KEY: "smoke-fake-key",
-      GEMINI_BASE_URL: marker.url
+      GEMINI_BASE_URL: marker.url,
+      // Look for migration 0019 on every request while it is not there, so
+      // the age-check section can run it and see the check start at once.
+      AGE_CHECK_RECHECK_MS: "0"
     },
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -1296,13 +1299,43 @@ async function main() {
     const profileJunkToken = await call("/api/profile", { token: "not-a-token" });
     check("nor with something that is not a token", profileJunkToken.status === 401, `got ${profileJunkToken.status}`);
 
-    section("An account gives its year of birth before anything else");
-    // Accounts are for MIN_ACCOUNT_AGE and over (packages/shared). Until an
-    // account has given its year, the API uses nothing of it (accountAge).
+    section("The age check is off until 0019 runs, and never for accounts made before it");
+    // Accounts are for MIN_ACCOUNT_AGE and over (packages/shared), but only
+    // accounts made once the check has begun are asked (accountAge). It begins
+    // when 0019 runs; until then nobody is asked.
     const unaged = async (email, metadata) =>
       (await control("users", { email, ageConfirmed: false, ...(metadata ? { metadata } : { fullName: "Una" }) })).body;
+    const giveYear = (token, body) => call("/api/profile/age", { method: "POST", token, body });
+    const ageOf = async (token) => (await call("/api/profile/age", { token })).body.status;
+    const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const olive = await unaged("olive.existing@standin.test");
+    const oliveToken = olive.session.access_token;
+    check("before 0019, an account with no year is not asked", (await ageOf(oliveToken)) === "exempt");
+    check("and its profile works as it always did", (await call("/api/profile", { token: oliveToken })).status === 200);
+
+    // Running 0019 leaves the moment it ran in age_checks: the check begins.
+    await pause(5);
+    await control("rows/age_checks", { checks_from: new Date().toISOString() });
+    await pause(5);
+
+    check("after 0019, an account made before it is still not asked", (await ageOf(oliveToken)) === "exempt");
+    check("its profile still works", (await call("/api/profile", { token: oliveToken })).status === 200);
+    check("so do its friends", (await call("/api/friends", { token: oliveToken })).status === 200);
+    const oliveTest = await generate(olive.user.id, oliveToken);
+    check("and its own tests", oliveTest.status === 200, `${oliveTest.status} ${JSON.stringify(oliveTest.body)}`);
+    const oliveYear = await giveYear(oliveToken, { birthYear: childYear, confirmTooYoung: true });
+    check(
+      "and even a child's year sent for it, confirmed, changes nothing and deletes nothing",
+      oliveYear.status === 200 && oliveYear.body.outcome === "exempt" && (await control(`users/${olive.user.id}`)).status === 200,
+      `${oliveYear.status} ${JSON.stringify(oliveYear.body)}`
+    );
+
+    section("A new account gives its year of birth before anything else");
+    // Until a new account has given its year, the API uses nothing of it.
     const una = await unaged("una@standin.test");
     const unaToken = una.session.access_token;
+    check("a new account with no year is pending", (await ageOf(unaToken)) === "pending");
     const unaProfile = await call("/api/profile", { token: unaToken });
     check(
       "its profile is refused, with the code the app asks for the year on",
@@ -1318,7 +1351,6 @@ async function main() {
     const unaGuest = await generate(randomUUID(), unaToken);
     check("while a test under a guest key still works", unaGuest.status === 200, `${unaGuest.status}`);
 
-    const giveYear = (token, body) => call("/api/profile/age", { method: "POST", token, body });
     const noYear = await giveYear(unaToken, {});
     check("asking without a year, and none from sign-up, says so", noYear.status === 400 && noYear.body.code === "birth-year-needed", JSON.stringify(noYear.body));
     const oddYears = await Promise.all([giveYear(unaToken, { birthYear: "2001" }), giveYear(unaToken, { birthYear: 1850 }), giveYear(unaToken, { birthYear: adultYear + 40 })]);
@@ -1337,20 +1369,50 @@ async function main() {
     );
     const unaProfileAfter = await call("/api/profile", { token: unaToken });
     check("and the token from before it works at once, before any refresh", unaProfileAfter.status === 200, `${unaProfileAfter.status}`);
-    const unaChildYear = await giveYear(unaToken, { birthYear: childYear });
+    const unaDecision = await rows("age_decisions", `?account_id=eq.${una.user.id}`);
+    check(
+      "the answer is kept as the account's one decision",
+      unaDecision.length === 1 && unaDecision[0].outcome === "confirmed" && unaDecision[0].birth_year === adultYear,
+      JSON.stringify(unaDecision)
+    );
+    const unaChildYear = await giveYear(unaToken, { birthYear: childYear, confirmTooYoung: true });
     const unaStillThere = await control(`users/${una.user.id}`);
     check(
       "a year once recorded is never changed, so a stolen token cannot have the account deleted",
-      unaChildYear.status === 200 && unaChildYear.body.birthYear === adultYear && unaStillThere.status === 200,
+      unaChildYear.status === 200 && unaChildYear.body.outcome === "confirmed" && unaChildYear.body.birthYear === adultYear && unaStillThere.status === 200,
       `${unaChildYear.status} ${JSON.stringify(unaChildYear.body)}`
     );
 
-    // Too young: the account is not kept, and nor is anything in it.
+    // Too young: shown back first, so a slip can be put right, and only a
+    // confirmed answer deletes the new account.
     const vic = await unaged("vic@standin.test");
-    const vicYear = await giveYear(vic.session.access_token, { birthYear: childYear });
-    check("a year too late for an account deletes it", vicYear.status === 200 && vicYear.body.outcome === "account-deleted", JSON.stringify(vicYear.body));
+    const vicToken = vic.session.access_token;
+    const vicFirst = await giveYear(vicToken, { birthYear: childYear });
+    check(
+      "a year too late for an account is shown back first",
+      vicFirst.status === 200 && vicFirst.body.outcome === "too-young" && vicFirst.body.birthYear === childYear,
+      JSON.stringify(vicFirst.body)
+    );
+    check(
+      "with nothing deleted and nothing recorded",
+      (await control(`users/${vic.user.id}`)).status === 200 && (await rows("age_decisions", `?account_id=eq.${vic.user.id}`)).length === 0
+    );
+    const vicConfirmed = await giveYear(vicToken, { birthYear: childYear, confirmTooYoung: true });
+    check("confirmed, the new account is deleted", vicConfirmed.status === 200 && vicConfirmed.body.outcome === "account-deleted", JSON.stringify(vicConfirmed.body));
     check("the account is gone", (await control(`users/${vic.user.id}`)).status === 404);
-    check("and so is its profile", (await rows("profiles", `?id=eq.${vic.user.id}`)).length === 0);
+    check(
+      "and so are its profile and its decision",
+      (await rows("profiles", `?id=eq.${vic.user.id}`)).length === 0 && (await rows("age_decisions", `?account_id=eq.${vic.user.id}`)).length === 0
+    );
+
+    const slip = await unaged("slip@standin.test");
+    const slipFirst = await giveYear(slip.session.access_token, { birthYear: childYear });
+    const slipFixed = await giveYear(slip.session.access_token, { birthYear: adultYear });
+    check(
+      "a mistyped year shown back can be put right, and the account kept",
+      slipFirst.body.outcome === "too-young" && slipFixed.body.outcome === "confirmed" && (await control(`users/${slip.user.id}`)).status === 200,
+      `${JSON.stringify(slipFirst.body)} ${JSON.stringify(slipFixed.body)}`
+    );
 
     // The edge: everyone born in the latest year has turned the age, the year after not yet.
     const latest = new Date().getUTCFullYear() - 16 - 1;
@@ -1361,8 +1423,8 @@ async function main() {
       await giveYear(edgeYoung.session.access_token, { birthYear: latest + 1 })
     ];
     check(
-      `born in ${latest} has an account, born in ${latest + 1} does not`,
-      oldAnswer.body.outcome === "confirmed" && youngAnswer.body.outcome === "account-deleted",
+      `born in ${latest} has an account, born in ${latest + 1} is too young`,
+      oldAnswer.body.outcome === "confirmed" && youngAnswer.body.outcome === "too-young",
       `${JSON.stringify(oldAnswer.body)} ${JSON.stringify(youngAnswer.body)}`
     );
 
@@ -1373,15 +1435,109 @@ async function main() {
     const formChildYear = await giveYear(formChild.session.access_token, {});
     check("the sign-up form's year is recorded without asking again", formAdultYear.body.outcome === "confirmed", JSON.stringify(formAdultYear.body));
     check(
-      "and one too late for an account deletes it, however it got past the form",
-      formChildYear.body.outcome === "account-deleted" && (await control(`users/${formChild.user.id}`)).status === 404,
+      "and one too late for an account, however it got past the form, is shown back like any other",
+      formChildYear.body.outcome === "too-young" && formChildYear.body.birthYear === childYear,
       JSON.stringify(formChildYear.body)
     );
 
     // Deleting needs no year: an account must always be able to go.
     const wren = await unaged("wren@standin.test");
     const wrenDeleted = await call("/api/profile", { method: "DELETE", token: wren.session.access_token, body: { confirmEmail: "wren@standin.test" } });
-    check("an account that has not given its year can still delete itself", wrenDeleted.status === 200, `${wrenDeleted.status} ${JSON.stringify(wrenDeleted.body)}`);
+    check("a new account that has not given its year can still delete itself", wrenDeleted.status === 200, `${wrenDeleted.status} ${JSON.stringify(wrenDeleted.body)}`);
+
+    section("Two answers at once: the first one counts");
+    // A double click, two tabs, or a retry. The database keeps one decision per
+    // account (age_decisions' key), and the other request follows it: an
+    // account is never both kept and deleted.
+    const raceResults = [];
+    for (let round = 0; round < 4; round += 1) {
+      const racer = await unaged(`race${round}@standin.test`);
+      const racerToken = racer.session.access_token;
+      await control("latency", { ms: 30 });
+      const [adultAnswer, childAnswer] = await Promise.all([
+        giveYear(racerToken, { birthYear: adultYear }),
+        giveYear(racerToken, { birthYear: childYear, confirmTooYoung: true })
+      ]);
+      await control("latency", { ms: 0 });
+      const kept = (await control(`users/${racer.user.id}`)).status === 200;
+      const decisions = await rows("age_decisions", `?account_id=eq.${racer.user.id}`);
+      const consistent = kept
+        ? adultAnswer.body.outcome === "confirmed" && childAnswer.body.outcome === "confirmed" && decisions.length === 1 && decisions[0].outcome === "confirmed"
+        : childAnswer.body.outcome === "account-deleted" &&
+          (adultAnswer.body.outcome === "account-deleted" || adultAnswer.status === 401) &&
+          decisions.length === 0;
+      raceResults.push({ kept, consistent, adult: adultAnswer.body.outcome ?? adultAnswer.status, child: childAnswer.body.outcome ?? childAnswer.status });
+    }
+    check(
+      "an adult's year and a child's confirmed at the same moment: one wins, the other follows it",
+      raceResults.every((result) => result.consistent),
+      JSON.stringify(raceResults)
+    );
+    const twin = await unaged("twin@standin.test");
+    await control("latency", { ms: 30 });
+    const twinAnswers = await Promise.all([
+      giveYear(twin.session.access_token, { birthYear: adultYear }),
+      giveYear(twin.session.access_token, { birthYear: adultYear - 1 })
+    ]);
+    await control("latency", { ms: 0 });
+    const twinKept = (await control(`users/${twin.user.id}`)).body.user?.app_metadata?.birth_year;
+    check(
+      "two different years at once: one is kept, and both answers say which",
+      twinAnswers.every((answer) => answer.body.outcome === "confirmed" && answer.body.birthYear === twinKept),
+      `${JSON.stringify(twinAnswers.map((answer) => answer.body))} kept ${twinKept}`
+    );
+
+    section("A new account still to give its year is kept out of friends");
+    // It cannot be found, nor ask anyone, so it can only be in a friendship
+    // someone wrote into the table directly. Even then it is left out of every
+    // list until it has given its year. Accounts made before the check began
+    // are shown as they always were.
+    const askFriend = (token, who) => call("/api/friends/requests", { method: "POST", token, body: { emailOrUsername: who } });
+    const eli = (await control("users", { email: "eli@standin.test", fullName: "Eli" })).body;
+    const eliToken = eli.session.access_token;
+    const pia = await unaged("pia.pending@standin.test");
+    const pat = await unaged("pat.pending@standin.test");
+    const lookUpPia = await askFriend(eliToken, "pia.pending@standin.test");
+    check("it cannot be found", lookUpPia.status === 404 && lookUpPia.body.code === "no-account", `${lookUpPia.status} ${JSON.stringify(lookUpPia.body)}`);
+    await control("rows/friendships", { user_id: eli.user.id, friend_id: pia.user.id, status: "accepted", responded_at: new Date().toISOString() });
+    await control("rows/friendships", { user_id: olive.user.id, friend_id: eli.user.id, status: "accepted", responded_at: new Date().toISOString() });
+    const patRequest = (await control("rows/friendships", { user_id: pat.user.id, friend_id: eli.user.id, status: "pending" })).body;
+    const eliOverview = (await call("/api/friends", { token: eliToken })).body;
+    check(
+      "a friendship with it is not listed",
+      Array.isArray(eliOverview.friends) && !eliOverview.friends.some((friend) => friend.id === pia.user.id),
+      JSON.stringify(eliOverview.friends?.map((friend) => friend.id))
+    );
+    check(
+      "nor is a request from it",
+      Array.isArray(eliOverview.incoming) && !eliOverview.incoming.some((request) => request.id === pat.user.id),
+      JSON.stringify(eliOverview.incoming)
+    );
+    check(
+      "while an account made before the check began, with no year, is listed as always",
+      eliOverview.friends.some((friend) => friend.id === olive.user.id),
+      JSON.stringify(eliOverview.friends?.map((friend) => friend.id))
+    );
+    const acceptPat = await call(`/api/friends/requests/${patRequest.id}/accept`, { method: "POST", token: eliToken });
+    const patRow = (await rows("friendships", `?id=eq.${patRequest.id}`))[0];
+    check(
+      "and its request cannot be accepted, which leaves it as it was",
+      acceptPat.status === 404 && patRow?.status === "pending",
+      `${acceptPat.status} ${JSON.stringify(patRow)}`
+    );
+    await giveYear(pia.session.access_token, { birthYear: adultYear });
+    const eliAfter = (await call("/api/friends", { token: eliToken })).body;
+    check(
+      "once it has given its year, it is listed",
+      eliAfter.friends.some((friend) => friend.id === pia.user.id),
+      JSON.stringify(eliAfter.friends?.map((friend) => friend.id))
+    );
+    const lookUpOlive = await askFriend(eliToken, "olive.existing@standin.test");
+    check(
+      "and an account made before the check can be found as always",
+      lookUpOlive.status === 200 || lookUpOlive.status === 201 || lookUpOlive.body.code === "already-friends",
+      `${lookUpOlive.status} ${JSON.stringify(lookUpOlive.body)}`
+    );
 
     section("Reading a profile");
     const carol = (await control("users", { email: "carol@standin.test", fullName: "Carol" })).body;

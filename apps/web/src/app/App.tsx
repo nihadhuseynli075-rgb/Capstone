@@ -336,7 +336,8 @@ function Shell() {
   const {
     ready,
     user,
-    passwordRecovery
+    passwordRecovery,
+    ageStatus
   } = useAuth();
 
   const [theme] = useTheme();
@@ -486,12 +487,13 @@ function Shell() {
   }
 
 
-  // Signed in, but the account has not given its year of birth: that comes
-  // first, before anything of the account is used, on whatever page it lands
+  // A new account that has not given its year of birth: that comes first,
+  // before anything of the account is used, on whatever page it lands
   // (MIN_ACCOUNT_AGE in packages/shared). The page it is on shows once the
-  // year is recorded. Privacy and terms stay open, since the step points to
-  // them, and so does the admin dashboard, which has a sign-in of its own.
-  if (user && !user.ageConfirmed && path !== "/privacy" && path !== "/terms" && !adminPage) {
+  // year is recorded. Accounts made before the check began never see it.
+  // Privacy and terms stay open, since the step points to them, and so does
+  // the admin dashboard, which has a sign-in of its own.
+  if (user && ageStatus === "pending" && path !== "/privacy" && path !== "/terms" && !adminPage) {
     return <AgeCheckPage onRefused={() => setRefusedAt(path)} />;
   }
 

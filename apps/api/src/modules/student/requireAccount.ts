@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { supabaseAdmin } from "../../lib/supabaseAdmin";
-import { ageRequired, hasRecordedAge } from "./accountAge";
+import { ageRequired, ageStatusOf } from "./accountAge";
 import { signedInAccount, type SignedInAccount } from "./studentAuth";
 
 export const signInAgain = { message: "Sign in again to continue." } as const;
@@ -13,10 +13,11 @@ export const signInAgain = { message: "Sign in again to continue." } as const;
  * name somebody else's. What differs is what to say when there are no accounts
  * to have, so each router passes in its own answer for that.
  *
- * An account that has not given its year of birth is refused with
+ * A new account that has not given its year of birth yet is refused with
  * ageRequired (see accountAge), except on the routes a router lists in
- * `withoutAge`, as [method, path] within the router: giving the year, and
- * deleting the account.
+ * `withoutAge`, as [method, path] within the router: asking where it stands,
+ * giving the year, and deleting the account. Accounts made before the check
+ * began are not affected.
  */
 export function requireAccount(
   unavailable: { code: string; message: string },
@@ -42,7 +43,7 @@ export function requireAccount(
         ([method, path]) => request.method === method && request.path === path
       );
 
-      if (!exempt && !(await hasRecordedAge(account))) {
+      if (!exempt && (await ageStatusOf(account)) === "pending") {
         response.status(403).json(ageRequired);
         return;
       }

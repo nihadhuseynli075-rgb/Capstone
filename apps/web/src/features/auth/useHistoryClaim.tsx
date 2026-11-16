@@ -30,12 +30,12 @@ import { useAuth } from "./AuthContext";
  * account's; anything else is left for the next sign-in.
  */
 export function useHistoryClaim(): void {
-  const { user } = useAuth();
+  const { user, ageStatus } = useAuth();
   const running = useRef(false);
-  // Not before the account has given its year of birth: until then the API
-  // refuses it, and a student too young for an account keeps their guest
-  // tests as they are when it is deleted.
-  const userId = user?.ageConfirmed ? user.id : null;
+  // Only once the account is known to have passed the age check (made before
+  // it began, or its year recorded). A new account refused at the year step
+  // is deleted, and the guest's tests must still be the guest's when it is.
+  const userId = user && ageStatus === "ok" ? user.id : null;
 
   useEffect(() => {
     if (!userId) return;

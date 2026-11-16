@@ -365,23 +365,30 @@ const en = {
     "That link has expired or has already been used. Sign in, or sign up again to be sent a new one.",
   "auth.errNotFinished": "Signing in did not finish. Try again.",
 
-  // The year of birth: on the sign-up form, and the step an account takes
-  // before anything else when it has not given one (a Google sign-up, or an
-  // account made before the check). {year} is the latest year that can have
-  // an account, {age} the youngest age (MIN_ACCOUNT_AGE in packages/shared).
+  // The year of birth: on the sign-up form, and the step a new account takes
+  // before anything else when it has not given one (a first Google sign-in).
+  // {year} is the latest year that can have an account (in age.check*, the
+  // year typed, with {latest} the latest), {age} the youngest age
+  // (MIN_ACCOUNT_AGE in packages/shared).
   "auth.birthYear": "Year of birth",
   "auth.birthYearHint": "Accounts are for students born in {year} or earlier. We keep the year only.",
   "auth.errBirthYear": "Enter the year you were born, as four digits.",
   "age.title": "What year were you born?",
   "age.subtitle": "Exampeak accounts are for students aged {age} and over. We keep the year only, never your birthday.",
   "age.notice":
-    "If you were born after {year}, this account and everything in it is deleted straight away. You can still practise without an account.",
+    "If you were born after {year}, we show you the year to check, and then delete this new account. Tests you took before signing in are kept.",
   "age.continue": "Continue",
   "age.saving": "Checking...",
   "age.errFailed": "Your year of birth could not be saved just now. Try again in a moment.",
+  "age.checkTitle": "Is {year} right?",
+  "age.checkBody":
+    "Exampeak accounts are for students born in {latest} or earlier. If {year} is right, this new account will be deleted, and you can keep practising without one. Tests you took before signing in stay as they are.",
+  "age.change": "Change the year",
+  "age.confirmTooYoung": "Yes, {year} is right",
+  "age.deleting": "Deleting...",
   "age.tooYoungTitle": "Practise without an account",
   "age.tooYoungBody":
-    "Exampeak accounts are for students born in {year} or earlier, so we have not kept your details. You can still build a test, sit it and see every mistake without an account: your results stay in this browser.",
+    "Exampeak accounts are for students born in {year} or earlier, so we have not kept your details. You can still build a test, sit it and see every mistake without an account. Your results are kept on our server under a random code in this browser, not under your name.",
 
   // Privacy and terms
   "legal.privacy": "Privacy",
@@ -1003,13 +1010,19 @@ const ru: Dictionary = {
   "age.title": "В каком году вы родились?",
   "age.subtitle": "Аккаунты Exampeak — для учеников от {age} лет. Мы храним только год, а не дату рождения.",
   "age.notice":
-    "Если вы родились после {year} года, этот аккаунт и всё, что в нём есть, сразу удаляются. Заниматься без аккаунта можно и дальше.",
+    "Если вы родились после {year} года, мы покажем вам год ещё раз для проверки, а затем удалим этот новый аккаунт. Тесты, пройденные до входа, сохранятся.",
   "age.continue": "Продолжить",
   "age.saving": "Проверяем...",
   "age.errFailed": "Сейчас не удалось сохранить год рождения. Попробуйте ещё раз чуть позже.",
+  "age.checkTitle": "Год рождения {year} — верно?",
+  "age.checkBody":
+    "Аккаунты Exampeak — для учеников, родившихся в {latest} году или раньше. Если {year} — верно, этот новый аккаунт будет удалён, а заниматься можно и без аккаунта. Тесты, пройденные до входа, останутся как есть.",
+  "age.change": "Изменить год",
+  "age.confirmTooYoung": "Да, {year} — верно",
+  "age.deleting": "Удаляем...",
   "age.tooYoungTitle": "Занимайтесь без аккаунта",
   "age.tooYoungBody":
-    "Аккаунты Exampeak — для учеников, родившихся в {year} году или раньше, поэтому мы не сохранили ваши данные. Без аккаунта вы всё равно можете составить тест, пройти его и увидеть все ошибки: результаты остаются в этом браузере.",
+    "Аккаунты Exampeak — для учеников, родившихся в {year} году или раньше, поэтому мы не сохранили ваши данные. Без аккаунта вы всё равно можете составить тест, пройти его и увидеть все ошибки. Результаты хранятся на нашем сервере под случайным кодом из этого браузера, а не под вашим именем.",
 
   // Privacy and terms
   "legal.privacy": "Конфиденциальность",
@@ -1600,13 +1613,19 @@ const az: Dictionary = {
   "age.title": "Hansı ildə doğulmusunuz?",
   "age.subtitle": "Exampeak hesabları {age} yaş və yuxarı şagirdlər üçündür. Doğum gününüzü deyil, yalnız ili saxlayırıq.",
   "age.notice":
-    "Doğum iliniz {year} ilindən sonradırsa, bu hesab və içindəki hər şey dərhal silinir. Hesab olmadan da məşq etməyə davam edə bilərsiniz.",
+    "Doğum iliniz {year} ilindən sonradırsa, ili yoxlamaq üçün sizə yenidən göstərəcəyik, sonra isə bu yeni hesabı siləcəyik. Daxil olmazdan əvvəl həll etdiyiniz testlər qalır.",
   "age.continue": "Davam et",
   "age.saving": "Yoxlanılır...",
   "age.errFailed": "Doğum ilinizi indi yadda saxlamaq mümkün olmadı. Bir az sonra yenidən cəhd edin.",
+  "age.checkTitle": "Doğum iliniz {year} düzgündür?",
+  "age.checkBody":
+    "Exampeak hesabları {latest} ilində və ya daha əvvəl doğulmuş şagirdlər üçündür. {year} düzgündürsə, bu yeni hesab silinəcək və hesab olmadan məşq etməyə davam edə bilərsiniz. Daxil olmazdan əvvəl həll etdiyiniz testlər olduğu kimi qalır.",
+  "age.change": "İli dəyiş",
+  "age.confirmTooYoung": "Bəli, {year} düzgündür",
+  "age.deleting": "Silinir...",
   "age.tooYoungTitle": "Hesab olmadan məşq edin",
   "age.tooYoungBody":
-    "Exampeak hesabları {year} ilində və ya daha əvvəl doğulmuş şagirdlər üçündür, ona görə də məlumatlarınızı saxlamadıq. Hesab olmadan da test qura, onu yaza və bütün səhvlərinizi görə bilərsiniz: nəticələriniz bu brauzerdə qalır.",
+    "Exampeak hesabları {year} ilində və ya daha əvvəl doğulmuş şagirdlər üçündür, ona görə də məlumatlarınızı saxlamadıq. Hesab olmadan da test qura, onu yaza və bütün səhvlərinizi görə bilərsiniz. Nəticələriniz adınızla deyil, bu brauzerdəki təsadüfi kodla serverimizdə saxlanılır.",
 
   // Privacy and terms
   "legal.privacy": "Məxfilik",

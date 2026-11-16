@@ -60,7 +60,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "What we keep",
           paragraphs: [
             "Without an account: the tests you take, your answers and your scores. They are linked to a random code kept in your browser, not to your name.",
-            "With an account: your name, your email address, the year you were born and the date you told us, your username, your profile photo if you add one, and the history of every test you take (the questions, your answers, your scores and the dates).",
+            "With an account: your name, your email address, your username, your profile photo if you add one, and the history of every test you take (the questions, your answers, your scores and the dates). For an account made since the age check began, also the year you were born and when you told us.",
             "If you sign in with Google, your name, email address and photo come from your Google account.",
             "All of this is stored in Supabase, the database service the site runs on."
           ]
@@ -68,9 +68,9 @@ export const legalTexts: Record<Language, LegalTexts> = {
         {
           heading: "Age",
           paragraphs: [
-            "Accounts are for students aged {age} and over. We ask only for the year you were born, never the date, so an account is open to anyone born in {year} or earlier.",
-            "If you are younger, you can still use everything on the site without an account: your tests and results are kept in your browser, not with your name.",
-            "Signing in with Google makes an account before we can ask. If someone younger does that, the account and everything in it is deleted as soon as they tell us the year they were born."
+            "New accounts are for students aged {age} and over. We ask only for the year you were born, never the date, so a new account is open to anyone born in {year} or earlier. Accounts made before this check began are not asked.",
+            "If you are younger, you can still use everything on the site without an account. Your tests, answers and scores are then stored on our server under a random code kept in your browser, not under your name. Clearing your browser's data for this site removes that code, so you can no longer reach those results, but it does not delete them from our server.",
+            "Signing in with Google for the first time makes an account before we can ask. If the year given then is too late, we show it again so a mistake can be put right. Once it is confirmed, that new account is deleted. Tests taken before signing in are not lost: they stay under the browser's code."
           ]
         },
         {
@@ -98,7 +98,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "Deleting it all",
           paragraphs: [
             "Go to Profile and choose Delete account. This permanently deletes your profile, your photo, your friends list and every test you have taken. It cannot be undone.",
-            "Tests taken without an account are linked only to the random code in your browser. Clearing your browser's data for this site removes that code."
+            "Tests taken without an account are linked only to the random code in your browser, not to your name. Clearing your browser's data for this site removes that code, so you can no longer reach those tests, but it does not delete them from our server."
           ]
         },
         {
@@ -122,7 +122,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "Your account",
           paragraphs: [
             "Keep your password to yourself. If you think someone else has used your account, change your password on your profile.",
-            "You need to be {age} or older to have an account (born in {year} or earlier). If you are younger, you can use the site without one.",
+            "You need to be {age} or older to make a new account (born in {year} or earlier). If you are younger, you can use the site without one.",
             "You can delete your account at any time from your profile. The privacy page says what that removes."
           ]
         },
@@ -163,7 +163,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "Что мы храним",
           paragraphs: [
             "Без аккаунта: пройденные тесты, ваши ответы и баллы. Они привязаны к случайному коду, который хранится в вашем браузере, а не к вашему имени.",
-            "С аккаунтом: ваше имя, адрес электронной почты, год рождения и дата, когда вы его указали, имя пользователя, фото профиля, если вы его добавите, и история всех тестов (вопросы, ваши ответы, баллы и даты).",
+            "С аккаунтом: ваше имя, адрес электронной почты, имя пользователя, фото профиля, если вы его добавите, и история всех тестов (вопросы, ваши ответы, баллы и даты). Для аккаунта, созданного после начала проверки возраста, — ещё год рождения и дата, когда вы его указали.",
             "Если вы входите через Google, имя, адрес почты и фото берутся из вашего аккаунта Google.",
             "Всё это хранится в Supabase — сервисе баз данных, на котором работает сайт."
           ]
@@ -171,9 +171,9 @@ export const legalTexts: Record<Language, LegalTexts> = {
         {
           heading: "Возраст",
           paragraphs: [
-            "Аккаунты — для учеников от {age} лет. Мы спрашиваем только год рождения, а не дату, поэтому аккаунт может завести любой, кто родился в {year} году или раньше.",
-            "Если вы младше, всем на сайте можно пользоваться и без аккаунта: ваши тесты и результаты хранятся в вашем браузере, а не под вашим именем.",
-            "При входе через Google аккаунт создаётся раньше, чем мы успеваем спросить. Если так входит кто-то младше, этот аккаунт и всё, что в нём есть, удаляются сразу, как только человек укажет год рождения."
+            "Новые аккаунты — для учеников от {age} лет. Мы спрашиваем только год рождения, а не дату, поэтому новый аккаунт может завести любой, кто родился в {year} году или раньше. Аккаунты, созданные до начала этой проверки, мы не спрашиваем.",
+            "Если вы младше, всем на сайте можно пользоваться и без аккаунта. Тогда ваши тесты, ответы и баллы хранятся на нашем сервере под случайным кодом из вашего браузера, а не под вашим именем. Если очистить данные этого сайта в браузере, код удалится и к этим результатам больше нельзя будет вернуться, но с нашего сервера они не удалятся.",
+            "При первом входе через Google аккаунт создаётся раньше, чем мы успеваем спросить. Если указанный год слишком поздний, мы покажем его ещё раз, чтобы можно было исправить ошибку. После подтверждения этот новый аккаунт удаляется. Тесты, пройденные до входа, не пропадают: они остаются под кодом браузера."
           ]
         },
         {
@@ -201,7 +201,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "Как всё удалить",
           paragraphs: [
             "Откройте профиль и выберите «Удалить аккаунт». Это навсегда удалит ваш профиль, фото, список друзей и все пройденные тесты. Отменить это нельзя.",
-            "Тесты, пройденные без аккаунта, связаны только со случайным кодом в вашем браузере. Если очистить данные этого сайта в браузере, этот код удалится."
+            "Тесты, пройденные без аккаунта, связаны только со случайным кодом в вашем браузере, а не с вашим именем. Если очистить данные этого сайта в браузере, этот код удалится и к этим тестам больше нельзя будет вернуться, но с нашего сервера они не удалятся."
           ]
         },
         {
@@ -225,7 +225,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "Ваш аккаунт",
           paragraphs: [
             "Никому не сообщайте свой пароль. Если вам кажется, что кто-то другой заходил в ваш аккаунт, смените пароль в профиле.",
-            "Чтобы иметь аккаунт, вам должно быть не меньше {age} лет (год рождения — {year} или раньше). Если вы младше, пользуйтесь сайтом без аккаунта.",
+            "Чтобы создать новый аккаунт, вам должно быть не меньше {age} лет (год рождения — {year} или раньше). Если вы младше, пользуйтесь сайтом без аккаунта.",
             "Вы можете удалить аккаунт в любой момент в своём профиле. Что при этом удаляется, написано на странице о конфиденциальности."
           ]
         },
@@ -266,7 +266,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "Nəyi saxlayırıq",
           paragraphs: [
             "Hesabsız: həll etdiyiniz testlər, cavablarınız və ballarınız. Onlar adınıza deyil, brauzerinizdə saxlanılan təsadüfi koda bağlıdır.",
-            "Hesabla: adınız, e-poçt ünvanınız, doğum iliniz və onu bildirdiyiniz tarix, istifadəçi adınız, əlavə etsəniz profil şəkliniz və həll etdiyiniz bütün testlərin tarixçəsi (suallar, cavablarınız, ballarınız və tarixlər).",
+            "Hesabla: adınız, e-poçt ünvanınız, istifadəçi adınız, əlavə etsəniz profil şəkliniz və həll etdiyiniz bütün testlərin tarixçəsi (suallar, cavablarınız, ballarınız və tarixlər). Yaş yoxlaması başlayandan sonra yaradılmış hesab üçün həmçinin doğum iliniz və onu bildirdiyiniz tarix.",
             "Google ilə daxil olursunuzsa, adınız, e-poçt ünvanınız və şəkliniz Google hesabınızdan götürülür.",
             "Bütün bunlar saytın işlədiyi verilənlər bazası xidməti olan Supabase-də saxlanılır."
           ]
@@ -274,9 +274,9 @@ export const legalTexts: Record<Language, LegalTexts> = {
         {
           heading: "Yaş",
           paragraphs: [
-            "Hesablar {age} yaş və yuxarı şagirdlər üçündür. Biz tarixi deyil, yalnız doğum ilinizi soruşuruq, ona görə də {year} ilində və ya daha əvvəl doğulmuş hər kəs hesab yarada bilər.",
-            "Daha kiçiksinizsə, saytdakı hər şeydən hesab olmadan da istifadə edə bilərsiniz: testləriniz və nəticələriniz adınızla deyil, brauzerinizdə saxlanılır.",
-            "Google ilə daxil olduqda hesab biz soruşmazdan əvvəl yaradılır. Daha kiçik yaşda olan biri belə daxil olarsa, doğum ilini bildirən kimi hesab və içindəki hər şey dərhal silinir."
+            "Yeni hesablar {age} yaş və yuxarı şagirdlər üçündür. Biz tarixi deyil, yalnız doğum ilinizi soruşuruq, ona görə də {year} ilində və ya daha əvvəl doğulmuş hər kəs yeni hesab yarada bilər. Bu yoxlama başlamazdan əvvəl yaradılmış hesablardan soruşmuruq.",
+            "Daha kiçiksinizsə, saytdakı hər şeydən hesab olmadan da istifadə edə bilərsiniz. Bu halda testləriniz, cavablarınız və ballarınız adınızla deyil, brauzerinizdəki təsadüfi kodla serverimizdə saxlanılır. Brauzerdə bu saytın məlumatlarını təmizləsəniz, kod silinəcək və həmin nəticələrə artıq çata bilməyəcəksiniz, lakin onlar serverimizdən silinmir.",
+            "Google ilə ilk dəfə daxil olduqda hesab biz soruşmazdan əvvəl yaradılır. Bildirilən il çox gecdirsə, səhvi düzəltmək üçün onu yenidən göstəririk. Təsdiqləndikdən sonra bu yeni hesab silinir. Daxil olmazdan əvvəl həll edilmiş testlər itmir: onlar brauzerin kodu ilə qalır."
           ]
         },
         {
@@ -304,7 +304,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "Hamısını necə silmək olar",
           paragraphs: [
             "Profilə keçin və «Hesabımı sil» düyməsini seçin. Bu, profilinizi, şəklinizi, dost siyahınızı və həll etdiyiniz bütün testləri birdəfəlik silir. Bunu geri qaytarmaq olmur.",
-            "Hesabsız həll edilmiş testlər yalnız brauzerinizdəki təsadüfi koda bağlıdır. Brauzerdə bu saytın məlumatlarını təmizləsəniz, həmin kod silinəcək."
+            "Hesabsız həll edilmiş testlər adınıza deyil, yalnız brauzerinizdəki təsadüfi koda bağlıdır. Brauzerdə bu saytın məlumatlarını təmizləsəniz, həmin kod silinəcək və bu testlərə artıq çata bilməyəcəksiniz, lakin onlar serverimizdən silinmir."
           ]
         },
         {
@@ -328,7 +328,7 @@ export const legalTexts: Record<Language, LegalTexts> = {
           heading: "Hesabınız",
           paragraphs: [
             "Şifrənizi heç kimə deməyin. Başqasının hesabınıza girdiyini düşünürsünüzsə, profilinizdə şifrənizi dəyişin.",
-            "Hesabınız olması üçün ən azı {age} yaşınız olmalıdır ({year} ilində və ya daha əvvəl doğulmuş). Daha kiçiksinizsə, saytdan hesab olmadan istifadə edin.",
+            "Yeni hesab yaratmaq üçün ən azı {age} yaşınız olmalıdır ({year} ilində və ya daha əvvəl doğulmuş). Daha kiçiksinizsə, saytdan hesab olmadan istifadə edin.",
             "Hesabınızı istənilən vaxt profilinizdən silə bilərsiniz. Bunun nəyi sildiyi məxfilik səhifəsində yazılıb."
           ]
         },

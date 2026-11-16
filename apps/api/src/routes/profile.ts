@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { birthYearProblem, cleanName, isReadableName, normalizeUsername, profileLimits } from "@grade9/shared";
 import { PublicError } from "../lib/publicError";
-import { forgetRecordedAge, recordAge, signUpBirthYear } from "../modules/student/accountAge";
+import { ageStatusOf, decideAge, forgetAccount, recordAge, signUpBirthYear } from "../modules/student/accountAge";
 import { accountOf, requireAccount, signInAgain } from "../modules/student/requireAccount";
 import { liveAccount } from "../modules/student/studentAuth";
 import { deleteAttemptsFor } from "../repositories/attemptRepository";
@@ -41,10 +41,11 @@ profileRouter.use(
       message:
         "Profiles need the API connected to Supabase. Set SUPABASE_SECRET_KEY in .env and restart the API."
     },
-    // Before an account has given its year of birth it can do only these two:
-    // give it, or delete itself (see accountAge).
+    // Before a new account has given its year of birth it can do only these:
+    // ask where it stands, give the year, or delete itself (see accountAge).
     {
       withoutAge: [
+        ["GET", "/age"],
         ["POST", "/age"],
         ["DELETE", "/"]
       ]
@@ -64,7 +65,7 @@ async function eraseAccount(id: string): Promise<void> {
   await removePhotos(id);
   await deleteAttemptsFor(id);
   await deleteAccount(id);
-  forgetRecordedAge(id);
+  forgetAccount(id);
 
   // A photo uploaded by another tab while this was running would otherwise
   // outlive the account, in the bucket, with nothing left to sweep it.
@@ -74,24 +75,46 @@ async function eraseAccount(id: string): Promise<void> {
 }
 
 /**
- * Records the year the student was born: an account's first step, before the
- * API lets it do anything else (see accountAge).
+ * Where the signed-in account stands with the age check (see accountAge):
+ * "exempt" (made before the check began), "confirmed", or "pending" (a new
+ * account that has not given its year). The web app asks this at sign-in, to
+ * know whether to show the year-of-birth step.
+ */
+profileRouter.get("/age", async (_request, response, next) => {
+  try {
+    response.json({ status: await ageStatusOf(accountOf(response)) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Takes the year a new account's student was born: its first step, before
+ * the API lets it do anything else (see accountAge).
  *
- * The year comes in the body, from the step the web app shows after a Google
- * sign-in or to an account made before this check existed. Without one, it is
- * the year given on the sign-up form, which travels in the account's user
- * metadata, so a student who has just typed it is not asked again.
+ * The year comes in the body, from the step the web app shows after a first
+ * Google sign-in. Without one, it is the year given on the sign-up form,
+ * which travels in the account's user metadata, so a student who has just
+ * typed it is not asked again.
  *
- * A student too young for an account is not given one: the account is deleted
- * on the spot, with everything in it, and the answer says so. The web app then
- * signs out and sends them to practise as a guest.
+ * Too young for an account, nothing happens at first: the answer is
+ * "too-young", with the year, so the page can show it and let a slip be put
+ * right. Only the same year sent again with `confirmTooYoung` refuses the
+ * account, which then is deleted on the spot. It holds nothing to lose: a
+ * pending account can do nothing else, and tests taken before signing in stay
+ * under the browser's guest key.
  *
- * A year already recorded is never changed here, so a stolen token cannot
- * delete an account by claiming it is too young. For the same reason as for
- * deleting, the account is read from the auth server rather than the token.
+ * The first answer is final (decideAge): two sent at once cannot both count,
+ * so a request never deletes an account another has just kept, and a stolen
+ * token cannot get a kept account deleted. An account made before the check
+ * began is answered "exempt", and nothing about it changes. For the same
+ * reason as for deleting, the account is read from the auth server rather
+ * than the token.
  */
 profileRouter.post("/age", async (request, response, next) => {
-  const parsed = z.object({ birthYear: z.number().int().optional() }).safeParse(request.body ?? {});
+  const parsed = z
+    .object({ birthYear: z.number().int().optional(), confirmTooYoung: z.boolean().optional() })
+    .safeParse(request.body ?? {});
 
   if (!parsed.success) {
     return response.status(400).json({ code: "birth-year-invalid", message: "That is not a year of birth." });
@@ -101,7 +124,9 @@ profileRouter.post("/age", async (request, response, next) => {
     const account = await liveAccount(request);
     if (!account) return response.status(401).json(signInAgain);
 
-    if (account.age) return response.json({ outcome: "confirmed", birthYear: account.age.birthYear });
+    const status = await ageStatusOf(account);
+    if (status === "exempt") return response.json({ outcome: "exempt" });
+    if (status === "confirmed") return response.json({ outcome: "confirmed", birthYear: account.age?.birthYear });
 
     const birthYear = parsed.data.birthYear ?? signUpBirthYear(account);
 
@@ -115,13 +140,20 @@ profileRouter.post("/age", async (request, response, next) => {
       return response.status(400).json({ code: "birth-year-invalid", message: "That is not a year of birth." });
     }
 
-    if (problem === "too-young") {
+    // Shown back to the student first, so a mistyped year can be put right.
+    if (problem === "too-young" && parsed.data.confirmTooYoung !== true) {
+      return response.json({ outcome: "too-young", birthYear });
+    }
+
+    const decision = await decideAge(account.id, birthYear, problem === "too-young" ? "refused" : "confirmed");
+
+    if (decision.outcome === "refused") {
       await eraseAccount(account.id);
       return response.json({ outcome: "account-deleted" });
     }
 
-    await recordAge(account.id, birthYear);
-    response.json({ outcome: "confirmed", birthYear });
+    await recordAge(account.id, decision.birthYear, decision.decidedAt);
+    response.json({ outcome: "confirmed", birthYear: decision.birthYear });
   } catch (error) {
     next(error);
   }

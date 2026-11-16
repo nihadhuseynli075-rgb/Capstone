@@ -12,7 +12,7 @@ import { cleanName, isReadableName } from "@grade9/shared";
 import { isUuid } from "../lib/ids";
 import { PublicError } from "../lib/publicError";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
-import { ageFromAppMetadata } from "../modules/student/accountAge";
+import { pendingAmong } from "../modules/student/accountAge";
 import { canBeFound } from "../services/friendLookups";
 import { withSignedPhoto, withSignedPhotos } from "../services/profilePhotos";
 import {
@@ -117,17 +117,14 @@ function toPerson(row: Record<string, unknown>): FriendPerson {
   };
 }
 
-const PERSON_COLUMNS = "id, full_name, username, avatar_url";
+// created_at says whether a profile is older than the age check (see pendingAmong).
+const PERSON_COLUMNS = "id, full_name, username, avatar_url, created_at";
 
 /**
  * Whether the account behind a profile has confirmed its email address, as
  * the auth server says (see canBeFound). The profile cannot say: it is made
  * the moment somebody signs up, confirmed or not. An account deleted since its
  * profile was read is not there to be found either.
- *
- * Nor is one that has not given its year of birth yet: until it has, nothing
- * of it is used (see accountAge), and it may turn out to be too young to have
- * an account at all. The same answer from the auth server says both.
  */
 async function hasConfirmedEmail(id: string): Promise<boolean> {
   const { data, error } = await client().auth.admin.getUserById(id);
@@ -137,7 +134,21 @@ async function hasConfirmedEmail(id: string): Promise<boolean> {
     throw friendsError("look that student up", error);
   }
 
-  return canBeFound(data.user) && ageFromAppMetadata(data.user?.app_metadata) !== null;
+  return canBeFound(data.user);
+}
+
+/**
+ * The people among these rows who can be shown to another student: all but
+ * new accounts that have not given their year of birth yet (see accountAge).
+ * Until they have, nothing of theirs is used, and they may turn out to be too
+ * young for an account at all. Accounts made before the check began are shown
+ * as they always were.
+ */
+async function showable(rows: Array<Record<string, unknown>>): Promise<Array<Record<string, unknown>>> {
+  const pending = await pendingAmong(
+    rows.map((row) => ({ id: row.id as string, createdAt: typeof row.created_at === "string" ? row.created_at : null }))
+  );
+  return rows.filter((row) => !pending.has(row.id as string));
 }
 
 /**
@@ -172,12 +183,22 @@ export async function findPerson(lookup: FriendLookup): Promise<FriendPerson | n
   if (error) throw friendsError("look that student up", error);
   if (!data || data.length === 0) return null;
 
-  const person = toPerson(data[0]);
+  // A new account still to give its year is no account to find yet, and is
+  // answered word for word like one that is not there.
+  const [found] = await showable(data);
+  if (!found) return null;
+
+  const person = toPerson(found);
   // The photo goes out as a link that stops working after a while (see
   // signedPhotoUrls): the bucket is private, and its addresses open nothing.
   return (await hasConfirmedEmail(person.id)) ? withSignedPhoto(person) : null;
 }
 
+/**
+ * The people with these ids who can be shown (see showable), by id. Whoever
+ * is left out is missing from the map, which the lists already treat as gone.
+ * Their photos are never signed.
+ */
 async function peopleById(ids: string[]): Promise<Map<string, FriendPerson>> {
   const people = new Map<string, FriendPerson>();
   if (ids.length === 0) return people;
@@ -186,7 +207,8 @@ async function peopleById(ids: string[]): Promise<Map<string, FriendPerson>> {
   if (error) throw friendsError("load your friends' names", error);
 
   // Every photo in the list signed in one request, as in findPerson.
-  for (const person of await withSignedPhotos((data ?? []).map(toPerson))) people.set(person.id, person);
+  const shown = (await showable(data ?? [])).map(toPerson);
+  for (const person of await withSignedPhotos(shown)) people.set(person.id, person);
   return people;
 }
 
@@ -260,11 +282,14 @@ export async function getOverview(me: string): Promise<FriendsOverview> {
   const sorted = sortFriendships(await rowsInvolving(me), me);
 
   const ids = [...new Set([...sorted.friends, ...sorted.incoming, ...sorted.outgoing].map((row) => otherEnd(row, me)))];
-  const [people, tests] = await Promise.all([
-    peopleById(ids),
+  // The people first, then only the shown friends' tests: someone left out
+  // (see showable) has their progress read as little as their photo signed.
+  const people = await peopleById(ids);
+  const tests = await submittedTests([
     // Always asks about this student too, so there is a figure to compare with
     // even before they have any friends to compare it with.
-    submittedTests([me, ...sorted.friends.map((row) => otherEnd(row, me))])
+    me,
+    ...sorted.friends.map((row) => otherEnd(row, me)).filter((id) => people.has(id))
   ]);
 
   // A person who is gone from `profiles` has no row left to point at them
@@ -304,8 +329,35 @@ export type SendOutcome =
   | { sent: SentFriendRequest }
   | { refused: "yourself" | "no-account" | "already-friends" | "already-requested" | "blocked" };
 
-/** Accepts a request addressed to `me`. Null when there is no such request waiting. */
+/**
+ * Accepts a request addressed to `me`. Null when there is no such request
+ * waiting, or when it is from a new account still to give its year of birth
+ * (see showable): that one is not accepted, and stays as it was.
+ */
 async function acceptPending(me: string, requestId: string): Promise<string | null> {
+  if (!isUuid(requestId)) return null;
+
+  const { data: waiting, error: readError } = await client()
+    .from("friendships")
+    .select("user_id")
+    .eq("id", requestId)
+    .eq("friend_id", me)
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (readError) throw friendsError("accept the request", readError);
+  if (!waiting) return null;
+
+  const senderId = waiting.user_id as string;
+  const { data: sender, error: senderError } = await client()
+    .from("profiles")
+    .select("id, created_at")
+    .eq("id", senderId)
+    .maybeSingle();
+
+  if (senderError) throw friendsError("accept the request", senderError);
+  if (!sender || (await showable([sender])).length === 0) return null;
+
   const { data, error } = await client()
     .from("friendships")
     .update({ status: "accepted", responded_at: new Date().toISOString() })

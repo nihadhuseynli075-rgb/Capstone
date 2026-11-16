@@ -5,7 +5,10 @@ import { cleanName, isReadableName } from "@grade9/shared";
 import { isSupabaseConfigured, supabase } from "../../lib/supabaseClient";
 import { clearSessionRecords, settleSessionRecords } from "../../lib/examSession";
 import { setSignedInUserId } from "../../lib/studentKey";
-import { confirmAge as confirmAgeWithApi } from "../../services/profileApi";
+import { confirmAge as confirmAgeWithApi, fetchAgeStatus } from "../../services/profileApi";
+
+/** Asking again where the account stands, after the API could not be reached: a little over three minutes in all. */
+const AGE_RETRY_DELAYS_MS = [10_000, 30_000, 60_000, 120_000];
 import { AuthActionError, authActionError, authErrorMessage, unreachableError } from "./authErrors";
 import {
   authRedirectUrl,
@@ -39,9 +42,9 @@ export interface AuthUser {
   /** When the account was made, as an ISO time; empty if the session did not say. */
   createdAt: string;
   /**
-   * Whether the account has given its year of birth, which it must before
-   * anything else of it is used (MIN_ACCOUNT_AGE in packages/shared). The API
-   * records it in the account's app_metadata, which the session copies.
+   * Whether the session already shows a recorded year of birth. The API
+   * records it in the account's app_metadata, which the session copies; with
+   * it, the account is known to have passed the age check without asking.
    */
   ageConfirmed: boolean;
   /**
@@ -51,8 +54,23 @@ export interface AuthUser {
   signUpBirthYear: number | null;
 }
 
-/** How giving a year of birth ended: recorded, or the account deleted because it was too young. */
-export type AgeOutcome = "confirmed" | "account-deleted";
+/**
+ * Where the signed-in account stands with the age check, as far as this tab
+ * knows (null while signed out):
+ *
+ * - "checking": not known yet. The app shows as usual, but takes nothing of
+ *   the guest's onto the account until it is known (settleSessionRecords,
+ *   useHistoryClaim).
+ * - "ok": made before the check began, or its year is recorded.
+ * - "pending": a new account that has not given its year. The year step
+ *   comes first (AgeCheckPage), and the API refuses everything else.
+ * - "unknown": the API could not be asked. Asked again in a while; the
+ *   account's own pages work as before, and the API still enforces the check.
+ */
+export type AgeStatus = "checking" | "ok" | "pending" | "unknown";
+
+/** How giving a year of birth ended (see confirmAge). */
+export type AgeOutcome = { outcome: "confirmed" | "account-deleted" } | { outcome: "too-young"; birthYear: number };
 
 interface AuthContextValue {
   /** Null until the stored session has been checked, so nothing flashes. */
@@ -74,13 +92,19 @@ interface AuthContextValue {
     birthYear: number;
     returnTo?: string;
   }) => Promise<{ needsEmailConfirmation: boolean }>;
+  /** See AgeStatus. */
+  ageStatus: AgeStatus | null;
+  /** For a request the API refused with "age-required": the account is pending after all. */
+  markAgeRequired: () => void;
   /**
-   * Gives the signed-in account's year of birth to the API: `birthYear`, or
-   * without it the one typed on the sign-up form. Recorded, the session is
-   * refreshed so that it says so. Too young, the account has already been
-   * deleted, and this browser is signed out of it.
+   * Gives a new account's year of birth to the API: `birthYear`, or without it
+   * the one typed on the sign-up form. Recorded, the session is refreshed so
+   * that it says so. Too young, nothing changes yet: "too-young" comes back
+   * with the year, to be shown so a slip can be put right. Sent again with
+   * `confirmTooYoung`, the API deletes the new account and this browser is
+   * signed out of it; the guest's own tests and paper stay as they were.
    */
-  confirmAge: (birthYear?: number) => Promise<AgeOutcome>;
+  confirmAge: (birthYear?: number, confirmTooYoung?: boolean) => Promise<AgeOutcome>;
   signIn: (input: { email: string; password: string }) => Promise<void>;
   /**
    * Leaves for Google, coming back to `returnTo` (home if left out). Resolves
@@ -207,26 +231,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [redirectResult, setRedirectResult] = useState<AuthRedirectResult | null>(null);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
 
-  // Who the last session was for. Undefined until the first one is applied, so
-  // the first page load settles what the tab holds as well as a later change.
-  const appliedUserId = useRef<string | null | undefined>(undefined);
+  const [ageStatus, setAgeStatus] = useState<AgeStatus | null>(null);
+
+  // Who the tab's records were last settled for. Undefined until the first
+  // time, so the first page load settles what the tab holds as well as a
+  // later change does.
+  const settledFor = useRef<string | null | undefined>(undefined);
 
   const applySession = useCallback((session: Session | null) => {
     const nextUser = session?.user ? toAuthUser(session.user) : null;
     setUser(nextUser);
     // Keep the API identity in step with the session before any request runs.
     setSignedInUserId(nextUser?.id ?? null);
+  }, []);
 
-    // The result and the paper in progress are kept in the tab, and signing out
-    // does not empty it. Whoever is signed in after this - nobody, another
-    // account, or the same person after a session that ended in another tab -
-    // must not find the last student's test there. A guest who has just signed
-    // in keeps their own (see settleSessionRecords). A token refresh or a tab
-    // coming back to focus reports the same account again, and changes nothing.
-    if (appliedUserId.current !== (nextUser?.id ?? null)) {
-      appliedUserId.current = nextUser?.id ?? null;
-      settleSessionRecords();
+  const userId = user?.id ?? null;
+  const tokenShowsAge = user?.ageConfirmed ?? false;
+
+  // Where the account stands with the age check: from the session when it
+  // already shows a recorded year, otherwise asked of the API, which alone
+  // knows whether the account is older than the check (see AgeStatus).
+  useEffect(() => {
+    if (!userId) {
+      setAgeStatus(null);
+      return;
     }
+
+    if (tokenShowsAge) {
+      setAgeStatus("ok");
+      return;
+    }
+
+    let stopped = false;
+    let retryTimer: number | undefined;
+    setAgeStatus("checking");
+
+    const ask = (retriesUsed: number) => {
+      fetchAgeStatus()
+        .then((status) => {
+          if (!stopped) setAgeStatus(status === "pending" ? "pending" : "ok");
+        })
+        .catch(() => {
+          if (stopped) return;
+          setAgeStatus("unknown");
+          if (retriesUsed < AGE_RETRY_DELAYS_MS.length) {
+            retryTimer = window.setTimeout(() => ask(retriesUsed + 1), AGE_RETRY_DELAYS_MS[retriesUsed]);
+          }
+        });
+    };
+    ask(0);
+
+    return () => {
+      stopped = true;
+      window.clearTimeout(retryTimer);
+    };
+  }, [userId, tokenShowsAge]);
+
+  // The result and the paper in progress are kept in the tab, and signing out
+  // does not empty it. Whoever is signed in after a change - nobody, another
+  // account, or the same person after a session that ended in another tab -
+  // must not find the last student's test there. A guest who has just signed
+  // in keeps their own (see settleSessionRecords), but only once the account
+  // is known to have passed the age check: a new account refused at the year
+  // step must leave the guest's paper and results as the guest's. A token
+  // refresh or a tab coming back to focus reports the same account again, and
+  // changes nothing.
+  useEffect(() => {
+    if (!ready) return;
+    if (userId !== null && ageStatus !== "ok") return;
+    if (settledFor.current === userId) return;
+
+    settledFor.current = userId;
+    settleSessionRecords();
+  }, [ready, userId, ageStatus]);
+
+  const markAgeRequired = useCallback(() => {
+    setAgeStatus((current) => (current === null ? current : "pending"));
   }, []);
 
   useEffect(() => {
@@ -379,18 +459,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // browser has forgotten.
   }, []);
 
-  const confirmAge = useCallback(async (birthYear?: number): Promise<AgeOutcome> => {
+  const confirmAge = useCallback(async (birthYear?: number, confirmTooYoung = false): Promise<AgeOutcome> => {
     if (!supabase) throw new AuthActionError(authErrorMessage("not-configured"), "not-configured");
     const client = supabase;
 
-    const { outcome } = await confirmAgeWithApi(birthYear);
+    const answer = await confirmAgeWithApi(birthYear, confirmTooYoung);
 
-    if (outcome === "account-deleted") {
+    // Nothing has changed: the page shows the year so a slip can be put right.
+    if (answer.outcome === "too-young") return answer;
+
+    if (answer.outcome === "account-deleted") {
       // The account is gone, and every session it had on the server with it;
-      // only this tab's copy is left to clear (as for deleting an account).
+      // only this tab's copy is left to clear. The tab's records are left
+      // alone: the account never took them on (see the settling above), so
+      // they are the guest's paper and results, as they were before signing in.
       await client.auth.signOut({ scope: "local" });
-      clearSessionRecords();
-      return outcome;
+      return { outcome: "account-deleted" };
+    }
+
+    // An account made before the check began has nothing to give.
+    if (answer.outcome === "exempt") {
+      setAgeStatus("ok");
+      return { outcome: "confirmed" };
     }
 
     // The session holds the account as it was before the year was recorded.
@@ -402,7 +492,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw authActionError(error);
     });
 
-    return outcome;
+    setAgeStatus("ok");
+    return { outcome: "confirmed" };
   }, []);
 
   const updatePassword = useCallback(
@@ -485,6 +576,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       redirectResult,
       clearRedirectResult,
       signUp,
+      ageStatus,
+      markAgeRequired,
       confirmAge,
       signIn,
       signInWithGoogle,
@@ -499,6 +592,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearPasswordRecovery
     }),
     [
+      ageStatus,
+      markAgeRequired,
       confirmAge,
       ready,
       user,
