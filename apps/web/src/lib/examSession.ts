@@ -287,6 +287,15 @@ export function markResultsDue(testId: string, handedInAs?: string): void {
   safeSessionStorage.setItem(RESULTS_DUE_KEY, JSON.stringify({ testId, owner: resultOwner(handedInAs) }));
 }
 
+/**
+ * Drops the note, once the exam page has gone on to the results itself. A
+ * new paper replaces the note anyway (saveActiveTest), so any note left is
+ * for the paper on that page.
+ */
+export function forgetResultsDue(): void {
+  safeSessionStorage.removeItem(RESULTS_DUE_KEY);
+}
+
 /** The paper whose results are waiting to be shown, if it is this tab's. Taken, so it is used once. */
 export function takeResultsDue(): string | null {
   const raw = safeSessionStorage.getItem(RESULTS_DUE_KEY);

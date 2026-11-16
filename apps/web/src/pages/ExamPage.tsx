@@ -8,6 +8,7 @@ import { SignInToFinishButton } from "../features/auth/SignInToFinishButton";
 import { fill } from "../features/friends/fill";
 import {
   clearActiveTest,
+  forgetResultsDue,
   loadActiveTest,
   loadLastResult,
   markHandedIn,
@@ -287,6 +288,7 @@ export function ExamPage() {
         // paper is noted instead, for the exam page to go on to its results
         // the next time it opens with nothing to sit.
         if (mountedRef.current) {
+          forgetResultsDue();
           replaceRoute(stored ? "/results" : `/results/${active.test.id}`);
         } else {
           markResultsDue(active.test.id, studentKey);
@@ -302,8 +304,12 @@ export function ExamPage() {
         if (code === "already-submitted") {
           closedRef.current = true;
           clearActiveTest(active.test.id);
-          if (mountedRef.current) replaceRoute(`/results/${active.test.id}`);
-          else markResultsDue(active.test.id);
+          if (mountedRef.current) {
+            forgetResultsDue();
+            replaceRoute(`/results/${active.test.id}`);
+          } else {
+            markResultsDue(active.test.id);
+          }
           return;
         }
 
