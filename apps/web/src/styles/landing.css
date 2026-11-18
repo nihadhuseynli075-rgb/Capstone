@@ -2,7 +2,8 @@
  * Landing page (Figma "Landing", Nov 2026 redesign).
  *
  * A plain page in the shared tokens (redesign.css): copy on the left, the climb
- * on a navy hero panel on the right, three feature cards and a navy closing
+ * on a navy hero panel on the right (its steps carry what the three feature
+ * cards used to say), the subjects as stops on one trail, and a navy closing
  * band. Imported by LandingPage only, so these rules load after the shared
  * sheets and win their ties.
  */
@@ -63,11 +64,18 @@
 
 /* -------------------------------------------------------------------- hero */
 
+/*
+ * The two columns share their top and bottom edges: the copy starts a fixed
+ * distance down and its button row sits on the climb card's foot. The card
+ * has a fixed minimum height that its steps fit inside (index.html's first
+ * screen draws it empty at the same height), so nothing moves when the app
+ * replaces the first screen (no layout shift).
+ */
 .landing-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 560px);
   gap: 64px;
-  align-items: center;
+  align-items: stretch;
 }
 
 .landing-left {
@@ -75,6 +83,11 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 24px;
+  padding-top: 56px;
+}
+
+.landing-left .landing-start {
+  margin-top: auto;
 }
 
 /*
@@ -99,6 +112,8 @@
 
 .landing-left h1 {
   margin: 0;
+  /* "peak." may close the line on its own: it is the word that matters. */
+  text-wrap: wrap;
   font-size: clamp(2.75rem, 1.6rem + 3.6vw, 4rem);
   line-height: 1.06;
   letter-spacing: -0.03em;
@@ -122,30 +137,36 @@
   line-height: 1.55;
 }
 
+/* The note stays in the button's row at every width above a phone: when the
+   column is narrow (1024) the note wraps onto two lines beside the button
+   rather than dropping below the hero. */
 .landing-start {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 16px;
   padding-top: 8px;
 }
 
 .landing-cta {
+  flex: none;
   min-height: 52px;
   padding: 14px 28px;
   font-size: 1rem;
+  white-space: nowrap;
 }
 
 .landing-cta-note {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   color: var(--muted);
   font-size: 0.875rem;
   font-weight: 600;
 }
 
 .landing-cta-note svg {
+  flex: none;
   width: 18px;
   height: 18px;
   color: var(--success);
@@ -154,7 +175,7 @@
 /* The climb sits on a navy hero panel, as in the Figma hero visual. */
 .landing-right {
   display: flex;
-  min-height: 460px;
+  min-height: 572px;
   padding: 40px;
   border-radius: var(--radius-xl);
   background: var(--hero);
@@ -171,7 +192,15 @@
   flex: 1;
 }
 
+/* One 18px gap between every step, the stop still to come included. A step
+   with a line under it keeps its number level with the title. */
+.landing-right .ascent-steps {
+  gap: 18px;
+}
+
 .landing-right .ascent-steps li {
+  align-items: flex-start;
+  gap: 12px;
   color: var(--on-hero);
   font-weight: 600;
 }
@@ -181,83 +210,228 @@
   color: var(--on-hero);
 }
 
-/* -------------------------------------------------------- subjects, features */
-
-.landing-subjects {
-  margin: 0;
+.landing-right .ascent-step-number.is-soon {
+  border: 1.5px dashed color-mix(in srgb, var(--on-hero) 62%, transparent);
+  background: none;
 }
 
-.landing-features {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.ascent-step-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 3px;
+}
+
+.ascent-step-text.is-soon {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding-top: 0;
+}
+
+.ascent-step-title {
+  font-size: 1rem;
+  line-height: 1.375;
+  text-wrap: balance;
+}
+
+.ascent-step-note {
+  max-width: 62ch;
+  color: color-mix(in srgb, var(--on-hero) 84%, var(--hero));
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.is-soon .ascent-step-title {
+  color: color-mix(in srgb, var(--on-hero) 88%, var(--hero));
+}
+
+/* "Coming soon" as he writes it: no tracked capitals. */
+.soon-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 2px 10px;
+  border: 1px dashed currentColor;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ subject trail */
+
+/*
+ * The subjects as stops on one trail (SubjectShortcuts variant="trail"): a
+ * ridge line joins four glyph markers, each stop's name, count and sector note
+ * on the same fixed slots underneath. A subject with nothing in it yet is the
+ * dashed stop, and the way on to it is dashed too.
+ */
+.landing-subjects {
+  margin: 0;
   gap: 24px;
 }
 
-.landing-feature {
+.landing-subjects .subject-shortcuts-title {
+  color: var(--text);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.subject-trail {
+  --stop-marker: 72px;
+  --stop-gap: 24px;
+
+  display: grid;
+  /* The last stop carries the widest line ("Coming soon" + its sector note),
+     so it gets a little more room to keep the two side by side. */
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.25fr);
+  gap: var(--stop-gap);
+  padding-top: 16px;
+}
+
+.subject-stop {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 32px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  background: var(--surface);
-}
-
-.landing-feature h2 {
-  margin: 0;
-  font-size: 1.5rem;
-}
-
-.landing-feature p {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.55;
-}
-
-.landing-feature-icon {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 0;
+  min-height: 64px;
+  padding: 0;
+  border: 0;
   border-radius: var(--radius);
+  background: none;
+  box-shadow: none;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
 }
 
-.landing-feature-icon svg {
-  width: 26px;
-  height: 26px;
+.subject-stop:disabled {
+  cursor: default;
+  opacity: 1;
 }
 
-.landing-feature-icon.is-brand {
+.subject-stop .subject-glyph {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--stop-marker);
+  height: var(--stop-marker);
+  border: 2px solid var(--brand);
+  border-radius: 50%;
   background: var(--brand-soft);
+  box-shadow: none;
   color: var(--brand);
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.landing-feature-icon.is-summit {
-  background: var(--summit-soft);
-  color: var(--warning);
+.subject-stop:hover:not(:disabled) .subject-glyph {
+  background: var(--brand);
+  color: var(--on-brand);
 }
 
-.landing-feature-icon.is-success {
-  background: var(--success-soft);
-  color: var(--success);
+.subject-stop.is-soon .subject-glyph {
+  border: 2px dashed var(--muted);
+  background: var(--surface);
+  color: var(--muted);
 }
 
-.feature-head {
+.trail-seg {
+  position: absolute;
+  z-index: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.trail-seg path {
+  fill: none;
+  stroke: var(--brand-strong);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.trail-seg.is-dashed path {
+  stroke: var(--muted);
+  stroke-dasharray: 6 6;
+}
+
+/* Across: from this marker's right edge to the next stop's marker, rising to
+   a peak halfway. */
+.trail-seg.is-across {
+  top: -8px;
+  left: var(--stop-marker);
+  width: calc(100% - var(--stop-marker) + var(--stop-gap));
+  height: calc(var(--stop-marker) / 2 + 8px);
+}
+
+.trail-seg.is-down {
+  display: none;
+}
+
+.subject-stop-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.subject-stop .subject-name {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.33;
+}
+
+.subject-stop.is-soon .subject-name {
+  color: var(--muted);
+}
+
+.subject-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px 12px;
 }
 
-.soon-badge {
-  padding: 3px 10px;
+.subject-stop .subject-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 2px 10px;
   border-radius: 999px;
   background: var(--surface-alt);
   color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.subject-stop.is-soon .subject-count {
+  border: 1px dashed var(--muted);
+  background: none;
+}
+
+.subject-stop .subject-sector {
+  justify-self: start;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: left;
 }
 
 /* ---------------------------------------------------------- closing band */
@@ -307,6 +481,20 @@
   color: var(--text);
 }
 
+/* Between the phone and the wide screen (1024) the button sits under the
+   closing line, and the hero's columns give the copy room for its note. */
+@media (max-width: 1180px) {
+  .landing-bottom {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .landing-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 500px);
+    gap: 40px;
+  }
+}
+
 /* Shown on every load, signed in or not, so it follows the theme. */
 .landing-loading {
   min-height: 100vh;
@@ -324,20 +512,73 @@
     gap: 32px;
   }
 
+  .landing-left {
+    padding-top: 0;
+  }
+
+  .landing-left .landing-start {
+    margin-top: 0;
+  }
+
   .landing-right {
     min-height: 360px;
     padding: 24px;
-  }
-
-  .landing-features {
-    grid-template-columns: 1fr;
-    gap: 16px;
   }
 
   .landing-bottom {
     flex-direction: column;
     align-items: stretch;
     padding: 32px 24px;
+  }
+}
+
+/* Tablet: two stops a row on the ridge; the way from the second stop on to
+   the next row is left out rather than drawn across the page. */
+@media (min-width: 641px) and (max-width: 860px) {
+  .subject-trail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 40px;
+  }
+
+  .subject-stop:nth-child(2) .trail-seg {
+    display: none;
+  }
+}
+
+/* Rows on a phone: marker on the left, the name with its count and note
+   beside it, the ridge running down between the markers. */
+@media (max-width: 640px) {
+  .subject-trail {
+    --stop-marker: 56px;
+    --stop-gap: 20px;
+
+    grid-template-columns: minmax(0, 1fr);
+    padding-top: 0;
+  }
+
+  .subject-stop {
+    flex-direction: row;
+    gap: 16px;
+  }
+
+  .subject-stop .subject-glyph {
+    font-size: 1.5rem;
+  }
+
+  .subject-stop-text {
+    padding-top: 4px;
+  }
+
+  .trail-seg.is-across {
+    display: none;
+  }
+
+  .trail-seg.is-down {
+    display: block;
+    top: var(--stop-marker);
+    left: calc(var(--stop-marker) / 2 - 20px);
+    width: 40px;
+    height: calc(100% - var(--stop-marker) + var(--stop-gap));
   }
 }
 
@@ -390,10 +631,6 @@
 
   .landing-start {
     flex-direction: column;
-    align-items: stretch;
-  }
-
-  .landing-feature {
-    padding: 24px;
+    align-items: flex-start;
   }
 }

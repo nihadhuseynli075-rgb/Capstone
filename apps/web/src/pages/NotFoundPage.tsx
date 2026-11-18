@@ -1,4 +1,5 @@
 import { navigate } from "../app/router";
+import { PageBand } from "../components/PageBand";
 import { useAuth } from "../features/auth/AuthContext";
 import { useLanguage } from "../lib/i18n";
 
@@ -14,18 +15,17 @@ export function NotFoundPage() {
   const { t } = useLanguage();
   const { user } = useAuth();
 
+  // The navy band and ridge of the other plain pages, with the climb stopping
+  // short of the flag: the way home is the one action, inside the band.
   return (
-    <div className="stack narrow">
-      <section>
-        <h1>{t("notFound.title")}</h1>
-        <p className="lede">{t("notFound.body")}</p>
-      </section>
-
-      <div>
-        <button type="button" className="primary-button" onClick={() => navigate("/")}>
-          {user ? t("notFound.dashboard") : t("notFound.home")}
-        </button>
-      </div>
+    <div className="stack">
+      <PageBand title={t("notFound.title")} intro={t("notFound.body")} short>
+        <div>
+          <button type="button" className="primary-button" onClick={() => navigate("/")}>
+            {user ? t("notFound.dashboard") : t("notFound.home")}
+          </button>
+        </div>
+      </PageBand>
     </div>
   );
 }

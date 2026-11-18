@@ -150,16 +150,6 @@ export function IconHome() {
   );
 }
 
-/** A four-point spark: the short daily quiz (landing feature card). */
-export function IconSpark() {
-  return (
-    <Icon>
-      <path d="M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2Z" fill="currentColor" opacity="0.18" stroke="none" />
-      <path d="M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2Z" />
-    </Icon>
-  );
-}
-
 /** A check mark: confirmations such as "No account needed". */
 export function IconCheck() {
   return (

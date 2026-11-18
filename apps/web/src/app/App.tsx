@@ -715,10 +715,7 @@ function Shell() {
 
             <a href="#/privacy">{t("legal.privacy")}</a>
             <a href="#/terms">{t("legal.terms")}</a>
-
-            <a href="#/admin" className="footer-admin-link">
-              {t("nav.admin")}
-            </a>
+            {/* No public link to /admin: the page stays, reached by its address. */}
           </div>
         </footer>
       )}

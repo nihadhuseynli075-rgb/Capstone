@@ -129,6 +129,25 @@ h2 {
   font-weight: 600;
 }
 
+/* No paragraph, bullet or card line ends on one word at any width, and
+   headings break into even lines (inherited, so spans in cards follow). */
+body {
+  text-wrap: pretty;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+/* Short one-line points that run to two lines: balanced, which also keeps
+   "questions" off a line of its own beside the sign-in card (pretty leaves a
+   two-line item as it is). */
+.auth-aside-points li {
+  text-wrap: balance;
+}
+
 h3 {
   font-size: 1.125rem;
   line-height: 1.45;
@@ -233,6 +252,9 @@ h3 {
 }
 
 .footer-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   color: var(--muted);
   text-decoration: none;
 }
@@ -332,6 +354,13 @@ h3 {
     min-width: 40px;
     padding: 0;
   }
+
+  /* The phone menu's Sign in is a blue button (education-ui.css); the muted
+     nav colour above beat its white text, leaving it at 1.09:1. */
+  .app-nav .ghost-button.nav-sign-in,
+  .app-nav .ghost-button.nav-sign-in:hover:not(:disabled) {
+    color: var(--on-brand);
+  }
 }
 
 /* ----------------------------------------------------------- panels, cards */
@@ -409,7 +438,7 @@ label {
 /* ------------------------------------------------------------ chips, tabs */
 
 .chip {
-  min-height: 40px;
+  min-height: 44px;
   padding: 8px 16px;
   border-color: var(--border);
   font-size: 0.875rem;
@@ -556,7 +585,16 @@ label {
   box-shadow: var(--shadow);
 }
 
-.summary-panel .primary-button {
+/* A short laptop screen cannot hold a long climb in view, so the card stays
+   in the page there instead of being cut off at the bottom. */
+@media (max-height: 760px) {
+  .summary-panel {
+    position: static;
+  }
+}
+
+.summary-panel .primary-button,
+.builder-bar .primary-button {
   width: 100%;
   min-height: 52px;
   font-size: 1rem;
@@ -564,11 +602,229 @@ label {
 
 .summary-note {
   margin: 0;
-  padding: 12px 16px;
-  border-radius: var(--radius);
-  background: var(--surface-alt);
   color: var(--muted);
   font-size: 0.875rem;
+}
+
+/*
+ * "Your test" as the chosen climb (TestBuilderPage): the summit flag with the
+ * count beside it, the chosen topics as waypoints up a path in the level's
+ * colour, the level at the base, then Start. Each row draws its own stretch of
+ * the path (ClimbSegment), so a name on two lines never breaks the line.
+ */
+.climb-card {
+  --rail: 28px;
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 20px;
+}
+
+.climb {
+  display: block;
+  min-width: 0;
+}
+
+.climb-top {
+  display: grid;
+  grid-template-columns: var(--rail) minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 16px;
+  align-items: end;
+}
+
+.climb-top h2 {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.climb-flag {
+  position: relative;
+  grid-column: 1;
+  grid-row: 2;
+  align-self: stretch;
+  display: flex;
+  align-items: flex-end;
+  min-height: 40px;
+  color: var(--summit);
+}
+
+.climb-flag svg {
+  position: relative;
+  z-index: 1;
+  width: var(--rail);
+  height: 32px;
+}
+
+.climb-card.is-empty .climb-flag {
+  color: color-mix(in srgb, var(--summit) 45%, var(--surface));
+}
+
+.climb-count {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.climb-count strong {
+  margin-right: 2px;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.climb-count .summary-warning {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* A short climb from the flag's pole to the first waypoint. */
+.climb-stops {
+  position: relative;
+  margin: 0;
+  padding: 14px 0 0;
+  list-style: none;
+}
+
+.climb-stops::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(var(--rail) / 2 - 1.25px);
+  width: 2.5px;
+  height: 14px;
+  background: var(--level, var(--brand));
+}
+
+.climb-stop,
+.climb-base,
+.climb-gap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  margin: 0;
+  padding: 6px 0 6px calc(var(--rail) + 20px);
+}
+
+.climb-gap {
+  min-height: 108px;
+}
+
+.climb-seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--rail);
+}
+
+.climb-seg svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.climb-seg path {
+  fill: none;
+  stroke: var(--level, var(--brand));
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.climb-seg path.is-dashed {
+  stroke: var(--muted);
+  stroke-width: 2;
+  stroke-dasharray: 4 5;
+}
+
+.climb-dot {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border: 2.5px solid var(--level, var(--brand));
+  border-radius: 50%;
+  background: var(--surface);
+  transform: translate(-50%, -50%);
+}
+
+.climb-stop.is-hollow .climb-dot {
+  border: 1.5px dashed var(--muted);
+}
+
+.climb-dot.is-base {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  background: var(--text);
+}
+
+.climb-stop-label {
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.climb-stop.is-hollow .climb-stop-label {
+  color: var(--muted);
+}
+
+.climb-base-label {
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.climb-base-label strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.climb-gap-note {
+  display: none;
+}
+
+.climb-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The bar along the bottom edge: phones and tablets only. */
+.builder-bar {
+  display: none;
+}
+
+/* The path draws itself up to the flag when the page opens and whenever the
+   topics change (the key on each row restarts it). Off under reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .climb-stop .climb-seg path {
+    stroke-dasharray: 200;
+    stroke-dashoffset: 0;
+    animation: climb-draw 0.5s ease-out both;
+  }
+
+  .climb-stop .climb-seg path.is-dashed {
+    animation: none;
+  }
+}
+
+@keyframes climb-draw {
+  from {
+    stroke-dashoffset: 200;
+  }
 }
 
 .chip-row .chip .chip-count {
@@ -580,8 +836,15 @@ label {
   font-size: 0.75rem;
 }
 
+/* The chosen chip's count on a deeper pill (the see-through one gave white
+   3.55:1), and the dark theme's chosen chip in the dark text its light blue
+   needs (global.css gave it light text, 2.15:1). */
 .chip-row .chip.selected .chip-count {
-  background: color-mix(in srgb, var(--on-brand) 22%, transparent);
+  background: var(--brand-strong);
+  color: var(--on-brand);
+}
+
+[data-theme="dark"] .chip.selected {
   color: var(--on-brand);
 }
 
@@ -607,6 +870,24 @@ label {
   padding: 20px;
   gap: 6px;
   text-align: left;
+}
+
+/* The four levels as one 2 x 2 block at every width above a phone, so
+   Custom never stands alone on a row; the tallest card sets the row and the
+   "ready" line sits on the same baseline in each. */
+.difficulty-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.difficulty-card .difficulty-ready {
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+@media (max-width: 640px) {
+  .difficulty-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .difficulty-card.selected,
@@ -653,12 +934,12 @@ label {
   --level-soft: var(--level-custom-soft);
 }
 
-/* A pace card gets a strip of its colour along the top, drawn as an inset
-   shadow so it follows the rounded corners; chosen, the whole card takes the
-   colour. The detail line goes back to body text, since amber text on its
-   own soft fill would be too faint to read. */
+/* A level's colour shows where it means something: on the chosen card's edge
+   and fill, and on the climb's path. No strip on every card. The detail line
+   goes back to body text, since amber text on its own soft fill would be too
+   faint to read. */
 .difficulty-card[data-level] {
-  box-shadow: inset 0 5px 0 var(--level);
+  box-shadow: none;
 }
 
 .difficulty-card[data-level]:hover {
@@ -697,23 +978,104 @@ label {
     grid-template-columns: 1fr;
   }
 
-  /* On a phone the summary rides along the bottom edge with Start, as in the
-     phone frame, so the button is always one tap away. */
+  /* On a phone or tablet the climb card follows the steps and keeps the flag
+     only, with "Your test" beside it; the one count and Start ride along the
+     bottom edge in the bar, so the button is always one tap away. */
   .builder-layout > .summary-panel {
+    position: static;
+    padding: 24px;
+  }
+
+  .climb-top {
+    align-items: center;
+  }
+
+  .climb-top h2 {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .climb-flag {
+    grid-row: 1;
+    min-height: 0;
+  }
+
+  .climb-count,
+  .climb-side > .error-banner,
+  .climb-side > .primary-button {
+    display: none;
+  }
+
+  .climb-gap-note {
+    display: block;
+    padding: 10px 14px;
+    border: 1.5px dashed var(--muted);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .builder-bar {
     position: sticky;
     bottom: 0;
-    top: auto;
     z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
     margin: 0 -16px;
     padding: 16px;
-    border-radius: 0;
-    border-width: 1px 0 0;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
     box-shadow: var(--shadow-raised);
   }
 
-  .builder-layout > .summary-panel h2,
-  .builder-layout > .summary-panel .summary-note {
-    display: none;
+  .builder-bar-count {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 32px;
+    color: var(--text);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .builder-bar-count strong {
+    margin-right: 2px;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  .builder-bar-count .summary-warning {
+    font-size: 0.875rem;
+  }
+
+  .builder-bar-mark {
+    flex: none;
+    width: 40px;
+    height: 28px;
+    overflow: visible;
+  }
+
+  .builder-bar-path,
+  .builder-bar-pole {
+    fill: none;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .builder-bar-path {
+    stroke: var(--level, var(--brand));
+  }
+
+  .builder-bar-pole {
+    stroke: var(--summit);
+  }
+
+  .builder-bar-flag {
+    fill: var(--summit);
   }
 
   .builder-steps > .panel {
@@ -1701,6 +2063,31 @@ html[data-theme="dark"] body:has(.dashboard) {
   text-align: center;
 }
 
+/* On a phone a language chip keeps its name and its sector on two fixed
+   lines, with the count at the right, instead of breaking mid-name. */
+@media (max-width: 640px) {
+  .chip-row .chip:has(.chip-sector) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 12px;
+    width: 100%;
+    padding: 10px 16px;
+    border-radius: var(--radius-lg);
+    text-align: left;
+  }
+
+  .chip-row .chip:has(.chip-sector) .chip-sector {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .chip-row .chip:has(.chip-sector) .chip-count {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
+
 .chip .chip-sector {
   color: inherit;
   font-size: 0.75rem;
@@ -2078,5 +2465,122 @@ html[data-theme="dark"] body:has(.dashboard) {
   .question-form-split > .form-actions button {
     flex: 1 1 0;
     white-space: nowrap;
+  }
+}
+
+/* ============================================= 18 Nov 2026: the page band */
+
+/*
+ * The navy band that opens the privacy, terms and 404 pages (PageBand): the
+ * page's own title and intro on the left, the landing's ridge on the right,
+ * stacked under the words on a phone. The sections keep their narrow reading
+ * column below it.
+ */
+.page-band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
+  align-items: center;
+  gap: 48px;
+  padding: 48px 56px;
+  border-radius: var(--radius-xl);
+  background: var(--hero);
+  color: var(--on-hero);
+  overflow: hidden;
+}
+
+.page-band-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 0;
+}
+
+.page-band h1 {
+  margin: 0;
+  color: var(--on-hero);
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 1.4rem + 1.6vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+}
+
+.page-band-intro {
+  max-width: 52ch;
+  margin: 0;
+  color: color-mix(in srgb, var(--on-hero) 86%, var(--hero));
+  font-size: 1.125rem;
+  line-height: 1.55;
+}
+
+.page-band-text .primary-button {
+  margin-top: 8px;
+}
+
+.page-band-art {
+  min-width: 0;
+}
+
+.page-band .ascent {
+  --ascent-peak: #0a70ad;
+  --ascent-foot: #0c5a8a;
+  --ascent-back: color-mix(in srgb, #45aeeb 26%, var(--hero));
+  --ascent-flag: var(--summit);
+  --ascent-dot: var(--hero);
+  --ascent-height: 200px;
+}
+
+.ascent-band .ascent-point .ascent-dot {
+  border-color: #ffffff;
+}
+
+/* The 404's flag stands unreached: paler, and the path ends at a camp below. */
+.ascent-band.is-short .ascent-point.is-best {
+  opacity: 0.45;
+}
+
+.ascent-band.is-short .ascent-point.is-end .ascent-dot {
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+}
+
+.legal-page {
+  gap: 32px;
+}
+
+.legal-body .legal-updated {
+  margin: 0;
+}
+
+/* Below the wide screen the ridge goes under the words. */
+@media (max-width: 960px) {
+  .page-band {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding: 40px;
+  }
+
+  .page-band .ascent {
+    --ascent-height: 160px;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-band {
+    padding: 32px 24px 24px;
+  }
+
+  .page-band .ascent {
+    --ascent-height: 120px;
+  }
+
+  .page-band-intro {
+    font-size: 1rem;
+  }
+
+  .legal-page {
+    gap: 24px;
   }
 }

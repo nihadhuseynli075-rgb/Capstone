@@ -1,4 +1,5 @@
 import { MIN_ACCOUNT_AGE, latestAccountBirthYear } from "@grade9/shared";
+import { PageBand } from "../components/PageBand";
 import { fill, useLanguage } from "../lib/i18n";
 import { contactAddress, legalTexts } from "../lib/legalText";
 
@@ -50,28 +51,30 @@ export function LegalPage({ kind }: { kind: "privacy" | "terms" }) {
     .map((section) => ({ ...section, paragraphs: shown(section.paragraphs) }))
     .filter((section) => section.paragraphs.length > 0);
 
+  // The page opens with the navy band and ridge over its own title and intro
+  // (PageBand); the sections keep their narrow reading column underneath.
   return (
-    <article className="stack narrow legal-page">
-      <section>
-        <h1>{page.title}</h1>
-        <p className="lede">{page.intro}</p>
+    <article className="stack legal-page">
+      <PageBand title={page.title} intro={page.intro} />
+
+      <div className="stack narrow legal-body">
         <p className="legal-updated">{texts.updated}</p>
-      </section>
 
-      {sections.map((section) => (
-        <section key={section.heading} className="panel legal-section">
-          <h2>{section.heading}</h2>
-          {section.paragraphs.map((paragraph) => (
-            <p key={paragraph}>{renderParagraph(paragraph)}</p>
-          ))}
-        </section>
-      ))}
+        {sections.map((section) => (
+          <section key={section.heading} className="panel legal-section">
+            <h2>{section.heading}</h2>
+            {section.paragraphs.map((paragraph) => (
+              <p key={paragraph}>{renderParagraph(paragraph)}</p>
+            ))}
+          </section>
+        ))}
 
-      <p className="legal-other">
-        <a href={kind === "privacy" ? "#/terms" : "#/privacy"}>
-          {kind === "privacy" ? t("legal.terms") : t("legal.privacy")}
-        </a>
-      </p>
+        <p className="legal-other">
+          <a href={kind === "privacy" ? "#/terms" : "#/privacy"}>
+            {kind === "privacy" ? t("legal.terms") : t("legal.privacy")}
+          </a>
+        </p>
+      </div>
     </article>
   );
 }

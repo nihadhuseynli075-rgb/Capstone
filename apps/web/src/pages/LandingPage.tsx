@@ -1,6 +1,6 @@
 import { navigate } from "../app/router";
 import { Ascent } from "../components/Ascent";
-import { IconCheck, IconHistory, IconSpark, IconTest } from "../components/icons";
+import { IconCheck } from "../components/icons";
 import { LanguageSelect, ThemeToggle } from "../components/SiteControls";
 import { SubjectShortcuts } from "../components/SubjectShortcuts";
 import { useAuth } from "../features/auth/AuthContext";
@@ -11,8 +11,9 @@ import "../styles/landing.css";
 /**
  * The signed-out home page (Figma "Landing").
  *
- * Copy on the left, the climb on a navy panel on the right, then the three
- * features and a closing call to start. No scores or counts appear here: a
+ * Copy on the left, the climb on a navy panel on the right (the three features
+ * folded into its steps), the subjects as stops on one trail, then a closing
+ * call to start. No scores or counts appear here: a
  * visitor has not taken a test, and invented results would be a claim.
  */
 export function LandingPage() {
@@ -78,37 +79,21 @@ export function LandingPage() {
           {/* The name drawn out: a test is a climb, and the three stages of one
               are the camps on the way to the summit. */}
           <div className="landing-right">
+            {/* What the feature cards used to say now sits under the step it
+                describes; Daily Quizzes is the dashed stop still to come. */}
             <Ascent
               variant="path"
-              steps={[t("landing.stepBuild"), t("landing.stepSit"), t("landing.stepReview")]}
+              steps={[
+                { title: t("landing.stepBuild"), note: t("landing.mockTestsBody") },
+                { title: t("landing.stepSit") },
+                { title: t("landing.stepReview"), note: t("landing.trackProgressBody") }
+              ]}
+              soon={{ title: t("landing.dailyQuizzes"), badge: t("main.soon") }}
             />
           </div>
         </section>
 
-        <SubjectShortcuts className="landing-subjects" />
-
-        <section className="landing-features">
-          <article className="landing-feature">
-            <span className="landing-feature-icon is-brand" aria-hidden="true"><IconTest /></span>
-            <h2>{t("landing.mockTests")}</h2>
-            <p>{t("landing.mockTestsBody")}</p>
-          </article>
-
-          <article className="landing-feature">
-            <span className="landing-feature-icon is-summit" aria-hidden="true"><IconSpark /></span>
-            <div className="feature-head">
-              <h2>{t("landing.dailyQuizzes")}</h2>
-              <span className="soon-badge">{t("main.soon")}</span>
-            </div>
-            <p>{t("landing.dailyQuizzesBody")}</p>
-          </article>
-
-          <article className="landing-feature">
-            <span className="landing-feature-icon is-success" aria-hidden="true"><IconHistory /></span>
-            <h2>{t("landing.trackProgress")}</h2>
-            <p>{t("landing.trackProgressBody")}</p>
-          </article>
-        </section>
+        <SubjectShortcuts className="landing-subjects" variant="trail" />
 
         <section className="landing-bottom">
           <p>{t("landing.closing")}</p>

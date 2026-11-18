@@ -35,13 +35,27 @@ interface ChartProps {
   onSelect?: (id: string) => void;
 }
 
+/** One stage on the landing's climb: its title, and a line under it when the page has one. */
+export interface PathStep {
+  title: string;
+  note?: string;
+}
+
 interface PathProps {
   variant: "path";
   /** The three stages of a test, already translated: build, sit, review. */
-  steps: [string, string, string];
+  steps: [PathStep, PathStep, PathStep];
+  /** A stage still to come (Daily Quizzes): a dashed stop after the three, with its badge. */
+  soon?: { title: string; badge: string };
 }
 
-type AscentProps = ChartProps | PathProps;
+interface BandProps {
+  variant: "band";
+  /** The 404's version: the climb line stops short and the flag is not reached. */
+  short?: boolean;
+}
+
+type AscentProps = ChartProps | PathProps | BandProps;
 
 /** Where a point sits in the 100 x 100 drawing box. */
 interface Spot {
@@ -118,7 +132,18 @@ function Tent() {
 }
 
 /** The ridge drawing itself: back range, front range, the climb line and the book's page lines. */
-function Ridge({ spots, gradientId, pages = false }: { spots: Spot[]; gradientId: string; pages?: boolean }) {
+function Ridge({
+  spots,
+  gradientId,
+  pages = false,
+  lineUntil
+}: {
+  spots: Spot[];
+  gradientId: string;
+  pages?: boolean;
+  /** Draw the climb line only up to this spot (the 404's path that stops short). */
+  lineUntil?: number;
+}) {
   const summit = spots.reduce((top, spot) => (spot.y < top.y ? spot : top), spots[0]);
   const revealId = `${gradientId}-reveal`;
 
@@ -153,7 +178,12 @@ function Ridge({ spots, gradientId, pages = false }: { spots: Spot[]; gradientId
           />
         ))}
 
-      <path className="ascent-line" d={ridgeLine(spots)} clipPath={`url(#${revealId})`} vectorEffect="non-scaling-stroke" />
+      <path
+        className="ascent-line"
+        d={ridgeLine(lineUntil === undefined ? spots : spots.slice(0, lineUntil + 1))}
+        clipPath={`url(#${revealId})`}
+        vectorEffect="non-scaling-stroke"
+      />
     </svg>
   );
 }
@@ -162,7 +192,11 @@ export function Ascent(props: AscentProps) {
   const gradientId = `ascent-${useId().replace(/:/g, "")}`;
 
   if (props.variant === "path") {
-    return <AscentPath steps={props.steps} gradientId={gradientId} />;
+    return <AscentPath steps={props.steps} soon={props.soon} gradientId={gradientId} />;
+  }
+
+  if (props.variant === "band") {
+    return <AscentBand short={props.short ?? false} gradientId={gradientId} />;
   }
 
   const { variant, points, bestId, emptyLabel, onSelect } = props;
@@ -232,16 +266,69 @@ export function Ascent(props: AscentProps) {
  * the three stages of a test as camps on the way up. A visitor has taken no
  * tests, and a chart of made-up results would be a claim the site cannot back.
  */
-function AscentPath({ steps, gradientId }: { steps: [string, string, string]; gradientId: string }) {
-  const spots: Spot[] = [
-    { x: 8, y: 84 },
-    { x: 24, y: 70 },
-    { x: 34, y: 76 },
-    { x: 52, y: 46 },
-    { x: 62, y: 54 },
-    { x: 80, y: 16 },
-    { x: 92, y: 44 }
-  ];
+/** The landing climb's ridge, shared by the band and the path variants. */
+const climbSpots: Spot[] = [
+  { x: 8, y: 84 },
+  { x: 24, y: 70 },
+  { x: 34, y: 76 },
+  { x: 52, y: 46 },
+  { x: 62, y: 54 },
+  { x: 80, y: 16 },
+  { x: 92, y: 44 }
+];
+const SUMMIT = 5;
+const SHORT_STOP = 3;
+
+/**
+ * The ridge alone, for the navy band that opens the privacy, terms and 404
+ * pages: the same climb as the landing page, with the flag at the summit. On
+ * the 404 the line stops short at a camp and the flag stands unreached.
+ * Decoration only: the band's own heading says what the page is.
+ */
+function AscentBand({ short, gradientId }: { short: boolean; gradientId: string }) {
+  const summit = climbSpots[SUMMIT];
+  const stop = climbSpots[SHORT_STOP];
+
+  return (
+    <div className={`ascent ascent-band ${short ? "is-short" : ""}`} aria-hidden="true">
+      <div className="ascent-canvas">
+        <Ridge spots={climbSpots} gradientId={gradientId} pages lineUntil={short ? SHORT_STOP : undefined} />
+
+        <span className="ascent-point is-best" style={{ left: `${summit.x}%`, top: `${summit.y}%` }}>
+          <span className="ascent-flag">
+            <Flag />
+          </span>
+          <span className="ascent-dot" />
+        </span>
+
+        {short && (
+          <span className="ascent-point is-end" style={{ left: `${stop.x}%`, top: `${stop.y}%` }}>
+            <span className="ascent-dot" />
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A hyphen inside a word ("past-paper", "exam-style") drawn as a non-breaking
+ * one, so a narrow screen breaks the line between words instead.
+ */
+function keepHyphenated(text: string): string {
+  return text.replace(/(\p{L})-(\p{L})/gu, "$1\u2011$2");
+}
+
+function AscentPath({
+  steps,
+  soon,
+  gradientId
+}: {
+  steps: [PathStep, PathStep, PathStep];
+  soon?: { title: string; badge: string };
+  gradientId: string;
+}) {
+  const spots = climbSpots;
   const camps = [spots[1], spots[3], spots[5]];
 
   return (
@@ -276,9 +363,24 @@ function AscentPath({ steps, gradientId }: { steps: [string, string, string]; gr
               <span className="ascent-step-number" aria-hidden="true">
                 {index + 1}
               </span>
-              {step}
+              <span className="ascent-step-text">
+                <span className="ascent-step-title">{keepHyphenated(step.title)}</span>
+                {step.note && <span className="ascent-step-note">{keepHyphenated(step.note)}</span>}
+              </span>
             </li>
           ))}
+
+          {/* Not built yet: a dashed stop with no number, so it never reads
+              as a stage a student can already take. */}
+          {soon && (
+            <li className="is-soon">
+              <span className="ascent-step-number is-soon" aria-hidden="true" />
+              <span className="ascent-step-text is-soon">
+                <span className="ascent-step-title">{soon.title}</span>
+                <span className="soon-pill">{soon.badge}</span>
+              </span>
+            </li>
+          )}
         </ol>
       </figcaption>
     </figure>

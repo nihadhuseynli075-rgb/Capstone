@@ -34,8 +34,10 @@
   --tone-green-soft: #e1f6e8;
   --tone-teal: #0f766e;
   --tone-teal-soft: #dcf4f1;
-  --tone-violet: #6d28d9;
-  --tone-violet-soft: #efe7fd;
+  /* The profile tile's accent: the brand blue, as redesign.css already
+     sets it for the dashboard (was Tailwind's default violet). */
+  --tone-violet: var(--brand);
+  --tone-violet-soft: var(--brand-soft);
   --tone-rose: #be123c;
   --tone-rose-soft: #fde6ec;
 }
@@ -49,8 +51,8 @@
   --tone-green-soft: #11352a;
   --tone-teal: #2dd4bf;
   --tone-teal-soft: #0f3437;
-  --tone-violet: #a78bfa;
-  --tone-violet-soft: #2a2350;
+  --tone-violet: var(--brand);
+  --tone-violet-soft: var(--brand-soft);
   --tone-rose: #fb7185;
   --tone-rose-soft: #3b1a28;
 }

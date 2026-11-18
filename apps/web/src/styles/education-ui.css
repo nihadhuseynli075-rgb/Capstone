@@ -221,16 +221,6 @@ body {
   color: var(--brand-strong);
 }
 
-.app-footer .footer-admin-link {
-  color: var(--muted);
-  text-decoration: none;
-}
-
-.app-footer .footer-admin-link:hover {
-  color: var(--brand);
-  text-decoration: underline;
-}
-
 .app-main {
   width: min(1120px, calc(100% - 32px));
   padding: 38px 0 54px;

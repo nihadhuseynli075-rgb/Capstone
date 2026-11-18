@@ -170,6 +170,49 @@ function withBoldNumber(text: string, count: number) {
   );
 }
 
+/** The summit flag at the top of the "Your test" climb. */
+function ClimbFlag() {
+  return (
+    <svg viewBox="0 0 28 32" focusable="false">
+      <path d="M14 31V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M15 4h11l-3 4.5 3 4.5H15z" fill="currentColor" />
+    </svg>
+  );
+}
+
+/**
+ * One stretch of the climb's path, drawn inside its own row so a waypoint
+ * whose name runs to two lines (Russian, Azerbaijani) still meets the next.
+ * Every row starts and ends on the middle of the rail and leans out to its
+ * stop halfway down, so the rows join into one zigzag.
+ */
+function ClimbSegment({
+  side,
+  last = false,
+  dashed = false,
+  bare = false
+}: {
+  side: "left" | "right";
+  last?: boolean;
+  dashed?: boolean;
+  bare?: boolean;
+}) {
+  const x = side === "right" ? 22 : 6;
+
+  return (
+    <span className="climb-seg" aria-hidden="true">
+      <svg viewBox="0 0 28 100" preserveAspectRatio="none" focusable="false">
+        <path
+          className={dashed ? "is-dashed" : ""}
+          d={last ? `M14,0 L${x},50` : `M14,0 L${x},50 L14,100`}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      {!bare && <span className={`climb-dot ${last ? "is-base" : ""}`} style={{ left: `${x}px` }} />}
+    </span>
+  );
+}
+
 export function TestBuilderPage() {
   const { ready, user } = useAuth();
   // Guest tests moved onto the account after history was read: read it again.
@@ -177,6 +220,10 @@ export function TestBuilderPage() {
   const { language, t, tn } = useLanguage();
   const [catalog, setCatalog] = useState<CatalogSubject[] | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
+  // Presses of Try again after the subjects failed to load. A dropped
+  // connection or a server still waking up left the builder dead until the
+  // page was reloaded; this asks again, like the history page does.
+  const [catalogRetries, setCatalogRetries] = useState(0);
   const [history, setHistory] = useState<AttemptSummary[] | null>(null);
 
   const [subjectId, setSubjectId] = useState("math");
@@ -206,10 +253,21 @@ export function TestBuilderPage() {
   const requestedTopic = useRouteParam("topic");
 
   useEffect(() => {
+    let active = true;
+    setLoadError(null);
+
     fetchCatalog()
-      .then(setCatalog)
-      .catch((cause: unknown) => setLoadError(cause));
-  }, []);
+      .then((subjects) => {
+        if (active) setCatalog(subjects);
+      })
+      .catch((cause: unknown) => {
+        if (active) setLoadError(cause);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [catalogRetries]);
 
   // A subject shortcut arrives as ?subject=, whether the builder is opening or
   // already open when the address changes. Otherwise start on the first subject
@@ -372,8 +430,15 @@ export function TestBuilderPage() {
     return (
       <div className="stack">
         <h1>{t("builder.title")}</h1>
-        {/* An alert, so a failed load is said out loud and not only painted. */}
-        <p className="error-banner" role="alert">{testErrorText(loadError, t)}</p>
+        {/* An alert, so a failed load is said out loud and not only painted,
+            with another go: fetchCatalog keeps no failed answer, so this asks
+            the server again. */}
+        <p className="error-banner" role="alert">
+          {testErrorText(loadError, t)}{" "}
+          <button type="button" className="link-button" onClick={() => setCatalogRetries((count) => count + 1)}>
+            {t("profile.retry")}
+          </button>
+        </p>
       </div>
     );
   }
@@ -448,6 +513,107 @@ export function TestBuilderPage() {
   }
 
   const bankIsEmpty = catalog.every((item) => item.total === 0);
+
+  const shownCount = Math.min(requestedCount, availableCount);
+
+  // Why nothing can be built yet, when that is so: no questions in the
+  // subject, or no topic ticked. Otherwise the climb is drawn.
+  const emptyMessage =
+    !fullMock && subject.total === 0
+      ? fill(t("builder.subjectEmpty"), { subject: subjectLabel(t, subject.id, subject.name) })
+      : !fullMock && topicIds.length === 0
+        ? t("builder.noTopic")
+        : null;
+  const climbReady = emptyMessage === null;
+
+  // The waypoints, top of the path first: the chosen topics (or a full mock's
+  // three subjects) in reverse, so the first one sits just above the base.
+  const waypoints = (
+    fullMock
+      ? sectorCatalog(catalog, sector).map(({ id, subject: entry }) => ({
+          id,
+          label: subjectLabel(t, id, entry?.name),
+          empty: wholeSubjectCount(entry, drawBand) === 0
+        }))
+      : subject.topics
+          .filter((topic) => topicIds.includes(topic.id))
+          .map((topic) => ({
+            id: topic.id,
+            label: topicLabel(t, subject.id, topic.id, topic.name),
+            empty: questionsAt(topic, drawBand) === 0
+          }))
+  ).reverse();
+  const baseSide = (climbReady ? waypoints.length : 1) % 2 === 0 ? "right" : "left";
+
+  // The level at the base of the climb, in the words of its card: "Easy ·
+  // 10 questions in 15 minutes", or a custom test's own numbers.
+  const levelDetail =
+    difficultyMode === "custom"
+      ? untimed
+        ? tn("count.questions", countBox.value * papers)
+        : fill(t(papers > 1 ? "builder.presetDetailPerPaper" : "builder.presetDetail"), {
+            questions: tn("count.questions", countBox.value),
+            minutes: tn("count.minutes", minutesBox.value)
+          })
+      : fill(t(papers > 1 ? "builder.presetDetailPerPaper" : "builder.presetDetail"), {
+          questions: tn("count.questions", difficultyPresets[difficultyMode].questionCount),
+          minutes: tn("count.minutes", difficultyPresets[difficultyMode].timeLimitMinutes)
+        });
+  const baseLine = (
+    <>
+      <strong>{difficultyLabel(t, difficultyMode)}</strong>
+      {" · "}
+      {levelDetail}
+    </>
+  );
+
+  // With nothing ticked the real problem is the topics, not the size of the
+  // bank: "the bank only has 0" sent students looking for missing questions.
+  const readyLine = !climbReady ? (
+    <span className="summary-warning" role="status">
+      {emptyMessage}
+    </span>
+  ) : (
+    <>
+      <span className="climb-count-text">{withBoldNumber(tn("builder.ready", shownCount), shownCount)}</span>
+      {availableCount < requestedCount && (
+        <span className="summary-warning">
+          {" "}
+          {fill(t("builder.short"), {
+            requested: String(requestedCount),
+            available: String(availableCount)
+          })}
+        </span>
+      )}
+    </>
+  );
+
+  const errorBanner = error && (
+    <p className="error-banner" role="alert">
+      {"key" in error ? t(error.key) : testErrorText(error.cause, t, "test.errNoQuestions")}
+      {"cause" in error && needsSignInAgain(error.cause) && (
+        <>
+          {" "}
+          <SignInAgainButton />
+        </>
+      )}
+    </p>
+  );
+
+  // Marked busy with aria-disabled rather than disabled while the test is
+  // built: a disabled button drops the keyboard focus that pressed it, and a
+  // failure then left the student at the top of the page.
+  const startButton = (
+    <button
+      type="button"
+      className="primary-button"
+      onClick={handleGenerate}
+      disabled={availableCount === 0}
+      aria-disabled={generating || undefined}
+    >
+      {generating ? t("builder.building") : t("builder.start")}
+    </button>
+  );
 
   // The link sits wherever the language puts it in the sentence.
   const [bankEmptyBefore, bankEmptyAfter = ""] = t("builder.bankEmpty").split("{link}");
@@ -734,68 +900,79 @@ export function TestBuilderPage() {
       </section>
       </div>
 
-      <section className="panel summary-panel" key="summary">
-        <h2>{t("builder.summaryTitle")}</h2>
-        {/* With nothing ticked the real problem is the topics, not the size of
-            the bank: "the bank only has 0" sent students looking for missing
-            questions, and the button it disabled kept the right message from
-            ever showing. */}
-        {!fullMock && subject.total === 0 ? (
-          <div className="summary-warning" role="status">
-            {fill(t("builder.subjectEmpty"), { subject: subjectLabel(t, subject.id, subject.name) })}
+      {/* "Your test" drawn as the chosen climb: the count at the summit flag,
+          the chosen topics as waypoints going up the path (the first at the
+          bottom), the level at its base, then Start. A topic with nothing at
+          this level is a hollow, dashed stop. On a phone or tablet the card
+          keeps the flag only and the bar below carries the one count and
+          Start (redesign.css). */}
+      <section
+        className={`panel summary-panel climb-card ${climbReady ? "" : "is-empty"}`}
+        key="summary"
+        data-level={difficultyMode}
+      >
+        <div className="climb">
+          <div className="climb-top">
+            <h2>{t("builder.summaryTitle")}</h2>
+            <span className="climb-flag" aria-hidden="true">
+              <ClimbFlag />
+            </span>
+            <div className="climb-count">{readyLine}</div>
           </div>
-        ) : !fullMock && topicIds.length === 0 ? (
-          <div className="summary-warning" role="status">
-            {t("builder.noTopic")}
-          </div>
-        ) : (
-          <div>
-            {withBoldNumber(
-              tn("builder.ready", Math.min(requestedCount, availableCount)),
-              Math.min(requestedCount, availableCount)
-            )}
-            {availableCount < requestedCount && (
-              <span className="summary-warning">
-                {" "}
-                {fill(t("builder.short"), {
-                  requested: String(requestedCount),
-                  available: String(availableCount)
-                })}
+
+          {climbReady ? (
+            <ol className="climb-stops">
+              {waypoints.map((stop, index) => (
+                <li key={stop.id} className={`climb-stop ${stop.empty ? "is-hollow" : ""}`}>
+                  <ClimbSegment side={index % 2 === 0 ? "right" : "left"} />
+                  <span className="climb-stop-label">{stop.label}</span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div className="climb-gap">
+              <ClimbSegment side="right" dashed bare />
+              {/* Said again in the bar below on a phone, which is where it is
+                  announced; here it only marks the empty climb. */}
+              <span className="climb-gap-note" aria-hidden="true">
+                {emptyMessage}
               </span>
-            )}
-          </div>
-        )}
+            </div>
+          )}
 
-        {/* An alert, so a test that could not be built is said out loud. A
-            sign-in that has ended gets a way to sign in again, which comes
-            back here, since pressing Start again cannot help. */}
-        {error && (
-          <p className="error-banner" role="alert">
-            {"key" in error ? t(error.key) : testErrorText(error.cause, t, "test.errNoQuestions")}
-            {"cause" in error && needsSignInAgain(error.cause) && (
-              <>
-                {" "}
-                <SignInAgainButton />
-              </>
-            )}
+          <p className="climb-base">
+            <ClimbSegment side={baseSide} last dashed={!climbReady} />
+            <span className="climb-base-label">{baseLine}</span>
           </p>
-        )}
+        </div>
 
-        {/* Marked busy with aria-disabled rather than disabled while the test
-            is built: a disabled button drops the keyboard focus that pressed
-            it, and a failure then left the student at the top of the page. */}
-        <button
-          type="button"
-          className="primary-button"
-          onClick={handleGenerate}
-          disabled={availableCount === 0}
-          aria-disabled={generating || undefined}
-        >
-          {generating ? t("builder.building") : t("builder.start")}
-        </button>
+        <div className="climb-side">
+          {/* An alert, so a test that could not be built is said out loud. A
+              sign-in that has ended gets a way to sign in again, which comes
+              back here, since pressing Start again cannot help. */}
+          {errorBanner}
 
-        <p className="summary-note">{t("builder.summaryNote")}</p>
+          {startButton}
+
+          <p className="summary-note">{t("builder.summaryNote")}</p>
+        </div>
       </section>
+
+      {/* The bar along the bottom edge on a phone or tablet: the one count
+          and Start, always one tap away. Hidden on a wide screen, where the
+          card above carries both. */}
+      <div className="builder-bar" data-level={difficultyMode}>
+        <div className="builder-bar-count">
+          <svg className="builder-bar-mark" viewBox="0 0 40 28" aria-hidden="true" focusable="false">
+            <path className="builder-bar-path" d="M2,26 L12,17 L18,21 L30,8" />
+            <path className="builder-bar-pole" d="M30,8 V1" />
+            <path className="builder-bar-flag" d="M31,1 h8 l-2,3 l2,3 h-8 z" />
+          </svg>
+          <div>{readyLine}</div>
+        </div>
+        {errorBanner}
+        {startButton}
+      </div>
       </div>
     </div>
   );
