@@ -1038,7 +1038,8 @@ export function normalizeAnswer(value: string, casing: "plain" | "az" = "plain")
 
 /**
  * Whether a short answer is the right one. Marking is lenient about case and
- * spacing, nothing more.
+ * spacing, and a number may be written in any equal form, with or without its
+ * unit.
  *
  * Case is compared two ways, and either will do. The plain way is how English
  * and Russian answers have always been marked. It cannot do Azerbaijani, which
@@ -1048,10 +1049,151 @@ export function normalizeAnswer(value: string, casing: "plain" | "az" = "plain")
  * letter, so "alti" is still wrong against "altı". A capital I still counts
  * as the capital of "i" as well, as it always has, since nothing here says
  * which language an answer is in: "ALTI" is right against "alti" too.
+ *
+ * When the text differs, a numeric answer is compared by value (see
+ * numbersMatch): Nihad's testers typed "115" for "115°" and "2/10" for "1/5"
+ * and were marked wrong (session of 11 Nov 2026).
  */
 export function answersMatch(answer: string, correctAnswer: string): boolean {
   return (
     normalizeAnswer(answer) === normalizeAnswer(correctAnswer) ||
-    normalizeAnswer(answer, "az") === normalizeAnswer(correctAnswer, "az")
+    normalizeAnswer(answer, "az") === normalizeAnswer(correctAnswer, "az") ||
+    numbersMatch(answer, correctAnswer)
+  );
+}
+
+/** An exact rational number, so 0.1 + 0.2 never misses 0.3 the way a float does. */
+interface Rational {
+  numerator: bigint;
+  denominator: bigint;
+}
+
+/**
+ * The units a Grade 9 paper uses, as English, Russian and Azerbaijani write
+ * them, each mapped to one spelling so "26 cm", "26 см" and "26 sm" are the
+ * same answer. Only these count as a unit: a letter after a number is
+ * otherwise part of the answer, so "5x" is never taken for "5".
+ */
+const unitAliases: Record<string, string> = {
+  "°": "°",
+  deg: "°",
+  "градус": "°",
+  "градуса": "°",
+  "градусов": "°",
+  "dərəcə": "°",
+  "%": "%",
+  "‰": "‰",
+  mm: "mm",
+  "мм": "mm",
+  cm: "cm",
+  "см": "cm",
+  sm: "cm",
+  dm: "dm",
+  "дм": "dm",
+  m: "m",
+  "м": "m",
+  km: "km",
+  "км": "km",
+  g: "g",
+  "г": "g",
+  q: "g",
+  kg: "kg",
+  "кг": "kg",
+  kq: "kg",
+  l: "l",
+  "л": "l",
+  ml: "ml",
+  "мл": "ml",
+  s: "s",
+  sec: "s",
+  "с": "s",
+  "сек": "s",
+  san: "s",
+  min: "min",
+  "мин": "min",
+  "dəq": "min",
+  h: "h",
+  "ч": "h",
+  saat: "h",
+  manat: "manat",
+  azn: "manat",
+  "₼": "manat"
+};
+
+/**
+ * A number with an optional unit after it: "115°", "16 cm", "−1,5", "3/2",
+ * "1 3/5", "2.5 м²". Anything else (an expression, a word answer, "2√3") is
+ * not read as a number and is only compared as text.
+ */
+const numericAnswer =
+  /^([+\-−–]?)(?:(\d+)\s+)?(\d+(?:[.,]\d+)?)(?:\s*\/\s*(\d+(?:[.,]\d+)?))?\s*(°|%|‰|₼|\p{L}{1,8})?([²³])?\.?$/u;
+
+/** "1.25" or "1,25" (the comma is the decimal mark in Azerbaijani and Russian) as an exact fraction. */
+function decimalToRational(text: string): Rational {
+  const [whole, fraction = ""] = text.split(/[.,]/);
+  return {
+    numerator: BigInt(whole + fraction),
+    denominator: 10n ** BigInt(fraction.length)
+  };
+}
+
+/** A short answer read as a number and its unit, or null when it is not one. */
+export function parseNumericAnswer(value: string): { value: Rational; unit: string } | null {
+  const match = numericAnswer.exec(value.trim().replace(/\s+/g, " "));
+  if (!match) return null;
+  const [, sign, wholePart, top, bottom, rawUnit = "", power = ""] = match;
+
+  // A mixed number ("1 3/5") needs a fraction after the whole part; "1 3" is
+  // two numbers, not one.
+  if (wholePart !== undefined && bottom === undefined) return null;
+
+  let number = decimalToRational(top);
+  if (bottom !== undefined) {
+    const divisor = decimalToRational(bottom);
+    if (divisor.numerator === 0n) return null;
+    number = {
+      numerator: number.numerator * divisor.denominator,
+      denominator: number.denominator * divisor.numerator
+    };
+  }
+  if (wholePart !== undefined) {
+    number = {
+      numerator: BigInt(wholePart) * number.denominator + number.numerator,
+      denominator: number.denominator
+    };
+  }
+  if (sign === "-" || sign === "−" || sign === "–") number = { ...number, numerator: -number.numerator };
+
+  // A square or cube needs a unit to belong to ("4²" is an expression).
+  if (power && !rawUnit) return null;
+  let unit = "";
+  if (rawUnit) {
+    const known = unitAliases[rawUnit.toLocaleLowerCase()];
+    if (!known) return null;
+    unit = known + power;
+  }
+  return { value: number, unit };
+}
+
+/**
+ * Whether two answers are the same number, written in any form: "2/10" and
+ * "1/5", "1.5", "1,5" and "3/2", "-4" and "−4" (the bank prints the minus
+ * sign, which a phone keyboard does not have).
+ *
+ * The unit may be left out on either side ("115" for "115°", "16" for
+ * "16 cm"), since students cannot type the signs easily and keys are now
+ * written without them. Where both give a unit, it must be the same one, so
+ * "16 m" is still wrong against "16 cm".
+ *
+ * Only exact equality counts: "0.33" is not "1/3". A rounded decimal is a
+ * different answer, and accepting it would mark wrong working right.
+ */
+export function numbersMatch(answer: string, correctAnswer: string): boolean {
+  const given = parseNumericAnswer(answer);
+  const expected = parseNumericAnswer(correctAnswer);
+  if (!given || !expected) return false;
+  if (given.unit && expected.unit && given.unit !== expected.unit) return false;
+  return (
+    given.value.numerator * expected.value.denominator === expected.value.numerator * given.value.denominator
   );
 }

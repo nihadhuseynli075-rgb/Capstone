@@ -1455,10 +1455,14 @@ async function main() {
     { questionId: circleId, answer: "16 cm" },
     { questionId: perimeterId, answer: "26 cm" }
   ]);
+  // The English option was never offered on the Russian paper, so it is
+  // wrong. The short answer's unit may be written in either script (see
+  // numbersMatch), so "26 cm" is right against "26 см": one mark of two.
+  const crossedCircle = crossed.body.reviews?.find((review) => review.questionId === circleId);
   check(
-    "English wording is not right on a Russian paper, which never offered it",
-    crossed.body.score === 0,
-    `score ${crossed.body.score}`
+    "an English option is not right on a Russian paper, which never offered it; a unit in either script is",
+    crossed.body.score === 1 && crossedCircle?.isCorrect === false,
+    `score ${crossed.body.score}: ${JSON.stringify(crossed.body.reviews)}`
   );
 
   // The paper the student sat is a copy: editing the translation afterwards

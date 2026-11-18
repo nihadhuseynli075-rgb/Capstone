@@ -256,8 +256,21 @@ describe("marking a translated question", () => {
     });
 
     assert.equal(markServed(short, "ru", "26 см").result.score, 1);
-    assert.equal(markServed(short, "ru", "26 cm").result.score, 0);
     assert.equal(markServed(short, "en", "26 cm").result.score, 1);
+    // A unit means the same in either script, and may be left out (see
+    // numbersMatch), so these are right too.
+    assert.equal(markServed(short, "ru", "26 cm").result.score, 1);
+    assert.equal(markServed(short, "ru", "26").result.score, 1);
+
+    // A word answer shows the translated key is the one used.
+    const word = mathQuestion({
+      type: "short-answer",
+      options: [],
+      correctAnswer: "circle",
+      translations: { ru: { prompt: "Назовите фигуру.", correctAnswer: "окружность" } }
+    });
+    assert.equal(markServed(word, "ru", "окружность").result.score, 1);
+    assert.equal(markServed(word, "ru", "circle").result.score, 0);
   });
 });
 

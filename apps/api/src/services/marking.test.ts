@@ -104,7 +104,75 @@ describe("isAnswerCorrect", () => {
 
     const units = question({ type: "short-answer", options: [], correctAnswer: "26 см" });
     assert.equal(isAnswerCorrect(units, "26 СМ"), true);
-    assert.equal(isAnswerCorrect(units, "26 cm"), false);
+  });
+
+  test("short answer takes a number with or without its unit, but not another unit", () => {
+    const angle = question({ type: "short-answer", options: [], correctAnswer: "115°" });
+    assert.equal(isAnswerCorrect(angle, "115"), true);
+    assert.equal(isAnswerCorrect(angle, "115 °"), true);
+    assert.equal(isAnswerCorrect(angle, "115 градусов"), true);
+    assert.equal(isAnswerCorrect(angle, "116"), false);
+
+    // Keys are now written bare, and a student may still add the unit.
+    const bare = question({ type: "short-answer", options: [], correctAnswer: "16" });
+    assert.equal(isAnswerCorrect(bare, "16 cm"), true);
+    assert.equal(isAnswerCorrect(bare, "16cm"), true);
+    assert.equal(isAnswerCorrect(bare, "16 см"), true);
+    assert.equal(isAnswerCorrect(bare, "16 sm"), true);
+
+    const length = question({ type: "short-answer", options: [], correctAnswer: "26 см" });
+    assert.equal(isAnswerCorrect(length, "26 cm"), true);
+    assert.equal(isAnswerCorrect(length, "26"), true);
+    assert.equal(isAnswerCorrect(length, "26 m"), false);
+    assert.equal(isAnswerCorrect(length, "26 mm"), false);
+
+    const area = question({ type: "short-answer", options: [], correctAnswer: "24 cm²" });
+    assert.equal(isAnswerCorrect(area, "24"), true);
+    assert.equal(isAnswerCorrect(area, "24 см²"), true);
+    assert.equal(isAnswerCorrect(area, "24 cm³"), false);
+
+    // A letter that is not a unit is part of the answer.
+    const five = question({ type: "short-answer", options: [], correctAnswer: "5" });
+    assert.equal(isAnswerCorrect(five, "5x"), false);
+    assert.equal(isAnswerCorrect(five, "5 apples"), false);
+    assert.equal(isAnswerCorrect(question({ type: "short-answer", options: [], correctAnswer: "4" }), "4²"), false);
+  });
+
+  test("short answer takes the same number written another way, only when exactly equal", () => {
+    const fifth = question({ type: "short-answer", options: [], correctAnswer: "1/5" });
+    assert.equal(isAnswerCorrect(fifth, "2/10"), true);
+    assert.equal(isAnswerCorrect(fifth, "0.2"), true);
+    assert.equal(isAnswerCorrect(fifth, "0,2"), true);
+    assert.equal(isAnswerCorrect(fifth, "2 / 10"), true);
+    assert.equal(isAnswerCorrect(fifth, "1/4"), false);
+
+    const half = question({ type: "short-answer", options: [], correctAnswer: "1.5" });
+    assert.equal(isAnswerCorrect(half, "3/2"), true);
+    assert.equal(isAnswerCorrect(half, "1 1/2"), true);
+    assert.equal(isAnswerCorrect(half, "1,5"), true);
+    assert.equal(isAnswerCorrect(half, "1.50"), true);
+    assert.equal(isAnswerCorrect(half, "15"), false);
+
+    // A rounded decimal is a different answer.
+    const third = question({ type: "short-answer", options: [], correctAnswer: "1/3" });
+    assert.equal(isAnswerCorrect(third, "0.33"), false);
+    assert.equal(isAnswerCorrect(third, "0.333333"), false);
+
+    // The bank prints the minus sign, which a phone keyboard does not have.
+    const negative = question({ type: "short-answer", options: [], correctAnswer: "−4" });
+    assert.equal(isAnswerCorrect(negative, "-4"), true);
+    assert.equal(isAnswerCorrect(negative, "4"), false);
+    assert.equal(isAnswerCorrect(question({ type: "short-answer", options: [], correctAnswer: "-3/2" }), "−1.5"), true);
+
+    // Mixed numbers, and what is not one.
+    const mixed = question({ type: "short-answer", options: [], correctAnswer: "5 1/7" });
+    assert.equal(isAnswerCorrect(mixed, "36/7"), true);
+    assert.equal(isAnswerCorrect(question({ type: "short-answer", options: [], correctAnswer: "13" }), "1 3"), false);
+
+    // A zero denominator is not a number, and an expression stays text.
+    assert.equal(isAnswerCorrect(question({ type: "short-answer", options: [], correctAnswer: "0" }), "0/0"), false);
+    assert.equal(isAnswerCorrect(question({ type: "short-answer", options: [], correctAnswer: "2√3" }), "2√3"), true);
+    assert.equal(isAnswerCorrect(question({ type: "short-answer", options: [], correctAnswer: "2√3" }), "√12"), false);
   });
 });
 

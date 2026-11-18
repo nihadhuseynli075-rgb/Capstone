@@ -715,7 +715,12 @@ function Shell() {
 
             <a href="#/privacy">{t("legal.privacy")}</a>
             <a href="#/terms">{t("legal.terms")}</a>
-            {/* No public link to /admin: the page stays, reached by its address. */}
+            {/* The way in for Nihad and other admins, after the legal links and
+                set small and faint so students pass over it. The page itself
+                is still behind the admin password. */}
+            <a href="#/admin" className="footer-admin-link">
+              {t("nav.admin")}
+            </a>
           </div>
         </footer>
       )}

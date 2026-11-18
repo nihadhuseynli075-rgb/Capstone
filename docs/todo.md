@@ -29,13 +29,15 @@
       (161 ready, 37 drafts, 6 passages with 10 questions each).
 - [ ] Question form: question on the left, options and answer on the right,
       stacked on phones (in progress).
-- [ ] Maths formatting: fractions shown as one expression over the other, and
+- [x] Maths formatting: fractions shown as one expression over the other, and
       a square root sign that runs over the whole expression under it. Friends
       found long divisions and nested roots hard to read, worst on a phone.
-- [ ] Marking short answers: accept the answer with or without its unit or
+- [x] Marking short answers: accept the answer with or without its unit or
       sign (`115` and `115°`, `16` and `16 cm`).
-- [ ] Marking short answers: accept equivalent numbers (`2/10` for `1/5`,
+- [x] Marking short answers: accept equivalent numbers (`2/10` for `1/5`,
       `1.5` for `3/2`).
+- [x] Admin link back in the footer, small and faint after Privacy and Terms
+      (18 Nov).
 - [ ] Ask Nihad for the passage idea that the call ended on ("For example, we
       choose English...").
 

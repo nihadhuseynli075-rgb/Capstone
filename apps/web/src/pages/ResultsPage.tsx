@@ -17,6 +17,7 @@ import {
   isScored,
   subscribeToClaimedHistory
 } from "../services/testsApi";
+import { MathText } from "../components/MathText";
 import { PromptText } from "../components/PromptText";
 
 /**
@@ -437,7 +438,7 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
                     {/* A question with several right answers keeps its choices
                         as a list; it is read out one option after another. */}
                     {review.studentAnswer.trim().length > 0
-                      ? readableAnswer(review.type, review.studentAnswer)
+                      ? <AnswerText type={review.type} text={readableAnswer(review.type, review.studentAnswer)} />
                       : t("results.leftBlank")}
                   </span>
                 </p>
@@ -447,7 +448,7 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
                       {review.type === "open-ended" ? t("results.markerLookedFor") : t("results.correctAnswer")}
                     </span>
                     <span className={review.type === "open-ended" ? "written-answer-text" : "answer-correct"}>
-                      {readableAnswer(review.type, review.correctAnswer)}
+                      <AnswerText type={review.type} text={readableAnswer(review.type, review.correctAnswer)} />
                     </span>
                   </p>
                 )}
@@ -467,7 +468,7 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
               {review.explanation.trim().length > 0 && (
                 <p className="review-explanation">
                   <strong>{t("results.why")} </strong>
-                  {review.explanation}
+                  <MathText text={review.explanation} />
                 </p>
               )}
             </li>
@@ -487,4 +488,13 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
       </div>
     </div>
   );
+}
+
+/**
+ * An answer under a reviewed question. A chosen option or a short answer may
+ * be maths and is set out as the question was; a written answer is the
+ * student's own prose and is shown exactly as typed.
+ */
+function AnswerText({ type, text }: { type: string | undefined; text: string }) {
+  return type === "open-ended" ? <>{text}</> : <MathText text={text} />;
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SubmittedAnswer } from "@grade9/shared";
 import { decodeAnswerSet, encodeAnswerSet, writtenAnswerMaxLength } from "@grade9/shared";
+import { MathText } from "../components/MathText";
 import { PassageText, PromptText } from "../components/PromptText";
 import { navigate, replaceRoute, setLeaveGuard } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
@@ -749,7 +750,7 @@ export function ExamPage() {
                 </span>
                 <span className="option-text">
                   <span className="visually-hidden">{String.fromCharCode(65 + index)}. </span>
-                  {option}
+                  <MathText text={option} />
                 </span>
               </label>
             ))}
@@ -772,7 +773,9 @@ export function ExamPage() {
                   onChange={() => setAnswer(option)}
                 />
                 <span className="option-letter">{String.fromCharCode(65 + index)}</span>
-                <span className="option-text">{option}</span>
+                <span className="option-text">
+                  <MathText text={option} />
+                </span>
               </label>
             ))}
           </div>

@@ -14,8 +14,10 @@ import type { WrittenMark } from "./writtenMarking";
  *
  * Multiple choice has to match exactly, since the student picked from a list.
  * Short answer ignores case (Azerbaijani's included, see answersMatch) and
- * extra spacing but nothing more; anything cleverer risks marking a wrong
- * answer correct.
+ * extra spacing, and takes a number in any exactly equal form with or without
+ * its unit ("2/10" for "1/5", "115" for "115°"). Nothing looser: a rounded
+ * decimal or another unit is still wrong, since anything cleverer risks
+ * marking a wrong answer correct.
  */
 export function isAnswerCorrect(question: AttemptQuestion, answer: string): boolean {
   if (answer.trim().length === 0) return false;

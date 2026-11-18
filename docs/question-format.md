@@ -48,7 +48,19 @@ admin form. A note that only says where the page was scanned (`Scans:
 
 **Correct Answer.** A letter followed by a note (`C — sentence 4`) is that
 letter. Short answers are written without units or signs: `115`, not `115°`;
-`16`, not `16 cm`.
+`16`, not `16 cm`. Marking takes the number with or without a unit either way
+(`115°` is right against `115`), a unit in either script (`cm`, `см`, `sm`), and
+any exactly equal form of the number (`2/10`, `0.2` and `0,2` for `1/5`; `1 1/2`
+for `1.5`; `-4` for `−4`). A rounded decimal (`0.33` for `1/3`) or another unit
+(`16 m` for `16 cm`) is still wrong.
+
+**Maths in the question text** is typed as plain text and shown as on paper: a
+slash between two numbers, letters or brackets is a fraction set one over the
+other (`(3y−2)/4`, `b/a`, `1/[3(d+c)]`), and `√` before a number or brackets
+draws the root's bar over all of it (`√(12+4√5)`). Brackets round a whole top,
+bottom or root are dropped from the picture, so wrap anything longer than one
+term: `(x+1)/(x−1)`, not `x+1/x−1`. A slash between words (`is/are`) and a date
+(`12/04/2026`) stay as typed.
 
 **Dates** may be `05.04.2026`, `2026-04-05` or `12 April 2026`. In Excel, format
 the Date column as Text, or Excel rewrites it in its own date format when it

@@ -10,6 +10,8 @@
  * their own, each with the number the options refer to.
  */
 
+import { MathText } from "./MathText";
+
 /** "1) text", "2. text", "3 ) text". */
 const STATEMENT = /^\s*(\d{1,2})\s*[).]\s*(.+)$/;
 
@@ -47,7 +49,7 @@ export function splitPrompt(prompt: string): SplitPrompt {
 
 export function PromptText({ prompt, part }: { prompt: string; part: "lead" | "statements" }) {
   const split = splitPrompt(prompt);
-  if (part === "lead") return <>{split.lead}</>;
+  if (part === "lead") return <MathText text={split.lead} />;
   if (split.statements.length === 0) return null;
 
   return (
@@ -55,7 +57,9 @@ export function PromptText({ prompt, part }: { prompt: string; part: "lead" | "s
       {split.statements.map((statement, index) => (
         <li key={index}>
           <span className="prompt-statement-number">{statement.number}</span>
-          <span>{statement.text}</span>
+          <span>
+            <MathText text={statement.text} />
+          </span>
         </li>
       ))}
     </ol>
