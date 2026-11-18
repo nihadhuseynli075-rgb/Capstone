@@ -2773,3 +2773,12 @@ html[data-theme="dark"] body:has(.dashboard) {
 .maker-preview-options .math-inline .katex {
   font-size: 1.3em;
 }
+
+/* Options listed one under another (a reported question, a bank pick in the
+   test maker): a stacked fraction is taller than a line, so each option gets
+   room above and below or its fraction touches the next one. */
+.admin-report-options li,
+.maker-preview-options li {
+  margin: 6px 0;
+  line-height: 1.6;
+}

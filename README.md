@@ -53,10 +53,13 @@ dashboard shows a banner, so this is never a silent surprise.
    `avatars` bucket private: the API shows each profile photo through a link
    that stops working after an hour. `0019` starts the age check: accounts
    made from the moment it runs give their year of birth, and accounts made
-   before it are left as they are. Deploy the API before running either.) If
-   `0001`-`0017` are already in, running
-   [`0018_private_avatars.sql`](supabase/migrations/0018_private_avatars.sql)
-   and then [`0019_age_checks.sql`](supabase/migrations/0019_age_checks.sql)
+   before it are left as they are. Deploy the API before running either.
+   `0020` adds tests that students make themselves and the reported
+   questions the admin dashboard lists.) If `0001`-`0017` are already in,
+   running
+   [`0018_private_avatars.sql`](supabase/migrations/0018_private_avatars.sql),
+   [`0019_age_checks.sql`](supabase/migrations/0019_age_checks.sql) and then
+   [`0020_student_tests_and_reports.sql`](supabase/migrations/0020_student_tests_and_reports.sql)
    on their own is enough.
 6. Under **Authentication → Providers**, make sure Email is enabled. Google is
    optional and has its own steps, below.

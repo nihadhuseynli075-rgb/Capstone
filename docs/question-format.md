@@ -54,13 +54,18 @@ any exactly equal form of the number (`2/10`, `0.2` and `0,2` for `1/5`; `1 1/2`
 for `1.5`; `-4` for `−4`). A rounded decimal (`0.33` for `1/3`) or another unit
 (`16 m` for `16 cm`) is still wrong.
 
-**Maths in the question text** is typed as plain text and shown as on paper: a
-slash between two numbers, letters or brackets is a fraction set one over the
-other (`(3y−2)/4`, `b/a`, `1/[3(d+c)]`), and `√` before a number or brackets
-draws the root's bar over all of it (`√(12+4√5)`). Brackets round a whole top,
-bottom or root are dropped from the picture, so wrap anything longer than one
-term: `(x+1)/(x−1)`, not `x+1/x−1`. A slash between words (`is/are`) and a date
-(`12/04/2026`) stay as typed.
+**Maths in the question text** is typed as plain text and typeset as an
+equation (KaTeX): italic variables, `·`, `×`, `≤` and the minus sign spaced as
+operators, `x²` raised, `cm` after a number set upright. A slash between two
+numbers, letters or brackets is a fraction set one over the other
+(`(3y−2)/4`, `b/a`, `1/[3(d+c)]`), and `√` before a number or brackets draws
+the root's bar over all of it (`√(12+4√5)`; `∛` and `∜` too). Brackets round a
+whole top, bottom or root are dropped from the picture, so wrap anything longer
+than one term: `(x+1)/(x−1)`, not `x+1/x−1`. Prose is left in the page's font:
+a slash between words (`is/are`), a date (`12/04/2026`) and a number on its own
+in a sentence without other maths ("Question 5") stay as typed. The same goes
+for options, explanations and tests students make; the test maker shows a
+preview as you type.
 
 **Dates** may be `05.04.2026`, `2026-04-05` or `12 April 2026`. In Excel, format
 the Date column as Text, or Excel rewrites it in its own date format when it

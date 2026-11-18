@@ -534,8 +534,14 @@ function renderPieces(atoms: Atom[], realMaths: boolean): ReactNode[] {
  * an explanation. Prose comes back in the page's font; each run of maths is
  * typeset, with MathML alongside for screen readers.
  */
-export function MathText({ text }: { text: string }) {
+export function MathText({ text, subjectId }: { text: string; subjectId?: string }) {
   const content = useMemo(() => {
+    // An option that is one variable ("x") is maths in a maths question, and
+    // set like the options beside it; anywhere else a lone letter is a word
+    // ("a" in an English question).
+    if (subjectId === "math" && /^\s*[A-Za-z]\s*$/.test(text)) {
+      return <Formula atoms={[{ kind: "token", text: text.trim() }]} />;
+    }
     if (!mayHaveMaths(text)) return text;
     const atoms = parse(text);
     const pieces = splitRuns(atoms);
@@ -543,7 +549,7 @@ export function MathText({ text }: { text: string }) {
     // maths options beside it.
     const alone = pieces.length === 1 && pieces[0].math && pieces[0].atoms.some(endsNumber);
     return renderPieces(atoms, alone || pieces.some((piece) => piece.math && isRealMaths(piece.atoms)));
-  }, [text]);
+  }, [text, subjectId]);
 
   return <>{content}</>;
 }

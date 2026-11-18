@@ -712,12 +712,32 @@
 }
 
 @media (max-width: 560px) {
-  .maker-option {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+  /* On a phone the three tabs share the width, and a long name (Azerbaijani's
+     "Hamı üçün testlər") wraps onto two lines rather than scrolling. */
+  .friends-tabs {
+    width: 100%;
+    overflow-x: visible;
+    border-radius: 18px;
   }
 
-  .maker-option .maker-remove-option {
-    grid-column: 3;
+  .friends-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 8px 6px;
+    border-radius: 14px;
+    line-height: 1.25;
+    text-align: center;
+  }
+
+  /* One row per option on a phone too: the word "Right" goes, the radio or
+     box stays (it keeps its label for a screen reader), and the right
+     option's field is still marked green. */
+  .maker-option {
+    gap: 6px;
+  }
+
+  .maker-right span {
+    display: none;
   }
 
   .maker-item-tools {

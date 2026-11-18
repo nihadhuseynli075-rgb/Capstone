@@ -445,7 +445,7 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
                     {/* A question with several right answers keeps its choices
                         as a list; it is read out one option after another. */}
                     {review.studentAnswer.trim().length > 0
-                      ? <AnswerText type={review.type} text={readableAnswer(review.type, review.studentAnswer)} />
+                      ? <AnswerText type={review.type} subjectId={review.subjectId} text={readableAnswer(review.type, review.studentAnswer)} />
                       : t("results.leftBlank")}
                   </span>
                 </p>
@@ -455,7 +455,7 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
                       {review.type === "open-ended" ? t("results.markerLookedFor") : t("results.correctAnswer")}
                     </span>
                     <span className={review.type === "open-ended" ? "written-answer-text" : "answer-correct"}>
-                      <AnswerText type={review.type} text={readableAnswer(review.type, review.correctAnswer)} />
+                      <AnswerText type={review.type} subjectId={review.subjectId} text={readableAnswer(review.type, review.correctAnswer)} />
                     </span>
                   </p>
                 )}
@@ -512,6 +512,6 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
  * be maths and is set out as the question was; a written answer is the
  * student's own prose and is shown exactly as typed.
  */
-function AnswerText({ type, text }: { type: string | undefined; text: string }) {
-  return type === "open-ended" ? <>{text}</> : <MathText text={text} />;
+function AnswerText({ type, subjectId, text }: { type: string | undefined; subjectId?: string; text: string }) {
+  return type === "open-ended" ? <>{text}</> : <MathText text={text} subjectId={subjectId} />;
 }

@@ -750,7 +750,7 @@ export function ExamPage() {
                 </span>
                 <span className="option-text">
                   <span className="visually-hidden">{String.fromCharCode(65 + index)}. </span>
-                  <MathText text={option} />
+                  <MathText text={option} subjectId={question.subjectId} />
                 </span>
               </label>
             ))}
@@ -774,7 +774,7 @@ export function ExamPage() {
                 />
                 <span className="option-letter">{String.fromCharCode(65 + index)}</span>
                 <span className="option-text">
-                  <MathText text={option} />
+                  <MathText text={option} subjectId={question.subjectId} />
                 </span>
               </label>
             ))}

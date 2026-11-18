@@ -1,5 +1,41 @@
 # Action list
 
+## Session on 18 November 2026
+
+Next session: **Wednesday 25 November, 4:00pm Nihad's time (Baku)**.
+
+### Decided
+
+- **Students make their own tests** from the Friends page: write questions
+  (with pictures) and pick from the bank, then share with friends or publish
+  for everyone.
+- **Published tests are not checked first.** Anyone who sits one can report a
+  wrong question; reports go to a new Reported questions tab beside Bulk
+  import, where the admin fixes it or takes the test off the published list.
+- **A friend's page** shows their name, username, photo and the tests they made.
+- **The admin link stays in the footer**, beside Privacy and Terms, but quiet.
+- Not now: test "battles" between friends, tying tests to the leaderboard,
+  and student questions in mock exams (ideas from the call, not agreed).
+
+### Herdy
+
+- [x] Maths typeset as equations (KaTeX): stacked fractions, roots over the
+      whole expression, italic variables; options and explanations too (18 Nov).
+- [x] Short answers: units optional, equal numbers accepted (2/10 for 1/5).
+- [x] Admin link back in the footer, small and faint.
+- [x] Make a test, My tests, Everyone's tests, a friend's page, sitting a
+      friend's test (`0020`, API, web in all three languages).
+- [x] Report a problem on every reviewed question; admin Reported questions tab.
+- [ ] **Run `supabase/migrations/0020_student_tests_and_reports.sql`** (or
+      `run-all.sql`) on the live project, after deploying the API.
+
+### Nihad
+
+- [ ] **Test with friends and your teacher, Friday to Tuesday**: make a test,
+      share it, sit a friend's, report a question, and the new maths display.
+      Note which features they use and which they do not, so we know what to
+      develop further.
+
 ## Session on 11 November 2026
 
 ### Decided
