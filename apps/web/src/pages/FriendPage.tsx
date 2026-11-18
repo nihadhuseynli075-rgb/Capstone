@@ -40,10 +40,15 @@ export function FriendPage() {
     </a>
   );
 
+  // Every state has the page's name as its heading, for a screen reader's
+  // list of headings; the friend's own name replaces it once loaded.
+  const pageHeading = <h1>{t("title.friendPage")}</h1>;
+
   if (!user) {
     return (
       <div className="stack">
         {back}
+        {pageHeading}
         <section className="panel friends-panel">
           <p className="panel-hint">{configured ? t("friends.signedOut") : t("settings.notConfigured")}</p>
           {configured && (
@@ -62,6 +67,7 @@ export function FriendPage() {
     return (
       <div className="stack">
         {back}
+        {pageHeading}
         <p className="error-banner" role="alert">
           {t("friendPage.notFriends")}
         </p>
@@ -72,6 +78,7 @@ export function FriendPage() {
   return (
     <div className="stack">
       {back}
+      {load.status !== "ready" && pageHeading}
 
       {load.status === "loading" && (
         <p className="panel-hint" role="status">

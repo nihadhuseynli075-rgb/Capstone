@@ -106,6 +106,18 @@ describe("checkDraft", () => {
     assert.match(problemOf(draft({ items: [own({ imageUrl: `${BUCKET}../other/x.png` })] })) ?? "", /upload button/);
   });
 
+  test("odd but fair text is taken as it is; too long is refused in words", () => {
+    const odd = draft({
+      title: "Şagirdlər üçün 🚀 test — ünvan",
+      items: [own({ prompt: "Найдите x: 2x + 3 = 7 ✏️", options: ["2", "x²", "√(4)"], correctAnswer: "2" })]
+    });
+    assert.equal(problemOf(odd), null);
+    assert.equal(problemOf(draft({ title: "t".repeat(120) })), null);
+    assert.match(problemOf(draft({ title: "t".repeat(121) })) ?? "", /at most 120/);
+    assert.match(problemOf(draft({ items: [own({ prompt: "p".repeat(2001) })] })) ?? "", /at most 2000/);
+    assert.match(problemOf(draft({ items: [own({ options: ["a", "b", "c", "d", "e", "f", "g"], correctAnswer: "a" })] })) ?? "", /at most 6/);
+  });
+
   test("no more questions than the limit", () => {
     assert.match(problemOf(draft({ items: Array.from({ length: 31 }, () => own()) })) ?? "", /at most 30/);
   });

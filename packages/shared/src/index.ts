@@ -798,6 +798,8 @@ export interface AttemptSummary {
    * Optional so a history row from an API that predates it still reads.
    */
   topicBreakdown?: TopicPerformance[];
+  /** The student-made test this was a sitting of, while that test still exists. */
+  studentTest?: { id: string; title: string } | null;
 }
 
 /**

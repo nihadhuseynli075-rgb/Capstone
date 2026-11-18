@@ -414,7 +414,7 @@ function breakdownOf(
 export async function listAttempts(
   studentKey: string,
   { topicBreakdown = true }: { topicBreakdown?: boolean } = {}
-): Promise<AttemptSummary[]> {
+): Promise<Array<AttemptSummary & { studentTestId: string | null }>> {
   if (!supabaseAdmin) {
     return [...memoryAttempts.values()]
       .filter((attempt) => attempt.studentKey === studentKey && attempt.submittedAt !== null)
@@ -430,7 +430,8 @@ export async function listAttempts(
         percentage: attempt.percentage ?? 0,
         timeTakenSeconds: attempt.timeTakenSeconds ?? 0,
         submittedAt: attempt.submittedAt ?? attempt.createdAt,
-        topicBreakdown: topicBreakdown ? breakdownOf(attempt.questions) : undefined
+        topicBreakdown: topicBreakdown ? breakdownOf(attempt.questions) : undefined,
+        studentTestId: attempt.studentTestId
       }));
   }
 
@@ -473,6 +474,7 @@ export async function listAttempts(
     percentage: Number(row.percentage ?? 0),
     timeTakenSeconds: (row.time_taken_seconds ?? 0) as number,
     submittedAt: (row.submitted_at ?? row.created_at) as string,
+    studentTestId: (row.student_test_id ?? null) as string | null,
     topicBreakdown: topicBreakdown
       ? breakdownOf(
           ((row.attempt_questions ?? []) as Array<Record<string, unknown>>).map((question) => ({

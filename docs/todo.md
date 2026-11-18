@@ -63,8 +63,8 @@ Next session: **Wednesday 25 November, 4:00pm Nihad's time (Baku)**.
       Subtopic, passages by title, `Answer Options (Raw)`, "C — note" keys,
       "12 April 2026" dates. The AZ one-table sheet imports all 198 rows
       (161 ready, 37 drafts, 6 passages with 10 questions each).
-- [ ] Question form: question on the left, options and answer on the right,
-      stacked on phones (in progress).
+- [x] Question form: question on the left, options and answer on the right,
+      stacked on phones (checked 18 Nov).
 - [x] Maths formatting: fractions shown as one expression over the other, and
       a square root sign that runs over the whole expression under it. Friends
       found long divisions and nested roots hard to read, worst on a phone.
@@ -74,8 +74,9 @@ Next session: **Wednesday 25 November, 4:00pm Nihad's time (Baku)**.
       `1.5` for `3/2`).
 - [x] Admin link back in the footer, small and faint after Privacy and Terms
       (18 Nov).
-- [ ] Ask Nihad for the passage idea that the call ended on ("For example, we
-      choose English...").
+- [x] Ask Nihad for the passage idea that the call ended on ("For example, we
+      choose English..."): an IELTS/SAT layout, passage on the left and the
+      question on the right, which the exam page already does (18 Nov).
 
 ### Nihad
 

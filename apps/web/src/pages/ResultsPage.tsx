@@ -45,6 +45,8 @@ interface ResultView {
   comparison: AttemptComparison | null;
   /** Questions the student has reported already, by position. */
   reportedPositions: number[];
+  /** A student-made test's own title, said in the heading instead of the subject. */
+  testTitle: string | null;
 }
 
 /** Past attempts come back without a breakdown, so rebuild it from the reviews. */
@@ -178,7 +180,8 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
               topicBreakdown: breakdownFromReviews(attempt.reviews),
               reviews: attempt.reviews,
               comparison: null,
-              reportedPositions: attempt.reportedPositions ?? []
+              reportedPositions: attempt.reportedPositions ?? [],
+              testTitle: attempt.studentTest?.title ?? null
             });
           })
           .catch((cause: unknown) => {
@@ -239,7 +242,8 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
       comparison: stored.comparison,
       // Just handed in: nothing reported yet. One reported since, from this
       // page, says so in its own place until the page is opened again.
-      reportedPositions: []
+      reportedPositions: [],
+      testTitle: typeof stored.studentTestTitle === "string" ? stored.studentTestTitle : null
     });
   }, [attemptId, ready, user?.id]);
 
@@ -335,7 +339,9 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
 
         <div className="score-meta">
           <h1>
-            {view.subjectId
+            {view.testTitle
+              ? fill(t("results.completeSubject"), { subject: view.testTitle })
+              : view.subjectId
               ? fill(t("results.completeSubject"), { subject: subjectLabel(t, view.subjectId) })
               : t("results.complete")}
           </h1>

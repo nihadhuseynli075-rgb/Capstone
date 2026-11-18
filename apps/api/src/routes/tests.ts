@@ -40,6 +40,7 @@ import {
   signedInAccount
 } from "../modules/student/studentAuth";
 import { createReport, reportedPositions } from "../repositories/reportRepository";
+import { testsById } from "../repositories/studentTestRepository";
 
 export const testsRouter = Router();
 
@@ -658,9 +659,15 @@ testsRouter.get("/history", async (request, response, next) => {
     // fail and reopen it (see submissionsInFlight). It is listed once saved.
     // Those in flight when the read began count too, as for a single result.
     const inFlightWhenRead = new Set(submissionsInFlight);
-    const attempts = await listAttempts(studentKey);
+    const attempts = (await listAttempts(studentKey)).filter(
+      (attempt) => !inFlightWhenRead.has(attempt.id) && !submissionsInFlight.has(attempt.id)
+    );
+    const titles = await studentTestTitles(attempts.map((attempt) => attempt.studentTestId));
     response.json({
-      attempts: attempts.filter((attempt) => !inFlightWhenRead.has(attempt.id) && !submissionsInFlight.has(attempt.id))
+      attempts: attempts.map(({ studentTestId, ...attempt }) => ({
+        ...attempt,
+        studentTest: studentTestId && titles.has(studentTestId) ? { id: studentTestId, title: titles.get(studentTestId) } : null
+      }))
     });
   } catch (error) {
     next(error);
@@ -734,6 +741,12 @@ testsRouter.get("/attempts/:attemptId", async (request, response, next) => {
         counted: !(question.score === null && question.isCorrect === null),
         position: question.position
       })),
+      // The title its maker gave a student-made test, while the test is there.
+      studentTest: await (async () => {
+        if (!attempt.studentTestId) return null;
+        const title = (await studentTestTitles([attempt.studentTestId])).get(attempt.studentTestId);
+        return title ? { id: attempt.studentTestId, title } : null;
+      })(),
       // Questions of this paper the student has reported already, so the
       // results page shows them as reported rather than offering it again.
       // A database without migration 0020 has no reports to read: the result
@@ -836,3 +849,22 @@ testsRouter.post("/:attemptId/report", async (request, response, next) => {
     next(error);
   }
 });
+
+/**
+ * The titles of the student-made tests these attempts sat, by test id, for
+ * the history list and a reopened result. A test deleted since is simply
+ * missing, and its sittings are shown by subject as before. Only Supabase has
+ * student-made tests; a failed read (a database without migration 0020)
+ * leaves every title out rather than failing the history.
+ */
+async function studentTestTitles(ids: Array<string | null>): Promise<Map<string, string>> {
+  const wanted = [...new Set(ids.filter((id): id is string => typeof id === "string"))];
+  if (wanted.length === 0) return new Map();
+  try {
+    const tests = await testsById(wanted);
+    return new Map([...tests.values()].map((test) => [test.id, test.title]));
+  } catch (error) {
+    console.error("[student tests] Could not read test titles:", error);
+    return new Map();
+  }
+}

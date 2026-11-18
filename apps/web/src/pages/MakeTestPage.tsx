@@ -9,7 +9,7 @@ import type {
   TestVisibility
 } from "@grade9/shared";
 import { encodeAnswerSet, repeatedOption, studentTestLimits } from "@grade9/shared";
-import { navigate, useRouteParam } from "../app/router";
+import { navigate, setLeaveGuard, useRouteParam } from "../app/router";
 import { MathText } from "../components/MathText";
 import { useAuth } from "../features/auth/AuthContext";
 import { signInRoute } from "../features/auth/returnPath";
@@ -18,6 +18,7 @@ import { StudentTestErrorBanner } from "../features/studentTests/StudentTestList
 import { useLanguage, type TranslationKey } from "../lib/i18n";
 import { difficultyLabel, subjectLabel, topicLabel } from "../lib/testText";
 import { fetchBankForPicking, fetchMyTests, saveStudentTest, uploadTestPicture } from "../services/studentTestsApi";
+import { ApiError } from "../services/apiClient";
 import { fetchCatalog, type CatalogSubject } from "../services/testsApi";
 import "../styles/friends.css";
 
@@ -198,6 +199,43 @@ export function MakeTestPage() {
     [items]
   );
 
+  // Unsaved work is asked about before it is left, as a paper in progress is:
+  // a test of twenty questions typed on a phone was lost to one tap on the
+  // back button. "Changed" is against the test as it was opened, so opening
+  // one and leaving it untouched asks nothing.
+  const snapshot = JSON.stringify({
+    title,
+    subjectId,
+    difficulty,
+    visibility,
+    timed,
+    minutes,
+    items: items.map((item) => (item.kind === "own" ? item.own : item.questionId))
+  });
+  const [baseline, setBaseline] = useState<string | null>(null);
+  const leaving = useRef(false);
+  useEffect(() => {
+    if (loaded && baseline === null) setBaseline(snapshot);
+  }, [loaded, baseline, snapshot]);
+  const dirty = baseline !== null && snapshot !== baseline;
+
+  useEffect(() => {
+    if (!dirty) return;
+    const question = t("maker.leaveConfirm");
+    const stopGuard = setLeaveGuard((to) => leaving.current || to === "/make-test" || window.confirm(question));
+    // Closing or reloading the tab is asked about by the browser, in its own words.
+    const onUnload = (event: BeforeUnloadEvent) => {
+      if (leaving.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onUnload);
+    return () => {
+      stopGuard();
+      window.removeEventListener("beforeunload", onUnload);
+    };
+  }, [dirty, t]);
+
   if (!user) {
     return (
       <div className="stack">
@@ -268,6 +306,8 @@ export function MakeTestPage() {
     setSaving(true);
     try {
       await saveStudentTest(editingId, draft);
+      // Saved: nothing is left to lose on the way out.
+      leaving.current = true;
       navigate("/friends?tab=mine");
     } catch (cause) {
       setSaveError(cause);
@@ -721,7 +761,16 @@ function OwnEditor({
           )}
         </div>
         <span className="field-hint">{t("maker.pictureHint")}</span>
-        {uploadError !== null && <StudentTestErrorBanner cause={uploadError} />}
+        {uploadError !== null &&
+          // The two refusals of the picture itself, in the site language; the
+          // rest (signed out, too many) as any failure here is worded.
+          (uploadError instanceof ApiError && (uploadError.status === 400 || uploadError.status === 413) ? (
+            <p className="error-banner" role="alert">
+              {uploadError.status === 413 ? t("maker.pictureTooBig") : t("maker.pictureNotImage")}
+            </p>
+          ) : (
+            <StudentTestErrorBanner cause={uploadError} />
+          ))}
       </div>
     </div>
   );

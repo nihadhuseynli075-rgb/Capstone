@@ -3294,6 +3294,13 @@ async function main() {
       );
       const sittingRow = (await rows("test_attempts", `?id=eq.${paper.id}`))[0];
       check("the attempt remembers the test it sat", sittingRow?.student_test_id === mayaTestId, JSON.stringify(sittingRow));
+      const titledHistory = await call(`/api/tests/history?studentKey=${nico.id}`, { token: nico.token });
+      const titledRow = titledHistory.body.attempts?.find((attempt) => attempt.id === paper.id);
+      check(
+        "and his history names it by its title",
+        titledRow?.studentTest?.id === mayaTestId && titledRow.studentTest.title === "A quick quiz" && !("studentTestId" in titledRow),
+        JSON.stringify(titledRow?.studentTest)
+      );
 
       section("Publishing for everyone");
       const published = await studentTests(maya.token, `/${mayaTestId}`, {
@@ -3403,8 +3410,9 @@ async function main() {
       check("its maker can", deleted.status === 200);
       const nicoHistory = await call(`/api/tests/history?studentKey=${nico.id}`, { token: nico.token });
       check(
-        "and Nico's sitting stays in his history",
-        nicoHistory.status === 200 && nicoHistory.body.attempts.some((attempt) => attempt.id === paper.id),
+        "and Nico's sitting stays in his history, by its subject now the test is gone",
+        nicoHistory.status === 200 &&
+          nicoHistory.body.attempts.some((attempt) => attempt.id === paper.id && attempt.studentTest === null),
         `got ${nicoHistory.status}`
       );
       check(

@@ -232,6 +232,8 @@ export function clearActiveTest(testId?: string): void {
  */
 export interface StoredResult extends Omit<TestResult, "comparison"> {
   subjectId?: string;
+  /** The title a student-made test's maker gave it (absent for a test from the bank). */
+  studentTestTitle?: string;
   /** Null when the stored line could not be trusted (see readComparison). */
   comparison: AttemptComparison | null;
 }

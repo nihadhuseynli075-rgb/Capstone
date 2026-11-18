@@ -215,7 +215,11 @@ export function HistoryPage() {
                 className={`attempt-row ${attempt.id === best?.id ? "best" : ""}`}
                 onClick={() => navigate(`/results/${attempt.id}`)}
               >
-                <span className="attempt-subject">{subjectLabel(t, attempt.subjectId)}</span>
+                <span className="attempt-subject">
+                  {subjectLabel(t, attempt.subjectId)}
+                  {/* A test a student made, by the title its maker gave it. */}
+                  {attempt.studentTest && <span className="attempt-test-title">{attempt.studentTest.title}</span>}
+                </span>
                 {/* Difficulty and date travel together: on a phone the row is
                     two columns, and they are one line of small print under the
                     subject rather than two cells of a puzzle. */}

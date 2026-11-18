@@ -270,7 +270,14 @@ export function ExamPage() {
         // It is kept under the key the paper went in under (see saveLastResult).
         let stored = true;
         try {
-          saveLastResult({ ...result, subjectId: active.test.settings.subjectId }, studentKey);
+          saveLastResult(
+            {
+              ...result,
+              subjectId: active.test.settings.subjectId,
+              ...(active.test.studentTestId ? { studentTestTitle: active.test.title } : {})
+            },
+            studentKey
+          );
         } catch {
           stored = false;
         }

@@ -2782,3 +2782,15 @@ html[data-theme="dark"] body:has(.dashboard) {
   margin: 6px 0;
   line-height: 1.6;
 }
+
+/* History: a student-made test named under its subject. */
+.attempt-test-title {
+  display: block;
+  /* The subject above it is set in capitals; a title keeps its maker's case. */
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--muted);
+  font-size: 0.85em;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}

@@ -309,6 +309,8 @@ export interface PastAttempt {
   reviews: QuestionReview[];
   /** Positions of questions the student has reported (absent from an older API). */
   reportedPositions?: number[];
+  /** The student-made test this sat, while it still exists. */
+  studentTest?: { id: string; title: string } | null;
 }
 
 export function fetchAttempt(attemptId: string): Promise<PastAttempt> {
