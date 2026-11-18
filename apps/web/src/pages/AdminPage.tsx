@@ -3,6 +3,7 @@ import type { BankQuestion, Passage, QuestionDraft, QuestionStatus } from "@grad
 import { markLimits } from "@grade9/shared";
 import { AdminPassages } from "../components/AdminPassages";
 import { AdminQuestionList } from "../components/AdminQuestionList";
+import { AdminReports } from "../components/AdminReports";
 import { ImportTemplate } from "../components/ImportTemplate";
 import { QuestionForm, type QuestionCarryOver, type QuestionFormHandle } from "../components/QuestionForm";
 import { adminText } from "../components/adminText";
@@ -25,14 +26,16 @@ import { fetchPassages } from "../services/passagesApi";
 const CSV_TEMPLATE =
   "subject,topic,difficulty,type,question,option_a,option_b,option_c,option_d,option_e,correct_answer,marks,explanation,paper_year,source";
 
-type Tab = "add" | "list" | "passages" | "import";
+type Tab = "add" | "list" | "passages" | "import" | "reports";
 
 /** The dashboard's tabs, in the order they are shown and stepped through. */
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "add", label: "Add question" },
   { id: "list", label: "All questions" },
   { id: "passages", label: "Passages" },
-  { id: "import", label: "Bulk import" }
+  { id: "import", label: "Bulk import" },
+  // Beside Bulk import, as agreed with Nihad on 18 Nov 2026.
+  { id: "reports", label: "Reported questions" }
 ];
 
 /**
@@ -154,6 +157,8 @@ export function AdminPage() {
   const [tab, setTab] = useState<Tab>("add");
 
   const [questions, setQuestions] = useState<BankQuestion[]>([]);
+  // Open reports, counted on the tab once the Reported questions tab has read them.
+  const [openReports, setOpenReports] = useState<number | null>(null);
   // The whole bank, which the list's filters do not change.
   const [bank, setBank] = useState<{ total: number; written: number } | null>(null);
   const [storageMode, setStorageMode] = useState<string>("");
@@ -747,6 +752,11 @@ export function AdminPage() {
               onClick={() => switchTab(item.id)}
             >
               {item.id === "add" && editing ? "Edit question" : item.label}
+              {item.id === "reports" && openReports !== null && openReports > 0 && (
+                <span className="tab-count" aria-label={`${openReports} open`}>
+                  {openReports}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -864,6 +874,21 @@ export function AdminPage() {
                 setSubjectFilter(passage.subjectId);
                 setPassageFilter(passage.id);
                 switchTab("list");
+              }}
+            />
+          </section>
+        )}
+
+        {tab === "reports" && (
+          <section className="panel" role="tabpanel" id="admin-panel-reports" aria-labelledby="admin-tab-reports">
+            <AdminReports
+              onSessionEnded={endSession}
+              onOpenCount={setOpenReports}
+              onEditQuestion={(questionId) => {
+                const question = questions.find((candidate) => candidate.id === questionId);
+                if (!question) return false;
+                startEditing(question);
+                return true;
               }}
             />
           </section>

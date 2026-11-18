@@ -8,6 +8,7 @@ import { adminRouter } from "./routes/admin";
 import { catalogRouter } from "./routes/catalog";
 import { friendsRouter } from "./routes/friends";
 import { profileRouter } from "./routes/profile";
+import { studentTestSittingRouter, studentTestsRouter } from "./routes/studentTests";
 import { testsRouter } from "./routes/tests";
 
 const app = express();
@@ -98,6 +99,10 @@ app.use("/api/catalog", catalogRouter);
 app.use("/api/tests", testsRouter);
 app.use("/api/profile", profileRouter);
 app.use("/api/friends", friendsRouter);
+// Sitting first: a published test can be sat without an account, and the
+// router behind it refuses anything without one (see studentTests).
+app.use("/api/student-tests", studentTestSittingRouter);
+app.use("/api/student-tests", studentTestsRouter);
 app.use("/api/admin", adminRouter);
 
 app.use((_request, response) => {

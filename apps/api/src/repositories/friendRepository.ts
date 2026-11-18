@@ -199,7 +199,7 @@ export async function findPerson(lookup: FriendLookup): Promise<FriendPerson | n
  * is left out is missing from the map, which the lists already treat as gone.
  * Their photos are never signed.
  */
-async function peopleById(ids: string[]): Promise<Map<string, FriendPerson>> {
+export async function peopleById(ids: string[]): Promise<Map<string, FriendPerson>> {
   const people = new Map<string, FriendPerson>();
   if (ids.length === 0) return people;
 
@@ -557,4 +557,14 @@ export async function removeFriend(me: string, friendshipId: string): Promise<bo
   if (removeError) throw friendsError("remove the friend", removeError);
   // Nothing left to remove means the other student ended it in between.
   return (removed ?? []).length > 0;
+}
+
+/**
+ * The accounts this student is friends with (accepted, either way round).
+ * Who may see a friends-only test they made, or whose tests they may see
+ * (see studentTests).
+ */
+export async function friendIdsOf(me: string): Promise<Set<string>> {
+  const sorted = sortFriendships(await rowsInvolving(me), me);
+  return new Set(sorted.friends.map((row) => otherEnd(row, me)));
 }

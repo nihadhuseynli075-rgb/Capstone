@@ -2586,74 +2586,25 @@ html[data-theme="dark"] body:has(.dashboard) {
 }
 
 /* ------------------------------------------------------------- maths
-   Fractions and roots from the bank's plain text (components/MathText.tsx),
-   set out as on paper: a fraction is its top over its bottom with a line
-   between, and a root's bar runs over everything under the sign. Sizes are
-   in em so they follow the question, option or review text they sit in. */
-.math-frac {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: stretch;
-  vertical-align: middle;
-  margin: 0.1em 0.15em;
-  text-align: center;
-  line-height: 1.2;
-  /* Never broken across lines: a top on one line and its bottom on the next
-     reads as two numbers. */
-  white-space: nowrap;
+   Maths typeset by KaTeX (components/MathText.tsx). KaTeX sets its own size a
+   fifth larger than the text around it, which in a question heading made the
+   formula outweigh the words; here it is a touch larger than the text, and
+   takes the colour of whatever it sits in (an option, a correct answer). */
+.math-inline .katex {
+  font-size: 1.12em;
+  color: inherit;
 }
 
-.math-frac-top,
-.math-frac-bottom {
-  display: block;
-  padding: 0 0.2em;
+/* A stacked fraction is taller than a line of text; the room keeps it from
+   touching the line above or below in a paragraph. */
+.math-inline .katex .mfrac {
+  padding: 0.1em 0;
 }
 
-.math-frac-top {
-  border-bottom: max(1px, 0.07em) solid currentColor;
-  padding-bottom: 0.08em;
-}
-
-.math-frac-bottom {
-  padding-top: 0.08em;
-}
-
-/* A fraction inside a fraction or root is a little smaller, as in print. */
-.math-frac .math-frac,
-.math-radicand .math-frac {
-  font-size: 0.88em;
-}
-
-.math-root {
-  display: inline-flex;
-  align-items: stretch;
-  vertical-align: middle;
-  white-space: nowrap;
-}
-
-.math-root-sign {
-  display: inline-flex;
-  align-items: flex-end;
-  margin-right: -0.05em;
-  line-height: 1;
-  font-size: 1.15em;
-}
-
-/* The bar sits just above the tallest character, so the radicand's line is
-   no taller than its text: with the page's line height it floated a line's
-   gap above the digits. */
-.math-radicand {
-  display: inline-flex;
-  align-items: center;
-  border-top: max(1px, 0.07em) solid currentColor;
-  padding: 0.08em 0.12em 0 0.1em;
-  margin-top: 0.1em;
-  line-height: 1.05;
-}
-
-/* A mixed number ("1 3/5") never breaks between its whole part and its fraction. */
-.math-mixed {
-  white-space: nowrap;
+/* A long expression may break after an operator, as KaTeX allows, but never
+   push the page sideways on a phone. */
+.math-inline {
+  max-width: 100%;
 }
 
 /* The admin link in the footer: there for those who look for it, quiet for
@@ -2670,4 +2621,155 @@ html[data-theme="dark"] body:has(.dashboard) {
 .app-footer .footer-links .footer-admin-link:focus-visible {
   opacity: 1;
   text-decoration: underline;
+}
+
+/* ------------------------------------------------- reporting a question
+   Under each reviewed question on the results page (18 Nov 2026): a quiet
+   link that opens a small form, so it is there without competing with the
+   answer and explanation above it. */
+.report-open {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.report-done {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.report-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface-alt);
+}
+
+.report-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.report-reasons {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.report-reason {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-details {
+  display: grid;
+  gap: 4px;
+}
+
+.report-details textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--field-border, var(--border));
+  border-radius: var(--radius-sm, 8px);
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ------------------------------------------------- admin: reported questions */
+.tab-count {
+  display: inline-block;
+  margin-left: 6px;
+  min-width: 1.4em;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.admin-report-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.admin-report {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--danger);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  background: var(--surface);
+}
+
+.admin-report.status-resolved {
+  border-left-color: var(--success);
+}
+
+.admin-report.status-dismissed {
+  border-left-color: var(--muted);
+}
+
+.admin-report-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.admin-report-head time {
+  margin-left: auto;
+}
+
+.admin-report-prompt {
+  margin: 10px 0 6px;
+  font-weight: 600;
+  white-space: pre-line;
+}
+
+.admin-report-options {
+  margin: 0 0 8px;
+  padding-left: 22px;
+}
+
+.admin-report-details {
+  margin: 6px 0 0;
+}
+
+.admin-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* A fraction in an option or an answer sits in smaller text than the
+   question, and KaTeX sets a fraction's figures smaller again, which left
+   1/5 in an option barely readable on a phone. These lines bring it back up
+   to the size of the question's own maths. */
+.option-text .math-inline .katex,
+.review-answers .math-inline .katex,
+.maker-preview-options .math-inline .katex {
+  font-size: 1.3em;
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { navigate, useRouteParam } from "../app/router";
 import { useAuth } from "../features/auth/AuthContext";
 import { SignInAgainButton } from "../features/auth/SignInAgainButton";
 import { signInRoute } from "../features/auth/returnPath";
@@ -6,6 +7,7 @@ import { AddFriendPanel } from "../features/friends/AddFriendPanel";
 import { FriendsList } from "../features/friends/FriendsList";
 import { RequestsPanel } from "../features/friends/RequestsPanel";
 import { useFriends } from "../features/friends/useFriends";
+import { CommunityPanel, MakeTestButton, MyTestsPanel } from "../features/studentTests/StudentTestLists";
 import { needsSignInAgain } from "../features/profile/profileText";
 import { useLanguage, type TranslationKey } from "../lib/i18n";
 import { ApiError } from "../services/apiClient";
@@ -19,8 +21,44 @@ import "../styles/friends.css";
  * connected to Supabase. A guest is pointed at signing in, and an API without
  * Supabase is explained, in the same way the profile page does it.
  */
+/** The page's three parts (session of 18 Nov 2026): friends, the tests you made, and everyone's. */
+type FriendsTab = "friends" | "mine" | "community";
+const TABS: Array<{ id: FriendsTab; label: TranslationKey }> = [
+  { id: "friends", label: "mytests.tabFriends" },
+  { id: "mine", label: "mytests.tabMine" },
+  { id: "community", label: "mytests.tabCommunity" }
+];
+
+/**
+ * The tabs along the top. The tab is in the address (#/friends?tab=mine), so
+ * Back returns to it and a link can open it; changing it keeps the page
+ * mounted, as the query is not part of the route.
+ */
+function FriendsTabs({ current }: { current: FriendsTab }) {
+  const { t } = useLanguage();
+  return (
+    <div className="friends-tabs" role="tablist" aria-label={t("mytests.tabsLabel")}>
+      {TABS.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          role="tab"
+          id={`friends-tab-${tab.id}`}
+          aria-selected={current === tab.id}
+          className={`friends-tab${current === tab.id ? " active" : ""}`}
+          onClick={() => navigate(tab.id === "friends" ? "/friends" : `/friends?tab=${tab.id}`)}
+        >
+          {t(tab.label)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function FriendsPage() {
   const { t } = useLanguage();
+  const tabParam = useRouteParam("tab");
+  const tab: FriendsTab = tabParam === "mine" || tabParam === "community" ? tabParam : "friends";
   const { user, configured } = useAuth();
   const friends = useFriends();
 
@@ -63,9 +101,12 @@ export function FriendsPage() {
   }
 
   const heading = (
-    <section>
-      <h1>{t("friends.title")}</h1>
-      <p className="lede">{t("friends.subtitle")}</p>
+    <section className="friends-heading">
+      <div>
+        <h1>{t("friends.title")}</h1>
+        <p className="lede">{t("friends.subtitle")}</p>
+      </div>
+      {user && configured && <MakeTestButton />}
     </section>
   );
 
@@ -84,6 +125,18 @@ export function FriendsPage() {
             </div>
           )}
         </section>
+      </div>
+    );
+  }
+
+  if (tab !== "friends") {
+    return (
+      <div className="stack">
+        {heading}
+        <FriendsTabs current={tab} />
+        <div role="tabpanel" aria-labelledby={`friends-tab-${tab}`}>
+          {tab === "mine" ? <MyTestsPanel /> : <CommunityPanel />}
+        </div>
       </div>
     );
   }
@@ -107,6 +160,7 @@ export function FriendsPage() {
   return (
     <div className="stack">
       {heading}
+      <FriendsTabs current="friends" />
 
       {status === "loading" && !overview && (
         <p className="panel-hint" role="status">

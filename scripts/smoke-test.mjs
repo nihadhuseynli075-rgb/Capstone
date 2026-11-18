@@ -1722,6 +1722,45 @@ async function main() {
     `${presetWithDifficulty.status} ${unknownDifficulty.status}`
   );
 
+  section("Reporting a question");
+  // The paper from "Generating a test", handed in under "Marking". A bank
+  // question, so this works the same with or without Supabase.
+  const reportOn = (body) => call(`/api/tests/${test.id}/report`, { method: "POST", body: { studentKey, ...body } });
+  const firstReport = await reportOn({ position: 0, reason: "wrong-answer", details: "The key says one thing, the book another." });
+  check("a handed-in paper's question can be reported", firstReport.status === 201, JSON.stringify(firstReport.body));
+  const secondReport = await reportOn({ position: 0, reason: "unclear" });
+  check(
+    "only once",
+    secondReport.status === 409 && secondReport.body.code === "already-reported",
+    JSON.stringify(secondReport.body)
+  );
+  const strangerReport = await call(`/api/tests/${test.id}/report`, {
+    method: "POST",
+    body: { studentKey: crypto.randomUUID(), position: 1, reason: "other" }
+  });
+  check("not by another student", strangerReport.status === 403, `got ${strangerReport.status}`);
+  const missingPosition = await reportOn({ position: 999, reason: "other" });
+  check("and only a question that is on the paper", missingPosition.status === 404, `got ${missingPosition.status}`);
+  const reportsList = await call("/api/admin/reports", { token });
+  const listedReport = reportsList.body.reports?.find((report) => report.prompt === test.questions[0].prompt && report.details.startsWith("The key says"));
+  check(
+    "the admin sees it, with the bank question it came from",
+    reportsList.status === 200 && listedReport?.questionId === test.questions[0].id && listedReport.status === "open",
+    JSON.stringify(listedReport)
+  );
+  const dismissed = await call(`/api/admin/reports/${listedReport?.id}`, {
+    method: "PATCH",
+    token,
+    body: { status: "dismissed" }
+  });
+  check("and can close it", dismissed.status === 200 && dismissed.body.report.status === "dismissed", JSON.stringify(dismissed.body));
+  const reopenedResult = await call(`/api/tests/attempts/${test.id}?studentKey=${studentKey}`);
+  check(
+    "the result still says it was reported",
+    reopenedResult.status === 200 && reopenedResult.body.reportedPositions?.includes(0),
+    JSON.stringify(reopenedResult.body.reportedPositions)
+  );
+
   section("Sign out");
   const loggedOut = await call("/api/admin/logout", { method: "POST", token });
   check("logout responds 200", loggedOut.status === 200);

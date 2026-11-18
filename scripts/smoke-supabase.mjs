@@ -3137,6 +3137,296 @@ async function main() {
       );
       const afterFault = await friendsOf(fiona.token);
       check("and the next read is fine", afterFault.status === 200, `got ${afterFault.status}`);
+
+      // -----------------------------------------------------------------------
+      // Tests students make (18 Nov 2026), and reporting a question.
+      // -----------------------------------------------------------------------
+      const studentTests = (token, route = "", options = {}) => call(`/api/student-tests${route}`, { token, ...options });
+      const startSitting = (testId, studentKey, token) =>
+        call(`/api/student-tests/${testId}/start`, { method: "POST", token, body: { studentKey, language: "en" } });
+      const befriend = async (from, to) => {
+        await ask(from.token, `@${to.username}`);
+        const incoming = (await friendsOf(to.token)).body.incoming;
+        const request = incoming.find((person) => person.id === from.id);
+        await answer(to.token, request.requestId, "accept");
+      };
+      const ownChoice = {
+        kind: "own",
+        type: "multiple-choice",
+        prompt: "What is 2 + 2?",
+        options: ["3", "4", "5"],
+        correctAnswer: "4",
+        explanation: "Count them.",
+        imageUrl: null
+      };
+      const ownShort = {
+        kind: "own",
+        type: "short-answer",
+        prompt: "Write 2/10 in lowest terms.",
+        options: [],
+        correctAnswer: "1/5",
+        explanation: "",
+        imageUrl: null
+      };
+      const testDraft = (overrides = {}) => ({
+        title: "A quick quiz",
+        subjectId: "math",
+        difficulty: "medium",
+        visibility: "friends",
+        timeLimitMinutes: 10,
+        items: [ownChoice, ownShort, { kind: "bank", questionId: bankIds[0] }],
+        ...overrides
+      });
+
+      section("Tests students make need an account");
+      check("their own tests cannot be read without a token", (await studentTests(undefined, "/mine")).status === 401);
+      const maya = await makeAccount("maya@standin.test", "Maya");
+      const nico = await makeAccount("nico@standin.test", "Nico");
+      const otto = await makeAccount("otto@standin.test", "Otto");
+
+      section("Making a test");
+      const badDraft = await studentTests(maya.token, "", {
+        method: "POST",
+        body: testDraft({ items: [{ ...ownChoice, correctAnswer: "7" }] })
+      });
+      check(
+        "a question whose answer is not an option is refused, in words",
+        badDraft.status === 400 && /right one/.test(badDraft.body.message),
+        JSON.stringify(badDraft.body)
+      );
+      const strangePicture = await studentTests(maya.token, "", {
+        method: "POST",
+        body: testDraft({ items: [{ ...ownChoice, imageUrl: "https://tracker.example/pixel.png" }] })
+      });
+      check(
+        "as is a picture that was not uploaded",
+        strangePicture.status === 400 && /upload/.test(strangePicture.body.message),
+        JSON.stringify(strangePicture.body)
+      );
+      const picture = await studentTests(maya.token, "/image", {
+        method: "POST",
+        body: { fileName: "dot.png", contentType: "image/png", dataBase64: PNG.toString("base64") }
+      });
+      check(
+        "a picture can be uploaded",
+        picture.status === 200 && typeof picture.body.imageUrl === "string",
+        JSON.stringify(picture.body)
+      );
+      const made = await studentTests(maya.token, "", {
+        method: "POST",
+        body: testDraft({
+          items: [{ ...ownChoice, imageUrl: picture.body.imageUrl }, ownShort, { kind: "bank", questionId: bankIds[0] }]
+        })
+      });
+      const mayaTestId = made.body.test?.id;
+      check(
+        "a test of her own questions, a picture and a bank pick is saved",
+        made.status === 201 && typeof mayaTestId === "string",
+        JSON.stringify(made.body).slice(0, 300)
+      );
+      const mine = await studentTests(maya.token, "/mine");
+      check(
+        "it is in her list, and the bank pick comes back without its answer",
+        mine.status === 200 &&
+          mine.body.tests.some((test) => test.id === mayaTestId) &&
+          mine.body.picks[bankIds[0]]?.prompt === "What is 3 x 3?" &&
+          !("correctAnswer" in mine.body.picks[bankIds[0]]),
+        JSON.stringify(mine.body).slice(0, 300)
+      );
+      const bankList = await studentTests(maya.token, `/bank?subject=math&topic=${topicId}`);
+      check(
+        "the bank can be browsed for picks, without answers",
+        bankList.status === 200 &&
+          bankList.body.questions.length === 2 &&
+          !JSON.stringify(bankList.body).includes("correctAnswer"),
+        JSON.stringify(bankList.body).slice(0, 300)
+      );
+
+      section("Only friends see a friends-only test");
+      const ottoSits = await startSitting(mayaTestId, otto.id, otto.token);
+      check("a student who is not her friend cannot sit it", ottoSits.status === 404, `got ${ottoSits.status}`);
+      const ottoLooks = await studentTests(otto.token, `/people/${maya.id}`);
+      check(
+        "nor see her page",
+        ottoLooks.status === 404 && ottoLooks.body.code === "not-friends",
+        `got ${ottoLooks.status}`
+      );
+      const guestKey = randomUUID();
+      check("nor can a guest", (await startSitting(mayaTestId, guestKey)).status === 404);
+      await befriend(nico, maya);
+      const nicoLooks = await studentTests(nico.token, `/people/${maya.id}`);
+      check(
+        "her friend sees her page and her test",
+        nicoLooks.status === 200 &&
+          nicoLooks.body.person.id === maya.id &&
+          nicoLooks.body.tests.some((test) => test.id === mayaTestId && test.questionCount === 3),
+        JSON.stringify(nicoLooks.body).slice(0, 300)
+      );
+
+      section("Sitting a friend's test");
+      const sitting = await startSitting(mayaTestId, nico.id, nico.token);
+      const paper = sitting.body.test;
+      check(
+        "it starts like any test: its title, three questions, its time limit, no answers",
+        sitting.status === 200 &&
+          paper.title === "A quick quiz" &&
+          paper.questions.length === 3 &&
+          paper.settings.timeLimitMinutes === 10 &&
+          !JSON.stringify(sitting.body).includes("Count them") &&
+          !JSON.stringify(sitting.body).includes("correctAnswer"),
+        JSON.stringify(sitting.body).slice(0, 400)
+      );
+      const handedIn = await submit(
+        paper,
+        nico.id,
+        [
+          { questionId: paper.questions[0].id, position: 0, answer: "4" },
+          // The same number another way: marked right (see numbersMatch).
+          { questionId: paper.questions[1].id, position: 1, answer: "0.2" },
+          { questionId: paper.questions[2].id, position: 2, answer: "9" }
+        ],
+        nico.token
+      );
+      check(
+        "and is marked like one: every answer right, 0.2 for 1/5 included",
+        handedIn.status === 200 && handedIn.body.score === handedIn.body.totalMarks && handedIn.body.correctAnswers === 3,
+        JSON.stringify(handedIn.body).slice(0, 300)
+      );
+      const sittingRow = (await rows("test_attempts", `?id=eq.${paper.id}`))[0];
+      check("the attempt remembers the test it sat", sittingRow?.student_test_id === mayaTestId, JSON.stringify(sittingRow));
+
+      section("Publishing for everyone");
+      const published = await studentTests(maya.token, `/${mayaTestId}`, {
+        method: "PUT",
+        body: testDraft({ visibility: "public" })
+      });
+      check(
+        "she can publish it",
+        published.status === 200 && published.body.test.visibility === "public",
+        JSON.stringify(published.body).slice(0, 200)
+      );
+      const ottoChanged = await studentTests(otto.token, `/${mayaTestId}`, {
+        method: "PUT",
+        body: testDraft({ title: "Mine now" })
+      });
+      check("nobody else can change it", ottoChanged.status === 404, `got ${ottoChanged.status}`);
+      const community = await studentTests(otto.token, "/community");
+      check(
+        "it is listed for everyone, with who made it",
+        community.status === 200 &&
+          community.body.tests.some((test) => test.id === mayaTestId && test.author.id === maya.id),
+        JSON.stringify(community.body).slice(0, 300)
+      );
+      const guestSitting = await startSitting(mayaTestId, guestKey);
+      check(
+        "and a guest can sit it",
+        guestSitting.status === 200 && guestSitting.body.test.questions.length === 3,
+        `got ${guestSitting.status}`
+      );
+
+      section("Reporting a question");
+      const guestOpenReport = await call(`/api/tests/${guestSitting.body.test.id}/report`, {
+        method: "POST",
+        body: { studentKey: guestKey, position: 0, reason: "wrong-answer" }
+      });
+      check(
+        "a paper still open cannot report",
+        guestOpenReport.status === 409 && guestOpenReport.body.code === "not-submitted",
+        JSON.stringify(guestOpenReport.body)
+      );
+      const report = (studentKey, token, body) =>
+        call(`/api/tests/${paper.id}/report`, { method: "POST", token, body: { studentKey, ...body } });
+      const ottoReports = await report(otto.id, otto.token, { position: 0, reason: "wrong-answer" });
+      check("nobody can report from somebody else's paper", ottoReports.status === 403, `got ${ottoReports.status}`);
+      const badReason = await report(nico.id, nico.token, { position: 0, reason: "boring" });
+      check("a reason has to be one of the list", badReason.status === 400, `got ${badReason.status}`);
+      const nicoReports = await report(nico.id, nico.token, {
+        position: 0,
+        reason: "no-correct-answer",
+        details: "  4 is not there  "
+      });
+      check("the student who sat it can report a question", nicoReports.status === 201, JSON.stringify(nicoReports.body));
+      const reportAgain = await report(nico.id, nico.token, { position: 0, reason: "unclear" });
+      check("once", reportAgain.status === 409 && reportAgain.body.code === "already-reported", JSON.stringify(reportAgain.body));
+      const reopened = await call(`/api/tests/attempts/${paper.id}?studentKey=${nico.id}`, { token: nico.token });
+      check(
+        "and the result says which questions were reported",
+        reopened.status === 200 &&
+          JSON.stringify(reopened.body.reportedPositions) === "[0]" &&
+          reopened.body.reviews[0].position === 0,
+        JSON.stringify(reopened.body.reportedPositions)
+      );
+
+      section("The admin's reported questions");
+      check("the list needs the admin", (await call("/api/admin/reports")).status === 401);
+      const reported = await call("/api/admin/reports", { token: adminToken });
+      const theReport = reported.body.reports?.find((item) => item.studentTest?.id === mayaTestId);
+      check(
+        "it lists the question as served, why, and the test it came from",
+        reported.status === 200 &&
+          theReport?.prompt === "What is 2 + 2?" &&
+          theReport.correctAnswer === "4" &&
+          theReport.reason === "no-correct-answer" &&
+          theReport.details === "4 is not there" &&
+          theReport.studentTest.visibility === "public",
+        JSON.stringify(theReport)
+      );
+      const unpublished = await call(`/api/admin/reports/${theReport?.id}/unpublish`, {
+        method: "POST",
+        token: adminToken
+      });
+      check(
+        "the admin can take the test back to friends only",
+        unpublished.status === 200 && unpublished.body.studentTest.visibility === "friends",
+        JSON.stringify(unpublished.body)
+      );
+      check("after which a guest cannot sit it", (await startSitting(mayaTestId, randomUUID())).status === 404);
+      const resolved = await call(`/api/admin/reports/${theReport?.id}`, {
+        method: "PATCH",
+        token: adminToken,
+        body: { status: "resolved" }
+      });
+      check(
+        "and close the report",
+        resolved.status === 200 && resolved.body.report.status === "resolved" && resolved.body.report.closedAt !== null,
+        JSON.stringify(resolved.body)
+      );
+      const stillOpen = await call("/api/admin/reports", { token: adminToken });
+      check("which leaves the open list", !stillOpen.body.reports.some((item) => item.id === theReport?.id));
+
+      section("Deleting a test");
+      check(
+        "nobody else can delete it",
+        (await studentTests(otto.token, `/${mayaTestId}`, { method: "DELETE" })).status === 404
+      );
+      const deleted = await studentTests(maya.token, `/${mayaTestId}`, { method: "DELETE" });
+      check("its maker can", deleted.status === 200);
+      const nicoHistory = await call(`/api/tests/history?studentKey=${nico.id}`, { token: nico.token });
+      check(
+        "and Nico's sitting stays in his history",
+        nicoHistory.status === 200 && nicoHistory.body.attempts.some((attempt) => attempt.id === paper.id),
+        `got ${nicoHistory.status}`
+      );
+      check(
+        "with the report kept, pointing at no test",
+        (await rows("question_reports", `?id=eq.${theReport?.id}`))[0]?.student_test_id === null
+      );
+
+      section("Too many tests");
+      const filler = [];
+      for (let index = 0; index < 30; index += 1) {
+        const saved = await studentTests(otto.token, "", {
+          method: "POST",
+          body: testDraft({ title: `Test ${index}`, items: [ownChoice] })
+        });
+        filler.push(saved.status);
+      }
+      const oneMore = await studentTests(otto.token, "", { method: "POST", body: testDraft({ items: [ownChoice] }) });
+      check(
+        "an account keeps up to 30 tests",
+        filler.every((status) => status === 201) && oneMore.status === 409 && oneMore.body.code === "too-many-tests",
+        `${filler.join(",")} then ${oneMore.status}`
+      );
     }
 
     section("A bank bigger than one page of rows");

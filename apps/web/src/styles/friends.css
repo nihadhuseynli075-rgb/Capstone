@@ -269,3 +269,468 @@
     font-size: 0.78rem;
   }
 }
+
+/* -------------------------------------------------- friends page tabs
+   Friends, My tests and Everyone's tests (18 Nov 2026). A row of pills that
+   scrolls sideways on a narrow phone rather than wrapping under itself. */
+.friends-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 20px;
+}
+
+.friends-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.friends-tab {
+  flex: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.friends-tab:hover {
+  color: var(--text);
+}
+
+.friends-tab.active {
+  background: var(--brand);
+  color: var(--on-brand);
+}
+
+.friends-tab:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--brand));
+  outline-offset: 2px;
+}
+
+/* -------------------------------------------------- student-made tests */
+.student-tests-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.student-tests-head h2 {
+  margin: 0;
+}
+
+.student-test-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.student-test-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--level, var(--brand));
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.student-test-card-main {
+  min-width: 0;
+  flex: 1 1 260px;
+}
+
+.student-test-title {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.student-test-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.student-test-visibility {
+  border-radius: 999px;
+  padding: 0 8px;
+  font-weight: 600;
+}
+
+.student-test-visibility.visibility-public {
+  background: var(--brand-soft);
+  color: var(--brand-strong, var(--brand));
+}
+
+.student-test-visibility.visibility-friends {
+  background: var(--surface-alt);
+}
+
+.student-test-author {
+  margin-top: 10px;
+}
+
+.student-test-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.student-test-actions .friend-confirm {
+  max-width: 420px;
+}
+
+/* -------------------------------------------------- a friend's page */
+.friend-page-back {
+  width: fit-content;
+}
+
+.friend-page-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.friend-page-head h1 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.friend-page-handle {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+/* -------------------------------------------------- making a test */
+.maker-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px 16px;
+  margin-top: 12px;
+}
+
+.maker-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.maker-field > span:first-child,
+.maker-field > legend,
+.maker-options > legend,
+.maker-who > legend {
+  font-weight: 600;
+  padding: 0;
+}
+
+.maker-field-wide {
+  grid-column: 1 / -1;
+}
+
+.maker-field input[type="text"],
+.maker-field input[type="search"],
+.maker-field input[type="number"],
+.maker-field select,
+.maker-field textarea,
+.maker-option input[type="text"] {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--field-border, var(--border));
+  border-radius: var(--radius-sm, 8px);
+  padding: 9px 11px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.maker-field textarea {
+  resize: vertical;
+}
+
+.maker-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 16px;
+}
+
+.maker-field input.maker-minutes {
+  width: 90px;
+}
+
+.maker-who {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 18px 0 0;
+  border: 0;
+  padding: 0;
+}
+
+.maker-who > legend {
+  margin-bottom: 8px;
+}
+
+.maker-who-option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.maker-who-option.selected {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.maker-who-option > span {
+  display: grid;
+  gap: 2px;
+}
+
+.maker-items {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.maker-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  background: var(--surface);
+}
+
+.maker-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+
+.maker-item-tools {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.maker-item-tools .ghost-button,
+.maker-item-tools .danger-button {
+  padding: 6px 12px;
+  min-height: 0;
+}
+
+.maker-tag {
+  border-radius: 999px;
+  padding: 2px 10px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.maker-own {
+  display: grid;
+  gap: 14px;
+}
+
+.maker-preview {
+  border-radius: var(--radius-sm, 8px);
+  padding: 10px 12px;
+  background: var(--surface-alt);
+}
+
+.maker-preview-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.maker-preview-prompt {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.maker-preview-options {
+  margin: 8px 0 0;
+  padding-left: 22px;
+}
+
+.maker-options {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.maker-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.maker-option.right input[type="text"] {
+  border-color: var(--success);
+}
+
+.maker-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.maker-remove-option {
+  padding: 4px 10px;
+  min-height: 0;
+}
+
+.maker-options .link-button {
+  justify-self: start;
+}
+
+.maker-picture {
+  max-width: min(100%, 360px);
+  max-height: 260px;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--border);
+}
+
+.maker-picture-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.maker-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.maker-bank {
+  margin-top: 16px;
+  border: 1px solid var(--brand-edge, var(--border));
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  background: var(--bg);
+}
+
+.maker-bank-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.maker-bank-head h3 {
+  margin: 0;
+}
+
+.maker-bank-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.maker-bank-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface);
+}
+
+.maker-bank-text {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.maker-bank-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.maker-bank-text .maker-preview {
+  background: transparent;
+  padding: 0;
+}
+
+.maker-save {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 560px) {
+  .maker-option {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .maker-option .maker-remove-option {
+    grid-column: 3;
+  }
+
+  .maker-item-tools {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .maker-save .primary-button {
+    width: 100%;
+  }
+
+  .friend-page-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

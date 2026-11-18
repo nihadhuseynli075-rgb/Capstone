@@ -50,6 +50,9 @@ export default defineConfig(({ mode }) => {
           manualChunks(id) {
             if (id.includes("/node_modules/@supabase/")) return "supabase";
             if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) return "react";
+            // The maths typesetter (components/MathText.tsx) is the largest
+            // library here and changes least, so it is cached on its own.
+            if (id.includes("/node_modules/katex/")) return "katex";
             return undefined;
           }
         }

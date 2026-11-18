@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
-import type { PassageDraft, QuestionDraft } from "@grade9/shared";
+import type { PassageDraft, QuestionDraft, QuestionReport } from "@grade9/shared";
 import {
   decodeAnswerSet,
   markLimits,
@@ -36,7 +36,9 @@ import {
 } from "../repositories/passageRepository";
 import { createLoginLimiter } from "../services/loginLimiter";
 import { checkPictureLink, originOf, quotedLink, type PictureLinkProblem, type PictureLinkRules } from "../services/pictureLinks";
-import { photoTypeOf } from "../services/profilePhotos";
+import { imageUploadSchema, storeQuestionImage } from "../services/questionImages";
+import { getReport, listReports, setReportStatus, type StoredReport } from "../repositories/reportRepository";
+import { setVisibility, testsById } from "../repositories/studentTestRepository";
 import {
   importPassagesFromCsv,
   importQuestionsFromCsv,
@@ -623,23 +625,16 @@ adminRouter.post("/passages/import", requireAdmin, async (request, response, nex
   }
 });
 
-const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
-
 /**
  * Question diagram upload.
  *
  * With Supabase configured the file lands in the storage bucket and the public
  * URL is stored on the question. Without it, the image is echoed back as a data
- * URL so the flow is still testable locally.
+ * URL so the flow is still testable locally. The checks are shared with the
+ * pictures students put in their own tests (see questionImages).
  */
 adminRouter.post("/questions/image", requireAdmin, async (request, response, next) => {
-  const parsed = z
-    .object({
-      fileName: z.string().min(1),
-      contentType: z.string().regex(/^image\//, "Only image files are supported."),
-      dataBase64: z.string().min(1)
-    })
-    .safeParse(request.body);
+  const parsed = imageUploadSchema.safeParse(request.body);
 
   if (!parsed.success) {
     // The first problem, in words: "That upload is not valid." told the person
@@ -650,47 +645,88 @@ adminRouter.post("/questions/image", requireAdmin, async (request, response, nex
     });
   }
 
-  const buffer = Buffer.from(parsed.data.dataBase64, "base64");
-
-  if (buffer.byteLength === 0) {
-    return response.status(400).json({ message: "The image file was empty." });
+  try {
+    const stored = await storeQuestionImage(parsed.data);
+    if ("status" in stored) return response.status(stored.status).json({ message: stored.message });
+    response.json({ imageUrl: stored.imageUrl, storageMode });
+  } catch (error) {
+    next(error);
   }
+});
 
-  if (buffer.byteLength > MAX_IMAGE_BYTES) {
-    return response.status(413).json({ message: "Images must be 2 MB or smaller." });
+// ---------------------------------------------------------------------------
+// Reported questions (session of 18 Nov 2026)
+// ---------------------------------------------------------------------------
+
+const reportStatusSchema = z.enum(["open", "resolved", "dismissed"]);
+
+/** Reports as the dashboard shows them, with the title of the student-made test each came from. */
+async function forDashboard(reports: StoredReport[]): Promise<QuestionReport[]> {
+  const tests = await testsById([...new Set(reports.flatMap((report) => (report.studentTestId ? [report.studentTestId] : [])))]);
+  return reports.map((report) => {
+    const test = report.studentTestId ? tests.get(report.studentTestId) : undefined;
+    return {
+      id: report.id,
+      status: report.status,
+      reason: report.reason,
+      details: report.details,
+      createdAt: report.createdAt,
+      closedAt: report.closedAt,
+      subjectId: report.subjectId,
+      prompt: report.prompt,
+      options: report.options,
+      correctAnswer: report.correctAnswer,
+      imageUrl: report.imageUrl,
+      questionId: report.questionId,
+      studentTest: test ? { id: test.id, title: test.title, visibility: test.visibility } : null
+    };
+  });
+}
+
+/** The reported questions, open ones by default, newest first. */
+adminRouter.get("/reports", requireAdmin, async (request, response, next) => {
+  const status = request.query.status === "all" ? "all" : reportStatusSchema.catch("open").parse(request.query.status);
+  try {
+    response.json({ reports: await forDashboard(await listReports(status)) });
+  } catch (error) {
+    next(error);
   }
+});
 
-  // What the file really is, from its first bytes. The name and the type are
-  // whatever the browser said: a text file renamed .png was stored and kept,
-  // and showed as a broken picture. Only real PNG, JPG and WebP files are
-  // taken, and stored as what they are (see photoTypeOf).
-  const type = photoTypeOf(buffer);
+/** Closes a report as fixed or as nothing wrong, or opens it again. */
+adminRouter.patch("/reports/:id", requireAdmin, async (request, response, next) => {
+  const parsed = z.object({ status: reportStatusSchema }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: "Choose open, resolved or dismissed." });
 
-  if (!type) {
-    return response.status(400).json({
-      message: "That file is not a PNG, JPG or WebP picture, whatever its name says. Choose an image file."
-    });
+  try {
+    const report = await setReportStatus(request.params.id, parsed.data.status);
+    if (!report) return response.status(404).json({ code: "gone", message: "That report is no longer there." });
+    const [shown] = await forDashboard([report]);
+    response.json({ report: shown });
+  } catch (error) {
+    next(error);
   }
+});
 
+/**
+ * Takes a reported student-made test off the published list: it goes back to
+ * its maker's friends only, and the maker can fix it and publish it again.
+ */
+adminRouter.post("/reports/:id/unpublish", requireAdmin, async (request, response, next) => {
   if (!supabaseAdmin) {
-    return response.json({
-      imageUrl: `data:${type.contentType};base64,${parsed.data.dataBase64}`,
-      storageMode
-    });
+    return response.status(503).json({ message: "Tests made by students need the API connected to Supabase." });
   }
 
   try {
-    const path = `${randomUUID()}.${type.extension}`;
+    const report = await getReport(request.params.id);
+    if (!report) return response.status(404).json({ code: "gone", message: "That report is no longer there." });
+    if (!report.studentTestId) {
+      return response.status(400).json({ message: "That question is from the bank, not from a test a student made." });
+    }
 
-    const { error } = await supabaseAdmin.storage
-      .from(env.questionImageBucket)
-      .upload(path, buffer, { contentType: type.contentType, upsert: false });
-
-    if (error) throw new Error(error.message);
-
-    const { data } = supabaseAdmin.storage.from(env.questionImageBucket).getPublicUrl(path);
-
-    response.json({ imageUrl: data.publicUrl, storageMode });
+    const test = await setVisibility(report.studentTestId, "friends");
+    if (!test) return response.status(404).json({ code: "gone", message: "That test has been deleted by its maker." });
+    response.json({ studentTest: { id: test.id, title: test.title, visibility: test.visibility } });
   } catch (error) {
     next(error);
   }

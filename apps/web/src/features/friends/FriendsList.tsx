@@ -133,6 +133,10 @@ function FriendCard({
         </div>
       ) : (
         <div className="friend-card-foot">
+          {/* Their page: who they are and the tests they made (18 Nov 2026). */}
+          <a className="ghost-button" href={`#/friend?id=${encodeURIComponent(friend.id)}`}>
+            {fill(t("mytests.seeTests"), { name: friend.fullName })}
+          </a>
           <button
             type="button"
             className="danger-button"

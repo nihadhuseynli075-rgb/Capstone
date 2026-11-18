@@ -51,6 +51,8 @@ export interface StoredAttempt {
   timeTakenSeconds: number | null;
   createdAt: string;
   submittedAt: string | null;
+  /** The student-made test this attempt sat, or null for one drawn from the bank. */
+  studentTestId: string | null;
 }
 
 const memoryAttempts = new Map<string, StoredAttempt>();
@@ -76,6 +78,8 @@ export async function createAttempt(input: {
   studentKey: string;
   settings: TestSettings;
   questions: AttemptQuestion[];
+  /** Set when the attempt sits a student-made test (see studentTestRepository). */
+  studentTestId?: string | null;
 }): Promise<StoredAttempt> {
   // The custom difficulty is not a column (see TestSettings), so the memory
   // store does not keep it either: an attempt reads back the same from both.
@@ -92,7 +96,8 @@ export async function createAttempt(input: {
     percentage: null,
     timeTakenSeconds: null,
     createdAt: new Date().toISOString(),
-    submittedAt: null
+    submittedAt: null,
+    studentTestId: input.studentTestId ?? null
   };
 
   if (!supabaseAdmin) {
@@ -114,7 +119,10 @@ export async function createAttempt(input: {
       question_count: input.settings.questionCount,
       time_limit_minutes: input.settings.timeLimitMinutes,
       total_questions: input.questions.length,
-      total_marks: attempt.totalMarks
+      total_marks: attempt.totalMarks,
+      // Only written for a student-made test, so a database that has not run
+      // 0020 yet still starts every test drawn from the bank.
+      ...(attempt.studentTestId ? { student_test_id: attempt.studentTestId } : {})
     })
     .select("id, created_at")
     .single();
@@ -213,7 +221,8 @@ export async function getAttempt(id: string): Promise<StoredAttempt | null> {
     percentage: data.percentage === null || data.percentage === undefined ? null : Number(data.percentage),
     timeTakenSeconds: (data.time_taken_seconds ?? null) as number | null,
     createdAt: data.created_at as string,
-    submittedAt: (data.submitted_at ?? null) as string | null
+    submittedAt: (data.submitted_at ?? null) as string | null,
+    studentTestId: (data.student_test_id ?? null) as string | null
   };
 }
 

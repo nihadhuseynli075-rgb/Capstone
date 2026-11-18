@@ -650,6 +650,11 @@ export interface ExamQuestion {
 export interface MockTest {
   id: string;
   title: string;
+  /**
+   * Set when the paper is a sitting of a test a student made: its title is
+   * then the one its maker gave it, not one built from its subject and topics.
+   */
+  studentTestId?: string;
   settings: TestSettings;
   questions: ExamQuestion[];
   createdAt: string;
@@ -695,6 +700,12 @@ export interface QuestionReview {
   type?: QuestionType;
   /** The marker's feedback on a written answer. Absent for other types. */
   feedback?: string | null;
+  /**
+   * Where the question sat in the paper, which is how a student reports it
+   * (see QuestionReport). Optional so a review from an API that predates it
+   * still reads; such a review cannot be reported.
+   */
+  position?: number;
   /**
    * False when a written answer could not be marked, so the question was left
    * out of the score rather than counted as wrong. Absent means counted.
@@ -1196,4 +1207,136 @@ export function numbersMatch(answer: string, correctAnswer: string): boolean {
   return (
     given.value.numerator * expected.value.denominator === expected.value.numerator * given.value.denominator
   );
+}
+
+
+// ---------------------------------------------------------------------------
+// Student-made tests (18 Nov 2026)
+// ---------------------------------------------------------------------------
+
+/**
+ * The answer types a student may write. A written answer (open-ended) is
+ * left out: it is marked by a paid AI marker against a guide, which is the
+ * admin's to write and pay for.
+ */
+export type StudentQuestionType = "multiple-choice" | "multiple-select" | "short-answer";
+
+export const studentQuestionTypes: readonly StudentQuestionType[] = [
+  "multiple-choice",
+  "multiple-select",
+  "short-answer"
+];
+
+/** A question the student wrote themselves, answer and all. */
+export interface OwnQuestion {
+  kind: "own";
+  type: StudentQuestionType;
+  prompt: string;
+  /** Empty for a short answer. */
+  options: string[];
+  /**
+   * The right option's text, the right options as encodeAnswerSet writes
+   * them for a multiple-select question, or the short answer.
+   */
+  correctAnswer: string;
+  explanation: string;
+  imageUrl: string | null;
+}
+
+/**
+ * A question picked from the bank, by id. Its text and answer are read from
+ * the bank when the test is sat, so the student never sees the answer key by
+ * putting a test together.
+ */
+export interface BankPick {
+  kind: "bank";
+  questionId: string;
+}
+
+export type StudentTestItem = OwnQuestion | BankPick;
+
+/** Who may see and sit a test: the owner's friends, or everyone. */
+export type TestVisibility = "friends" | "public";
+
+/** A test as its owner edits it. */
+export interface StudentTestDraft {
+  title: string;
+  subjectId: string;
+  difficulty: Difficulty;
+  visibility: TestVisibility;
+  timeLimitMinutes: number | null;
+  items: StudentTestItem[];
+}
+
+export interface StudentTest extends StudentTestDraft {
+  id: string;
+  ownerId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A test as a list shows it: no questions, and who made it. */
+export interface StudentTestSummary {
+  id: string;
+  title: string;
+  subjectId: string;
+  difficulty: Difficulty;
+  visibility: TestVisibility;
+  timeLimitMinutes: number | null;
+  questionCount: number;
+  createdAt: string;
+  author: FriendPerson;
+}
+
+/**
+ * Limits on a student-made test, read by the API's checks and the builder's
+ * fields alike so the two never disagree.
+ */
+export const studentTestLimits = {
+  maxTitle: 120,
+  maxQuestions: 30,
+  /** Tests one account may keep. */
+  maxTests: 30,
+  maxPrompt: 2000,
+  minOptions: 2,
+  maxOptions: 6,
+  maxOption: 300,
+  maxAnswer: 300,
+  maxExplanation: 2000,
+  maxMinutes: 180
+} as const;
+
+/** Why a question was reported. */
+export type ReportReason = "wrong-answer" | "no-correct-answer" | "impossible" | "unclear" | "other";
+
+export const reportReasons: readonly ReportReason[] = [
+  "wrong-answer",
+  "no-correct-answer",
+  "impossible",
+  "unclear",
+  "other"
+];
+
+export const reportLimits = { maxDetails: 500 } as const;
+
+export type ReportStatus = "open" | "resolved" | "dismissed";
+
+/** A reported question, as the admin dashboard lists it. */
+export interface QuestionReport {
+  id: string;
+  status: ReportStatus;
+  reason: ReportReason;
+  details: string;
+  createdAt: string;
+  closedAt: string | null;
+  /** The question as it was served to the student who reported it. */
+  subjectId: string;
+  prompt: string;
+  options: string[];
+  correctAnswer: string;
+  imageUrl: string | null;
+  /** The bank question it came from, while that is still in the bank. */
+  questionId: string | null;
+  /** The student-made test it came from, while that test still exists. */
+  studentTest: { id: string; title: string; visibility: TestVisibility } | null;
 }

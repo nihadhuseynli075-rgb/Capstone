@@ -1,11 +1,13 @@
 import { Router, type Request } from "express";
 import { z } from "zod";
-import type { MockTest, QuestionType, Sector, TestResult, TestSettings } from "@grade9/shared";
+import type { MockTest, QuestionType, ReportReason, Sector, TestResult, TestSettings } from "@grade9/shared";
 import {
   customDifficulties,
   customLimits,
   fullMockId,
   fullMockSector,
+  reportLimits,
+  reportReasons,
   sectors,
   difficultyPresets,
   handInLimits,
@@ -34,8 +36,10 @@ import {
   canClaimFrom,
   canUseStudentKey,
   isAuthenticatedStudent,
-  isLiveStudent
+  isLiveStudent,
+  signedInAccount
 } from "../modules/student/studentAuth";
+import { createReport, reportedPositions } from "../repositories/reportRepository";
 
 export const testsRouter = Router();
 
@@ -727,9 +731,107 @@ testsRouter.get("/attempts/:attemptId", async (request, response, next) => {
         type: question.type as QuestionType,
         feedback: question.feedback,
         // Only a written answer the marker could not reach has neither.
-        counted: !(question.score === null && question.isCorrect === null)
-      }))
+        counted: !(question.score === null && question.isCorrect === null),
+        position: question.position
+      })),
+      // Questions of this paper the student has reported already, so the
+      // results page shows them as reported rather than offering it again.
+      // A database without migration 0020 has no reports to read: the result
+      // still opens, with none marked.
+      reportedPositions: await reportedPositions(attempt.id).catch((error: unknown) => {
+        console.error("[reports] Could not read this attempt's reports:", error);
+        return [] as number[];
+      })
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+const reportSchema = z.object({
+  studentKey: studentKeySchema,
+  position: z.number().int().min(0),
+  reason: z.enum(reportReasons as [ReportReason, ...ReportReason[]]),
+  details: z
+    .string()
+    .trim()
+    .max(reportLimits.maxDetails, `Keep it to ${reportLimits.maxDetails} characters.`)
+    .default("")
+});
+
+/**
+ * Reports one address may send in an hour, and one student. Anyone can sit a
+ * test, so anyone can report; these keep a script from filling the admin's
+ * list, while a student who finds several wrong questions in one paper is
+ * never stopped.
+ */
+const reportsPerAddress = createRateLimiter({ maxRequests: 120, windowMs: 60 * 60 * 1000 });
+const reportsPerStudent = createRateLimiter({ maxRequests: 30, windowMs: 60 * 60 * 1000 });
+
+/**
+ * Reports a question of a handed-in paper as wrong, impossible or unclear
+ * (session of 18 Nov 2026). Student-made tests are published without being
+ * checked first, so this is how a wrong one comes to the admin's notice; it
+ * works for bank questions too.
+ *
+ * Only the student who sat the paper, and only once it is handed in: by then
+ * they have seen the answer key, and a report from an open paper would be a
+ * way to have the answer read back. A copy of the question as served is kept
+ * with the report (see reportRepository).
+ */
+testsRouter.post("/:attemptId/report", async (request, response, next) => {
+  const parsed = reportSchema.safeParse(request.body);
+  if (!parsed.success) {
+    return response.status(400).json({ message: parsed.error.issues[0]?.message ?? "That report is not valid." });
+  }
+  const { studentKey, position, reason, details } = parsed.data;
+
+  const tooMany = reportsPerAddress.take(addressOf(request)) > 0 || reportsPerStudent.take(studentKey) > 0;
+  if (tooMany) {
+    return response.status(429).json({
+      code: "too-many-reports",
+      message: "You have sent a lot of reports in the last hour. Wait a while, then try again."
+    });
+  }
+
+  try {
+    if (!(await canUseStudentKey(request, studentKey, { writing: true }))) {
+      return response.status(401).json({ message: "Sign in again to continue." });
+    }
+
+    const attempt = await getAttempt(request.params.attemptId);
+    if (!attempt) return response.status(404).json({ message: "That test could not be found." });
+    if (attempt.studentKey !== studentKey) {
+      return response.status(403).json({ code: "not-yours", message: "That test belongs to a different student." });
+    }
+    if (!attempt.submittedAt) {
+      return response.status(409).json({ code: "not-submitted", message: "Hand the test in before reporting a question." });
+    }
+
+    const question = attempt.questions.find((item) => item.position === position);
+    if (!question) return response.status(404).json({ message: "That question is not on this test." });
+
+    const account = await signedInAccount(request);
+    const saved = await createReport({
+      reporterKey: studentKey,
+      reporterId: account?.id === studentKey ? account.id : null,
+      attemptId: attempt.id,
+      position,
+      questionId: question.questionId,
+      studentTestId: attempt.studentTestId,
+      subjectId: question.subjectId,
+      prompt: question.prompt,
+      options: question.options,
+      correctAnswer: question.correctAnswer,
+      imageUrl: question.imageUrl,
+      reason,
+      details
+    });
+
+    if (saved === "already-reported") {
+      return response.status(409).json({ code: "already-reported", message: "You have already reported this question." });
+    }
+    response.status(201).json({ reported: true });
   } catch (error) {
     next(error);
   }

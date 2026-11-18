@@ -110,7 +110,9 @@ function reviewOf(question: AttemptQuestion, studentAnswer: string) {
     correctAnswer: question.correctAnswer,
     marks: question.marks,
     explanation: question.explanation,
-    type: question.type as QuestionReview["type"]
+    type: question.type as QuestionReview["type"],
+    // How the student names the question when reporting it.
+    position: question.position
   };
 }
 

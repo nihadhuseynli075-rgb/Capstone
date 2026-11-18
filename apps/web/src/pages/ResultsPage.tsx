@@ -19,6 +19,7 @@ import {
 } from "../services/testsApi";
 import { MathText } from "../components/MathText";
 import { PromptText } from "../components/PromptText";
+import { ReportQuestion } from "../features/studentTests/ReportQuestion";
 
 /**
  * How soon a result that is still being saved is asked for again.
@@ -42,6 +43,8 @@ interface ResultView {
   topicBreakdown: TopicPerformance[];
   reviews: QuestionReview[];
   comparison: AttemptComparison | null;
+  /** Questions the student has reported already, by position. */
+  reportedPositions: number[];
 }
 
 /** Past attempts come back without a breakdown, so rebuild it from the reviews. */
@@ -174,7 +177,8 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
               timeTakenSeconds: attempt.timeTakenSeconds,
               topicBreakdown: breakdownFromReviews(attempt.reviews),
               reviews: attempt.reviews,
-              comparison: null
+              comparison: null,
+              reportedPositions: attempt.reportedPositions ?? []
             });
           })
           .catch((cause: unknown) => {
@@ -232,7 +236,10 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
       timeTakenSeconds: stored.timeTakenSeconds,
       topicBreakdown: stored.topicBreakdown,
       reviews: stored.reviews,
-      comparison: stored.comparison
+      comparison: stored.comparison,
+      // Just handed in: nothing reported yet. One reported since, from this
+      // page, says so in its own place until the page is opened again.
+      reportedPositions: []
     });
   }, [attemptId, ready, user?.id]);
 
@@ -470,6 +477,16 @@ export function ResultsPage({ attemptId }: { attemptId?: string }) {
                   <strong>{t("results.why")} </strong>
                   <MathText text={review.explanation} />
                 </p>
+              )}
+
+              {/* A review from an API older than reporting has no position, and cannot be reported. */}
+              {typeof review.position === "number" && (
+                <ReportQuestion
+                  attemptId={view.attemptId}
+                  position={review.position}
+                  number={number}
+                  alreadyReported={view.reportedPositions.includes(review.position)}
+                />
               )}
             </li>
           ))}

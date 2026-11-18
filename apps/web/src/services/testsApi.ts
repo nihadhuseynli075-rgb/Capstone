@@ -5,6 +5,7 @@ import type {
   DifficultyMode,
   MockTest,
   QuestionReview,
+  ReportReason,
   Sector,
   SiteLanguage,
   SubmittedAnswer,
@@ -164,6 +165,34 @@ export function generateMockTest(request: GenerateRequest): Promise<GenerateResp
   );
 }
 
+/**
+ * Starts a sitting of a test a student made (see the student-tests routes).
+ * Answered exactly as generating a test is, so the exam page takes it as it is.
+ */
+export function startStudentTest(testId: string, language: SiteLanguage): Promise<GenerateResponse> {
+  return asStudent(({ studentKey, token }) =>
+    apiRequest<GenerateResponse>(`/api/student-tests/${encodeURIComponent(testId)}/start`, {
+      method: "POST",
+      body: { studentKey, language },
+      token
+    })
+  );
+}
+
+/** Reports a question of a handed-in paper as wrong, impossible or unclear. */
+export function reportQuestion(
+  attemptId: string,
+  report: { position: number; reason: ReportReason; details: string }
+): Promise<{ reported: true }> {
+  return asStudent(({ studentKey, token }) =>
+    apiRequest<{ reported: true }>(`/api/tests/${encodeURIComponent(attemptId)}/report`, {
+      method: "POST",
+      body: { studentKey, ...report },
+      token
+    })
+  );
+}
+
 /** The API's refusal of a test that belongs to a different student. */
 export function isNotYours(cause: unknown): boolean {
   return cause instanceof ApiError && cause.status === 403 && cause.code === "not-yours";
@@ -278,6 +307,8 @@ export interface PastAttempt {
   timeTakenSeconds: number;
   submittedAt: string;
   reviews: QuestionReview[];
+  /** Positions of questions the student has reported (absent from an older API). */
+  reportedPositions?: number[];
 }
 
 export function fetchAttempt(attemptId: string): Promise<PastAttempt> {

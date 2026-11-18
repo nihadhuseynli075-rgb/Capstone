@@ -264,7 +264,9 @@ const SCHEMA = {
       time_taken_seconds: column("int"),
       created_at: column("timestamptz", { notNull: true, default: nowIso }),
       submitted_at: column("timestamptz"),
-      total_marks: column("int")
+      total_marks: column("int"),
+      // 0020. The student-made test the attempt sat, if any.
+      student_test_id: column("uuid")
     },
     checks: [
       [
@@ -319,6 +321,64 @@ const SCHEMA = {
     ],
     unique: [["friendships_user_id_friend_id_key", ["user_id", "friend_id"]]]
   },
+  // 0020. Tests students made: their own questions and bank picks, as one list.
+  student_tests: {
+    columns: {
+      id: column("uuid", { notNull: true, default: () => randomUUID() }),
+      owner_id: column("uuid", { notNull: true }),
+      title: column("text", { notNull: true }),
+      subject_id: column("text", { notNull: true }),
+      difficulty: column("text", { notNull: true, default: () => "medium" }),
+      visibility: column("text", { notNull: true, default: () => "friends" }),
+      time_limit_minutes: column("int"),
+      items: column("jsonb", { notNull: true, default: () => [] }),
+      created_at: column("timestamptz", { notNull: true, default: nowIso }),
+      updated_at: column("timestamptz", { notNull: true, default: nowIso })
+    },
+    checks: [
+      ["student_tests_title_check", (row) => String(row.title).trim() !== "" && String(row.title).length <= 120],
+      ["student_tests_difficulty_check", (row) => oneOf(["easy", "medium", "hard"])(row.difficulty)],
+      ["student_tests_visibility_check", (row) => oneOf(["friends", "public"])(row.visibility)],
+      [
+        "student_tests_time_limit_minutes_check",
+        (row) => row.time_limit_minutes === null || (row.time_limit_minutes >= 1 && row.time_limit_minutes <= 180)
+      ],
+      ["student_tests_items_check", (row) => Array.isArray(row.items)]
+    ],
+    beforeUpdate: (row) => ({ ...row, updated_at: nowIso() })
+  },
+  // 0020. Questions students reported, with a copy of the question as served.
+  question_reports: {
+    columns: {
+      id: column("uuid", { notNull: true, default: () => randomUUID() }),
+      reporter_key: column("text", { notNull: true }),
+      reporter_id: column("uuid"),
+      attempt_id: column("uuid"),
+      position: column("int", { notNull: true }),
+      question_id: column("uuid"),
+      student_test_id: column("uuid"),
+      subject_id: column("text", { notNull: true }),
+      prompt: column("text", { notNull: true }),
+      options: column("jsonb", { notNull: true, default: () => [] }),
+      correct_answer: column("text", { notNull: true, default: () => "" }),
+      image_url: column("text"),
+      reason: column("text", { notNull: true }),
+      details: column("text", { notNull: true, default: () => "" }),
+      status: column("text", { notNull: true, default: () => "open" }),
+      created_at: column("timestamptz", { notNull: true, default: nowIso }),
+      closed_at: column("timestamptz")
+    },
+    checks: [
+      ["question_reports_position_check", (row) => row.position >= 0],
+      [
+        "question_reports_reason_check",
+        (row) => oneOf(["wrong-answer", "no-correct-answer", "impossible", "unclear", "other"])(row.reason)
+      ],
+      ["question_reports_details_check", (row) => String(row.details).length <= 500],
+      ["question_reports_status_check", (row) => oneOf(["open", "resolved", "dismissed"])(row.status)]
+    ],
+    unique: [["question_reports_attempt_position_key", ["attempt_id", "position"]]]
+  },
   // 0019. Missing, as on the live database, until a test runs the migration
   // (POST /__standin/migrations { name: "0019" }), which creates both tables and
   // puts in the row that starts the age check, as running 0019 does. The real
@@ -353,7 +413,13 @@ const FOREIGN_KEYS = [
   { table: "attempt_questions", column: "question_id", references: "questions", onDelete: "set null" },
   { table: "questions", column: "passage_id", references: "passages", onDelete: "set null" },
   { table: "friendships", column: "user_id", references: "profiles", onDelete: "cascade" },
-  { table: "friendships", column: "friend_id", references: "profiles", onDelete: "cascade" }
+  { table: "friendships", column: "friend_id", references: "profiles", onDelete: "cascade" },
+  { table: "student_tests", column: "owner_id", references: "profiles", onDelete: "cascade" },
+  { table: "test_attempts", column: "student_test_id", references: "student_tests", onDelete: "set null" },
+  { table: "question_reports", column: "reporter_id", references: "profiles", onDelete: "set null" },
+  { table: "question_reports", column: "attempt_id", references: "test_attempts", onDelete: "set null" },
+  { table: "question_reports", column: "question_id", references: "questions", onDelete: "set null" },
+  { table: "question_reports", column: "student_test_id", references: "student_tests", onDelete: "set null" }
 ];
 
 // ---------------------------------------------------------------------------

@@ -8,6 +8,9 @@ import ReactDOM from "react-dom/client";
 import "@fontsource-variable/onest";
 // Inter for body text, as the redesign specifies; bundled for the same reason.
 import "@fontsource-variable/inter";
+// KaTeX's own sheet, for the maths in questions (components/MathText.tsx).
+// Loaded before ours so the page's rules can size it.
+import "katex/dist/katex.min.css";
 import "./styles/global.css";
 import "./styles/components.css";
 import "./styles/education-ui.css";

@@ -27,7 +27,9 @@ import { useHistoryClaim } from "../features/auth/useHistoryClaim";
 import { Avatar } from "../features/profile/Avatar";
 import { ProfileProvider, useProfile } from "../features/profile/ProfileContext";
 
+import { FriendPage } from "../pages/FriendPage";
 import { FriendsPage } from "../pages/FriendsPage";
+import { MakeTestPage } from "../pages/MakeTestPage";
 import { ExamPage } from "../pages/ExamPage";
 import { HistoryPage } from "../pages/HistoryPage";
 import { LandingPage } from "../pages/LandingPage";
@@ -265,6 +267,9 @@ function isKnownRoute(path: string): boolean {
       "/exam",
       "/history",
       "/friends",
+      // A friend's page, and making a test (18 Nov 2026).
+      "/friend",
+      "/make-test",
       "/profile",
       "/settings",
       "/admin",
@@ -292,6 +297,8 @@ function titleKeyFor(path: string, signedIn: boolean): TranslationKey {
     "/exam": "title.exam",
     "/history": "title.history",
     "/friends": "title.friends",
+    "/friend": "title.friendPage",
+    "/make-test": "title.makeTest",
     "/profile": "title.profile",
     // Only for the moment before it is sent on to "/profile".
     "/settings": "title.profile",
@@ -554,6 +561,14 @@ function Shell() {
 
     if (path === "/friends") {
       return <FriendsPage />;
+    }
+
+    if (path === "/friend") {
+      return <FriendPage />;
+    }
+
+    if (path === "/make-test") {
+      return <MakeTestPage />;
     }
 
     if (path === "/profile") {

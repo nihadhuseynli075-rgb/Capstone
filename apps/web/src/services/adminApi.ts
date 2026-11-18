@@ -1,4 +1,4 @@
-import type { BankQuestion, QuestionDraft } from "@grade9/shared";
+import type { BankQuestion, QuestionDraft, QuestionReport, ReportStatus } from "@grade9/shared";
 import { safeSessionStorage } from "../lib/safeStorage";
 import { apiRequest } from "./apiClient";
 
@@ -150,4 +150,30 @@ export async function uploadQuestionImage(file: File): Promise<string> {
   });
 
   return data.imageUrl;
+}
+
+// ---------------------------------------------------------------------------
+// Reported questions (session of 18 Nov 2026)
+// ---------------------------------------------------------------------------
+
+export function fetchReports(status: ReportStatus | "all"): Promise<{ reports: QuestionReport[] }> {
+  return apiRequest(`/api/admin/reports?status=${status}`, { token: getAdminToken() ?? undefined });
+}
+
+export function setReportStatus(id: string, status: ReportStatus): Promise<{ report: QuestionReport }> {
+  return apiRequest(`/api/admin/reports/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: { status },
+    token: getAdminToken() ?? undefined
+  });
+}
+
+/** Takes the student-made test a report came from back to its maker's friends only. */
+export function unpublishReportedTest(
+  id: string
+): Promise<{ studentTest: { id: string; title: string; visibility: "friends" | "public" } }> {
+  return apiRequest(`/api/admin/reports/${encodeURIComponent(id)}/unpublish`, {
+    method: "POST",
+    token: getAdminToken() ?? undefined
+  });
 }

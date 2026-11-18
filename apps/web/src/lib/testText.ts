@@ -80,6 +80,9 @@ export function difficultyLabel(t: Translate, mode: string): string {
 export function paperTitle(test: MockTest, t: Translate, tn: TranslateCount): string {
   const { subjectId, topicIds } = test.settings as { subjectId?: unknown; topicIds?: unknown };
 
+  // A test a student made has the title its maker gave it.
+  if (test.studentTestId && test.title) return test.title;
+
   // A full mock covers every topic of its subjects, so it has no topics to
   // name: its own name says what it is.
   if (typeof subjectId === "string" && fullMockSector(subjectId)) return subjectLabel(t, subjectId);
