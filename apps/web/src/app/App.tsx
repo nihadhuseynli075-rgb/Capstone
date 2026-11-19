@@ -14,6 +14,7 @@ import {
 } from "../components/icons";
 import { Wordmark } from "../lib/brand";
 import { applyTheme, useTheme } from "../lib/theme";
+import { contactAddress } from "../lib/legalText";
 import { LanguageScope, useLanguage, usePinnedLanguage, type TranslationKey } from "../lib/i18n";
 
 import { AgeCheckPage, TooYoungNotice } from "../features/auth/AgeCheck";
@@ -730,6 +731,12 @@ function Shell() {
 
             <a href="#/privacy">{t("legal.privacy")}</a>
             <a href="#/terms">{t("legal.terms")}</a>
+            {/* The address people can write to (legalText.ts); none shows until Nihad gives one. */}
+            {contactAddress && (
+              <a href={`mailto:${contactAddress}`} className="footer-contact">
+                {contactAddress}
+              </a>
+            )}
             {/* The way in for Nihad and other admins, after the legal links and
                 set small and faint so students pass over it. The page itself
                 is still behind the admin password. */}

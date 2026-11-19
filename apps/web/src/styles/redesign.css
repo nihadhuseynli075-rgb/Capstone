@@ -2550,8 +2550,15 @@ html[data-theme="dark"] body:has(.dashboard) {
   gap: 32px;
 }
 
-.legal-body .legal-updated {
+.legal-body .legal-updated,
+.legal-body .legal-operator {
   margin: 0;
+}
+
+/* A long address breaks rather than pushing the footer sideways on a phone. */
+.footer-links .footer-contact {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 /* Below the wide screen the ridge goes under the words. */

@@ -12,7 +12,8 @@ import type { Language } from "./i18n";
  * must not show draft markers, so the pages no longer say so on screen: this
  * comment is where it is recorded. There is no contact address yet either, so
  * every paragraph with "{contact}" in it is left out until `contactAddress`
- * below is set, and then shows with the address in its place. Anything said
+ * below is set, and then shows with the address in its place (and in the
+ * footer). Likewise `whoRunsExampeak`: no line until Nihad writes one. Anything said
  * about the data must stay true to the code: what
  * is stored (Supabase tables and photo storage), what a friend sees
  * (FriendPerson and FriendProgress in packages/shared), what the AI marker is
@@ -41,6 +42,26 @@ export interface LegalDocument {
  * three languages.
  */
 export const contactAddress: string | null = null;
+
+/**
+ * One line, in Nihad's own words, on who runs Exampeak, or empty while there
+ * is none. Shown under "Last updated" on the privacy and terms pages.
+ *
+ * One entry per language he writes it in, e.g. `{ en: "…", az: "…" }`. A page
+ * in a language with no entry shows the English one (marked as English for
+ * screen readers), or any other there is; with none at all, nothing shows.
+ */
+export const whoRunsExampeak: Partial<Record<Language, string>> = {};
+
+/** The "who runs Exampeak" line for a page in `language`, or null while there is none. */
+export function whoRunsLine(language: Language): { text: string; language: Language } | null {
+  const order = [language, "en", ...(Object.keys(whoRunsExampeak) as Language[])] as Language[];
+  for (const candidate of order) {
+    const text = whoRunsExampeak[candidate]?.trim();
+    if (text) return { text, language: candidate };
+  }
+  return null;
+}
 
 interface LegalTexts {
   updated: string;

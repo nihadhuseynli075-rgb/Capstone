@@ -1,7 +1,7 @@
 import { MIN_ACCOUNT_AGE, latestAccountBirthYear } from "@grade9/shared";
 import { PageBand } from "../components/PageBand";
 import { fill, useLanguage } from "../lib/i18n";
-import { contactAddress, legalTexts } from "../lib/legalText";
+import { contactAddress, legalTexts, whoRunsLine } from "../lib/legalText";
 
 /**
  * The privacy page and the terms of use, in the site language.
@@ -20,6 +20,8 @@ export function LegalPage({ kind }: { kind: "privacy" | "terms" }) {
   const { t, language } = useLanguage();
   const texts = legalTexts[language];
   const page = texts[kind];
+  // Who runs the site, in Nihad's words (legalText.ts); left out until he gives it.
+  const whoRuns = whoRunsLine(language);
 
   /**
    * A paragraph, with the age rule's figures put in, and the contact address
@@ -59,6 +61,11 @@ export function LegalPage({ kind }: { kind: "privacy" | "terms" }) {
 
       <div className="stack narrow legal-body">
         <p className="legal-updated">{texts.updated}</p>
+        {whoRuns && (
+          <p className="legal-operator" lang={whoRuns.language === language ? undefined : whoRuns.language}>
+            {whoRuns.text}
+          </p>
+        )}
 
         {sections.map((section) => (
           <section key={section.heading} className="panel legal-section">
